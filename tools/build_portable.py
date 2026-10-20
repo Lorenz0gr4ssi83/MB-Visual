@@ -34,6 +34,8 @@ def main() -> int:
         "--collect-all", "extract_msg", "--collect-all", "html2docx", "--collect-submodules", "pptx",
         "--collect-data", "pptx", "--collect-data", "docx",
         "--hidden-import", "clr", "--hidden-import", "asn1crypto", "--hidden-import", "mbvisual.pdftools", "--collect-submodules", "pypdf",
+        # editor PDF (PyMuPDF) e conversione PDF -> Word
+        "--hidden-import", "mbvisual.pdfedit", "--collect-all", "pymupdf", "--collect-submodules", "pdf2docx", "--collect-data", "pdf2docx",
         "--exclude-module", "tkinter", "--exclude-module", "matplotlib",
     ]
     print(" ".join(args))

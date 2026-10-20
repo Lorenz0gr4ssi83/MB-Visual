@@ -145,6 +145,12 @@ main { position: relative; min-height: 0; overflow: hidden; }
 .tree .node:hover { background: var(--accent-soft); }
 .tree .node.sel { background: var(--accent); color: var(--accent-fg); }
 .tree .node input { margin: 0; accent-color: var(--accent); }
+/* scheda BIM: una sezione apribile per ogni gruppo di informazioni */
+.bim details { border-top: 1px solid var(--line); padding: 4px 0; }
+.bim summary { cursor: pointer; font-weight: 600; padding: 3px 0; color: var(--fg); }
+.bim summary:hover { color: var(--accent); }
+.bim dl.kv { margin: 4px 0 6px; }
+.bim dd { word-break: break-word; user-select: text; }
 .kv { display: grid; grid-template-columns: minmax(80px, max-content) 1fr; gap: 5px 16px; align-content: start; margin: 0; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; overflow-wrap: anywhere; }

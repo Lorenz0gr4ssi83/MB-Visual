@@ -75,6 +75,7 @@ async function loadIfc(ctx, bytes, ld, info) {
   let ifc = info.ifc;
   if (!ifc) {
     const WEBIFC = await import("/vendor/web-ifc/web-ifc-api.js");
+    info.WEBIFC = WEBIFC;
     ifc = new WEBIFC.IfcAPI();
     ifc.SetWasmPath("/vendor/web-ifc/", true);
     await ifc.Init();
@@ -130,10 +131,11 @@ async function loadIfc(ctx, bytes, ld, info) {
   });
   // la matrice di coordinamento e' nota solo dopo aver letto la geometria del primo modello
   if (!info.coordMatrix) { try { info.coordMatrix = Array.from(ifc.GetCoordinationMatrix(modelID)); } catch { /* */ } }
-  // nomi leggibili degli elementi (per modelli non enormi)
-  const nameOf = id => { if (count > 5000) return "#" + id; try { const l = ifc.GetLine(modelID, id, false); return (l.Name?.value || l.ObjectType?.value || "") + "  #" + id; } catch { return "#" + id; } };
+  // nomi leggibili degli elementi: letti solo quando la voce dell'albero viene mostrata
+  const nameOf = id => { try { const l = ifc.GetLine(modelID, id, false); return (l.Name?.value || l.ObjectType?.value || "") + "  #" + id; } catch { return "#" + id; } };
+  const leaf = g => { let n; return { get name() { return (n ??= nameOf(g.userData.expressID)); }, obj: g, children: [] }; };
   const tree = [...byType.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([t, list]) => ({
-    name: `${t} (${list.length})`, obj: null, objs: list, children: list.length <= 600 ? list.map(g => ({ name: nameOf(g.userData.expressID), obj: g, children: [] })) : [],
+    name: `${t} (${list.length})`, obj: null, objs: list, children: list.map(leaf),
   }));
   info.ifc = ifc;
   if (info.modelID === undefined) info.modelID = modelID;
@@ -313,99 +315,138 @@ export async function mount(ctx) {
     renderer.render(scene, camera);
   })();
 
-  // ---- albero
+  // ---- selezione (una o piu' parti), collegata all'albero nei due sensi
   const selColor = new THREE.Color(0xff9f1a);
-  let selected = null;
+  let selection = [];
   const saved = new Map();
-  function highlight(obj) {
+  let propsToken = 0;
+  function select(list, { scroll = true } = {}) {
     for (const [m, mat] of saved) m.material = mat;
     saved.clear();
-    selected = obj;
-    if (!obj) { props.innerHTML = ""; return; }
-    obj.traverse(m => {
-      if (!m.isMesh) return;
+    selection = [...new Set(list.filter(Boolean))];
+    for (const obj of selection) obj.traverse(m => {
+      if (!m.isMesh || saved.has(m)) return;
       saved.set(m, m.material);
       const mk = mt => { const c = mt.clone(); c.emissive = selColor; c.emissiveIntensity = 0.55; return c; };
       m.material = Array.isArray(m.material) ? m.material.map(mk) : mk(m.material);
     });
-    showProps(obj);
+    markTree(scroll);
+    showProps();
   }
+  const toggleIn = (list, objs) => (objs.every(o => list.includes(o)) ? list.filter(o => !objs.includes(o)) : [...list, ...objs]);
 
-  async function showProps(obj) {
+  async function showProps() {
+    const token = ++propsToken;
     props.innerHTML = "";
-    const b = bounds([obj]), s = b.getSize(new THREE.Vector3());
+    const objs = selection;
+    if (!objs.length) return;
+    const one = objs.length === 1 ? objs[0] : null;
+    const b = bounds(objs), s = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
     const dl = el("dl", { class: "kv stack" });
     const add = (k, v) => v !== undefined && v !== null && v !== "" && dl.append(el("dt", {}, k), el("dd", {}, String(v)));
-    add("Nome", obj.name);
-    add("Dimensioni", `${fmt(s.x)} × ${fmt(s.y)} × ${fmt(s.z)}`);
+    if (one) add("Nome", one.name);
+    else add("Elementi selezionati", objs.length.toLocaleString("it-IT"));
+    add("Ingombro (X × Y × Z)", `${fmt(s.x)} × ${fmt(s.y)} × ${fmt(s.z)}`);
+    add("Centro", `${fmt(c.x)} ; ${fmt(c.y)} ; ${fmt(c.z)}`);
     let tri = 0;
-    obj.traverse(m => { if (m.isMesh && m.geometry) tri += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
+    for (const o of objs) o.traverse(m => { if (m.isMesh && m.geometry) tri += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
     add("Triangoli", Math.round(tri).toLocaleString("it-IT"));
-    const cpick = el("input", { type: "color", value: "#b8bcc0", title: "Colore della parte" });
+    if (one) {
+      const path = [];
+      for (let p = one.parent; p && p !== model; p = p.parent) if (p.name) path.unshift(p.name);
+      add("Percorso nell'assieme", path.join(" › "));
+      for (const [k, v] of Object.entries(one.userData || {})) if (!["expressID", "modelID"].includes(k) && (typeof v !== "object" || v === null)) add(k, v);
+      if (one.userData && typeof one.userData === "object") for (const [k, v] of Object.entries(one.userData)) if (v && typeof v === "object" && !Array.isArray(v)) for (const [k2, v2] of Object.entries(v)) if (typeof v2 !== "object") add(`${k} · ${k2}`, v2);
+    }
+    const cpick = el("input", { type: "color", value: "#b8bcc0", title: "Colore della selezione" });
     cpick.addEventListener("input", () => {
       for (const [m] of saved) { const mk = () => new THREE.MeshStandardMaterial({ color: cpick.value, metalness: 0.15, roughness: 0.55, side: THREE.DoubleSide }); saved.set(m, Array.isArray(m.material) ? m.material.map(mk) : mk()); }
       ctx.setDirty(true);
     });
     props.append(el("div", { style: { display: "flex", gap: "6px", alignItems: "center", marginBottom: "6px", flexWrap: "wrap" } },
       el("b", {}, "Selezione"), el("span", { style: { flex: 1 } }), cpick,
-      el("button", { class: "btn", onclick: () => { obj.visible = false; highlight(null); refreshTree(); } }, "Nascondi"),
-      el("button", { class: "btn", onclick: () => isolate(obj) }, "Isola")), dl);
-    const id = obj.userData.expressID;
-    if (info.ifc && id !== undefined) {
+      el("button", { class: "btn", onclick: () => { objs.forEach(o => (o.visible = false)); select([]); refreshTree(); } }, "Nascondi"),
+      el("button", { class: "btn", onclick: () => isolate(objs) }, "Isola"),
+      el("button", { class: "btn", onclick: () => zoomTo(objs) }, "Inquadra"),
+      el("button", { class: "btn", onclick: () => select([]) }, "Deseleziona")), dl);
+    const id = one?.userData.expressID;
+    if (one && info.ifc && id !== undefined) {
+      const wait = el("p", { class: "note" }, "Lettura delle informazioni BIM...");
+      props.append(wait);
       try {
-        const line = info.ifc.GetLine(obj.userData.modelID ?? info.modelID, id, false);
-        add("Classe IFC", obj.name);
-        add("Nome IFC", line.Name?.value);
-        add("GlobalId", line.GlobalId?.value);
-        add("Descrizione", line.Description?.value);
-        add("Tag", line.Tag?.value);
-        const psets = await info.ifc.properties.getPropertySets(obj.userData.modelID ?? info.modelID, id, true);
-        for (const ps of psets) {
-          const name = ps.Name?.value || "Proprieta'";
-          const items = ps.HasProperties || ps.Quantities || [];
-          for (const p of items) {
-            const v = p.NominalValue?.value ?? p.LengthValue?.value ?? p.AreaValue?.value ?? p.VolumeValue?.value ?? p.CountValue?.value ?? p.WeightValue?.value;
-            if (v !== undefined) add(`${name} · ${p.Name?.value}`, typeof v === "number" ? fmt(v) : v);
-          }
-        }
-      } catch (e) { add("Proprieta'", "non disponibili: " + e.message); }
+        const { bimSheet } = await import("../bim.js");
+        const sheet = await bimSheet(info, one.userData.modelID ?? info.modelID, id, fmt);
+        if (token === propsToken) wait.replaceWith(sheet);
+      } catch (e) { if (token === propsToken) wait.textContent = "Proprieta' BIM non disponibili: " + e.message; }
     }
   }
 
-  function isolate(obj) {
+  function isolate(objs) {
     model.traverse(o => { if (o.isMesh || o.isPoints || o.isLine) o.visible = false; });
-    obj.traverse(o => { o.visible = true; });
-    let p = obj.parent;
-    while (p) { p.visible = true; p = p.parent; }
+    for (const obj of objs) {
+      obj.traverse(o => { o.visible = true; });
+      for (let p = obj.parent; p; p = p.parent) p.visible = true;
+    }
     refreshTree();
   }
   function showAll() { model.traverse(o => (o.visible = true)); refreshTree(); }
 
+  // ---- albero: le righe si creano quando un ramo viene aperto (anche decine di migliaia di elementi BIM)
   const rows = [];
-  function renderTree(items, depth, parentBox) {
+  const itemOf = new Map(); // oggetto 3D -> voce dell'albero
+  function indexTree(items, parent) {
+    for (const it of items) { it.parent = parent; if (it.obj) itemOf.set(it.obj, it); indexTree(it.children, it); }
+  }
+  function drawItems(items, depth, box) {
     for (const it of items) {
       const cb = el("input", { type: "checkbox", checked: true });
       const node = el("div", { class: "node", style: { paddingLeft: 8 + depth * 14 + "px" } });
-      const kids = el("div", { hidden: (depth > 0 || it.children.length > 12) && it.children.length > 0 ? true : undefined });
-      const twist = el("span", { style: { width: "12px", display: "inline-block", cursor: "pointer", color: "var(--muted)" } }, it.children.length ? (kids.hidden ? "▸" : "▾") : "");
-      twist.addEventListener("click", e => { e.stopPropagation(); kids.hidden = !kids.hidden; twist.textContent = kids.hidden ? "▸" : "▾"; });
-      const label = el("span", { style: { overflow: "hidden", textOverflow: "ellipsis" } }, it.name);
-      node.append(twist, cb, label);
+      const kids = el("div", { hidden: true });
+      const twist = el("span", { style: { width: "12px", display: "inline-block", cursor: "pointer", color: "var(--muted)" } }, it.children.length ? "▸" : "");
+      Object.assign(it, { depth, node, kids, twist, drawn: false });
+      twist.addEventListener("click", e => { e.stopPropagation(); expand(it, kids.hidden); });
+      node.append(twist, cb, el("span", { style: { overflow: "hidden", textOverflow: "ellipsis" } }, it.name));
       const objs = it.obj ? [it.obj] : it.objs || [];
       cb.addEventListener("change", () => { objs.forEach(o => (o.visible = cb.checked)); });
-      node.addEventListener("click", e => { if (e.target === cb) return; rows.forEach(r => r.node.classList.remove("sel")); node.classList.add("sel"); if (it.obj) highlight(it.obj); });
-      node.addEventListener("dblclick", () => { if (it.obj) zoomTo(it.obj); });
+      node.addEventListener("click", e => {
+        if (e.target === cb || e.target === twist) return;
+        if (objs.length > 5000) return toast("Troppi elementi da selezionare insieme: apri il gruppo e scegli gli elementi", true);
+        const multi = e.ctrlKey || e.metaKey;
+        select(multi ? toggleIn(selection, objs) : objs, { scroll: false });
+        if (!it.obj && objs.length) node.classList.add("sel"); // classe BIM: selezionati tutti i suoi elementi
+      });
+      node.addEventListener("dblclick", () => { if (objs.length) zoomTo(objs); });
       rows.push({ node, cb, objs });
-      parentBox.append(node, kids);
-      if (it.children.length) renderTree(it.children, depth + 1, kids);
+      box.append(node, kids);
+      if (depth === 0 && it.children.length && it.children.length <= 12) expand(it, true);
     }
   }
+  function expand(it, open) {
+    if (!it.children.length || !it.kids) return;
+    if (open && !it.drawn) { it.drawn = true; drawItems(it.children, it.depth + 1, it.kids); refreshTree(); markTree(false); }
+    it.kids.hidden = !open;
+    it.twist.textContent = open ? "▾" : "▸";
+  }
+  function itemFor(obj) { let o = obj, it; while (o && !(it = itemOf.get(o))) o = o.parent; return it; }
+  // evidenzia nell'albero gli elementi selezionati sul modello, aprendo i rami che li contengono
+  function markTree(scroll) {
+    for (const r of rows) r.node.classList.remove("sel");
+    let last = null;
+    for (const obj of selection) {
+      const it = itemFor(obj);
+      if (!it) continue;
+      if (scroll && selection.length <= 50) { const chain = []; for (let p = it.parent; p; p = p.parent) chain.unshift(p); chain.forEach(p => expand(p, true)); }
+      if (it.node) { it.node.classList.add("sel"); last = it.node; }
+    }
+    if (scroll && last) last.scrollIntoView({ block: "nearest" });
+  }
   function refreshTree() { for (const r of rows) r.cb.checked = r.objs.some(o => o.visible); }
+  function addToTree(items) { indexTree(items, null); drawItems(items, 0, treeBox); }
   treeBox.append(el("div", { style: { padding: "4px 10px 6px", display: "flex", gap: "6px" } }, el("b", {}, OCCT[ctx.ext] ? "Parti" : ctx.ext === "ifc" ? "Classi BIM" : "Oggetti"), el("span", { style: { flex: 1 } }), el("button", { class: "btn", onclick: showAll }, "Mostra tutto")));
-  renderTree(loaded.tree, 0, treeBox);
+  addToTree(loaded.tree);
 
-  function zoomTo(obj) {
-    const b = bounds([obj]);
+  function zoomTo(objs) {
+    const b = bounds(Array.isArray(objs) ? objs : [objs]);
     if (b.isEmpty()) return;
     const c = b.getCenter(new THREE.Vector3()), size = b.getSize(new THREE.Vector3()).length() || 1;
     const dir = camera.position.clone().sub(controls.target).normalize();
@@ -418,10 +459,28 @@ export async function mount(ctx) {
   let measure = false, mpts = [];
   const mGroup = new THREE.Group();
   scene.add(mGroup);
+  // elemento selezionabile: per i modelli BIM l'intero elemento IFC, altrimenti la parte colpita
+  const unitOf = o => { while (o.parent && o.parent !== model && o.userData.expressID !== undefined && o.userData.expressID === o.parent.userData.expressID) o = o.parent; return o; };
+  const band = el("div", { hidden: true, style: { position: "absolute", border: "1px dashed #ff9f1a", background: "rgba(255,159,26,.12)", pointerEvents: "none" } });
+  host.append(band);
   let down = null;
-  renderer.domElement.addEventListener("pointerdown", e => (down = [e.clientX, e.clientY]));
+  renderer.domElement.addEventListener("pointerdown", e => (down = [e.clientX, e.clientY, e.button === 0 && effectiveNav() === "select" && !measure]));
+  renderer.domElement.addEventListener("pointermove", e => {
+    if (!down || !down[2] || !(e.buttons & 1)) return;
+    const r = host.getBoundingClientRect();
+    if (Math.hypot(e.clientX - down[0], e.clientY - down[1]) <= 4) return;
+    Object.assign(band.style, { left: Math.min(down[0], e.clientX) - r.left + "px", top: Math.min(down[1], e.clientY) - r.top + "px", width: Math.abs(e.clientX - down[0]) + "px", height: Math.abs(e.clientY - down[1]) + "px" });
+    band.hidden = false;
+  });
   renderer.domElement.addEventListener("pointerup", e => {
-    if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4) return;
+    if (!down) return;
+    const [x0, y0, boxing] = down;
+    down = null;
+    band.hidden = true;
+    const moved = Math.hypot(e.clientX - x0, e.clientY - y0) > 4;
+    const multi = e.ctrlKey || e.metaKey;
+    if (boxing && moved) return boxSelect(x0, y0, e.clientX, e.clientY, multi);
+    if (moved || e.button !== 0) return;
     const r = renderer.domElement.getBoundingClientRect();
     ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
     const hits = ray.intersectObject(model, true).filter(h => h.object.visible && isVisibleChain(h.object) && (!clipPlane || clipPlane.distanceToPoint(h.point) >= 0));
@@ -446,10 +505,27 @@ export async function mount(ctx) {
       }
       return;
     }
-    let target = hit ? hit.object : null;
-    if (target && info.ifc) while (target.parent && target.parent !== model && target.userData.expressID === target.parent.userData.expressID) target = target.parent;
-    highlight(target);
+    const target = hit ? unitOf(hit.object) : null;
+    if (multi) { if (target) select(toggleIn(selection, [target])); }
+    else select(target ? [target] : []);
   });
+  // selezione a riquadro: gli elementi visibili con il centro dentro il riquadro
+  function boxSelect(x0, y0, x1, y1, multi) {
+    const r = renderer.domElement.getBoundingClientRect();
+    const nx = x => ((x - r.left) / r.width) * 2 - 1, ny = y => -((y - r.top) / r.height) * 2 + 1;
+    const [ax, bx] = [nx(Math.min(x0, x1)), nx(Math.max(x0, x1))], [by, ay] = [ny(Math.max(y0, y1)), ny(Math.min(y0, y1))];
+    const found = new Set(), v = new THREE.Vector3(), bb = new THREE.Box3();
+    model.traverse(m => {
+      if (!(m.isMesh || m.isPoints) || !isVisibleChain(m)) return;
+      bb.setFromObject(m).getCenter(v);
+      if (clipPlane && clipPlane.distanceToPoint(v) < 0) return;
+      v.project(camera);
+      if (v.z < 1 && v.x >= ax && v.x <= bx && v.y >= by && v.y <= ay) found.add(unitOf(m));
+    });
+    const list = [...found];
+    select(multi ? [...selection, ...list] : list);
+    ctx.status(`${selection.length.toLocaleString("it-IT")} elementi selezionati`);
+  }
   const isVisibleChain = o => { while (o) { if (!o.visible) return false; o = o.parent; } return true; };
   const distLabel = el("div", { hidden: true, style: { position: "absolute", left: "12px", bottom: "12px", padding: "6px 12px", background: "rgba(0,0,0,.75)", color: "#fff", borderRadius: "6px", fontWeight: 600 } });
   host.append(distLabel);
@@ -485,30 +561,42 @@ export async function mount(ctx) {
     el("option", { value: "right" }, "Destra"), el("option", { value: "left" }, "Sinistra"), el("option", { value: "back" }, "Posteriore"));
   const exp = el("select", { id: "exp-" + ctx.tab.name, title: "Esporta", onchange: e => { const v = e.target.value; e.target.value = ""; if (v) doExport(v); } },
     el("option", { value: "" }, "Esporta..."), el("option", { value: "glb" }, "GLB (glTF binario)"), el("option", { value: "stl" }, "STL"), el("option", { value: "obj" }, "OBJ"), el("option", { value: "png" }, "Immagine PNG"));
-  // ---- modalita' del tasto sinistro: Ruota / Sposta (Maiusc tenuto premuto inverte; Ctrl non ha effetto)
+  // ---- modalita' del tasto sinistro: Ruota / Sposta / Seleziona (Maiusc tenuto premuto: Ruota e Sposta si scambiano,
+  // in Seleziona si ruota; Ctrl non cambia la navigazione ma aggiunge o toglie elementi dalla selezione)
   let navMode = "rotate";
   const rotBtn = el("button", { type: "button", title: "Tasto sinistro ruota il modello" }, "Ruota");
   const panBtn = el("button", { type: "button", title: "Tasto sinistro sposta il modello" }, "Sposta");
-  const seg = el("span", { class: "seg", title: "Tieni premuto Maiusc per passare temporaneamente all'altra modalita'" }, rotBtn, panBtn);
+  const selBtn = el("button", { type: "button", title: "Tasto sinistro seleziona: clic su un elemento o trascina un riquadro (Ctrl aggiunge o toglie)" }, "Seleziona");
+  const seg = el("span", { class: "seg", title: "Tieni premuto Maiusc per passare temporaneamente a un'altra modalita'" }, rotBtn, panBtn, selBtn);
   let shiftDown = false;
-  const paintSeg = () => {
-    const eff = shiftDown ? (navMode === "rotate" ? "pan" : "rotate") : navMode;
+  function effectiveNav() { return shiftDown ? (navMode === "rotate" ? "pan" : "rotate") : navMode; }
+  const applyNav = () => {
+    const eff = effectiveNav();
     rotBtn.classList.toggle("on", eff === "rotate");
     panBtn.classList.toggle("on", eff === "pan");
+    selBtn.classList.toggle("on", eff === "select");
+    // OrbitControls con Maiusc premuto scambia da se' Ruota e Sposta: il pulsante si imposta perche' il risultato sia quello mostrato
+    controls.mouseButtons.LEFT = navMode === "rotate" ? THREE.MOUSE.ROTATE : navMode === "pan" || shiftDown ? THREE.MOUSE.PAN : -1;
+    renderer.domElement.style.cursor = eff === "select" ? "crosshair" : eff === "pan" ? "move" : "grab";
   };
-  const setNav = m => { navMode = m; controls.mouseButtons.LEFT = m === "rotate" ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN; paintSeg(); };
+  const setNav = m => { navMode = m; applyNav(); };
   rotBtn.addEventListener("click", () => setNav("rotate"));
   panBtn.addEventListener("click", () => setNav("pan"));
+  selBtn.addEventListener("click", () => setNav("select"));
   setNav("rotate");
   // OrbitControls inverte la modalita' con Ctrl, Meta o Maiusc: lasciamo solo Maiusc
   host.addEventListener("pointerdown", e => {
     if (e.ctrlKey) Object.defineProperty(e, "ctrlKey", { value: false });
     if (e.metaKey) Object.defineProperty(e, "metaKey", { value: false });
   }, true);
-  const onKey = e => { if (e.key === "Shift" && shiftDown !== (e.type === "keydown")) { shiftDown = e.type === "keydown"; paintSeg(); } };
+  const onKey = e => {
+    if (e.key === "Shift" && shiftDown !== (e.type === "keydown")) { shiftDown = e.type === "keydown"; applyNav(); }
+    if (e.type === "keydown" && e.key === "Escape" && !ctx.tab.view.hidden && selection.length) select([]);
+  };
+  const onBlur = () => { shiftDown = false; applyNav(); };
   window.addEventListener("keydown", onKey);
   window.addEventListener("keyup", onKey);
-  window.addEventListener("blur", () => { shiftDown = false; paintSeg(); });
+  window.addEventListener("blur", onBlur);
 
   // ---- modello federato: aggiunta di altri file nella stessa scena (stesse coordinate per i file IFC)
   const addBtn = button("Aggiungi modello", "plus", async () => {
@@ -520,7 +608,7 @@ export async function mount(ctx) {
         const part = await loadAny({ path: p, name, ext: name.split(".").pop().toLowerCase() }, { set() {} }, info);
         model.add(part.root);
         model.updateMatrixWorld(true);
-        renderTree([{ name, obj: part.root, children: part.tree }], 0, treeBox);
+        addToTree([{ name, obj: part.root, children: part.tree }]);
         fit();
         ctx.status(`Modello federato · aggiunto ${name}`);
       } catch (e) { toast(`${name}: ${e.message}`, true, 6000); }
@@ -528,7 +616,7 @@ export async function mount(ctx) {
   }, { title: "Carica un altro modello (IFC, STEP, STL...) nella stessa scena" });
 
   ctx.tb.append(seg, el("span", { class: "sep" }), addBtn, button("Adatta", "fit", () => fit()), views, el("span", { class: "sep" }), wireBtn, mBtn, axisSel, slider, flipBtn,
-    el("span", { class: "sep" }), exp, el("span", { class: "grow" }), el("span", { class: "note" }, "Maiusc: alterna Ruota/Sposta · destro: sposta · rotella: zoom · clic: seleziona"));
+    el("span", { class: "sep" }), exp, el("span", { class: "grow" }), el("span", { class: "note" }, "Maiusc: cambia modalita' · destro: sposta · rotella: zoom · clic: seleziona · Ctrl+clic: aggiungi · Esc: deseleziona"));
 
   async function doExport(kind) {
     const base = dirName(ctx.path);
@@ -573,7 +661,7 @@ export async function mount(ctx) {
       await api("save", { path: target }, { body: new Uint8Array(data.buffer ? data.buffer : data) });
       return { switchTo: false };
     },
-    dispose() { running = false; window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onKey); renderer.dispose(); (info.modelIDs || []).forEach(m => info.ifc?.CloseModel?.(m)); },
+    dispose() { running = false; window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onKey); window.removeEventListener("blur", onBlur); renderer.dispose(); (info.modelIDs || []).forEach(m => info.ifc?.CloseModel?.(m)); },
   };
 }
 

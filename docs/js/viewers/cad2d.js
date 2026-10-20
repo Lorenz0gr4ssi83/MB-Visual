@@ -2,7 +2,6 @@
 import { api, button, el, loading, readBytes, saveBlobAs, toast, withExt } from "../core.js";
 import { parseDxf } from "../dxf.js";
 
-let LIB = null; // motore DWG caricato una sola volta
 
 // ---------------------------------------------------------------- colori ACI
 const ACI = (() => {
@@ -229,6 +228,32 @@ function build(db) {
   return { layers, groups: [...groups.values()], texts, bbox, snaps: Float64Array.from(snaps) };
 }
 
+// ---------------------------------------------------------------- decodifica DWG
+// Un motore nuovo per ogni disegno: la sua memoria si libera quando il disegno e' letto. Con un motore condiviso
+// la memoria cresceva a ogni file aperto fino a esaurirsi ("out of WASM memory").
+async function decodeDwg(bytes, ctx, ld) {
+  const m = await import(window.MBV_ROOT + "vendor/libredwg/dist/libredwg-web.js");
+  const type = ctx.ext === "dxf" ? m.Dwg_File_Type.DXF : m.Dwg_File_Type.DWG;
+  for (let attempt = 1; ; attempt++) {
+    ld.set(0.3, attempt === 1 ? "Decodifica DWG" : "Decodifica DWG (secondo tentativo con memoria libera)");
+    let lib = await m.LibreDwg.create(window.MBV_ROOT + "vendor/libredwg/wasm");
+    try {
+      const data = lib.dwg_read_data(bytes.buffer, type);
+      if (data === undefined || data === null) throw new Error("Il file DWG non e' leggibile (versione non supportata o file danneggiato). Prova \"Apri come\" > DWG TrueView.");
+      const db = lib.convert(data);
+      try { lib.dwg_free(data); } catch { /* */ }
+      return db;
+    } catch (e) {
+      lib = null;
+      if (/out of WASM memory/i.test(e.message)) {
+        if (attempt < 2) { await new Promise(r => setTimeout(r, 500)); continue; }
+        throw new Error(`Il disegno e' troppo grande per il lettore interno (${(bytes.length / 1048576).toFixed(1)} MB). Chiudi gli altri disegni aperti e riprova${ctx.tools?.trueview ? ", oppure usa \"Apri come\" > DWG TrueView" : ""}.`);
+      }
+      throw e;
+    }
+  }
+}
+
 // ---------------------------------------------------------------- visualizzatore
 export async function mount(ctx) {
   const ld = loading(ctx.el, "Lettura del disegno");
@@ -239,14 +264,7 @@ export async function mount(ctx) {
     const text = new TextDecoder(isUtf8(bytes) ? "utf-8" : "windows-1252").decode(bytes);
     db = parseDxf(text);
   } else {
-    ld.set(0.3, "Decodifica DWG");
-    const m = await import(window.MBV_ROOT + "vendor/libredwg/dist/libredwg-web.js");
-    LIB = LIB || m.LibreDwg.create(window.MBV_ROOT + "vendor/libredwg/wasm");
-    const lib = await LIB;
-    const data = lib.dwg_read_data(bytes.buffer, ctx.ext === "dxf" ? m.Dwg_File_Type.DXF : m.Dwg_File_Type.DWG);
-    if (data === undefined || data === null) throw new Error("Il file DWG non e' leggibile (versione non supportata o file danneggiato). Prova \"Apri come\" > DWG TrueView.");
-    db = lib.convert(data);
-    try { lib.dwg_free(data); } catch { /* */ }
+    db = await decodeDwg(bytes, ctx, ld);
   }
   ld.set(0.7, "Preparazione del disegno");
   await new Promise(r => setTimeout(r, 0));

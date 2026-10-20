@@ -11,3 +11,5 @@ html2docx
 rawpy
 pyinstaller
 pypdf
+pymupdf
+pdf2docx

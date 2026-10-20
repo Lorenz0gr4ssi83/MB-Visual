@@ -13,7 +13,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from . import archive, jobs, media, misc, office, signed
-from .paths import TEMP_DIR, UI_DIR, find_navisworks, find_trueview, tools_status
+from .paths import TEMP_DIR, UI_DIR, find_navisworks, find_office, find_trueview, tools_status
 
 TOKEN = secrets.token_urlsafe(24)
 COOKIE = "mbv"
@@ -26,6 +26,14 @@ NO_WINDOW = 0x08000000
 def _q(qs, name, default=None):
     v = qs.get(name)
     return v[0] if v else default
+
+
+# attributi Windows dei file segnaposto di OneDrive (contenuto solo nel cloud, scaricato alla prima lettura)
+_CLOUD_ATTRS = 0x400000 | 0x40000 | 0x1000  # RECALL_ON_DATA_ACCESS | RECALL_ON_OPEN | OFFLINE
+
+
+def _solo_online(st) -> bool:
+    return bool(getattr(st, "st_file_attributes", 0) & _CLOUD_ATTRS)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -67,6 +75,15 @@ class Handler(BaseHTTPRequestHandler):
     def _serve_file(self, path: Path, ctype=None):
         if not path.is_file():
             return self._json({"ok": False, "errore": "File non trovato"}, 404)
+        # il file si apre prima di rispondere: se non e' leggibile (es. download da OneDrive annullato) arriva un errore chiaro
+        try:
+            f = open(path, "rb")
+        except OSError as e:
+            return self._json({"ok": False, "errore": f"File non leggibile: {e.strerror or e}"}, 409)
+        with f:
+            self._send_file(f, path, ctype)
+
+    def _send_file(self, f, path: Path, ctype=None):
         size = path.stat().st_size
         ctype = ctype or mimetypes.guess_type(path.name)[0] or "application/octet-stream"
         rng = self.headers.get("Range")
@@ -92,18 +109,20 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         if self.command == "HEAD":
             return
-        with open(path, "rb") as f:
-            f.seek(start)
-            left = length
-            while left > 0:
+        f.seek(start)
+        left = length
+        while left > 0:
+            try:
                 chunk = f.read(min(1024 * 1024, left))
-                if not chunk:
-                    break
-                try:
-                    self.wfile.write(chunk)
-                except (ConnectionResetError, BrokenPipeError, ConnectionAbortedError):
-                    return
-                left -= len(chunk)
+            except OSError:
+                return  # lettura interrotta (es. download da OneDrive annullato): la risposta resta incompleta
+            if not chunk:
+                break
+            try:
+                self.wfile.write(chunk)
+            except (ConnectionResetError, BrokenPipeError, ConnectionAbortedError):
+                return
+            left -= len(chunk)
 
     # ------------------------------------------------------------ routing
     def do_HEAD(self):
@@ -164,9 +183,24 @@ class Handler(BaseHTTPRequestHandler):
     def api_info(self, qs):
         p = Path(self._path(qs))
         st = p.stat()
-        self._json({"ok": True, "path": str(p), "nome": p.name, "cartella": str(p.parent), "size": st.st_size,
-                    "modificato": st.st_mtime, "creato": st.st_ctime, "sniff": misc.sniff(str(p)),
-                    "scrivibile": os.access(p, os.W_OK)})
+        base = {"ok": True, "path": str(p), "nome": p.name, "cartella": str(p.parent), "size": st.st_size,
+                "modificato": st.st_mtime, "creato": st.st_ctime, "scrivibile": os.access(p, os.W_OK)}
+        if _solo_online(st):
+            # file solo su OneDrive: leggerlo fa partire il download. Senza conferma non si legge nulla;
+            # con la conferma, se l'utente annulla il download la lettura fallisce e l'apertura si ferma qui.
+            if _q(qs, "scarica") != "1":
+                return self._json({**base, "nuvola": True, "sniff": {"kind": None, "descr": None}})
+            try:
+                with open(p, "rb") as f:
+                    f.read(1)
+            except OSError:
+                return self._json({"ok": False, "errore": "Download da OneDrive annullato o non riuscito: il file non e' stato aperto."}, 409)
+        self._json({**base, "sniff": misc.sniff(str(p))})
+
+    def api_stat(self, qs):
+        # solo data e dimensione (senza leggere il file): serve ad accorgersi delle modifiche fatte da altri programmi
+        st = os.stat(self._path(qs))
+        self._json({"ok": True, "size": st.st_size, "modificato": st.st_mtime})
 
     def api_list_dir(self, qs):
         d = Path(self._path(qs))
@@ -176,7 +210,8 @@ class Handler(BaseHTTPRequestHandler):
                 if e.name.startswith(("~$", ".")) or e.name.lower() in ("desktop.ini", "thumbs.db"):
                     continue
                 st = e.stat()
-                items.append({"name": e.name, "path": e.path, "dir": e.is_dir(), "size": 0 if e.is_dir() else st.st_size, "mtime": st.st_mtime})
+                items.append({"name": e.name, "path": e.path, "dir": e.is_dir(), "size": 0 if e.is_dir() else st.st_size, "mtime": st.st_mtime,
+                              "nuvola": not e.is_dir() and _solo_online(st)})
             except OSError:
                 continue
         items.sort(key=lambda i: (not i["dir"], i["name"].lower()))
@@ -241,7 +276,8 @@ class Handler(BaseHTTPRequestHandler):
     def api_open_external(self, qs):
         p = self._path(qs)
         app = _q(qs, "app")
-        exe = {"navisworks": find_navisworks, "trueview": find_trueview}.get(app, lambda: None)()
+        exe = {"navisworks": find_navisworks, "trueview": find_trueview, "excel": lambda: find_office("excel.exe"),
+               "word": lambda: find_office("winword.exe"), "powerpoint": lambda: find_office("powerpnt.exe")}.get(app, lambda: None)()
         if app and not exe:
             return self._json({"ok": False, "errore": "Programma non installato su questo PC"})
         if exe:
@@ -311,8 +347,46 @@ class Handler(BaseHTTPRequestHandler):
         elif op == "stamp":
             r = pdftools.stamp(p, b["text"], b.get("mode", "filigrana"), b["out"], b.get("pages", ""), float(b.get("opacity", 0.25)))
         else:
+            return self._pdf_edit_op(op, p, b)
+        self._json(r)
+
+    def _pdf_edit_op(self, op, p, b):
+        from . import pdfedit
+        if op == "compress":
+            r = pdfedit.compress(p, b["out"], int(b.get("dpi", 150)), int(b.get("quality", 75)))
+        elif op == "protect":
+            r = pdfedit.protect(p, b["out"], b["password"], b.get("owner", ""), bool(b.get("print", True)), bool(b.get("copy", False)), bool(b.get("edit", False)))
+        elif op == "unlock":
+            r = pdfedit.unlock(p, b["out"], b.get("password", ""))
+        elif op == "numbers":
+            r = pdfedit.page_numbers(p, b["out"], b.get("format", "Pagina {n} di {tot}"), b.get("pos", "basso-destra"), int(b.get("start", 1)))
+        elif op == "word":
+            r = pdfedit.to_word(p, b["out"])
+        elif op == "images":
+            r = pdfedit.to_images(p, b["folder"], int(b.get("dpi", 150)), b.get("format", "png"))
+        elif op == "blank":
+            r = pdfedit.insert_blank(p, b["out"], int(b.get("after", 0)))
+        elif op == "reorder":
+            r = pdfedit.reorder(p, b["out"], b["order"])
+        else:
             raise ValueError("operazione sconosciuta")
         self._json(r)
+
+    # ------------------------------------------------------------ editor PDF (copia di lavoro modificabile)
+    def api_pdf_work(self, qs):
+        from . import pdfedit
+        self._json({"ok": True, "path": pdfedit.working_copy(self._path(qs), TEMP_DIR / "pdf-modifica")})
+
+    def api_pdf_lines(self, qs):
+        from . import pdfedit
+        self._json(pdfedit.text_lines(self._path(qs), int(_q(qs, "page", "0"))))
+
+    def api_pdf_edit(self, qs):
+        from . import pdfedit
+        p = self._path(qs)
+        if not str(Path(p).resolve()).startswith(str((TEMP_DIR / "pdf-modifica").resolve())):
+            raise ValueError("Le modifiche si applicano solo alla copia di lavoro")
+        self._json(pdfedit.apply_edits(p, self._body_json().get("edits", [])))
 
     def api_pdf_signatures(self, qs):
         self._json(signed.pdf_signatures(self._path(qs)))

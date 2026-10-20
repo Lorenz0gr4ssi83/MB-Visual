@@ -76,6 +76,23 @@ def find_trueview():
                             *_glob_programs("Autodesk/AutoCAD*/acad.exe")])
 
 
+def find_office(exe: str):
+    """Percorso di un programma Office (excel.exe, winword.exe, powerpnt.exe) dal registro "App Paths" di Windows."""
+    try:
+        import winreg
+    except ImportError:
+        return None
+    for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+        try:
+            with winreg.OpenKey(hive, rf"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{exe}") as k:
+                p = winreg.QueryValue(k, None)
+                if p and Path(p.strip('"')).exists():
+                    return p.strip('"')
+        except OSError:
+            continue
+    return None
+
+
 def tools_status():
     return {
         "7zip": find_7zip(),
@@ -83,4 +100,7 @@ def tools_status():
         "libreoffice": find_libreoffice(),
         "navisworks": find_navisworks(),
         "trueview": find_trueview(),
+        "excel": find_office("excel.exe"),
+        "word": find_office("winword.exe"),
+        "powerpoint": find_office("powerpnt.exe"),
     }

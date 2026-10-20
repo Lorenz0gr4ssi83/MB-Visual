@@ -40,3 +40,27 @@ anteprime miniature per Revit/SolidWorks; spazio carta (layout) nei DWG; verific
    filigrana, timbro: `mbvisual/pdftools.py`), "Aggiungi modello" nel 3D (federazione).
 - Home senza elenco recenti; il pulsante Apri ha un menu: Nuovo file / Cartella di progetto / Recenti.
 - Nota tecnica: le librerie UMD si caricano con `loadScript` (core.js) in un ambito senza `define`, per non farle catturare dal caricatore AMD di Monaco.
+
+## Revisione 3 (21/10/2026) - richieste dell'utente e stato
+PC dell'utente: Windows 11 su ARM64. Python 3.13 **x64** in `%LOCALAPPDATA%\Programs\Python\Python313-x64` (gira in emulazione;
+l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.mbvisual\venv` usa quel Python.
+1. 3D: clic sul modello -> elemento evidenziato e reso visibile nell'albero (rami aperti a richiesta, righe create solo quando servono) - FATTO
+2. 3D: modalita' Ruota / Sposta / Seleziona (riquadro di selezione, Ctrl aggiunge/toglie, Esc deseleziona) - FATTO
+6. 3D: scheda BIM completa in `ui/js/bim.js` (attributi, posizione piano/edificio, tipo e sue proprieta', tutti i Pset/Qset con unita'
+   del progetto, materiali con strati, classificazioni, relazioni, dati IFC grezzi; ricerca, copia, CSV) - FATTO
+8a. DWG "out of WASM memory": motore libredwg nuovo per ogni disegno + secondo tentativo (cad2d.js `decodeDwg`) - FATTO;
+    il file che dava l'errore non e' ancora stato provato (chiederlo all'utente)
+8b. File solo su OneDrive: `api/info` non li legge senza conferma (`nuvola: true`), l'interfaccia chiede "Scarica e apri";
+    se il download viene annullato l'apertura si ferma (prima `misc.sniff` ignorava l'errore e il visualizzatore rileggeva il file) - FATTO
+5 (parte). Pulsante "Modifica in Excel/Word/PowerPoint" (programmi trovati con `paths.find_office`) e ricarica automatica dei file
+   salvati da altri programmi (`api/stat` ogni 2 s sulla scheda attiva) - FATTO
+- Tasto indietro (telefono/browser/mouse): `setupBack` in app.js, voce di cronologia di riserva; `onBack` nei visualizzatori - FATTO
+4. Editor PDF - FATTO (prima parte): `mbvisual/pdfedit.py` (PyMuPDF) + `ui/js/pdfeditor.js` sopra pdf.js. Modifica del testo
+   esistente (riga per riga, font Windows piu' simile incorporato con TextWriter e ridotto ai caratteri usati), Oscura (rimozione
+   definitiva), Bianchetto, Annulla; menu Altro: comprimi, numeri di pagina, password (AES-256) e sblocco, pagina bianca,
+   riordina, PDF -> Word (pdf2docx), pagine -> immagini. Le modifiche vanno su una copia di lavoro in TEMP_DIR/pdf-modifica;
+   l'originale cambia solo con Salva. Solo app per PC (nella web app i pulsanti non compaiono).
+   Idee successive: OCR (serve Tesseract), modifica di paragrafi su piu' righe, spostamento di immagini.
+Da fare: 3 salvataggio in molti formati; 5 ONLYOFFICE integrato
+(candidato: github.com/ranuts/document, AGPL, editor ONLYOFFICE senza server, API iframe `document:open-buffer` / `document:save`);
+7 modifica dei disegni CAD e delle proprieta'.

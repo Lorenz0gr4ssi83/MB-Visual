@@ -1,5 +1,6 @@
 // PDF con il visualizzatore di Mozilla (pdf.js): pagine, ricerca, stampa, annotazioni; firme PAdES.
-import { api, baseName, button, dirName, el, fileUrl, modal, pickFiles, pickFolder, pickSavePath, toast } from "../core.js";
+import { api, baseName, button, dirName, el, fileUrl, modal, pickFiles, pickFolder, pickSavePath, toast, WEB } from "../core.js";
+import { createPdfEditor } from "../pdfeditor.js";
 import { renderSigner } from "./signed.js";
 
 export async function mount(ctx) {
@@ -25,12 +26,15 @@ export async function mount(ctx) {
   // ---- strumenti PDF (creano sempre un nuovo file, l'originale resta intatto)
   const dir = dirName(ctx.path), stem = ctx.name.replace(/\.pdf$/i, "");
   const pages = () => app()?.pagesCount || "?";
+  const ed = WEB ? null : createPdfEditor(ctx, frame, busy => (frame.style.opacity = busy ? 0.6 : 1));
+  // le operazioni sull'intero documento partono dal documento come appare ora (con le modifiche non ancora salvate)
+  const current = async () => (ed ? ed.currentFile() : ctx.path);
   const run = async (op, json, suggested) => {
     const out = await pickSavePath(suggested, dir);
     if (!out) return;
     try {
-      const r = await api("pdf_tool", { path: ctx.path, op }, { json: { ...json, out } });
-      toast(`Creato ${baseName(out)} (${r.pagine} pagine)`);
+      const r = await api("pdf_tool", { path: await current(), op }, { json: { ...json, out } });
+      toast(`Creato ${baseName(out)}${r.pagine ? ` (${r.pagine} pagine)` : ""}${r.dopo ? ` · da ${(r.prima / 1048576).toFixed(1)} a ${(r.dopo / 1048576).toFixed(1)} MB` : ""}`);
       ctx.openFile(out);
     } catch (e) { toast(e.message, true, 6000); }
   };
@@ -62,7 +66,7 @@ export async function mount(ctx) {
     ["Dividi", "scissors", async () => {
       const folder = await pickFolder();
       if (!folder) return;
-      try { const r = await api("pdf_tool", { path: ctx.path, op: "split" }, { json: { folder } }); toast(`Creati ${r.files.length} file in ${folder}`); } catch (e) { toast(e.message, true); }
+      try { const r = await api("pdf_tool", { path: await current(), op: "split" }, { json: { folder } }); toast(`Creati ${r.files.length} file in ${folder}`); } catch (e) { toast(e.message, true); }
     }, "Un file PDF per ogni pagina"],
     ["Filigrana", "text", async () => {
       const f = field("Testo della filigrana", "BOZZA", "pdf-wm");
@@ -76,7 +80,77 @@ export async function mount(ctx) {
       if (await ask("Timbro in alto a destra", [el("label", { style: { display: "grid", gap: "4px" } }, "Testo del timbro (una riga per riga)", f), p.row])) run("stamp", { text: f.value, mode: "timbro", pages: p.input.value }, stem + "_timbrato.pdf");
     }, "Riquadro di testo in alto a destra (approvazione, revisione, data)"],
   ];
+  // ---- editor: testo esistente, oscuramento, bianchetto (solo app per PC: usa il motore PyMuPDF)
+  let backHandler = null;
+  if (ed) {
+    const modeBtns = {};
+    const setMode = async m => {
+      const now = await ed.setMode(m);
+      for (const [k, b] of Object.entries(modeBtns)) b.classList.toggle("on", k === now);
+      ctx.status(now === "text" ? "Modifica testo: clic su una riga, scrivi, Invio per confermare (Esc annulla)"
+        : now === "redact" ? "Oscura: trascina un riquadro sulla zona da eliminare"
+        : now === "whiteout" ? "Bianchetto: trascina un riquadro sulla zona da coprire di bianco" : "");
+    };
+    modeBtns.text = button("Modifica testo", "edit", () => setMode("text"), { title: "Modifica il testo esistente con lo stesso carattere, dimensione e colore" });
+    modeBtns.redact = button("Oscura", "pen", () => setMode("redact"), { title: "Elimina definitivamente testo e immagini in una zona (riquadro nero)" });
+    modeBtns.whiteout = button("Bianchetto", "pen", () => setMode("whiteout"), { title: "Copre di bianco una zona eliminandone il contenuto" });
+    ctx.tb.append(...Object.values(modeBtns), button("", "undo", () => ed.undoLast(), { iconOnly: true, title: "Annulla l'ultima modifica al testo" }), el("span", { class: "sep" }));
+    backHandler = () => (ed.mode ? (setMode(ed.mode), true) : false);
+  }
   for (const [label, icon, fn, title] of tools) ctx.tb.append(button(label, icon, fn, { title }));
+  if (ed) {
+    const more = el("select", { class: "field", title: "Altre operazioni sul PDF", id: "pdf-more-" + ctx.tab.name, onchange: async e => { const v = e.target.value; e.target.value = ""; if (v) await extra(v); } },
+      el("option", { value: "" }, "Altro..."), el("option", { value: "compress" }, "Comprimi (riduce le dimensioni)"), el("option", { value: "numbers" }, "Numeri di pagina"),
+      el("option", { value: "protect" }, "Proteggi con password"), el("option", { value: "unlock" }, "Togli la password"), el("option", { value: "blank" }, "Inserisci pagina bianca"),
+      el("option", { value: "reorder" }, "Riordina le pagine"), el("option", { value: "word" }, "Converti in Word (.docx)"), el("option", { value: "images" }, "Esporta pagine come immagini"));
+    ctx.tb.append(more);
+  }
+  const lbl = (text, input) => el("label", { style: { display: "grid", gap: "4px" } }, text, input);
+  async function extra(v) {
+    if (v === "compress") {
+      const q = el("select", { class: "field", id: "pdf-cq-" + ctx.tab.name }, el("option", { value: "150|75" }, "Equilibrata (150 dpi)"), el("option", { value: "110|60" }, "Massima riduzione (110 dpi)"), el("option", { value: "220|85" }, "Alta qualita' (220 dpi)"));
+      if (!(await ask("Comprimi PDF", [lbl("Qualita' delle immagini", q)]))) return;
+      const [dpi, quality] = q.value.split("|");
+      return run("compress", { dpi: +dpi, quality: +quality }, stem + "_compresso.pdf");
+    }
+    if (v === "numbers") {
+      const f = field("Formato ({n} = pagina, {tot} = totale)", "Pagina {n} di {tot}", "pdf-num");
+      const pos = el("select", { class: "field", id: "pdf-pos-" + ctx.tab.name }, ...["basso-destra", "basso-centro", "basso-sinistra", "alto-destra", "alto-centro", "alto-sinistra"].map(p => el("option", { value: p }, p.replace("-", " "))));
+      if (await ask("Numeri di pagina", [f.row, lbl("Posizione", pos)])) run("numbers", { format: f.input.value, pos: pos.value }, stem + "_numerato.pdf");
+      return;
+    }
+    if (v === "protect") {
+      const pw = el("input", { type: "password", id: "pdf-pw-" + ctx.tab.name, class: "field" });
+      const cp = el("input", { type: "checkbox", id: "pdf-cp-" + ctx.tab.name }), pr = el("input", { type: "checkbox", checked: true, id: "pdf-pr-" + ctx.tab.name });
+      if (!(await ask("Proteggi con password", [lbl("Password per aprire il documento", pw), el("label", {}, pr, " Consenti la stampa"), el("label", {}, cp, " Consenti di copiare il testo")]))) return;
+      if (!pw.value) return toast("Password vuota: nessuna protezione applicata", true);
+      return run("protect", { password: pw.value, print: pr.checked, copy: cp.checked }, stem + "_protetto.pdf");
+    }
+    if (v === "unlock") {
+      const pw = el("input", { type: "password", id: "pdf-upw-" + ctx.tab.name, class: "field" });
+      if (await ask("Togli la password", [lbl("Password attuale", pw)])) run("unlock", { password: pw.value }, stem + "_sbloccato.pdf");
+      return;
+    }
+    if (v === "blank") {
+      const f = field("Inserire dopo la pagina (0 = all'inizio)", String(app()?.page || 1), "pdf-blank");
+      if (await ask("Pagina bianca", [f.row])) run("blank", { after: parseInt(f.input.value, 10) || 0 }, stem + "_con_pagina.pdf");
+      return;
+    }
+    if (v === "reorder") {
+      const n = app()?.pagesCount || 1;
+      const f = field("Nuovo ordine delle pagine", Array.from({ length: n }, (_, i) => i + 1).join(", "), "pdf-ord", "Scrivi i numeri nell'ordine voluto: le pagine omesse vengono tolte, quelle ripetute duplicate");
+      if (!(await ask("Riordina le pagine", [f.row]))) return;
+      const order = f.input.value.split(/[,;\s]+/).map(x => parseInt(x, 10) - 1).filter(x => x >= 0 && x < n);
+      if (!order.length) return toast("Ordine non valido", true);
+      return run("reorder", { order }, stem + "_riordinato.pdf");
+    }
+    if (v === "word") return run("word", {}, stem + ".docx");
+    if (v === "images") {
+      const folder = await pickFolder();
+      if (!folder) return;
+      try { const r = await api("pdf_tool", { path: await current(), op: "images" }, { json: { folder, dpi: 150 } }); toast(`Create ${r.files.length} immagini in ${folder}`); } catch (e) { toast(e.message, true); }
+    }
+  }
   ctx.tb.append(el("span", { class: "grow" }), el("span", { class: "note" }, "Annotazioni (testo, disegno, evidenziatore, immagini): strumenti in alto a destra nel documento · Ctrl+S salva"));
   // firme digitali nel PDF
   api("pdf_signatures", { path: ctx.path }, { allowFail: true }).then(r => {
@@ -95,6 +169,7 @@ export async function mount(ctx) {
   });
 
   return {
+    onBack() { return backHandler ? backHandler() : false; },
     async save(target) {
       const a = app();
       const data = await a.pdfDocument.saveDocument();

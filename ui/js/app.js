@@ -1,6 +1,6 @@
 // MB Visual - guscio dell'applicazione: schede, apertura file, trascinamento, scelta del visualizzatore, pagina formati.
 import {
-  api, baseName, confirmBox, dirName, el, extOf, fmtSize, isDesktop, modal, pickFiles, pickFolder,
+  api, baseName, button, confirmBox, dirName, el, extOf, fmtSize, isDesktop, modal, pickFiles, pickFolder,
   pickSavePath, toast, WEB,
 } from "./core.js";
 
@@ -200,7 +200,8 @@ function renderDir() {
   const items = exItems.filter(i => !q || i.name.toLowerCase().includes(q));
   for (const i of items) {
     box.append(el("button", { class: "ex-item" + (i.dir ? " dir" : ""), title: i.name, onclick: () => (i.dir ? loadDir(i.path) : openPaths([i.path])) },
-      badgeFor(i.name, i.dir), el("span", { class: "nm" }, i.name), el("span", { class: "sz" }, i.dir ? "" : fmtSize(i.size))));
+      badgeFor(i.name, i.dir), el("span", { class: "nm" }, i.name),
+      el("span", { class: "sz", title: i.nuvola ? "Solo su OneDrive: verra' scaricato all'apertura" : "" }, (i.nuvola ? "☁ " : "") + (i.dir ? "" : fmtSize(i.size)))));
   }
   if (!items.length) box.append(el("div", { class: "note", style: { padding: "8px 12px", color: "var(--muted)" } }, q ? "Nessun file corrisponde al filtro" : "Cartella vuota"));
 }
@@ -254,6 +255,14 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   if (existing && !extraCtx.fresh) return activate(existing);
   let info;
   try { info = await api("info", { path }); } catch (e) { return toast("Impossibile aprire: " + e.message, true); }
+  if (info.nuvola) {
+    // file solo su OneDrive: si scarica solo con conferma; se il download viene annullato l'apertura si ferma
+    const ok = await confirmBox("File solo su OneDrive", `"${info.nome}" (${fmtSize(info.size)}) non e' ancora su questo PC: per aprirlo OneDrive deve scaricarlo. Procedere?`, "Scarica e apri");
+    if (!ok) return;
+    toast(`Download di "${info.nome}" da OneDrive...`, false, 60000);
+    try { info = await api("info", { path, scarica: 1 }); } catch (e) { return toast(e.message, true, 6000); }
+    toast("File scaricato", false, 1500);
+  }
   const name = extraCtx.displayName || info.nome;
   const { cat } = resolveCategory(extraCtx.displayName && !extOf(extraCtx.displayName) ? info.nome : name, info.sniff);
   const ext = extFor(info.nome);
@@ -278,6 +287,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   try {
     const mod = await import(`./viewers/${viewer}.js`);
     tab.api = (await mod.mount(ctx)) || {};
+    addOfficeButton(tab, tb);
   } catch (e) {
     console.error(e);
     showError(ctx, e);
@@ -311,6 +321,7 @@ async function save(asNew) {
   try {
     const res = (await a.save(target)) || {};
     t.dirty = false;
+    await syncStat(t); // il salvataggio fatto da MB Visual non deve sembrare una modifica esterna
     if (target !== t.path && res.switchTo !== false && extOf(target) === extOf(t.path) && !target.startsWith("download://")) {
       t.path = target;
       t.name = baseName(target);
@@ -323,6 +334,54 @@ async function save(asNew) {
     console.error(e);
     toast("Salvataggio non riuscito: " + e.message, true, 6000);
   }
+}
+
+// ------------------------------------------------------------------ modifica nei programmi Office e ricarica automatica
+const OFFICE_EXT = { excel: /^(xlsx|xlsm|xlsb|xls|xltx|xltm|csv|ods)$/, word: /^(docx|docm|doc|dotx|dotm|rtf|odt)$/, powerpoint: /^(pptx|pptm|ppt|ppsx|potx|odp)$/ };
+const OFFICE_NAME = { excel: "Excel", word: "Word", powerpoint: "PowerPoint" };
+function addOfficeButton(t, tb) {
+  if (WEB || t.path.startsWith("web://")) return;
+  const app = Object.keys(OFFICE_EXT).find(a => OFFICE_EXT[a].test(extOf(t.path)) && TOOLS[a]);
+  if (!app) return;
+  const b = button(`Modifica in ${OFFICE_NAME[app]}`, "open", () => api("open_external", { path: t.path, app })
+    .then(() => toast(`Aperto in ${OFFICE_NAME[app]}: quando salvi, MB Visual si aggiorna da solo`, false, 5000)).catch(e => toast(e.message, true)),
+  { title: `Apre il file in ${OFFICE_NAME[app]}; al salvataggio MB Visual ricarica il file` });
+  tb.prepend(b, el("span", { class: "sep" }));
+}
+
+async function syncStat(t) {
+  try { const s = await api("stat", { path: t.path }); t.info.modificato = s.modificato; t.info.size = s.size; } catch { /* */ }
+}
+
+// un file aperto e salvato da un altro programma (Excel, Word, AutoCAD...) si ricarica da solo
+async function checkExternalChange(t) {
+  if (!t || WEB || !t.info || t.reloading || t.checking || t.path.startsWith("web://") || t.path.startsWith("download://")) return;
+  t.checking = true;
+  try {
+    let s;
+    try { s = await api("stat", { path: t.path }); } catch { return; }
+    if (s.modificato === t.info.modificato) return;
+    t.info.modificato = s.modificato;
+    t.info.size = s.size;
+    if (t.dirty && !(await confirmBox("File modificato da un altro programma", `"${t.name}" e' stato salvato da un altro programma. Ricaricarlo? Le modifiche non salvate in MB Visual andranno perse.`, "Ricarica", true))) return;
+    await reloadTab(t);
+    toast(`"${t.name}" aggiornato con le modifiche salvate fuori da MB Visual`);
+  } finally { t.checking = false; }
+}
+
+async function reloadTab(t) {
+  t.reloading = true;
+  const before = tabs.length;
+  await openFile(t.path, t.forced ? t.viewer : null, { fresh: true });
+  if (tabs.length === before) { t.reloading = false; return; }
+  const nt = tabs[tabs.length - 1];
+  tabs.splice(tabs.indexOf(nt), 1);
+  tabs.splice(tabs.indexOf(t), 0, nt);
+  try { t.api?.dispose?.(); } catch { /* */ }
+  t.view.remove();
+  tabs.splice(tabs.indexOf(t), 1);
+  if (seen.includes(t)) seen.splice(seen.indexOf(t), 1);
+  activate(nt);
 }
 
 // ------------------------------------------------------------------ menu "Apri come"
@@ -503,6 +562,8 @@ async function boot() {
   setupDrop();
   setupTheme();
   setupBack();
+  setInterval(() => { if (!document.hidden) checkExternalChange(active); }, 2000);
+  window.addEventListener("focus", () => tabs.forEach(checkExternalChange));
   $("btn-open").addEventListener("click", e => openMenu(e.currentTarget));
   $("home-open").addEventListener("click", doOpen);
   $("home-folder").addEventListener("click", chooseExplorerFolder);
