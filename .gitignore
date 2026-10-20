@@ -8,3 +8,6 @@ tests/out_*
 __pycache__/
 *.pyc
 *.mbv-tmp
+
+# copia pronta all'uso dell'app per PC (si ricrea con tools/build_portable.py)
+App per PC/
