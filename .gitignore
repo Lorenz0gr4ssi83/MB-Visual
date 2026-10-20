@@ -1,0 +1,10 @@
+# pacchetto portatile (oltre il limite di GitHub): si ricrea con tools/build_portable.py
+MB Visual - portatile.zip
+*.zip
+# librerie dell'app per PC: si riscaricano con tools/fetch_vendor.py (la web app in docs/ ha le sue)
+ui/vendor/
+# file prodotti dai collaudi
+tests/out_*
+__pycache__/
+*.pyc
+*.mbv-tmp

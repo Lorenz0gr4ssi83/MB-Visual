@@ -1,0 +1,13 @@
+pywebview
+Pillow
+pillow-heif
+asn1crypto
+cryptography
+extract-msg
+imageio-ffmpeg
+python-pptx
+python-docx
+html2docx
+rawpy
+pyinstaller
+pypdf

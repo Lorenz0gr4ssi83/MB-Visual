@@ -1,0 +1,112 @@
+<title>Avanzamento MB Visual</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: una colonna stretta da cruscotto di cantiere - testata con logo, barra totale, elenco fasi con barre proprie */
+:root {
+  --bg: #f3f4f2;
+  --panel: #ffffff;
+  --fg: #23251f;
+  --muted: #6b6e66;
+  --line: #dcdfd8;
+  --brand: #8a8c89;
+  --accent: #3d6b8f;
+  --done: #3f7d4e;
+  --track: #e6e8e3;
+  --display: "Archivo", "Arial Narrow", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+  --mono: "IBM Plex Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1c1a; --panel: #242622; --fg: #e9eae6; --muted: #a2a59c; --line: #363832;
+    --brand: #9a9c98; --accent: #7fb0d6; --done: #6fbf82; --track: #33352f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1c1a; --panel: #242622; --fg: #e9eae6; --muted: #a2a59c; --line: #363832;
+  --brand: #9a9c98; --accent: #7fb0d6; --done: #6fbf82; --track: #33352f; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 720px; margin: 0 auto; padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 22px; }
+header { display: flex; gap: 16px; align-items: center; }
+header img { width: 64px; height: 64px; border-radius: 8px; flex: none; }
+h1 { font-family: var(--display); font-weight: 800; font-size: 1.6rem; margin: 0; letter-spacing: .01em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 2px 0 0; font-size: .92rem; }
+.total { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 12px; }
+.total .row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pct { font-family: var(--display); font-weight: 800; font-size: 3.2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.label { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.bar { height: 14px; background: var(--track); border-radius: 7px; overflow: hidden; }
+.bar > span { display: block; height: 100%; background: var(--accent); border-radius: 7px; transition: width .6s ease; }
+.now { font-size: .95rem; }
+.now b { font-weight: 600; }
+ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--line); }
+li { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+li .name { font-weight: 600; min-width: 0; }
+li .w { font-family: var(--mono); font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+li .desc { grid-column: 1 / -1; color: var(--muted); font-size: .88rem; }
+li .bar { grid-column: 1 / -1; height: 6px; }
+li.done .bar > span { background: var(--done); }
+.chip { display: inline-block; font-size: .7rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 1px 7px; border-radius: 999px; margin-left: 8px; vertical-align: 2px; border: 1px solid currentColor; }
+li.done .chip { color: var(--done); }
+li.work .chip { color: var(--accent); }
+li.todo .chip { color: var(--muted); }
+footer { color: var(--muted); font-size: .82rem; }
+@media (prefers-reduced-motion: reduce) { .bar > span { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <img src="__LOGO__" alt="Logo MB Visual">
+    <div>
+      <h1>MB Visual</h1>
+      <p class="sub">Avanzamento dello sviluppo · 100% = app completa, portatile e pronta da copiare sul Desktop</p>
+    </div>
+  </header>
+
+  <section class="total" aria-label="Avanzamento totale">
+    <div class="row">
+      <div><div class="label">Completamento</div><div class="pct" id="pct">0%</div></div>
+      <div class="label" id="updated"></div>
+    </div>
+    <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="totalbar"><span id="totalfill" style="width:0%"></span></div>
+    <div class="now" id="now"></div>
+  </section>
+
+  <ol id="phases"></ol>
+
+  <footer>Ogni fase ha un peso sul totale (colonna a destra). La pagina viene aggiornata a ogni passo completato.</footer>
+</div>
+
+<script>
+const UPDATED = "__UPDATED__";
+const NOW = "__NOW__";
+// peso = quota del totale; fatto = percentuale completata della fase (0-100)
+const PHASES = __PHASES__;
+
+const total = PHASES.reduce((s, p) => s + p.peso * p.fatto / 100, 0);
+const pct = Math.round(total);
+document.getElementById("pct").textContent = pct + "%";
+document.getElementById("totalfill").style.width = pct + "%";
+document.getElementById("totalbar").setAttribute("aria-valuenow", pct);
+document.getElementById("updated").textContent = "Aggiornato " + UPDATED;
+document.getElementById("now").innerHTML = "<b>In corso:</b> " + NOW;
+
+const ol = document.getElementById("phases");
+for (const p of PHASES) {
+  const state = p.fatto >= 100 ? "done" : p.fatto > 0 ? "work" : "todo";
+  const chip = { done: "Fatto", work: "In corso", todo: "Da fare" }[state];
+  const li = document.createElement("li");
+  li.className = state;
+  li.innerHTML = `<div class="name"></div><div class="w">${p.fatto}% · peso ${p.peso}</div>
+    <div class="desc"></div><div class="bar"><span style="width:${p.fatto}%"></span></div>`;
+  li.querySelector(".name").textContent = p.nome;
+  li.querySelector(".name").insertAdjacentHTML("beforeend", `<span class="chip">${chip}</span>`);
+  li.querySelector(".desc").textContent = p.desc;
+  ol.appendChild(li);
+}
+</script>

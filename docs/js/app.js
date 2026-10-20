@@ -1,0 +1,504 @@
+// MB Visual - guscio dell'applicazione: schede, apertura file, trascinamento, scelta del visualizzatore, pagina formati.
+import {
+  api, baseName, confirmBox, dirName, el, extOf, fmtSize, isDesktop, modal, pickFiles, pickFolder,
+  pickSavePath, toast, WEB,
+} from "./core.js";
+
+const $ = id => document.getElementById(id);
+const VIEWER_NAMES = {
+  pdf: "PDF", signed: "Documento firmato", docx: "Word", sheet: "Foglio di calcolo", pptx: "Presentazione",
+  office: "Documento Office (LibreOffice)", text: "Testo / codice", markdown: "Markdown", html: "Pagina web",
+  image: "Immagine", svg: "SVG", media: "Audio / video", cad2d: "Disegno CAD 2D", model3d: "Modello 3D",
+  external: "Programma esterno", archive: "Archivio", email: "Email", epub: "eBook", font: "Font",
+  sqlite: "Database SQLite", hex: "Esadecimale (byte grezzi)",
+};
+const TEXT_VIEWERS = new Set(["text", "markdown", "html", "svg"]);
+const SNIFF_FAMILY = {
+  pdf: ["pdf"], signed: ["signed"], media: ["media", "audio"], archive: ["archive"], image: ["image", "image-raw"],
+  zip: ["word", "sheet", "pptx", "office-lo", "archive", "mesh3d", "ebook"], sqlite: ["database"],
+  ole: ["office-lo", "sheet", "email", "archive", "image"], cad2d: ["cad2d"], ifc: ["mesh3d"], cad3d: ["cad3d"],
+  mesh3d: ["mesh3d"], font: ["font"], svg: ["svg"], html: ["html"], email: ["email"],
+};
+const NAME_AS_EXT = { makefile: "makefile", dockerfile: "dockerfile", containerfile: "containerfile", license: "txt", readme: "txt",
+  ".gitignore": "gitignore", ".gitattributes": "gitattributes", ".editorconfig": "editorconfig", ".env": "env", ".htaccess": "htaccess" };
+
+let REG = null;          // formats.json
+let EXT = new Map();     // estensione -> [categorie]
+let TOOLS = {};
+const tabs = [];
+let active = null;
+
+// ------------------------------------------------------------------ registro formati
+async function loadRegistry() {
+  REG = await (await fetch("formats.json")).json();
+  for (const c of REG.categories) for (const e of c.exts) {
+    if (!EXT.has(e)) EXT.set(e, []);
+    if (!EXT.get(e).includes(c)) EXT.get(e).push(c);
+  }
+  try { TOOLS = (await api("tools")).tools; } catch { TOOLS = {}; }
+}
+
+function extFor(name) {
+  const low = name.toLowerCase();
+  if (NAME_AS_EXT[low]) return NAME_AS_EXT[low];
+  return extOf(name);
+}
+
+export function resolveCategory(name, sniff) {
+  const ext = extFor(name);
+  const cands = EXT.get(ext) || [];
+  if (!cands.length) return { cat: null, ext };
+  if (cands.length === 1) return { cat: cands[0], ext };
+  const kind = sniff && sniff.kind;
+  const fam = SNIFF_FAMILY[kind] || [];
+  let best = cands[0], score = -1;
+  for (const c of cands) {
+    let s = 0;
+    if (fam.includes(c.id)) s += 2;
+    const texty = TEXT_VIEWERS.has(c.viewer);
+    if (kind === "text" && texty) s += 1;
+    if (kind && kind !== "text" && !texty) s += 1;
+    if (s > score) { score = s; best = c; }
+  }
+  return { cat: best, ext };
+}
+
+// ------------------------------------------------------------------ badge per tipo di file
+const BADGE_COLOR = { pdf: "pdf", signed: "sig", word: "doc", "office-lo": "doc", sheet: "xls", pptx: "ppt", cad2d: "cad",
+  cad3d: "3d", mesh3d: "3d", navisworks: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av",
+  archive: "zip", email: "mail", text: "code", markdown: "code", html: "code", ebook: "code", font: "code", database: "db" };
+export function badgeFor(name, isDir = false) {
+  if (isDir) return el("span", { class: "badge" }, "DIR");
+  const { cat, ext } = resolveCategory(name, null);
+  const label = (ext || "?").slice(0, 4).toUpperCase();
+  const b = el("span", { class: "badge" }, label);
+  b.style.background = `var(--t-${cat ? BADGE_COLOR[cat.id] || "bin" : "bin"})`;
+  return b;
+}
+
+// ------------------------------------------------------------------ schede
+function renderTabs() {
+  const box = $("tabs");
+  box.innerHTML = "";
+  for (const t of tabs) {
+    const b = el("div", { class: "tab" + (t === active ? " active" : ""), role: "tab", title: t.path, onclick: () => activate(t) },
+      badgeFor(t.info?.nome || t.name),
+      el("span", { class: "name" }, t.name + (t.forced ? "  ·  " + VIEWER_NAMES[t.viewer] : "")),
+      t.dirty ? el("span", { class: "dot", title: "Modifiche non salvate" }) : null,
+      el("button", { class: "x", title: "Chiudi", onclick: e => { e.stopPropagation(); closeTab(t); } }, "×"));
+    b.addEventListener("auxclick", e => { if (e.button === 1) closeTab(t); });
+    box.append(b);
+  }
+  const has = !!active;
+  for (const id of ["btn-save", "btn-saveas", "btn-as", "btn-folder", "btn-external", "btn-info"]) $(id).disabled = !has;
+  $("home").hidden = has || !$("formats").hidden;
+  $("views").hidden = !has || !$("formats").hidden;
+  updateStatus();
+}
+
+function updateStatus() {
+  const t = active;
+  $("st-path").textContent = t ? (t.path.startsWith("web://") ? t.info?.nome || t.name : t.path) : "Pronto";
+  $("st-type").textContent = t ? VIEWER_NAMES[t.viewer] + (t.info?.sniff?.descr ? " · " + t.info.sniff.descr : "") : "";
+  $("st-size").textContent = t ? fmtSize(t.info?.size) : "";
+  $("st-extra").textContent = t?.extra || "";
+}
+
+function activate(t) {
+  if (!$("formats").hidden) { $("formats").hidden = true; $("btn-formats").classList.remove("on"); }
+  active = t;
+  for (const x of tabs) x.view.hidden = x !== t;
+  renderTabs();
+  if (t?.api?.onShow) try { t.api.onShow(); } catch { /* */ }
+  document.title = t ? t.name + " - MB Visual" : "MB Visual";
+}
+
+async function closeTab(t) {
+  if (t.dirty && !(await confirmBox("Modifiche non salvate", `Chiudere "${t.name}" senza salvare le modifiche?`, "Chiudi senza salvare", true))) return;
+  try { t.api?.dispose?.(); } catch { /* */ }
+  t.view.remove();
+  const i = tabs.indexOf(t);
+  tabs.splice(i, 1);
+  if (active === t) active = tabs[i] || tabs[i - 1] || null;
+  activate(active);
+}
+
+// ------------------------------------------------------------------ recenti (nel menu Apri)
+function recentList() {
+  try { return JSON.parse(localStorage.getItem("mbv-recent") || "[]"); } catch { return []; }
+}
+
+function remember(path) {
+  if (/[\\/]MBVisual[\\/](estratti|archivi|email|caricati|office|media|immagini)[\\/]/i.test(path)) return; // file temporanei
+  try {
+    const list = recentList().filter(r => r.path !== path);
+    list.unshift({ path, name: baseName(path), t: Date.now() });
+    localStorage.setItem("mbv-recent", JSON.stringify(list.slice(0, 20)));
+  } catch { /* */ }
+}
+
+const ICON_FILE = '<svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg>';
+const ICON_FOLDER = '<svg viewBox="0 0 24 24"><path d="M3 4h7v16H3zM14 4h7v7h-7zM14 14h7v6h-7z"/></svg>';
+
+function closeMenus() { $("menu-open").hidden = true; $("menu-as").hidden = true; }
+function placeMenu(m, anchor) {
+  const r = anchor.getBoundingClientRect();
+  m.style.left = Math.min(r.left, innerWidth - 470) + "px";
+  m.style.top = r.bottom + 4 + "px";
+  m.hidden = false;
+}
+
+function openMenu(anchor) {
+  const m = $("menu-open");
+  if (!m.hidden) { m.hidden = true; return; }
+  closeMenus();
+  m.innerHTML = "";
+  const item = (icon, text, hint, fn) => { const b = el("button", { onclick: () => { m.hidden = true; fn(); } }); b.insertAdjacentHTML("beforeend", icon); b.append(el("span", {}, text)); if (hint) b.append(el("span", { class: "hint" }, hint)); return b; };
+  m.append(item(ICON_FILE, "Nuovo file...", "Ctrl+O", doOpen));
+  if (!WEB) m.append(item(ICON_FOLDER, "Cartella di progetto...", "", chooseExplorerFolder));
+  m.append(el("hr"), el("div", { class: "sec label" }, "Recenti"));
+  // nella web app i file non restano disponibili dopo la chiusura: i recenti non si possono riaprire
+  const list = WEB ? [] : recentList();
+  if (!list.length) m.append(el("div", { class: "empty" }, WEB ? "Nella web app i file restano solo sul dispositivo: riaprili con Nuovo file" : "Nessun file aperto di recente"));
+  for (const r of list) {
+    m.append(el("button", { class: "rec", title: r.path, onclick: () => { m.hidden = true; openPaths([r.path]); } },
+      badgeFor(r.name), el("span", { class: "nm" }, r.name), el("span", { class: "pt" }, dirName(r.path))));
+  }
+  if (list.length) m.append(el("hr"), item("", "Svuota l'elenco dei recenti", "", () => { try { localStorage.removeItem("mbv-recent"); } catch { /* */ } }));
+  placeMenu(m, anchor);
+}
+
+async function doOpen() { const ps = await pickFiles(); if (ps?.length) openPaths(ps); }
+
+// ------------------------------------------------------------------ esplora cartella di progetto
+let exDir = null, exItems = [];
+async function chooseExplorerFolder() {
+  const d = await pickFolder();
+  if (!d) return;
+  $("explorer").hidden = false;
+  $("btn-explorer").classList.add("on");
+  await loadDir(d);
+}
+async function loadDir(d) {
+  try {
+    const r = await api("list_dir", { path: d });
+    exDir = r.path;
+    exItems = r.items;
+    try { localStorage.setItem("mbv-exdir", exDir); } catch { /* */ }
+    $("ex-path").textContent = exDir;
+    $("ex-path").title = exDir;
+    renderDir();
+  } catch (e) { toast("Cartella non accessibile: " + e.message, true); }
+}
+function renderDir() {
+  const q = $("ex-filter").value.trim().toLowerCase();
+  const box = $("ex-list");
+  box.innerHTML = "";
+  const items = exItems.filter(i => !q || i.name.toLowerCase().includes(q));
+  for (const i of items) {
+    box.append(el("button", { class: "ex-item" + (i.dir ? " dir" : ""), title: i.name, onclick: () => (i.dir ? loadDir(i.path) : openPaths([i.path])) },
+      badgeFor(i.name, i.dir), el("span", { class: "nm" }, i.name), el("span", { class: "sz" }, i.dir ? "" : fmtSize(i.size))));
+  }
+  if (!items.length) box.append(el("div", { class: "note", style: { padding: "8px 12px", color: "var(--muted)" } }, q ? "Nessun file corrisponde al filtro" : "Cartella vuota"));
+}
+function toggleExplorer() {
+  const ex = $("explorer");
+  if (ex.hidden && !exDir) {
+    let d = null;
+    try { d = localStorage.getItem("mbv-exdir"); } catch { /* */ }
+    if (d) { ex.hidden = false; $("btn-explorer").classList.add("on"); loadDir(d); } else chooseExplorerFolder();
+    return;
+  }
+  ex.hidden = !ex.hidden;
+  $("btn-explorer").classList.toggle("on", !ex.hidden);
+  window.dispatchEvent(new Event("resize"));
+}
+
+// ------------------------------------------------------------------ proprieta' del file
+async function showProperties() {
+  const t = active;
+  if (!t) return;
+  const i = await api("info", { path: t.path });
+  const dl = el("dl", { class: "kv" });
+  const add = (k, v, mono) => dl.append(el("dt", {}, k), el("dd", { class: mono ? "mono" : "" }, v));
+  add("Nome", i.nome);
+  add("Cartella", i.cartella);
+  add("Dimensione", `${fmtSize(i.size)} (${i.size.toLocaleString("it-IT")} byte)`);
+  add("Modificato", new Date(i.modificato * 1000).toLocaleString("it-IT"));
+  add("Creato", new Date(i.creato * 1000).toLocaleString("it-IT"));
+  add("Tipo rilevato dal contenuto", i.sniff?.descr || "-");
+  add("Aperto con", VIEWER_NAMES[t.viewer]);
+  add("Scrivibile", i.scrivibile ? "Si" : "No (sola lettura)");
+  const hash = el("dd", { class: "mono" }, "calcolo in corso...");
+  dl.append(el("dt", {}, "Impronta SHA-256"), hash);
+  const copy = el("button", { class: "btn", onclick: () => navigator.clipboard?.writeText(hash.textContent).then(() => toast("Impronta copiata")) }, "Copia impronta");
+  api("file_hash", { path: t.path }).then(r => (hash.textContent = r.sha256)).catch(e => (hash.textContent = "non disponibile: " + e.message));
+  await modal("Proprieta' del file", el("div", { style: { display: "grid", gap: "12px" } }, dl,
+    el("p", { class: "note", style: { margin: 0, color: "var(--muted)" } }, "L'impronta SHA-256 identifica il file in modo univoco: utile per verificare che un elaborato consegnato non sia stato modificato."), copy));
+}
+
+// ------------------------------------------------------------------ apertura
+async function openPaths(paths, fromDrop = false) {
+  if (fromDrop) $("dragover").hidden = true;
+  // un visualizzatore puo' accettare i file trascinati (es. aggiungerli a un archivio)
+  if (fromDrop && active && $("formats").hidden && active.api?.acceptDrop && (await active.api.acceptDrop(paths))) return;
+  for (const p of paths) await openFile(p);
+}
+
+async function openFile(path, forcedViewer = null, extraCtx = {}) {
+  await READY; // il registro dei formati deve essere caricato prima di scegliere il visualizzatore
+  const existing = tabs.find(t => t.path === path && (!forcedViewer || t.viewer === forcedViewer));
+  if (existing && !extraCtx.fresh) return activate(existing);
+  let info;
+  try { info = await api("info", { path }); } catch (e) { return toast("Impossibile aprire: " + e.message, true); }
+  const name = extraCtx.displayName || info.nome;
+  const { cat } = resolveCategory(extraCtx.displayName && !extOf(extraCtx.displayName) ? info.nome : name, info.sniff);
+  const ext = extFor(info.nome);
+  const viewer = forcedViewer || (cat ? cat.viewer : "hex");
+  const view = el("div", { class: "view" });
+  const tb = el("div", { class: "tb" });
+  const body = el("div", { class: "body" });
+  view.append(tb, body);
+  $("views").append(view);
+  const tab = { path, name, viewer, forced: !!forcedViewer, info, view, dirty: false, extra: "", cat };
+  tabs.push(tab);
+  activate(tab);
+  remember(path);
+  const ctx = {
+    path, name, ext, info, cat, el: body, tb, tab, tools: TOOLS, registry: REG,
+    reason: !cat && !forcedViewer ? "unlisted" : null, ...extraCtx,
+    setDirty(v) { if (tab.dirty !== v) { tab.dirty = v; renderTabs(); } },
+    status(text) { tab.extra = text || ""; if (active === tab) updateStatus(); },
+    openPaths, openAs: v => openFile(tab.path, v), openFile,
+    fillBody(fill = true) { body.classList.toggle("fill", fill); },
+  };
+  try {
+    const mod = await import(`./viewers/${viewer}.js`);
+    tab.api = (await mod.mount(ctx)) || {};
+  } catch (e) {
+    console.error(e);
+    showError(ctx, e);
+  }
+}
+
+export function showError(ctx, e) {
+  ctx.el.innerHTML = "";
+  ctx.el.append(el("div", { class: "center" }, el("div", { class: "panel", style: { maxWidth: "560px", textAlign: "left" } },
+    el("h3", { style: { marginTop: 0 } }, "Non e' stato possibile mostrare il contenuto"),
+    el("p", { class: "err" }, String(e?.message || e)),
+    el("p", {}, "Il file resta comunque apribile come byte grezzi o come testo."),
+    el("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
+      el("button", { class: "btn primary", onclick: () => ctx.openAs("hex") }, "Apri come esadecimale"),
+      el("button", { class: "btn", onclick: () => ctx.openAs("text") }, "Apri come testo"),
+      el("button", { class: "btn", onclick: () => api("open_external", { path: ctx.path }).catch(err => toast(err.message, true)) }, "Apri con programma di Windows")))));
+}
+
+// ------------------------------------------------------------------ salvataggio
+async function save(asNew) {
+  const t = active;
+  if (!t) return;
+  const a = t.api || {};
+  if (!a.save) return toast("Questo tipo di file e' in sola lettura: usa \"Apri come\" o \"Esterno\" per modificarlo.", true);
+  let target = t.path;
+  if (asNew || a.saveInPlace === false || !t.info.scrivibile) {
+    const suggested = a.saveAsName ? a.saveAsName() : t.name;
+    target = await pickSavePath(suggested, dirName(t.path));
+    if (!target) return;
+  }
+  try {
+    const res = (await a.save(target)) || {};
+    t.dirty = false;
+    if (target !== t.path && res.switchTo !== false && extOf(target) === extOf(t.path) && !target.startsWith("download://")) {
+      t.path = target;
+      t.name = baseName(target);
+      try { t.info = await api("info", { path: target }); } catch { /* */ }
+      if (t.api.renamed) t.api.renamed(target);
+    }
+    renderTabs();
+    toast("Salvato: " + baseName(target));
+  } catch (e) {
+    console.error(e);
+    toast("Salvataggio non riuscito: " + e.message, true, 6000);
+  }
+}
+
+// ------------------------------------------------------------------ menu "Apri come"
+function openAsMenu(anchor) {
+  const m = $("menu-as");
+  if (!m.hidden) { m.hidden = true; return; }
+  closeMenus();
+  m.innerHTML = "";
+  const order = ["text", "hex", "pdf", "image", "media", "docx", "sheet", "pptx", "office", "cad2d", "model3d", "archive", "signed", "email", "sqlite", "font", "html", "markdown", "svg", "epub"];
+  for (const v of order) {
+    m.append(el("button", { onclick: () => { m.hidden = true; openFile(active.path, v, { fresh: true }); } }, VIEWER_NAMES[v]));
+  }
+  if (TOOLS.navisworks) m.append(el("button", { onclick: () => { m.hidden = true; api("open_external", { path: active.path, app: "navisworks" }); } }, "Navisworks Freedom", el("span", { class: "hint" }, "esterno")));
+  if (TOOLS.trueview) m.append(el("button", { onclick: () => { m.hidden = true; api("open_external", { path: active.path, app: "trueview" }); } }, "DWG TrueView", el("span", { class: "hint" }, "esterno")));
+  placeMenu(m, anchor);
+}
+
+// ------------------------------------------------------------------ pagina formati
+function renderFormats() {
+  const outer = $("formats");
+  outer.innerHTML = "";
+  const box = el("div", { class: "wrap" });
+  outer.append(box);
+  const all = new Set(REG.categories.flatMap(c => c.exts));
+  const search = el("input", { class: "search", type: "search", id: "fmt-search", placeholder: "Cerca un'estensione, es. dwg, p7m, nwd, step" });
+  const answer = el("div", { class: "answer", id: "fmt-answer" });
+  const list = el("div");
+  box.append(
+    el("h1", {}, WEB ? "Formati supportati dalla web app" : "Formati supportati da MB Visual"),
+    ...(WEB ? [el("p", { class: "lead" }, "La versione per PC apre piu' formati (RAW, Navisworks, Office con LibreOffice, conversione di qualsiasi video): questo elenco vale per il telefono e il browser.")] : []),
+    el("p", { class: "lead" }, `${all.size} estensioni in ${REG.categories.length} categorie si aprono con un visualizzatore dedicato. ` +
+      "Questo elenco e' generato dallo stesso registro che l'app usa per decidere come aprire un file: se un'estensione non c'e', " +
+      "il file si apre solo come byte grezzi nell'editor esadecimale."),
+    search, answer, list);
+  const draw = () => {
+    const q = search.value.trim().toLowerCase().replace(/^\*?\./, "");
+    list.innerHTML = "";
+    answer.textContent = "";
+    if (q) {
+      const hits = EXT.get(q);
+      if (hits) {
+        answer.innerHTML = "";
+        answer.append(el("span", { class: "chip ok" }, "Si"), " ." + q + " si apre come: " + hits.map(c => c.name).join(" oppure "));
+        const req = hits.find(c => c.requires && !TOOLS[c.requires]);
+        if (req) answer.append(el("div", { class: "err", style: { fontWeight: 400 } }, `Attenzione: richiede ${REG.requirements[req.requires].name}, non presente su questo PC.`));
+      } else {
+        answer.innerHTML = "";
+        answer.append(el("span", { class: "chip bad" }, "No"), ` .${q} non e' nell'elenco: si apre solo come byte grezzi (esadecimale).`);
+      }
+    }
+    for (const c of REG.categories) {
+      const exts = q ? c.exts.filter(e => e.includes(q)) : c.exts;
+      if (q && !exts.length && !c.name.toLowerCase().includes(q)) continue;
+      const req = c.requires ? REG.requirements[c.requires] : null;
+      const status = req ? (TOOLS[c.requires] ? el("span", { class: "chip ok" }, req.name + " presente") : el("span", { class: "chip warn" }, "Richiede " + req.name + " (gratuito)")) : null;
+      list.append(el("section", { class: "fcat" },
+        el("header", {}, el("h2", {}, c.name), el("span", { class: "n" }, `${c.exts.length} estensioni`), status),
+        el("p", {}, el("b", {}, "Visualizza: "), c.view),
+        el("p", {}, el("b", {}, "Modifica: "), c.edit),
+        el("div", { class: "exts" }, [...new Set(c.exts)].sort().map(e => el("code", { class: q && e === q ? "hit" : "" }, "." + e)))));
+    }
+    const fb = REG.fallback;
+    list.append(el("section", { class: "fcat" }, el("header", {}, el("h2", {}, fb.name)),
+      el("p", {}, el("b", {}, "Visualizza: "), fb.view), el("p", {}, el("b", {}, "Modifica: "), fb.edit)));
+  };
+  search.addEventListener("input", draw);
+  draw();
+}
+
+function toggleFormats() {
+  const f = $("formats");
+  if (f.hidden) {
+    renderFormats();
+    f.hidden = false;
+    $("home").hidden = true;
+    $("views").hidden = true;
+    $("btn-formats").classList.add("on");
+    $("fmt-search").focus();
+  } else {
+    f.hidden = true;
+    $("btn-formats").classList.remove("on");
+    activate(active);
+  }
+}
+
+// ------------------------------------------------------------------ trascinamento
+function setupDrop() {
+  let depth = 0;
+  const show = v => ($("dragover").hidden = !v);
+  window.addEventListener("dragenter", e => { if (e.dataTransfer?.types?.includes("Files")) { depth++; show(true); } });
+  window.addEventListener("dragleave", () => { depth = Math.max(0, depth - 1); if (!depth) show(false); });
+  window.addEventListener("dragover", e => { e.preventDefault(); });
+  window.addEventListener("drop", async e => {
+    e.preventDefault();
+    depth = 0;
+    show(false);
+    if (isDesktop()) return; // nell'app desktop i percorsi arrivano dal motore (on_drop)
+    // modalita' browser: carica i file in una cartella temporanea
+    const paths = [];
+    for (const f of e.dataTransfer.files) paths.push((await api("upload", { name: f.name }, { body: f })).path);
+    await openPaths(paths, true);
+  });
+}
+
+// ------------------------------------------------------------------ tema
+function setupTheme() {
+  let t = null;
+  try { t = localStorage.getItem("mbv-theme"); } catch { /* */ }
+  if (t) document.documentElement.dataset.theme = t;
+  $("btn-theme").addEventListener("click", () => {
+    const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    const next = dark ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem("mbv-theme", next); } catch { /* */ }
+    window.dispatchEvent(new CustomEvent("mbv-theme"));
+  });
+}
+
+// ------------------------------------------------------------------ avvio
+async function boot() {
+  await loadRegistry();
+  const caps = $("home-caps");
+  const CAPS = WEB ? [
+    ["doc.pdf", "Documenti", "PDF, Word, Excel, PowerPoint"],
+    ["firma.p7m", "Firme digitali", "p7m, p7s, tsd, m7m, PDF firmati PAdES"],
+    ["pianta.dwg", "Disegni CAD 2D", "DWG, DXF con layer, quote e misure"],
+    ["modello.step", "Modelli CAD 3D", "STEP, IGES, BREP con albero delle parti"],
+    ["edificio.ifc", "BIM e 3D", "IFC, STL, OBJ, GLB, FBX"],
+    ["foto.jpg", "Immagini", "JPG, PNG, WEBP, TIFF, HEIC dell'iPhone"],
+    ["video.mp4", "Audio e video", "MP4, MOV, WEBM, MP3, WAV, M4A e altri"],
+    ["archivio.zip", "Archivi ed email", "ZIP, RAR, 7Z, TAR, ISO, EML"],
+    ["codice.py", "Testo, codice e dati", "Editor professionale, SQLite, esadecimale"],
+  ] : [
+    ["doc.pdf", "Documenti", "PDF, Word, Excel, PowerPoint, OpenDocument"],
+    ["firma.p7m", "Firme digitali", "p7m, p7s, tsd, m7m, PDF firmati PAdES"],
+    ["pianta.dwg", "Disegni CAD 2D", "DWG, DXF con layer, quote e misure"],
+    ["modello.step", "Modelli CAD 3D", "STEP, IGES, BREP con albero delle parti"],
+    ["edificio.ifc", "BIM e 3D", "IFC, Navisworks, STL, OBJ, GLB, FBX"],
+    ["foto.cr2", "Immagini", "JPG, PNG, TIFF, HEIC, PSD e RAW fotocamere"],
+    ["video.mp4", "Audio e video", "Qualsiasi formato, con taglio e conversione"],
+    ["archivio.zip", "Archivi ed email", "ZIP, RAR, 7Z, ISO, EML, MSG"],
+    ["codice.py", "Testo, codice e dati", "Editor professionale, SQLite, esadecimale"],
+  ];
+  if (WEB) {
+    document.documentElement.classList.add("web");
+    $("drop").querySelector("h1").textContent = "Apri i file da visualizzare";
+    $("drop").querySelector("p").textContent = "I file restano sul tuo dispositivo: nessun invio a server. Puoi anche condividerli da altre app verso MB Visual.";
+  }
+  for (const [f, t, d] of CAPS) caps.append(el("div", { class: "cap" }, badgeFor(f), el("b", {}, t), el("span", { class: "d" }, d)));
+  const total = new Set(REG.categories.flatMap(c => c.exts)).size;
+  $("home-formats").textContent = `${total} estensioni supportate · vedi l'elenco completo`;
+  $("home-formats").addEventListener("click", toggleFormats);
+  setupDrop();
+  setupTheme();
+  $("btn-open").addEventListener("click", e => openMenu(e.currentTarget));
+  $("home-open").addEventListener("click", doOpen);
+  $("home-folder").addEventListener("click", chooseExplorerFolder);
+  $("btn-explorer").addEventListener("click", toggleExplorer);
+  $("btn-info").addEventListener("click", showProperties);
+  $("ex-pick").addEventListener("click", chooseExplorerFolder);
+  $("ex-up").addEventListener("click", () => exDir && dirName(exDir) && loadDir(dirName(exDir)));
+  $("ex-filter").addEventListener("input", renderDir);
+  $("btn-save").addEventListener("click", () => save(false));
+  $("btn-saveas").addEventListener("click", () => save(true));
+  $("btn-as").addEventListener("click", e => openAsMenu(e.currentTarget));
+  $("btn-folder").addEventListener("click", () => active && api("reveal", { path: active.path }));
+  $("btn-external").addEventListener("click", () => active && api("open_external", { path: active.path }).catch(e => toast(e.message, true)));
+  $("btn-formats").addEventListener("click", toggleFormats);
+  document.addEventListener("click", e => { if (!e.target.closest(".menu-wrap")) closeMenus(); });
+  document.addEventListener("keydown", e => {
+    const k = e.key.toLowerCase();
+    if (e.ctrlKey && k === "o") { e.preventDefault(); doOpen(); }
+    else if (e.ctrlKey && k === "s") { e.preventDefault(); save(e.shiftKey); }
+    else if (e.ctrlKey && k === "w") { e.preventDefault(); if (active) closeTab(active); }
+    else if (e.ctrlKey && k === "tab" && tabs.length) { e.preventDefault(); activate(tabs[(tabs.indexOf(active) + (e.shiftKey ? -1 : 1) + tabs.length) % tabs.length]); }
+  });
+  window.addEventListener("beforeunload", e => { if (tabs.some(t => t.dirty)) { e.preventDefault(); e.returnValue = ""; } });
+  renderTabs();
+}
+
+window.MB = { openPaths, openFile, resolveCategory, get tabs() { return tabs; }, modal };
+const READY = boot();
