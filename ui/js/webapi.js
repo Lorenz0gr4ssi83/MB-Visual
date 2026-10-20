@@ -483,7 +483,7 @@ async function sharedFiles() {
     paths.push(register(await r.blob(), name));
     await cache.delete(k);
   }
-  history.replaceState(null, "", location.pathname);
+  history.replaceState(history.state, "", location.pathname); // mantiene la protezione del tasto indietro
   const wait = () => (window.MB ? window.MB.openPaths(paths) : setTimeout(wait, 100));
   if (paths.length) wait();
 }

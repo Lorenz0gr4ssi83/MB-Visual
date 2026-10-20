@@ -108,6 +108,12 @@ export async function mount(ctx) {
   await load();
 
   return {
+    onBack() { // indietro: prima si risale di una cartella dentro l'archivio
+      if (!cwd) return false;
+      cwd = cwd.includes("/") ? cwd.slice(0, cwd.lastIndexOf("/")) : "";
+      render();
+      return true;
+    },
     async acceptDrop(paths) {
       if (!editable()) return false;
       const choice = await modal("File trascinati", `<p>Aggiungere ${paths.length} elemento/i all'archivio <b>${ctx.name}</b>${cwd ? " nella cartella " + cwd : ""}, oppure aprirli?</p>`,

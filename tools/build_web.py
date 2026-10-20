@@ -21,7 +21,7 @@ FINAL = ROOT / "docs"
 # si costruisce fuori da OneDrive (che blocca i file durante la sincronizzazione) e poi si allinea docs/ con robocopy
 OUT = Path.home() / ".mbvisual" / "webbuild"
 CACHE = Path.home() / ".mbvisual" / "webvendor"
-VERSION = "2026.10.20-1"
+VERSION = "2026.10.21-1"
 
 # librerie usate solo dalla web app: (cartella, tarball npm, {file nel pacchetto: destinazione})
 WEB_LIBS = [

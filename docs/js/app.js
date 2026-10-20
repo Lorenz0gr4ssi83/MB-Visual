@@ -26,6 +26,7 @@ let REG = null;          // formats.json
 let EXT = new Map();     // estensione -> [categorie]
 let TOOLS = {};
 const tabs = [];
+const seen = [];         // schede in ordine di visualizzazione (per il tasto indietro)
 let active = null;
 
 // ------------------------------------------------------------------ registro formati
@@ -107,6 +108,7 @@ function updateStatus() {
 function activate(t) {
   if (!$("formats").hidden) { $("formats").hidden = true; $("btn-formats").classList.remove("on"); }
   active = t;
+  if (t) { const i = seen.indexOf(t); if (i >= 0) seen.splice(i, 1); seen.push(t); }
   for (const x of tabs) x.view.hidden = x !== t;
   renderTabs();
   if (t?.api?.onShow) try { t.api.onShow(); } catch { /* */ }
@@ -119,7 +121,8 @@ async function closeTab(t) {
   t.view.remove();
   const i = tabs.indexOf(t);
   tabs.splice(i, 1);
-  if (active === t) active = tabs[i] || tabs[i - 1] || null;
+  if (seen.includes(t)) seen.splice(seen.indexOf(t), 1);
+  if (active === t) active = seen[seen.length - 1] || tabs[i] || tabs[i - 1] || null;
   activate(active);
 }
 
@@ -405,6 +408,31 @@ function toggleFormats() {
   }
 }
 
+// ------------------------------------------------------------------ tasto indietro (telefono, browser, mouse)
+// L'app tiene sempre una voce di cronologia in piu': il tasto indietro la consuma, l'app torna alla schermata
+// precedente e la rimette. Nella schermata iniziale non succede nulla: l'app non si chiude mai.
+function goBack() {
+  if (!$("modal").hidden) return document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+  if (!$("menu-open").hidden || !$("menu-as").hidden) return closeMenus();
+  if (!$("dragover").hidden) { $("dragover").hidden = true; return; }
+  if (document.fullscreenElement) return document.exitFullscreen?.();
+  if (!$("formats").hidden) return toggleFormats();
+  if (!$("explorer").hidden) return toggleExplorer();
+  if (!active) return;
+  try { if (active.api?.onBack?.()) return; } catch { /* */ }
+  closeTab(active); // torna al file visto prima o alla schermata iniziale; chiede conferma se ci sono modifiche
+}
+
+function setupBack() {
+  const arm = () => { if (history.state?.mbv !== "guard") history.pushState({ mbv: "guard" }, ""); };
+  history.replaceState({ mbv: "base" }, "");
+  arm();
+  // Chrome salta le voci aggiunte senza un tocco dell'utente: la protezione si rimette anche al primo tocco
+  document.addEventListener("pointerdown", arm, true);
+  document.addEventListener("keydown", arm, true);
+  window.addEventListener("popstate", () => { arm(); goBack(); });
+}
+
 // ------------------------------------------------------------------ trascinamento
 function setupDrop() {
   let depth = 0;
@@ -474,6 +502,7 @@ async function boot() {
   $("home-formats").addEventListener("click", toggleFormats);
   setupDrop();
   setupTheme();
+  setupBack();
   $("btn-open").addEventListener("click", e => openMenu(e.currentTarget));
   $("home-open").addEventListener("click", doOpen);
   $("home-folder").addEventListener("click", chooseExplorerFolder);
