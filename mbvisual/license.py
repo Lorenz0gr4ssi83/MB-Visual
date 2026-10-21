@@ -27,8 +27,17 @@ _lock = threading.Lock()
 _cache = {"t": 0.0, "res": None}
 
 
+TEST_FILE = STORE.parent / "licenza_prova.txt"  # accende la licenza solo su questo PC (prove prima dell'obbligo per tutti)
+
+
 def server_url() -> str:
-    return (os.environ.get("MBV_LICENZE_URL") or getattr(license_pub, "LICENSE_URL", "")).rstrip("/")
+    url = os.environ.get("MBV_LICENZE_URL") or getattr(license_pub, "LICENSE_URL", "")
+    if not url:
+        try:
+            url = TEST_FILE.read_text(encoding="utf-8").strip()
+        except OSError:
+            url = ""
+    return url.rstrip("/")
 
 
 def required() -> bool:
