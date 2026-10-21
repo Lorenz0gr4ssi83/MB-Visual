@@ -90,7 +90,9 @@ def _post(path: str, body: dict, timeout=12) -> tuple[int, dict]:
     url = server_url()
     if not url:
         raise ConnectionError("Server delle licenze non configurato")
-    req = urllib.request.Request(url + path, data=json.dumps(body).encode(), headers={"content-type": "application/json"}, method="POST")
+    # user-agent proprio: Cloudflare blocca quello predefinito di Python ("Python-urllib", errore 1010)
+    req = urllib.request.Request(url + path, data=json.dumps(body).encode(), method="POST",
+                                 headers={"content-type": "application/json", "user-agent": f"MBVisual/{_version() or 'app'}"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return r.status, json.loads(r.read() or b"{}")

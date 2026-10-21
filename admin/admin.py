@@ -46,7 +46,8 @@ def call(method: str, path: str, body=None):
     if not url:
         return {"ok": False, "errore": "Indirizzo del server non impostato (server_url.txt)"}
     req = urllib.request.Request(url + path, method=method, data=None if body is None else json.dumps(body).encode(),
-                                 headers={"authorization": f"Bearer {token}", "content-type": "application/json"})
+                                 headers={"authorization": f"Bearer {token}", "content-type": "application/json",
+                                          "user-agent": "MBVisual-Admin/1.0"})  # Cloudflare blocca "Python-urllib" (errore 1010)
     try:
         with urllib.request.urlopen(req, timeout=15) as r:
             return json.loads(r.read() or b"{}")
