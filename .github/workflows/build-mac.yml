@@ -1,9 +1,12 @@
 # App per Mac (Apple Silicon), NON firmata: "MB Visual.app" in un .dmg caricato come artefatto del workflow.
-# Si avvia a mano (Actions -> Build Mac -> Run workflow): i minuti dei runner macOS costano 10 volte quelli Linux
-# sui repository privati, per questo non parte a ogni push.
+# Si avvia a mano (Actions -> Build Mac -> Run workflow, solo quando il file e' sul ramo principale) oppure con un push
+# sul ramo mac-build: i minuti dei runner macOS costano 10 volte quelli Linux sui repository privati, per questo
+# non parte a ogni push.
 name: Build Mac
 
 on:
+  push:
+    branches: [mac-build]
   workflow_dispatch:
     inputs:
       onlyoffice:
@@ -51,17 +54,17 @@ jobs:
         run: python tools/fetch_vendor.py
 
       - name: Lettore Navisworks (nwd2mbv)
-        if: ${{ inputs.navisworks }}
+        if: ${{ github.event_name == 'push' || inputs.navisworks }}
         continue-on-error: true
         run: bash tools/nwd2mbv/build_mac.sh
 
       - uses: actions/setup-node@v4
-        if: ${{ inputs.onlyoffice }}
+        if: ${{ github.event_name == 'push' || inputs.onlyoffice }}
         with:
           node-version: "24"
 
       - name: ONLYOFFICE (github.com/ranuts/document, stesso commit della versione Windows)
-        if: ${{ inputs.onlyoffice }}
+        if: ${{ github.event_name == 'push' || inputs.onlyoffice }}
         continue-on-error: true
         run: |
           corepack enable
