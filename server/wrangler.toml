@@ -1,0 +1,14 @@
+# Server delle licenze MB Visual su Cloudflare Workers (piano gratuito)
+# Messa online:  npx wrangler@4 deploy   (dalla copia in %USERPROFILE%\.mbvisual\server, vedi tools/license_setup.py)
+# Segreti (mai nel repository): SIGNING_KEY (chiave privata Ed25519), ADMIN_TOKEN (accesso dell'app di gestione)
+name = "mbvisual-licenze"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+PUBLIC_KEY = "__PUBLIC_KEY__"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mbvisual-licenze"
+database_id = "__DATABASE_ID__"
