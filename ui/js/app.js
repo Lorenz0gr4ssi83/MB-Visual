@@ -3,6 +3,7 @@ import {
   api, baseName, button, confirmBox, dirName, el, extOf, fmtSize, isDesktop, modal, pickFiles, pickFolder,
   pickSavePath, toast, waitJob, WEB,
 } from "./core.js";
+import { licenseGate, showAccount } from "./license.js";
 
 const $ = id => document.getElementById(id);
 const VIEWER_NAMES = {
@@ -193,6 +194,7 @@ const ICON_SAVE = '<svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5zM8 3v6h8V3
 const ICON_SAVEAS = '<svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v6M5 3v18h7M8 3v6h8V3M17 15v6M14 18h6"/></svg>';
 const ICON_UPD = '<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>';
 // menu File: nuovo, salva, salva con nome, aggiornamenti (le voci di apertura stanno nel menu Apri)
+const ICON_ACCOUNT = '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>';
 function fileMenu(anchor) {
   const m = $("menu-file");
   if (!m.hidden) { m.hidden = true; return; }
@@ -203,7 +205,7 @@ function fileMenu(anchor) {
     item(ICON_SAVE, "Salva", "Ctrl+S", () => save(false), !active),
     item(ICON_SAVEAS, "Salva con nome...", "Ctrl+Maiusc+S", () => save(true), !active));
   if (!WEB) {
-    m.append(el("hr"), item(ICON_UPD, "Verifica aggiornamenti", "", () => checkUpdates(true)));
+    m.append(el("hr"), item(ICON_ACCOUNT, "Account e licenza...", "", showAccount), item(ICON_UPD, "Verifica aggiornamenti", "", () => checkUpdates(true)));
     if (updInfo?.installabile && !updInfo.installata) m.append(item("", "Installa su questo PC...", "", askInstall));
   }
   placeMenu(m, anchor);
@@ -768,6 +770,7 @@ async function boot() {
   setupDrop();
   setupTheme();
   setupBack();
+  if (!WEB) licenseGate(); // licenza dell'app per PC: senza attivazione copre l'app con la schermata della chiave
   if (!WEB) setTimeout(() => checkUpdates(false), 3000);
   setInterval(() => { if (!document.hidden) checkExternalChange(active); }, 2000);
   window.addEventListener("focus", () => tabs.forEach(checkExternalChange));

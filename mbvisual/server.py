@@ -153,6 +153,11 @@ class Handler(BaseHTTPRequestHandler):
             fn = getattr(self, "api_" + route[5:].replace("/", "_").replace("-", "_"), None)
             if fn is None:
                 return self._json({"ok": False, "errore": "API sconosciuta"}, 404)
+            # licenza: senza attivazione valida rispondono solo licenza e aggiornamenti (mbvisual/license.py)
+            if not route.startswith(("/api/license", "/api/update", "/api/job")):
+                from . import license as lic
+                if lic.required() and not lic.status().get("attiva"):
+                    return self._json({"ok": False, "errore": "Licenza non attiva", "licenza": True}, 402)
             fn(qs)
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
@@ -178,6 +183,24 @@ class Handler(BaseHTTPRequestHandler):
         self._serve_file(p)
 
     # ------------------------------------------------------------ API: aggiornamento automatico (mbvisual/update.py)
+    # ------------------------------------------------------------ API: licenza (mbvisual/license.py)
+    def api_license_status(self, qs):
+        from . import license as lic
+        self._json(lic.status(force=_q(qs, "force") == "1"))
+
+    def api_license_activate(self, qs):
+        from . import license as lic
+        self._json(lic.activate(str(self._body_json().get("key", ""))))
+
+    def api_license_account(self, qs):
+        from . import license as lic
+        self._json(lic.account())
+
+    def api_license_request(self, qs):
+        from . import license as lic
+        b = self._body_json()
+        self._json(lic.request(b.get("type", "report"), str(b.get("message", "")), str(b.get("key", ""))))
+
     def api_update_check(self, qs):
         from . import update
         self._json(update.check())

@@ -28,6 +28,7 @@ export async function api(route, params = {}, opts = {}) {
   if (opts.raw) return res;
   let data;
   try { data = await res.json(); } catch { data = { ok: false, errore: "Risposta non valida dal motore (" + res.status + ")" }; }
+  if (res.status === 402 && data.licenza) window.dispatchEvent(new CustomEvent("mbv-licenza")); // licenza non attiva (ui/js/license.js)
   if (data.ok === false && !opts.allowFail) throw new Error(data.errore || "Errore");
   return data;
 }

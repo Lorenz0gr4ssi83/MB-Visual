@@ -42,9 +42,12 @@ def keys() -> None:
         }
         f.write_text(json.dumps(data, indent=1), encoding="utf-8")
         print("Create le chiavi in", f, "- FAI UNA COPIA DI SICUREZZA di questo file")
+    url_file = VAULT / "server_url.txt"  # indirizzo del server, scritto dopo la messa online
+    url = url_file.read_text().strip() if url_file.exists() else ""
     (ROOT / "mbvisual" / "license_pub.py").write_text(
-        '"""Chiave pubblica che verifica le attivazioni firmate dal server delle licenze (tools/license_setup.py)."""\n'
-        f'PUBLIC_KEY = "{data["public_raw"]}"\n', encoding="utf-8")
+        '"""Chiave pubblica che verifica le attivazioni firmate dal server delle licenze e indirizzo del server\n'
+        '(scritti da tools/license_setup.py)."""\n'
+        f'PUBLIC_KEY = "{data["public_raw"]}"\nLICENSE_URL = "{url}"\n', encoding="utf-8")
     print("Chiave pubblica scritta in mbvisual/license_pub.py")
 
 
