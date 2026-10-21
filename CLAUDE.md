@@ -603,3 +603,28 @@ Miniature, riquadro di anteprima, "Apri con", icone dei tipi e "Apri con MB Visu
 - DA PROVARE con l'utente: registrazione reale su questo PC (la scrittura nel registro era bloccata dai permessi della sessione),
   miniature in Esplora, riquadro di anteprima, PC x64. Windows 11: la voce del tasto destro sta in "Mostra altre opzioni"
   (il menu nuovo richiede un pacchetto MSIX firmato).
+
+## JT, U3D e modelli 3D dei PDF (22/10/2026) - FATTO (PRC no)
+Categoria `vis3d` in formats.json (jt, u3d) -> visualizzatore 3D. Lettori propri in JS, eseguiti in un Web Worker
+(`ui/js/neutral3dworker.js`); `ui/js/neutral3d.js` costruisce la scena (albero, colori per mesh `mc`, matrici, proprieta' in
+userData) e salva la conversione in cache nel motore (`mbvisual/model3dcache.py`, API `model_cache`, %TEMP%\MBVisual\modelli3d,
+chiave = percorso+dimensione+data+`CACHE_VER`: alzare CACHE_VER quando cambia l'uscita di un lettore). model3d.js: `NEUTRAL`.
+- JT (`ui/js/jt.js` + `ui/js/jtcodec.js`), scritto sulla specifica pubblica JT File Format Reference v8.1/v9.5/v10.5 (PDF in
+  github.com/Arsanias/Delphi-JT-Loader/docs). LSG (partizioni anche in file esterni, istanze, parti, LOD = primo figlio,
+  switch), materiali, trasformazioni (F32 o F64: si capisce dalla lunghezza dell'elemento), Property Table + metadati
+  (Property Proxy). Mesh: JT 8 strisce (Int32CDP: bitlength, Huffman con heap come l'implementazione di riferimento -
+  i pareggi decidono l'albero -, aritmetico; vertici con/senza perdita), JT 9/10 compressione topologica (Appendice E,
+  `decodeDualMesh`). JT 10: segmenti XZ/LZMA2 (decodificatore proprio), versioni U8, Bitlength con "nibble" da 4 bit,
+  coordinate senza perdita = bit IEEE con Lag1, intestazione di elemento incorporata prima dei dati topologici.
+  Non letti (avviso): B-rep XT/JT, PMI, ULP/LWPA, Polyline/Point/Primitive set, texture.
+- U3D (`ui/js/u3d.js`): ECMA-363 4a ed. (lettore di bit dall'implementazione informativa dell'Annex A), catene, nodi
+  gruppo/modello, shading -> lit texture shader -> materiale, mesh CLOD di BASE. Mancano: aggiornamenti progressivi
+  (blocchi 0xFFFFFF3C: avviso "risoluzione di base"; i file con risoluzione minima 0 restano vuoti), linee, punti, texture.
+- PDF 3D: `mbvisual/pdf3d.py` (API `pdf3d`) estrae i flussi U3D/PRC (annotazioni /3D, 3DRef, RichMedia, allegati) in
+  %TEMP%\MBVisual\pdf3d; `ui/js/pdf3d.js` aggiunge "Modello 3D" nel visualizzatore PDF (solo app per PC).
+  PRC: elencati ma NON letti (nessuna specifica gratuita; ISO 14739 a pagamento). Strada possibile: interprete dello
+  schema MIT `prc.json` di github.com/ralovich/prc-rs (+ riferimento MIT CalyPdf/Caly.Rendering.Scene3D); NON usare nanoPRC (AGPL).
+- `.prc` resta anche "codice" (procedure PL/SQL). Riconoscimento dal contenuto in misc.sniff: "U3D\0", "Version N.N JT".
+- Collaudo (file pubblici NON nel repo): JT da github.com/Arsanias/Delphi-JT-Loader/Examples (MIT) e bitbybit3d/dxjt_toolkit
+  /samples: 15 file 8.0-10.3 tutti aperti, stesso modello in 8/9.5/10 = stesso ingombro; U3D da github.com/ralovich/u3d-db
+  (21 file); PDF: media9.pdf da CTAN (2 U3D + 1 PRC). Visto nell'app: motore radiale, CoffeeMaker, dado di media9.

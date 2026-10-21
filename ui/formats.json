@@ -1073,6 +1073,17 @@
    ]
   },
   {
+   "id": "vis3d",
+   "name": "Formati 3D di visualizzazione (JT, U3D)",
+   "viewer": "model3d",
+   "view": "JT (ISO 14306, versioni 8-10): assieme, parti, istanze, colori, proprieta' e metadati, geometria tassellata al livello di dettaglio piu' fine; U3D (ECMA-363), anche estratti dai PDF 3D (i modelli PRC dei PDF vengono elencati ma non ancora letti). Navigazione, albero, sezioni, misure come gli altri modelli 3D",
+   "edit": "Colori e visibilita' delle parti, esportazione in STL / OBJ / GLB. B-rep (Parasolid XT, JT B-rep), PMI e texture non vengono letti",
+   "exts": [
+    "jt",
+    "u3d"
+   ]
+  },
+  {
    "id": "navisworks",
    "name": "Navisworks",
    "viewer": "external",

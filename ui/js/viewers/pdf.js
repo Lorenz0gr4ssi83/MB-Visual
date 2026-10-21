@@ -171,6 +171,8 @@ export async function mount(ctx) {
     }
   }
   ctx.tb.append(el("span", { class: "grow" }), el("span", { class: "note" }, ed ? t("v_pdf.strumenti_modifica_barra_sotto_ctrl") : t("v_pdf.annotazioni_testo_disegno_evidenziatore_immagini")));
+  // modelli 3D (U3D / PRC) nelle annotazioni 3D del PDF: pulsante "Modello 3D" (ui/js/pdf3d.js)
+  if (!WEB) import("../pdf3d.js").then(m => m.add3dButton(ctx)).catch(() => {});
   // firme digitali nel PDF
   api("pdf_signatures", { path: ctx.path }, { allowFail: true }).then(r => {
     const sigs = (r.firme || []).filter(s => s.firmatari);

@@ -22,7 +22,7 @@ const SNIFF_FAMILY = {
   pdf: ["pdf"], signed: ["signed"], media: ["media", "audio"], archive: ["archive"], image: ["image", "image-raw"],
   zip: ["word", "sheet", "pptx", "publisher", "visio", "office-lo", "archive", "mesh3d", "ebook"], sqlite: ["database"],
   ole: ["publisher", "visio", "office-lo", "sheet", "email", "archive", "image"], cad2d: ["cad2d"], ifc: ["mesh3d"], cad3d: ["cad3d"],
-  mesh3d: ["mesh3d"], pointcloud: ["pointcloud"], font: ["font"], svg: ["svg"], html: ["html"], email: ["email"],
+  mesh3d: ["mesh3d"], pointcloud: ["pointcloud"], font: ["font"], svg: ["svg"], html: ["html"], email: ["email"], vis3d: ["vis3d"],
 };
 const NAME_AS_EXT = { makefile: "makefile", dockerfile: "dockerfile", containerfile: "containerfile", license: "txt", readme: "txt",
   ".gitignore": "gitignore", ".gitattributes": "gitattributes", ".editorconfig": "editorconfig", ".env": "env", ".htaccess": "htaccess" };
@@ -74,7 +74,7 @@ export function resolveCategory(name, sniff) {
 
 // ------------------------------------------------------------------ badge per tipo di file
 const BADGE_COLOR = { pdf: "pdf", signed: "sig", word: "doc", "office-lo": "doc", sheet: "xls", pptx: "ppt", publisher: "cad", visio: "doc", cad2d: "cad",
-  cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", videoproject: "av", bcf: "3d",
+  cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", vis3d: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", videoproject: "av", bcf: "3d",
   archive: "zip", email: "mail", text: "code", markdown: "code", html: "code", ebook: "code", font: "code", database: "db", gis: "img" };
 export function badgeFor(name, isDir = false) {
   if (isDir) return el("span", { class: "badge" }, "DIR");

@@ -390,6 +390,20 @@ class Handler(BaseHTTPRequestHandler):
         b = self._body_json()
         self._json({"ok": True, "job": jobs.start(pointcloud.export, self._path(qs), b["out"], b.get("clip"))})
 
+    def api_model_cache(self, qs):
+        # cache delle conversioni 3D fatte nell'interfaccia (JT, U3D): mbvisual/model3dcache.py
+        from . import model3dcache
+        p, kind, ver = self._path(qs), _q(qs, "kind", ""), _q(qs, "ver", "")
+        if self.command == "POST":
+            self._json(model3dcache.put(p, kind, ver, _q(qs, "part", ""), self._body()))
+        else:
+            self._json(model3dcache.get(p, kind, ver))
+
+    def api_pdf3d(self, qs):
+        # modelli U3D / PRC contenuti nelle annotazioni 3D di un PDF: mbvisual/pdf3d.py
+        from . import pdf3d
+        self._json(pdf3d.extract(self._path(qs)))
+
     def api_onlyoffice(self, qs):
         self._json({"ok": True, "url": onlyoffice_url()})
 

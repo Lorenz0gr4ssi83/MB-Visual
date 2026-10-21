@@ -16,6 +16,7 @@ const LOADERS = {
   "3dm": ["3DMLoader", "Rhino3dmLoader"],
 };
 const NAVIS = { nwd: 1, nwc: 1, nwf: 1 }; // Navisworks letto da nwd2mbv (senza Navisworks)
+const NEUTRAL = { jt: 1, u3d: 1 }; // lettori propri in un Web Worker, con cache (ui/js/neutral3d.js)
 // nuvole di punti da rilievo (ui/js/pointcloud.js); i PLY si aprono come nuvola se non hanno facce
 const PCLOUD = { las: 1, laz: 1, e57: 1, pts: 1, ptx: 1, xyz: 1, txt: 1, asc: 1, csv: 1, ply: 1 };
 const OCCT = { step: "step", stp: "step", p21: "step", stpz: "step", iges: "iges", igs: "iges", brep: "brep", brp: "brep" };
@@ -294,7 +295,7 @@ function rhinoTree(obj) {
 
 // ---------------------------------------------------------------- visualizzatore
 async function loadAny(c, ld, info) {
-  const bytes = NAVIS[c.ext] || PCLOUD[c.ext] ? null : await readBytes(c.path); // Navisworks e nuvole: li legge il motore nativo
+  const bytes = NAVIS[c.ext] || PCLOUD[c.ext] || NEUTRAL[c.ext] ? null : await readBytes(c.path); // Navisworks e nuvole: li legge il motore nativo
   let loaded;
   if (PCLOUD[c.ext]) {
     const { loadPointCloud } = await import("../pointcloud.js");
@@ -304,11 +305,12 @@ async function loadAny(c, ld, info) {
   } else if (OCCT[c.ext]) loaded = await loadOcct(c, bytes, ld);
   else if (c.ext === "ifc") loaded = await loadIfc(c, bytes, ld, info);
   else if (NAVIS[c.ext]) { const { loadNavis } = await import("../navis.js"); loaded = await loadNavis(c, ld); if (c.navisInfo) info.status = c.navisInfo; }
+  else if (NEUTRAL[c.ext]) { const { loadNeutral } = await import("../neutral3d.js"); loaded = await loadNeutral(c, bytes, ld, info); }
   else if (c.ext === "skp") { const { loadSkp } = await import("../sketchup.js"); loaded = await loadSkp(c, bytes, ld); if (c.skpInfo) info.status = c.skpInfo; } // SketchUp senza SketchUp (OpenSKP)
   else if (LOADERS[c.ext]) loaded = await loadMesh(c, bytes, ld);
   else throw new Error(tr("v_model3d.formato_0_non_modello_3d", c.ext));
   // asse Z verso l'alto per CAD e mesh tecniche (convenzione ingegneristica)
-  if (OCCT[c.ext] || ["stl", "3mf", "amf", "ply", "obj", "3ds", "3dm"].includes(c.ext) || NAVIS[c.ext]) loaded.root.rotation.x = -Math.PI / 2;
+  if (OCCT[c.ext] || ["stl", "3mf", "amf", "ply", "obj", "3ds", "3dm"].includes(c.ext) || NAVIS[c.ext] || NEUTRAL[c.ext]) loaded.root.rotation.x = -Math.PI / 2;
   loaded.root.name = c.name;
   return loaded;
 }
@@ -599,6 +601,7 @@ export async function mount(ctx) {
   const unitOf = o => {
     while (o.parent && o.parent !== model && o.userData.expressID !== undefined && o.userData.expressID === o.parent.userData.expressID) o = o.parent;
     if (o.userData.navisId !== undefined && o.parent?.userData.navisId === o.userData.navisId) o = o.parent; // Navisworks: il nodo, non la singola mesh
+    if (o.userData.neutralShape && o.parent && o.parent !== model) o = o.parent; // JT/U3D: la parte, non la singola forma
     if (o.userData.pickParent && o.parent) o = o.parent; // SketchUp: il gruppo o componente, non la faccia o lo spigolo
     return o;
   };
