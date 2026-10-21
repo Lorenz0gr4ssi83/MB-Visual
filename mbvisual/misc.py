@@ -12,6 +12,7 @@ import uuid
 from pathlib import Path
 
 from .paths import TEMP_DIR
+from .i18n import t as tr
 
 RAW_EXTS = {"cr2", "cr3", "crw", "nef", "nrw", "arw", "srf", "sr2", "orf", "rw2", "raf", "dng", "pef", "ptx", "srw",
             "x3f", "3fr", "fff", "erf", "kdc", "dcr", "mos", "mef", "mrw", "rwl", "iiq", "raw", "rwz", "bay", "cap", "eip"}
@@ -87,7 +88,7 @@ def save_image(png_bytes: bytes, out_path: str, quality: int = 92) -> dict:
     ext = Path(out_path).suffix.lower().lstrip(".")
     fmt = PIL_FORMATS.get(ext)
     if not fmt:
-        raise RuntimeError(f"Il formato .{ext} non si puo' scrivere: usa 'Salva con nome' in PNG, JPG, WEBP o TIFF.")
+        raise RuntimeError(tr("srv_misc.formato_0_non_si_puo", ext))
     if fmt in ("JPEG", "BMP", "PCX", "PPM", "SGI", "IM", "MSP") and im.mode in ("RGBA", "LA", "P"):
         bg = Image.new("RGB", im.size, (255, 255, 255))
         bg.paste(im, mask=im.getchannel("A") if "A" in im.mode else None)
@@ -107,7 +108,7 @@ def save_image(png_bytes: bytes, out_path: str, quality: int = 92) -> dict:
 def read_text(path: str, max_bytes: int = 64 * 1024 * 1024) -> dict:
     size = os.path.getsize(path)
     if size > max_bytes:
-        return {"ok": False, "errore": f"File troppo grande per l'editor di testo ({size // 1048576} MB): usa la vista esadecimale."}
+        return {"ok": False, "errore": tr("srv_misc.file_troppo_grande_l_editor", size // 1048576)}
     raw = Path(path).read_bytes()
     enc, bom = None, False
     if raw.startswith(b"\xef\xbb\xbf"):
@@ -270,45 +271,45 @@ def sniff(path: str) -> dict:
         return {"kind": None, "descr": None}
     h = head
     tests = [
-        (h.startswith(b"%PDF"), "pdf", "Documento PDF"),
-        (h.startswith(b"PK\x03\x04") or h.startswith(b"PK\x05\x06"), "zip", "Archivio ZIP (o documento Office/OpenDocument)"),
-        (h.startswith(b"7z\xbc\xaf\x27\x1c"), "archive", "Archivio 7-Zip"),
-        (h.startswith(b"Rar!\x1a\x07"), "archive", "Archivio RAR"),
-        (h.startswith(b"\x1f\x8b"), "archive", "Archivio GZIP"),
-        (h.startswith(b"BZh"), "archive", "Archivio BZIP2"),
-        (h.startswith(b"\xfd7zXZ\x00"), "archive", "Archivio XZ"),
-        (h.startswith(b"MSCF"), "archive", "Archivio CAB"),
-        (iso == b"CD001", "archive", "Immagine disco ISO"),
-        (h.startswith(b"\x89PNG"), "image", "Immagine PNG"),
-        (h.startswith(b"\xff\xd8\xff"), "image", "Immagine JPEG"),
-        (h.startswith((b"GIF87a", b"GIF89a")), "image", "Immagine GIF"),
-        (h.startswith((b"II*\x00", b"MM\x00*")), "image", "Immagine TIFF"),
-        (h[:4] == b"RIFF" and h[8:12] == b"WEBP", "image", "Immagine WEBP"),
-        (h[4:12] in (b"ftypheic", b"ftypheix", b"ftypmif1", b"ftypmsf1", b"ftypavif"), "image", "Immagine HEIC/AVIF"),
-        (h.startswith(b"8BPS"), "image", "Documento Photoshop"),
-        (h[:4] == b"RIFF" and h[8:12] == b"WAVE", "media", "Audio WAV"),
-        (h[:4] == b"RIFF" and h[8:12] == b"AVI ", "media", "Video AVI"),
+        (h.startswith(b"%PDF"), "pdf", tr("srv_misc.documento_pdf")),
+        (h.startswith(b"PK\x03\x04") or h.startswith(b"PK\x05\x06"), "zip", tr("srv_misc.archivio_zip_documento_office_opendocument")),
+        (h.startswith(b"7z\xbc\xaf\x27\x1c"), "archive", tr("srv_misc.archivio_7_zip")),
+        (h.startswith(b"Rar!\x1a\x07"), "archive", tr("srv_misc.archivio_rar")),
+        (h.startswith(b"\x1f\x8b"), "archive", tr("srv_misc.archivio_gzip")),
+        (h.startswith(b"BZh"), "archive", tr("srv_misc.archivio_bzip2")),
+        (h.startswith(b"\xfd7zXZ\x00"), "archive", tr("srv_misc.archivio_xz")),
+        (h.startswith(b"MSCF"), "archive", tr("srv_misc.archivio_cab")),
+        (iso == b"CD001", "archive", tr("srv_misc.immagine_disco_iso")),
+        (h.startswith(b"\x89PNG"), "image", tr("srv_misc.immagine_png")),
+        (h.startswith(b"\xff\xd8\xff"), "image", tr("srv_misc.immagine_jpeg")),
+        (h.startswith((b"GIF87a", b"GIF89a")), "image", tr("srv_misc.immagine_gif")),
+        (h.startswith((b"II*\x00", b"MM\x00*")), "image", tr("srv_misc.immagine_tiff")),
+        (h[:4] == b"RIFF" and h[8:12] == b"WEBP", "image", tr("srv_misc.immagine_webp")),
+        (h[4:12] in (b"ftypheic", b"ftypheix", b"ftypmif1", b"ftypmsf1", b"ftypavif"), "image", tr("srv_misc.immagine_heic_avif")),
+        (h.startswith(b"8BPS"), "image", tr("srv_misc.documento_photoshop")),
+        (h[:4] == b"RIFF" and h[8:12] == b"WAVE", "media", tr("srv_misc.audio_wav")),
+        (h[:4] == b"RIFF" and h[8:12] == b"AVI ", "media", tr("srv_misc.video_avi")),
         (h[4:8] == b"ftyp", "media", "Video/Audio MP4/MOV"),
-        (h.startswith(b"\x1a\x45\xdf\xa3"), "media", "Video MKV/WEBM"),
+        (h.startswith(b"\x1a\x45\xdf\xa3"), "media", tr("srv_misc.video_mkv_webm")),
         (h.startswith(b"OggS"), "media", "Audio/Video OGG"),
-        (h.startswith(b"fLaC"), "media", "Audio FLAC"),
-        (h.startswith(b"ID3") or h[:2] in (b"\xff\xfb", b"\xff\xf3", b"\xff\xf2"), "media", "Audio MP3"),
-        (h.startswith(b"\x00\x00\x01\xba") or h.startswith(b"\x00\x00\x01\xb3"), "media", "Video MPEG"),
-        (len(h) > 376 and h[0] == 0x47 and h[188] == 0x47 and h[376] == 0x47, "media", "Video MPEG-TS"),
+        (h.startswith(b"fLaC"), "media", tr("srv_misc.audio_flac")),
+        (h.startswith(b"ID3") or h[:2] in (b"\xff\xfb", b"\xff\xf3", b"\xff\xf2"), "media", tr("srv_misc.audio_mp3")),
+        (h.startswith(b"\x00\x00\x01\xba") or h.startswith(b"\x00\x00\x01\xb3"), "media", tr("srv_misc.video_mpeg")),
+        (len(h) > 376 and h[0] == 0x47 and h[188] == 0x47 and h[376] == 0x47, "media", tr("srv_misc.video_mpeg_ts")),
         (h.startswith(b"0&\xb2u\x8e\x66\xcf\x11"), "media", "Video/Audio Windows Media"),
-        (h.startswith(b"FLV"), "media", "Video Flash"),
-        (h.startswith(b"MThd"), "media", "Audio MIDI"),
-        (h.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"), "ole", "Documento Office 97-2003 / MSG / MSI"),
-        (h.startswith(b"SQLite format 3\x00"), "sqlite", "Database SQLite"),
-        (h[:4] == b"AC10" or h[:6] == b"AC1.40", "cad2d", "Disegno AutoCAD DWG"),
-        (h.startswith(b"glTF"), "mesh3d", "Modello 3D glTF binario"),
-        (b"ISO-10303-21" in h[:200] and b"IFC" in h[:4000].upper(), "ifc", "Modello BIM IFC"),
-        (b"ISO-10303-21" in h[:200], "cad3d", "Modello CAD STEP"),
-        (h.startswith(b"MZ"), "exe", "Programma Windows (eseguibile)"),
-        (h.startswith(b"\x7fELF"), "exe", "Programma Linux (eseguibile)"),
-        (h[:4] in (b"\x00\x01\x00\x00", b"OTTO", b"true", b"ttcf", b"wOFF", b"wOF2"), "font", "Carattere (font)"),
-        (h[:1] == b"\x30" and b"\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x07\x02" in h[:64], "signed", "Busta firmata PKCS#7/CAdES"),
-        (h.startswith(b"From ") and b"\nFrom:" in h[:4000], "email", "Casella di posta MBOX"),
+        (h.startswith(b"FLV"), "media", tr("srv_misc.video_flash")),
+        (h.startswith(b"MThd"), "media", tr("srv_misc.audio_midi")),
+        (h.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"), "ole", tr("srv_misc.documento_office_97_2003_msg")),
+        (h.startswith(b"SQLite format 3\x00"), "sqlite", tr("srv_misc.database_sqlite")),
+        (h[:4] == b"AC10" or h[:6] == b"AC1.40", "cad2d", tr("srv_misc.disegno_autocad_dwg")),
+        (h.startswith(b"glTF"), "mesh3d", tr("srv_misc.modello_3d_gltf_binario")),
+        (b"ISO-10303-21" in h[:200] and b"IFC" in h[:4000].upper(), "ifc", tr("srv_misc.modello_bim_ifc")),
+        (b"ISO-10303-21" in h[:200], "cad3d", tr("srv_misc.modello_cad_step")),
+        (h.startswith(b"MZ"), "exe", tr("srv_misc.programma_windows_eseguibile")),
+        (h.startswith(b"\x7fELF"), "exe", tr("srv_misc.programma_linux_eseguibile")),
+        (h[:4] in (b"\x00\x01\x00\x00", b"OTTO", b"true", b"ttcf", b"wOFF", b"wOF2"), "font", tr("srv_misc.carattere_font")),
+        (h[:1] == b"\x30" and b"\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x07\x02" in h[:64], "signed", tr("srv_misc.busta_firmata_pkcs_7_cades")),
+        (h.startswith(b"From ") and b"\nFrom:" in h[:4000], "email", tr("srv_misc.casella_posta_mbox")),
     ]
     for cond, kind, descr in tests:
         if cond:
@@ -323,15 +324,15 @@ def sniff(path: str) -> dict:
         if txt:
             s = sample.lstrip()[:200].lower()
             if s.startswith(b"<svg") or (s.startswith(b"<?xml") and b"<svg" in sample[:2000].lower()):
-                return {"kind": "svg", "descr": "Grafica SVG"}
+                return {"kind": "svg", "descr": tr("srv_misc.grafica_svg")}
             if s.startswith((b"<!doctype html", b"<html")):
-                return {"kind": "html", "descr": "Pagina web HTML"}
+                return {"kind": "html", "descr": tr("srv_misc.pagina_web_html")}
             if re.match(rb"\s*0\s*\r?\n\s*section", sample[:100].lower()):
-                return {"kind": "cad2d", "descr": "Disegno DXF"}
+                return {"kind": "cad2d", "descr": tr("srv_misc.disegno_dxf")}
             if s.startswith(b"solid"):
-                return {"kind": "text", "descr": "Testo (forse STL ASCII)"}
-            return {"kind": "text", "descr": "File di testo"}
-    return {"kind": None, "descr": "Dati binari non riconosciuti"}
+                return {"kind": "text", "descr": tr("srv_misc.testo_forse_stl_ascii")}
+            return {"kind": "text", "descr": tr("srv_misc.file_testo")}
+    return {"kind": None, "descr": tr("srv_misc.dati_binari_non_riconosciuti")}
 
 
 def strings(path: str, min_len: int = 5, limit: int = 20000) -> list[str]:

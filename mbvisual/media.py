@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 
 from .paths import TEMP_DIR, find_ffmpeg
+from .i18n import t as tr
 
 NO_WINDOW = 0x08000000
 CACHE = TEMP_DIR / "media"
@@ -15,7 +16,7 @@ CACHE.mkdir(parents=True, exist_ok=True)
 def _ffmpeg():
     exe = find_ffmpeg()
     if not exe:
-        raise RuntimeError("FFmpeg non disponibile")
+        raise RuntimeError(tr("srv_media.ffmpeg_non_disponibile"))
     return exe
 
 
@@ -72,7 +73,7 @@ def playable(path: str, update) -> dict:
     out = CACHE / (key + (".mp4" if is_video else ".m4a"))
     if out.exists() and out.stat().st_size > 0:
         return {"path": str(out), "info": info}
-    update(message="Conversione per la riproduzione")
+    update(message=tr("srv_media.conversione_riproduzione"))
     tmp = out.with_suffix(".part" + out.suffix)
     args = [_ffmpeg(), "-y", "-hide_banner", "-i", path]
     if is_video:

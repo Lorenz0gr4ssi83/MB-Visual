@@ -19,6 +19,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec, padding, rsa
 
 from .paths import TEMP_DIR
+from .i18n import t as tr
 
 HASHES = {"sha1": hashes.SHA1, "sha224": hashes.SHA224, "sha256": hashes.SHA256,
           "sha384": hashes.SHA384, "sha512": hashes.SHA512, "md5": hashes.MD5}
@@ -244,7 +245,7 @@ def open_signed(path: str) -> dict:
         raw = p7m or raw
         if tsr:
             ts = _timestamp_from_token(tsr) or _timestamp_from_token(tsp.TimeStampResp.load(tsr)["time_stamp_token"])
-            levels.append({"tipo_busta": "Marca temporale M7M", "marca_temporale": ts, "firmatari": []})
+            levels.append({"tipo_busta": tr("srv_signed.marca_temporale_m7m"), "marca_temporale": ts, "firmatari": []})
 
     data = _maybe_base64(raw)
 
@@ -269,21 +270,21 @@ def open_signed(path: str) -> dict:
                     ts = _timestamp_from_token(ev_raw[start:])
             except Exception:
                 pass
-            levels.append({"tipo_busta": "TimeStampedData (TSD)", "marca_temporale": ts, "firmatari": []})
+            levels.append({"tipo_busta": tr("srv_signed.timestampeddata_tsd"), "marca_temporale": ts, "firmatari": []})
             data = inner or b""
     except Exception:
         pass
 
     ci = _looks_signed(data)
     if ci is None:
-        return {"ok": False, "errore": "Il file non contiene una busta di firma CMS/PKCS#7 riconoscibile."}
+        return {"ok": False, "errore": tr("srv_signed.file_non_contiene_busta_firma")}
 
     detached = None
     if ext == ".p7s":
         sibling = p.with_suffix("")
         if sibling.is_file():
             detached = sibling.read_bytes()
-            note = f"Firma separata verificata sul file: {sibling.name}"
+            note = tr("srv_signed.firma_separata_verificata_file_0", sibling.name)
 
     current = ci
     while current is not None:
@@ -306,7 +307,7 @@ def open_signed(path: str) -> dict:
         out_path.write_bytes(content)
     return {"ok": True, "livelli": levels, "certificati": certs_only, "contenuto": str(out_path) if out_path else None,
             "nome_contenuto": out_path.name if out_path else None, "nota": note,
-            "avviso": "Verificate integrita' e firma crittografica. Catena di fiducia (elenco AgID/eIDAS) e revoca non verificate: richiedono la rete."}
+            "avviso": tr("srv_signed.verificate_integrita_firma_crittografica_catena")}
 
 
 def _guess_ext(content: bytes) -> str:

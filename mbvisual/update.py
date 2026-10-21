@@ -19,6 +19,7 @@ import threading
 from pathlib import Path
 
 from .paths import APP_DIR, RES_DIR
+from .i18n import t
 
 FROZEN = bool(getattr(sys, "frozen", False))
 REL = Path("ai-engineering-workspace") / "MB Visual" / "App per PC"
@@ -50,7 +51,7 @@ def _settings() -> dict:
 def set_source(folder: str) -> dict:
     p = Path(folder)
     if not (p / "versione.json").is_file():
-        raise ValueError("In questa cartella non c'e' una versione pubblicata di MB Visual (manca versione.json)")
+        raise ValueError(t("srv_update.questa_cartella_non_c_versione"))
     SETTINGS.parent.mkdir(parents=True, exist_ok=True)
     SETTINGS.write_text(json.dumps({**_settings(), "fonte": str(p)}), encoding="utf-8")
     return check()
@@ -191,12 +192,12 @@ def _copy_app(src: Path, dst: Path, update=None) -> None:
                     break
                 except OSError as e:
                     if attempt == 2:
-                        raise OSError(f"Copia non riuscita di {rel}: {e}") from e
+                        raise OSError(t("srv_update.copia_non_riuscita_0_1", rel, e)) from e
                     import time
                     time.sleep(1.5)
         done += st.st_size
         if update and (k % 25 == 0 or k == len(files) - 1):
-            update(0.97 * done / total, f"Copia dei file: {done / 1048576:.0f} di {total / 1048576:.0f} MB")
+            update(0.97 * done / total, t("srv_update.copia_file_0_1_mb", f"{done / 1048576:.0f}", f"{total / 1048576:.0f}"))
     for dp, _dn, fn in os.walk(dst / "_internal", topdown=False):
         for n in fn:
             rel = (Path(dp) / n).relative_to(dst).as_posix()
@@ -321,9 +322,9 @@ def _apply_github(rel: dict, update=None) -> dict:
             if update:
                 update(0.95 * done / total, f"Scaricamento: {done / 1048576:.0f} di {total / 1048576:.0f} MB")
     if rel.get("byte") and setup.stat().st_size != rel["byte"]:
-        raise ValueError("Scaricamento incompleto: riprova")
+        raise ValueError(t("srv_update.scaricamento_incompleto_riprova"))
     if update:
-        update(0.97, "Installazione della nuova versione")
+        update(0.97, t("srv_update.installazione_nuova_versione"))
     exe = INSTALL_DIR / "MBVisual.exe"
     cmd = Path(tempfile.gettempdir()) / "MBVisual-aggiorna.cmd"
     pid = os.getpid()
@@ -345,20 +346,20 @@ def apply(update=None) -> dict:
     nella cartella dell'app appena questa si chiude e la riavvia."""
     r = check()
     if r["stato"] != "nuova":
-        raise ValueError({"sincronizzazione": "OneDrive sta ancora scaricando la nuova versione: riprova tra qualche minuto",
-                          "aggiornato": "Hai gia' l'ultima versione"}.get(r["stato"], "Nessun aggiornamento disponibile"))
+        raise ValueError({"sincronizzazione": t("srv_update.onedrive_sta_ancora_scaricando_nuova"),
+                          "aggiornato": t("srv_update.hai_gia_l_ultima_versione")}.get(r["stato"], t("srv_update.nessun_aggiornamento_disponibile")))
     if r.get("github"):
         _log(f"aggiornamento da GitHub {r['attuale']} -> {r['github']['versione']}")
         return _apply_github(r["github"], update)
     src = Path(r["fonte"])
     if _same(src, APP_DIR):
-        raise ValueError("L'app e' avviata dalla cartella di OneDrive: si aggiorna con la sincronizzazione")
+        raise ValueError(t("srv_update.l_app_avviata_cartella_onedrive"))
     if not ((APP_DIR / "_internal").is_dir() and (APP_DIR / "MBVisual.exe").is_file()):
-        raise ValueError("Cartella dell'app non riconosciuta: aggiornamento annullato per sicurezza")
+        raise ValueError(t("srv_update.cartella_dell_app_non_riconosciuta"))
     _log(f"aggiornamento {r['attuale']} -> {r['disponibile']} da {src}")
     _copy_app(src, STAGING, update)
     if update:
-        update(0.98, "Riavvio di MB Visual")
+        update(0.98, t("srv_update.riavvio_mb_visual"))
     # .cmd e robocopy: niente PowerShell (puo' essere bloccato dai criteri aziendali); file gia' tutti in locale
     log = str(LOG)
     cmd = Path(tempfile.gettempdir()) / "MBVisual-aggiorna.cmd"
@@ -381,20 +382,20 @@ def install(update=None) -> dict:
     """Installa l'app su questo PC (%LOCALAPPDATA%/Programs/MB Visual + collegamenti su Desktop e menu Start),
     con avanzamento visibile, e la riavvia da li'."""
     if not FROZEN:
-        raise ValueError("Disponibile solo nell'app per PC")
+        raise ValueError(t("srv_update.disponibile_solo_nell_app_pc"))
     r = check()
     if r["stato"] == "sincronizzazione":
-        raise ValueError("OneDrive sta ancora scaricando la nuova versione: riprova tra qualche minuto")
+        raise ValueError(t("srv_update.onedrive_sta_ancora_scaricando_nuova"))
     src = Path(r["fonte"]) if r.get("fonte") and r["stato"] in ("nuova", "aggiornato") else APP_DIR
     if not (src / "_internal").is_dir():
         src = APP_DIR
     if _same(src, INSTALL_DIR):
-        raise ValueError("L'app e' gia' installata su questo PC")
+        raise ValueError(t("srv_update.l_app_gia_installata_questo"))
     _log(f"installazione da {src} in {INSTALL_DIR}")
     try:
         _copy_app(src, INSTALL_DIR, update)
         if update:
-            update(0.98, "Collegamenti sul Desktop e nel menu Start")
+            update(0.98, t("srv_update.collegamenti_desktop_menu_start"))
         exe = INSTALL_DIR / "MBVisual.exe"
         try:
             _shortcuts(exe)

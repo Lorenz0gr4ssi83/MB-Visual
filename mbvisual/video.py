@@ -19,6 +19,7 @@ from pathlib import Path
 
 from .media import NO_WINDOW, _ffmpeg, _parse_duration
 from .paths import TEMP_DIR
+from .i18n import t as _t
 
 CACHE = TEMP_DIR / "video"
 CACHE.mkdir(parents=True, exist_ok=True)
@@ -108,7 +109,7 @@ def thumbs(path: str, height: int = 54, update=None) -> dict:
     args += ["-i", path, "-an", "-vf", f"fps=1/{step:.6f},scale=-2:{height}:flags=bilinear,tile={n}x1", "-frames:v", "1", "-q:v", "5", str(out)]
     r = subprocess.run(args, capture_output=True, creationflags=NO_WINDOW)
     if r.returncode != 0 or not out.exists():
-        raise RuntimeError("Miniature non create: " + r.stderr.decode("utf-8", "replace")[-300:])
+        raise RuntimeError(_t("srv_video.miniature_non_create") + r.stderr.decode("utf-8", "replace")[-300:])
     w = inf["w"] or 16
     h = inf["h"] or 9
     tw = int(round(height * w / h / 2)) * 2
@@ -137,10 +138,10 @@ def stabilize(path: str, out: str, smooth: int = 15, update=None) -> dict:
     work.mkdir(parents=True, exist_ok=True)
     dur = info(path)["dur"]
     try:
-        update(message="Analisi del movimento")
+        update(message=_t("srv_video.analisi_movimento"))
         _run([_ffmpeg(), "-y", "-hide_banner", "-nostdin", "-i", path, "-vf", "vidstabdetect=shakiness=6:accuracy=12:result=t.trf", "-f", "null", "-"],
              dur, lambda p: update(progress=p * 0.5), cwd=work)
-        update(message="Stabilizzazione")
+        update(message=_t("srv_video.stabilizzazione"))
         _run([_ffmpeg(), "-y", "-hide_banner", "-nostdin", "-i", path, "-vf", f"vidstabtransform=input=t.trf:smoothing={int(smooth)}:optzoom=1:interpol=bicubic,unsharp=5:5:0.6",
               "-map", "0:v:0", "-map", "0:a:0?", "-c:v", "libx264", "-preset", "medium", "-crf", "17", "-pix_fmt", "yuv420p", "-c:a", "copy",
               "-movflags", "+faststart", out], dur, lambda p: update(progress=0.5 + p * 0.5), cwd=work)
@@ -212,7 +213,7 @@ def export(project: dict, out: str, opts: dict, base_dir: str = "", update=None)
         (work / "graph.txt").write_text(graph, encoding="utf-8")
         cmd = [_ffmpeg(), "-y", "-hide_banner", "-nostdin", *args, "-/filter_complex", "graph.txt", *maps, *_codec(opts, out), out]
         (work / "cmd.txt").write_text(json.dumps(cmd, indent=1), encoding="utf-8")
-        update(message="Esportazione")
+        update(message=_t("srv_video.esportazione"))
         _run(cmd, length, lambda p: update(progress=p), cwd=work)
     except Exception:
         dbg = TEMP_DIR / "video" / "ultima_esportazione"
@@ -274,7 +275,7 @@ def _build(p: dict, o: dict, work: Path):
     b = float(o.get("end") or total)
     b = min(b, total) if o.get("end") is None else b
     if b - a < 0.04:
-        raise RuntimeError("Intervallo da esportare vuoto")
+        raise RuntimeError(_t("srv_video.intervallo_esportare_vuoto"))
     audio_only = o.get("format") in ("mp3", "wav", "m4a")
     titles = o.get("titles") or {}
     luts = o.get("luts") or {}
@@ -408,7 +409,7 @@ def _clip_stream(c, media, S, R, fps, W, H, g, add_input, new, titles, luts, wor
         if kind == "title":
             t = titles.get(c["id"])
             if not t:
-                raise RuntimeError("Titolo non preparato per l'esportazione")
+                raise RuntimeError(_t("srv_video.titolo_non_preparato_l_esportazione"))
             src, sw, sh = t["path"], int(t["w"]), int(t["h"])
         else:
             m = media[c["media"]]

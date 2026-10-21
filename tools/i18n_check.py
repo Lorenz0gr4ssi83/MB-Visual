@@ -42,7 +42,8 @@ def code_keys() -> set[str]:
         if "vendor" in f.parts:
             continue
         src = f.read_text(encoding="utf-8", errors="replace")
-        keys.update(re.findall(r"\btr?\(\s*[\"']([\w.-]+)[\"']", src))
+        keys.update(re.findall(r"\b(?:tr?|_t)\(\s*[\"']([\w.-]+)[\"']", src))
+        keys.update(re.findall(r"[\"'](srv_\w+\.[\w-]+)[|\"']", src))  # chiavi scritte come dati e tradotte dopo
         keys.update(re.findall(r"data-i18n(?:-\w+)?=\\?[\"']([\w.-]+)", src))
     html = (ROOT / "ui" / "index.html").read_text(encoding="utf-8")
     keys.update(re.findall(r"data-i18n(?:-\w+)?=\"([\w.-]+)\"", html))

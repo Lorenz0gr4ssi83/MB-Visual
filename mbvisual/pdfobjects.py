@@ -12,6 +12,7 @@ import os
 import pymupdf
 
 from .pdfedit import _font, _from_pdf, _insert_text, _to_pdf
+from .i18n import t as tr
 
 WIDGET_TYPES = {
     "text": pymupdf.PDF_WIDGET_TYPE_TEXT, "combo": pymupdf.PDF_WIDGET_TYPE_COMBOBOX, "list": pymupdf.PDF_WIDGET_TYPE_LISTBOX,
@@ -496,7 +497,7 @@ def _apply_ops(path: str, tmp: str, ops: list[dict]) -> int:
                 else:
                     words = page.get_text("words", clip=r)
                     if not words:
-                        raise ValueError("Nessun testo nel riquadro: trascina sopra le parole da segnare")
+                        raise ValueError(tr("srv_pdfobjects.nessun_testo_riquadro_trascina_sopra"))
                     quads = [pymupdf.Rect(w[:4]).quad for w in words]
                     a = {"underline": page.add_underline_annot, "strikeout": page.add_strikeout_annot,
                          "squiggly": page.add_squiggly_annot, "highlight": page.add_highlight_annot}[t](quads)
@@ -537,7 +538,7 @@ def _apply_ops(path: str, tmp: str, ops: list[dict]) -> int:
                 w.border_color = _rgb(o.get("border") or "#4d6680")
                 w.border_width = 0.8
                 if o.get("type") in ("combo", "list"):
-                    w.choice_values = [s for s in o.get("options") or ["Opzione 1", "Opzione 2"] if str(s).strip()]
+                    w.choice_values = [s for s in o.get("options") or [tr("srv_pdfobjects.opzione_1"), tr("srv_pdfobjects.opzione_2")] if str(s).strip()]
                 if o.get("type") == "radio":
                     w.field_name = o.get("group") or w.field_name
                 if o.get("type") == "check":
@@ -604,7 +605,7 @@ def _apply_ops(path: str, tmp: str, ops: list[dict]) -> int:
             elif k == "flatten":
                 doc.bake(annots=bool(o.get("annots", True)), widgets=bool(o.get("widgets", True)))
             else:
-                raise ValueError(f"operazione sconosciuta: {k}")
+                raise ValueError(tr("srv_pdfobjects.operazione_sconosciuta_0", k))
             done += 1
         try:
             doc.subset_fonts()

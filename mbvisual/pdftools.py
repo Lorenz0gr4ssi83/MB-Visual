@@ -4,6 +4,7 @@ import math
 from pathlib import Path
 
 from pypdf import PdfReader, PdfWriter, Transformation
+from .i18n import t as tr
 
 
 def parse_pages(spec: str, n: int) -> list[int]:
@@ -22,7 +23,7 @@ def parse_pages(spec: str, n: int) -> list[int]:
             out.append(int(part))
     pages = [p - 1 for p in out if 1 <= p <= n]
     if not pages:
-        raise ValueError(f"Nessuna pagina valida (il documento ha {n} pagine)")
+        raise ValueError(tr("srv_pdftools.nessuna_pagina_valida_documento_ha", n))
     return pages
 
 
@@ -51,7 +52,7 @@ def delete(path: str, pages: str, out: str) -> dict:
         if i not in drop:
             w.add_page(pg)
     if not len(w.pages):
-        raise ValueError("Non si possono eliminare tutte le pagine")
+        raise ValueError(tr("srv_pdftools.non_si_possono_eliminare_tutte"))
     w.write(out)
     return {"ok": True, "path": out, "pagine": len(w.pages)}
 

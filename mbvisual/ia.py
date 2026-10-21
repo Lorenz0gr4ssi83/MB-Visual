@@ -17,6 +17,7 @@ import uuid
 from pathlib import Path
 
 from .paths import APP_DIR, RES_DIR, TEMP_DIR
+from .i18n import t as tr
 
 OUT = TEMP_DIR / "ia"
 _lock = threading.Lock()
@@ -49,7 +50,7 @@ def _call(method, path, body=None, timeout=30):
         try:
             return json.loads(e.read())
         except Exception:  # noqa: BLE001
-            return {"ok": False, "errore": f"Errore del motore IA ({e.code})"}
+            return {"ok": False, "errore": tr("srv_ia.errore_motore_ia_0", e.code)}
 
 
 def _start():
@@ -58,7 +59,7 @@ def _start():
         return
     f = find()
     if not f or not f["engine"]:
-        raise RuntimeError("Motore IA non installato su questo PC")
+        raise RuntimeError(tr("srv_ia.motore_ia_non_installato_questo"))
     OUT.mkdir(parents=True, exist_ok=True)
     _proc = subprocess.Popen([f["python"], f["engine"], "--models", f["modelli"], "--out", str(OUT), "--token", _token, "--parent", str(os.getpid())],
                              stdout=subprocess.PIPE, stderr=open(TEMP_DIR / "ia-motore.log", "a", encoding="utf-8"), stdin=subprocess.DEVNULL,
@@ -71,7 +72,7 @@ def _start():
             return
         if not line and _proc.poll() is not None:
             break
-    raise RuntimeError("Il motore IA non si e' avviato (dettagli in %TEMP%\\MBVisual\\ia-motore.log)")
+    raise RuntimeError(tr("srv_ia.motore_ia_non_si_avviato"))
 
 
 def status():
@@ -114,7 +115,7 @@ def run(params: dict, update=None) -> dict:
             except Exception:  # noqa: BLE001
                 pass
     if not res.get("ok"):
-        raise ValueError(res.get("errore") or "Operazione IA non riuscita")
+        raise ValueError(res.get("errore") or tr("srv_ia.operazione_ia_non_riuscita"))
     return res
 
 

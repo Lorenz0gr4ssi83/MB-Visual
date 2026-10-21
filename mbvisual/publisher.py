@@ -18,6 +18,7 @@ from pathlib import Path
 import pymupdf
 
 from .paths import TEMP_DIR
+from .i18n import t as _t
 
 FONTS_DIR = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
 _FONT_IDX = None
@@ -97,7 +98,7 @@ def _rgb(c):
 # ------------------------------------------------------------------ PDF
 def export_pdf(body: bytes, out: str) -> dict:
     if body[:6] != b"MBPUB1":
-        raise ValueError("Dati della pubblicazione non validi")
+        raise ValueError(_t("srv_publisher.dati_pubblicazione_non_validi"))
     n = struct.unpack_from("<I", body, 6)[0]
     spec = json.loads(body[10:10 + n].decode("utf-8"))
     base = 10 + n
@@ -227,7 +228,7 @@ def import_pub(path: str, update=None) -> dict:
             return _import_com(path, update)
         except Exception as e:  # noqa: BLE001
             r = _import_ole(path)
-            r["nota"] = f"Publisher non ha potuto aprire il file ({e}): importati solo testo e immagini."
+            r["nota"] = _t("srv_publisher.publisher_non_ha_potuto_aprire", e)
             return r
     return _import_ole(path)
 
@@ -413,7 +414,7 @@ def _import_com(path: str, update=None) -> dict:
         n = pdoc.Pages.Count
         for k in range(1, n + 1):
             if update:
-                update(k / (n + 1), f"Pagina {k} di {n}")
+                update(k / (n + 1), _t("srv_publisher.pagina_0_1", k, n))
             pg = pdoc.Pages(k)
             pages.append({"items": page_items(pg)})
         return {"ok": True, "mode": "publisher", "w": W, "h": H, "pages": pages, "masters": masters[:1], "images": images}
@@ -460,7 +461,7 @@ def _import_ole(path: str) -> dict:
     for k, iid in enumerate(images):
         pages.append({"items": [{"type": "image", "x": 36, "y": 36, "w": W - 72, "h": (H - 72) / 2, "rot": 0, "imgFile": iid, "fit": True}]})
     return {"ok": True, "mode": "testo", "w": W, "h": H, "pages": pages, "masters": [], "images": images,
-            "nota": "Publisher non e' installato: dal file .pub sono stati estratti solo il testo e le immagini (l'impaginazione originale non e' leggibile senza Publisher)."}
+            "nota": _t("srv_publisher.publisher_non_installato_file_pub")}
 
 
 def _quill_text(data: bytes) -> str:

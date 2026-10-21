@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 
 from .paths import TEMP_DIR, find_libreoffice
+from .i18n import t as tr
 
 NO_WINDOW = 0x08000000
 EMU_PER_PX = 9525
@@ -16,7 +17,7 @@ EMU_PER_PX = 9525
 def lo_convert(path: str, to: str = "pdf", update=None) -> dict:
     exe = find_libreoffice()
     if not exe:
-        raise RuntimeError("LibreOffice non e' installato su questo PC. E' gratuito: https://www.libreoffice.org/download/download/")
+        raise RuntimeError(tr("srv_office.libreoffice_non_installato_questo_pc"))
     st = os.stat(path)
     key = hashlib.sha1(f"{path}|{st.st_size}|{st.st_mtime}|{to}".encode()).hexdigest()[:16]
     out_dir = TEMP_DIR / "office" / key
@@ -25,7 +26,7 @@ def lo_convert(path: str, to: str = "pdf", update=None) -> dict:
         return {"path": str(target)}
     out_dir.mkdir(parents=True, exist_ok=True)
     if update:
-        update(message="Conversione con LibreOffice", progress=0.1)
+        update(message=tr("srv_office.conversione_libreoffice"), progress=0.1)
     profile = (TEMP_DIR / "lo-profile").as_uri()
     r = subprocess.run([exe, f"-env:UserInstallation={profile}", "--headless", "--norestore", "--convert-to", to,
                         "--outdir", str(out_dir), path], capture_output=True, timeout=600, creationflags=NO_WINDOW)
@@ -33,7 +34,7 @@ def lo_convert(path: str, to: str = "pdf", update=None) -> dict:
         found = list(out_dir.glob("*"))
         if found:
             return {"path": str(found[0])}
-        raise RuntimeError("Conversione non riuscita: " + r.stderr.decode("utf-8", "replace")[-400:])
+        raise RuntimeError(tr("srv_office.conversione_non_riuscita") + r.stderr.decode("utf-8", "replace")[-400:])
     return {"path": str(target)}
 
 

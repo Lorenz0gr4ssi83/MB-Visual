@@ -438,11 +438,11 @@ def apply_plan(plan: Path) -> None:
         args = "".join(", " + e.strip() for e in c["exprs"])
         out = out[:c["a"]] + f'{fn}("{key}"{args})' + out[c["b"]:]
         count += 1
-    if count and path.suffix == ".py" and not re.search(r"^from \.i18n import t\b|^from mbvisual\.i18n import t\b", out, re.M):
-        out = _add_py_import(out, path)
+    if count and path.suffix == ".py" and not re.search(r"^from (?:\.|mbvisual\.)i18n import t\b", out, re.M):
+        out = _add_py_import(out, path, fn)
     if count and path.suffix == ".js" and not re.search(r"^import \{[^}]*\} from \"[./]+(?:js/)?i18n\.js\";", out, re.M):
         rel = "../i18n.js" if path.parent.name == "viewers" else "./i18n.js"
-        imp = f'import {{ {"t" if fn == "t" else "t as tr"} }} from "{rel}";\n'
+        imp = f'import {{ {"t" if fn == "t" else "t as " + fn} }} from "{rel}";\n'
         # dopo l'ultimo import in testa al file
         last = None
         for mm in re.finditer(r"^import [^;]+;[ \t]*\n", out, re.M):
@@ -459,22 +459,37 @@ def apply_plan(plan: Path) -> None:
     print(f"{count} testi sostituiti in {path.name}")
 
 
-SHADOW = re.compile(r"\b(?:const|let|var)\s+t\b|\b(?:const|let|var)\s*[{\[][^=;]*\bt\b[^=;]*[}\]]\s*=|[(,]\s*t\s*(?:[,=]|\)\s*=>)|"
-                    r"(?<![\w.$])t\s*=>|\bfunction\s*\w*\s*\([^)]*\bt\b|\bcatch\s*\(\s*t\s*\)|(?<![\w.$])t\s*=(?![=>])")
+def _shadow_js(name: str) -> re.Pattern:
+    n = re.escape(name)
+    return re.compile(rf"\b(?:const|let|var)\s+{n}\b|\b(?:const|let|var)\s*[{{\[][^=;{{}}]{{0,120}}\b{n}\b[^=;{{}}]{{0,120}}[}}\]]\s*=|[(,]\s*{n}\s*(?:[,=]|\)\s*=>)|"
+                      rf"(?<![\w.$]){n}\s*=>|\bfunction\s*\w*\s*\([^)]{{0,200}}\b{n}\b|\bcatch\s*\(\s*{n}\s*\)|(?<![\w.$]){n}\s*=(?![=>])")
+
+
+def _shadow_py(name: str) -> re.Pattern:
+    n = re.escape(name)
+    return re.compile(rf"(?m)(?:^|[^\w.]){n}\s*(?:,[^=\n]*)?=(?!=)|\bfor\s+(?:[\w,\s(]*,\s*)?{n}\b|\bas\s+{n}\b|"
+                      rf"\blambda\s+(?:[\w,\s]*,\s*)?{n}\b|\bdef\s+\w+\([^)]*\b{n}\b")
 
 
 def tname(src: str, path: Path) -> str:
-    """Nome della funzione di traduzione nel file: t, oppure tr dove t e' gia' una variabile locale."""
+    """Nome della funzione di traduzione nel file: t, oppure tr (o _t) dove t (e tr) sono gia' variabili locali."""
     if path.suffix == ".py":
-        return "t"
-    m = re.search(r"^import \{([^}]*)\} from \"[./]+(?:js/)?i18n\.js\";", src, re.M)
+        m = re.search(r"^from (?:\.|mbvisual\.)i18n import t(?: as (\w+))?", src, re.M)
+        shadow = _shadow_py
+    else:
+        m = re.search(r"^import \{[^}]*?\bt(?: as (\w+))?\b[^}]*\} from \"[./]+(?:js/)?i18n\.js\";", src, re.M)
+        shadow = _shadow_js
     if m:
-        return "tr" if re.search(r"\bt as tr\b", m.group(1)) else "t"
-    return "tr" if SHADOW.search(src) else "t"
+        return m.group(1) or "t"
+    for name in ("t", "tr", "_t"):
+        if not shadow(name).search(src):
+            return name
+    return "_t"
 
 
-def _add_py_import(out: str, path: Path) -> str:
-    mod = "from .i18n import t\n" if path.parent.name == "mbvisual" else "from mbvisual.i18n import t\n"
+def _add_py_import(out: str, path: Path, fn: str = "t") -> str:
+    name = "t" if fn == "t" else "t as " + fn
+    mod = f"from .i18n import {name}\n" if path.parent.name == "mbvisual" else f"from mbvisual.i18n import {name}\n"
     last = None
     for mm in re.finditer(r"^(?:from [\w.]+ import [^\n(]+|from [\w.]+ import \([^)]*\)|import [\w., ]+)[ \t]*\n", out, re.M):
         if mm.start() > 0 and out[:mm.start()].count("\ndef ") == 0 and out[:mm.start()].count("\nclass ") == 0:

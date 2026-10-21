@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 from pathlib import Path
+from .i18n import t
 
 import pymupdf
 
@@ -175,7 +176,7 @@ def protect(path: str, out: str, password: str, owner: str = "", allow_print: bo
 def unlock(path: str, out: str, password: str) -> dict:
     with pymupdf.open(path) as doc:
         if doc.needs_pass and not doc.authenticate(password):
-            raise ValueError("Password errata")
+            raise ValueError(t("srv_pdfedit.password_errata"))
         doc.save(out, encryption=pymupdf.PDF_ENCRYPT_NONE, garbage=3, deflate=True)
     return {"ok": True, "path": out}
 
@@ -254,7 +255,7 @@ def _ocr_png(png: bytes):
         r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(script), img, "it"],
                            capture_output=True, timeout=300, creationflags=0x08000000)
         if r.returncode != 0:
-            raise RuntimeError("Riconoscimento del testo non riuscito: " + r.stderr.decode("utf-8", "replace").strip()[-300:])
+            raise RuntimeError(t("srv_pdfedit.riconoscimento_testo_non_riuscito") + r.stderr.decode("utf-8", "replace").strip()[-300:])
         out = r.stdout.decode("utf-8-sig", "replace").strip()
         data = json.loads(out) if out else []
         if data and isinstance(data[0], list) and data[0] and not isinstance(data[0][0], list):
@@ -272,7 +273,7 @@ def ocr(path: str, out: str, dpi: int = 300, update=None) -> dict:
         n = len(doc)
         for i, page in enumerate(doc):
             if update:
-                update(progress=i / max(n, 1), message=f"Riconoscimento del testo: pagina {i + 1} di {n}")
+                update(progress=i / max(n, 1), message=t("srv_pdfedit.riconoscimento_testo_pagina_0_1", i + 1, n))
             if len(page.get_text().strip()) > 40:
                 continue  # la pagina ha gia' del testo
             pix = page.get_pixmap(dpi=dpi)

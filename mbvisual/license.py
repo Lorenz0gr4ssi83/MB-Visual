@@ -19,6 +19,7 @@ from base64 import urlsafe_b64decode
 from pathlib import Path
 
 from . import license_pub
+from .i18n import t as tr
 
 FROZEN = bool(getattr(sys, "frozen", False))
 STORE = Path(os.environ.get("LOCALAPPDATA", tempfile.gettempdir())) / "MBVisual" / "licenza.json"
@@ -98,7 +99,7 @@ def _save(data: dict) -> None:
 def _post(path: str, body: dict, timeout=12) -> tuple[int, dict]:
     url = server_url()
     if not url:
-        raise ConnectionError("Server delle licenze non configurato")
+        raise ConnectionError(tr("srv_license.server_licenze_non_configurato"))
     # user-agent proprio: Cloudflare blocca quello predefinito di Python ("Python-urllib", errore 1010)
     req = urllib.request.Request(url + path, data=json.dumps(body).encode(), method="POST",
                                  headers={"content-type": "application/json", "user-agent": f"MBVisual/{_version() or 'app'}"})
@@ -109,9 +110,9 @@ def _post(path: str, body: dict, timeout=12) -> tuple[int, dict]:
         try:
             return e.code, json.loads(e.read() or b"{}")
         except ValueError:
-            return e.code, {"errore": f"Errore del server ({e.code})"}
+            return e.code, {"errore": tr("srv_license.errore_server_0", e.code)}
     except (urllib.error.URLError, TimeoutError, OSError) as e:
-        raise ConnectionError(f"Server delle licenze non raggiungibile: {getattr(e, 'reason', e)}") from e
+        raise ConnectionError(tr("srv_license.server_licenze_non_raggiungibile_0", getattr(e, 'reason', e))) from e
 
 
 def _version() -> str:
@@ -157,13 +158,13 @@ def _status() -> dict:
                 _save(data)
                 p = _verify(r["token"])
             elif code in (401, 403, 404, 410):
-                data["bloccata"] = {"stato": r.get("stato", "bloccata"), "errore": r.get("errore", "Licenza non piu' valida")}
+                data["bloccata"] = {"stato": r.get("stato", "bloccata"), "errore": r.get("errore", tr("srv_license.licenza_non_piu_valida"))}
                 _save(data)
                 return _result(False, data["bloccata"]["stato"], errore=data["bloccata"]["errore"])
         except ConnectionError:
             pass  # offline: vale l'attivazione firmata fino alla scadenza
     if now > p["exp"]:
-        return _result(False, "offline_scaduta", errore="Sono passati piu' di 30 giorni senza collegamento a internet: collegati per rinnovare la licenza.")
+        return _result(False, "offline_scaduta", errore=tr("srv_license.sono_passati_piu_30_giorni"))
     return _result(True, "attiva", cliente=p.get("c", ""), chiave=p.get("k", ""), scadenza_offline=int(p["exp"]))
 
 
@@ -173,17 +174,17 @@ def activate(key: str) -> dict:
         _save({"token": r["token"], "checked": time.time()})
         _cache["res"] = None
         return status(force=True)
-    return {"ok": True, "attiva": False, "stato": r.get("stato", "errore"), "errore": r.get("errore", f"Attivazione non riuscita ({code})"),
+    return {"ok": True, "attiva": False, "stato": r.get("stato", "errore"), "errore": r.get("errore", tr("srv_license.attivazione_non_riuscita_0", code)),
             "suggerimento": r.get("suggerimento", "")}
 
 
 def account() -> dict:
     tok = _load().get("token")
     if not tok:
-        raise ValueError("Licenza non attivata")
+        raise ValueError(tr("srv_license.licenza_non_attivata"))
     code, r = _post("/v1/account", {"token": tok})
     if code != 200:
-        raise ValueError(r.get("errore", f"Errore {code}"))
+        raise ValueError(r.get("errore", tr("srv_license.errore_0", code)))
     return r
 
 
@@ -196,14 +197,14 @@ def request(kind: str, message: str = "", key: str = "") -> dict:
     elif data.get("token") and not data.get("bloccata"):
         body["token"] = data["token"]
     else:
-        raise ValueError("Inserisci la chiave di licenza")
+        raise ValueError(tr("srv_license.inserisci_chiave_licenza"))
     code, r = _post("/v1/request", body)
     if code != 200:
-        raise ValueError(r.get("errore", f"Errore {code}"))
+        raise ValueError(r.get("errore", tr("srv_license.errore_0", code)))
     if r.get("nuova_chiave") and kind == "change":
         # la chiave usata qui non vale piu': l'utente decide dove inserire quella nuova (se questo e' il PC dismesso,
         # attivarlo occuperebbe il posto del PC nuovo)
-        data["bloccata"] = {"stato": "sostituita", "errore": "La chiave e' stata sostituita: inserisci la chiave nuova per continuare a usare MB Visual su questo PC."}
+        data["bloccata"] = {"stato": "sostituita", "errore": tr("srv_license.chiave_stata_sostituita_inserisci_chiave")}
         _save(data)
     _cache["res"] = None
     return r

@@ -82,12 +82,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def _serve_file(self, path: Path, ctype=None):
         if not path.is_file():
-            return self._json({"ok": False, "errore": "File non trovato"}, 404)
+            return self._json({"ok": False, "errore": t("srv_server.file_non_trovato")}, 404)
         # il file si apre prima di rispondere: se non e' leggibile (es. download da OneDrive annullato) arriva un errore chiaro
         try:
             f = open(path, "rb")
         except OSError as e:
-            return self._json({"ok": False, "errore": f"File non leggibile: {e.strerror or e}"}, 409)
+            return self._json({"ok": False, "errore": t("srv_server.file_non_leggibile_0", e.strerror or e)}, 409)
         with f:
             self._send_file(f, path, ctype)
 
@@ -152,15 +152,15 @@ class Handler(BaseHTTPRequestHandler):
             if not route.startswith("/api/"):
                 return self._static(route, qs)
             if not self._authorized(qs):
-                return self._json({"ok": False, "errore": "non autorizzato"}, 403)
+                return self._json({"ok": False, "errore": t("srv_server.non_autorizzato")}, 403)
             fn = getattr(self, "api_" + route[5:].replace("/", "_").replace("-", "_"), None)
             if fn is None:
-                return self._json({"ok": False, "errore": "API sconosciuta"}, 404)
+                return self._json({"ok": False, "errore": t("srv_server.api_sconosciuta")}, 404)
             # licenza: senza attivazione valida rispondono solo licenza e aggiornamenti (mbvisual/license.py)
             if not route.startswith(("/api/license", "/api/update", "/api/job")):
                 from . import license as lic
                 if lic.required() and not lic.status().get("attiva"):
-                    return self._json({"ok": False, "errore": "Licenza non attiva", "licenza": True}, 402)
+                    return self._json({"ok": False, "errore": t("srv_server.licenza_non_attiva"), "licenza": True}, 402)
             fn(qs)
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
@@ -227,7 +227,7 @@ class Handler(BaseHTTPRequestHandler):
         b = self._body_json()
         for k in ("image", "mask"):  # solo file passati dall'app (cartella temporanea dell'IA)
             if b.get(k) and not str(Path(b[k]).resolve()).startswith(str(ia.OUT.resolve())):
-                raise ValueError("Percorso non consentito")
+                raise ValueError(t("srv_server.percorso_non_consentito"))
         self._json({"ok": True, "job": jobs.start(ia.run, b)})
 
     def api_update_check(self, qs):
@@ -250,7 +250,7 @@ class Handler(BaseHTTPRequestHandler):
     def _path(self, qs) -> str:
         p = _q(qs, "path")
         if not p:
-            raise ValueError("percorso mancante")
+            raise ValueError(t("srv_server.percorso_mancante"))
         return os.path.abspath(p)
 
     def api_file(self, qs):
@@ -270,7 +270,7 @@ class Handler(BaseHTTPRequestHandler):
                 with open(p, "rb") as f:
                     f.read(1)
             except OSError:
-                return self._json({"ok": False, "errore": "Download da OneDrive annullato o non riuscito: il file non e' stato aperto."}, 409)
+                return self._json({"ok": False, "errore": t("srv_server.download_onedrive_annullato_non_riuscito")}, 409)
         self._json({**base, "sniff": misc.sniff(str(p))})
 
     # ------------------------------------------------------------ disegni CAD modificati
@@ -301,7 +301,7 @@ class Handler(BaseHTTPRequestHandler):
         p = self._path(qs)
         exe = find_nwd2mbv()
         if not exe:
-            raise RuntimeError("Il lettore Navisworks non e' incluso in questa installazione")
+            raise RuntimeError(t("srv_server.lettore_navisworks_non_incluso_questa"))
         st = os.stat(p)
         # nella chiave anche la data del lettore: un lettore aggiornato rifa' la conversione
         key = hashlib.sha1(f"{p}|{st.st_size}|{st.st_mtime}|{os.path.getmtime(exe)}".encode()).hexdigest()[:16]
@@ -312,7 +312,7 @@ class Handler(BaseHTTPRequestHandler):
             r = subprocess.run([exe, p, str(prefix)], capture_output=True, timeout=1800, creationflags=NO_WINDOW)
             if r.returncode != 0 or not prefix.with_suffix(".json").exists():
                 msg = (r.stderr or r.stdout).decode("utf-8", "replace").strip()[-400:]
-                raise RuntimeError("Lettura del file Navisworks non riuscita: " + (msg or f"codice {r.returncode}"))
+                raise RuntimeError(t("srv_server.lettura_file_navisworks_non_riuscita") + (msg or f"codice {r.returncode}"))
         self._json({"ok": True, "json": str(prefix.with_suffix(".json")), "bin": str(prefix.with_suffix(".bin"))})
 
     def api_onlyoffice(self, qs):
@@ -400,7 +400,7 @@ class Handler(BaseHTTPRequestHandler):
         exe = {"navisworks": find_navisworks, "trueview": find_trueview, "excel": lambda: find_office("excel.exe"),
                "word": lambda: find_office("winword.exe"), "powerpoint": lambda: find_office("powerpnt.exe")}.get(app, lambda: None)()
         if app and not exe:
-            return self._json({"ok": False, "errore": "Programma non installato su questo PC"})
+            return self._json({"ok": False, "errore": t("srv_server.programma_non_installato_questo_pc")})
         if exe:
             subprocess.Popen([exe, p])
         else:
@@ -409,7 +409,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def api_job(self, qs):
         j = jobs.get(_q(qs, "id", ""))
-        self._json({"ok": j is not None, **(j or {"errore": "lavoro sconosciuto"})})
+        self._json({"ok": j is not None, **(j or {"errore": t("srv_server.lavoro_sconosciuto")})})
 
     # ------------------------------------------------------------ testo
     def api_text(self, qs):
@@ -510,7 +510,7 @@ class Handler(BaseHTTPRequestHandler):
         elif op == "unlock":
             r = pdfedit.unlock(p, b["out"], b.get("password", ""))
         elif op == "numbers":
-            r = pdfedit.page_numbers(p, b["out"], b.get("format", "Pagina {n} di {tot}"), b.get("pos", "basso-destra"), int(b.get("start", 1)))
+            r = pdfedit.page_numbers(p, b["out"], b.get("format", t("srv_server.pagina_n_tot")), b.get("pos", "basso-destra"), int(b.get("start", 1)))
         elif op == "word":
             r = pdfedit.to_word(p, b["out"])
         elif op == "images":
@@ -520,7 +520,7 @@ class Handler(BaseHTTPRequestHandler):
         elif op == "reorder":
             r = pdfedit.reorder(p, b["out"], b["order"])
         else:
-            raise ValueError("operazione sconosciuta")
+            raise ValueError(t("srv_server.operazione_sconosciuta"))
         self._json(r)
 
     # ------------------------------------------------------------ editor PDF (copia di lavoro modificabile)
@@ -536,7 +536,7 @@ class Handler(BaseHTTPRequestHandler):
         from . import pdfobjects
         p = self._path(qs)
         if not str(Path(p).resolve()).startswith(str((TEMP_DIR / "pdf-modifica").resolve())):
-            raise ValueError("Le modifiche si applicano solo alla copia di lavoro")
+            raise ValueError(t("srv_server.modifiche_si_applicano_solo_copia"))
         self._json(pdfobjects.apply_ops(p, self._body_json().get("ops", [])))
 
     def api_pdf_lines(self, qs):
@@ -547,7 +547,7 @@ class Handler(BaseHTTPRequestHandler):
         from . import pdfedit
         p = self._path(qs)
         if not str(Path(p).resolve()).startswith(str((TEMP_DIR / "pdf-modifica").resolve())):
-            raise ValueError("Le modifiche si applicano solo alla copia di lavoro")
+            raise ValueError(t("srv_server.modifiche_si_applicano_solo_copia"))
         self._json(pdfedit.apply_edits(p, self._body_json().get("edits", [])))
 
     def api_pdf_signatures(self, qs):
@@ -691,7 +691,7 @@ edits=0;try{e.setDocumentModified?e.setDocumentModified(false):e.asc_setDocument
 def onlyoffice_url() -> str:
     d = find_onlyoffice()
     if not d:
-        raise RuntimeError("L'editor ONLYOFFICE non e' incluso in questa installazione")
+        raise RuntimeError(t("srv_server.l_editor_onlyoffice_non_incluso"))
     with _OO["lock"]:
         if not _OO["port"]:
             srv = ThreadingHTTPServer(("127.0.0.1", 0), partial(OOHandler, directory=str(d)))
