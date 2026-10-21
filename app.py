@@ -26,6 +26,17 @@ class Api:
 
     def __init__(self):
         self._window = None
+        self._dirty = 0      # file aperti con modifiche non salvate (aggiornato dall'interfaccia)
+        self._quit = False   # chiusura confermata dall'interfaccia
+
+    def set_dirty(self, n):
+        self._dirty = int(n or 0)
+
+    def quit(self):
+        """Chiude la finestra dopo che l'interfaccia ha chiesto se salvare i file modificati."""
+        import threading
+        self._quit = True
+        threading.Thread(target=self._window.destroy, daemon=True).start()
 
     def _dialog(self, kind):
         import webview
@@ -89,7 +100,16 @@ def main():
         if files:
             window.evaluate_js(f"window.MB && MB.openPaths({json.dumps(files)})")
 
+    def on_closing():
+        # file non salvati: la finestra resta aperta e l'interfaccia chiede "Vuoi salvare?" (poi chiama api.quit)
+        if api._quit or not api._dirty:
+            return True
+        import threading
+        threading.Thread(target=lambda: window.evaluate_js("window.MB && MB.askQuit()"), daemon=True).start()
+        return False
+
     window.events.loaded += on_loaded
+    window.events.closing += on_closing
     icon = str(RES_DIR / "app.ico")
     webview.start(icon=icon if os.path.exists(icon) else None, private_mode=False,
                   storage_path=os.path.join(os.environ.get("LOCALAPPDATA", RES_DIR), "MBVisual", "webview"))
