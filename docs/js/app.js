@@ -85,9 +85,7 @@ export function badgeFor(name, isDir = false) {
 function renderTabs() {
   const box = $("tabs");
   box.innerHTML = "";
-  // a sinistra: "Chiudi tutto" e la linguetta Home (pagina per trascinare e aprire i file)
-  box.append(el("button", { class: "tab-closeall", title: "Chiudi tutti i file aperti", disabled: !tabs.length || undefined, onclick: closeAll },
-    el("span", { html: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>' }), "Chiudi tutto"));
+  // la linguetta Home (pagina per trascinare e aprire i file) all'estrema sinistra, "Chiudi tutto" all'estrema destra
   box.append(el("div", { class: "tab home-tab" + (!active && $("formats").hidden ? " active" : ""), role: "tab", title: "Home: trascina qui i file da aprire", onclick: () => activate(null) },
     el("span", { html: '<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 9v12h14V9"/></svg>' }), el("span", { class: "name" }, "Home")));
   for (const t of tabs) {
@@ -99,11 +97,14 @@ function renderTabs() {
     b.addEventListener("auxclick", e => { if (e.button === 1) closeTab(t); });
     box.append(b);
   }
+  box.append(el("button", { class: "tab-closeall", title: "Chiudi tutti i file aperti", disabled: !tabs.length || undefined, onclick: closeAll },
+    el("span", { html: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>' }), "Chiudi tutto"));
   const has = !!active;
   for (const id of ["btn-as", "btn-folder", "btn-external", "btn-info"]) $(id).disabled = !has;
   $("home").hidden = has || !$("formats").hidden;
   $("views").hidden = !has || !$("formats").hidden;
   updateStatus();
+  try { window.pywebview?.api?.set_dirty?.(tabs.filter(t => t.dirty).length); } catch { /* */ } // per la domanda alla chiusura
 }
 
 function updateStatus() {
@@ -124,9 +125,25 @@ function activate(t) {
   document.title = t ? t.name + " - MB Visual" : "MB Visual";
 }
 
+// "Vuoi salvare?" per un file modificato (o nuovo mai salvato): true = si puo' chiudere
+async function settle(t) {
+  if (!t.dirty) return true;
+  activate(t);
+  const r = await modal("Vuoi salvare?", el("p", {}, t.untitled ? `"${t.name}" e' un file nuovo non ancora salvato. Vuoi salvarlo?` : `Vuoi salvare le modifiche a "${t.name}"?`),
+    [{ label: "Annulla", value: null }, { label: "Non salvare", value: "no" }, { label: "Salva", value: "si", primary: true }]);
+  if (!r) return false;
+  if (r === "no") return true;
+  await save(false);
+  return !t.dirty;
+}
+// chiusura della finestra dell'app (app.py la ferma se ci sono file non salvati e chiama questa funzione)
+async function askQuit() {
+  for (const t of tabs.filter(x => x.dirty)) if (!(await settle(t))) return;
+  window.pywebview?.api?.quit?.();
+}
+
 async function closeAll() {
-  const dirty = tabs.filter(t => t.dirty);
-  if (dirty.length && !(await confirmBox("Modifiche non salvate", `${dirty.length === 1 ? `"${dirty[0].name}" ha` : `${dirty.length} file hanno`} modifiche non salvate. Chiudere tutto senza salvare?`, "Chiudi tutto", true))) return;
+  for (const t of tabs.filter(x => x.dirty)) if (!(await settle(t))) return;
   for (const t of [...tabs]) { try { t.api?.dispose?.(); } catch { /* */ } t.view.remove(); }
   tabs.length = 0;
   seen.length = 0;
@@ -134,7 +151,7 @@ async function closeAll() {
 }
 
 async function closeTab(t) {
-  if (t.dirty && !(await confirmBox("Modifiche non salvate", `Chiudere "${t.name}" senza salvare le modifiche?`, "Chiudi senza salvare", true))) return;
+  if (!(await settle(t))) return;
   try { t.api?.dispose?.(); } catch { /* */ }
   t.view.remove();
   const i = tabs.indexOf(t);
@@ -283,7 +300,7 @@ async function runUpdateJob(route, title, doneText) {
 // nuovo file vuoto (Word, Excel, PowerPoint, PDF, DXF, testo, immagini, database), aperto subito nel suo editor
 async function doNew() {
   const { createNew } = await import("./newfile.js");
-  await createNew({ dir: exDir || "", openFile: p => openFile(p) });
+  await createNew({ dir: exDir || "", openFile: (p, v, x) => openFile(p, v, x) });
 }
 
 async function doOpen() { const ps = await pickFiles(); if (ps?.length) openPaths(ps); }
@@ -393,7 +410,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   const tab = { path, name, viewer, forced: !!forcedViewer, info, view, dirty: false, extra: "", cat };
   tabs.push(tab);
   activate(tab);
-  remember(path);
+  if (!extraCtx.untitled) remember(path);
   const ctx = {
     path, name, ext, info, cat, el: body, tb, tab, tools: TOOLS, registry: REG,
     reason: !cat && !forcedViewer ? "unlisted" : null, ...extraCtx,
@@ -406,6 +423,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
     const mod = await import(`./viewers/${viewer}.js`);
     tab.api = (await mod.mount(ctx)) || {};
     addOfficeButton(tab, tb);
+    if (extraCtx.untitled) { tab.untitled = true; tab.dirty = true; renderTabs(); } // file nuovo: si salva quando e dove si vuole
   } catch (e) {
     console.error(e);
     showError(ctx, e);
@@ -429,11 +447,19 @@ async function save(asNew) {
   const t = active;
   if (!t) return;
   const a = t.api || {};
+  // file nuovo mai salvato: Salva chiede subito dove (nella cartella Documenti, non in quella temporanea)
+  if (t.untitled && !asNew && !WEB) {
+    const target = await pickSavePath(t.name, "");
+    if (!target) return;
+    const ext = extOf(target);
+    if (a.save && ((ext === extOf(t.path) && !a.saveFormats) || (a.saveFormats || []).includes(ext))) return doSave(t, a, target);
+    return convertTo(t, a, target);
+  }
   // "Salva con nome" sul PC: prima il formato (quelli del visualizzatore piu' quelli del convertitore), poi il nome
   if (!WEB && !t.path.startsWith("web://") && (asNew || !a.save)) {
     const fmt = await chooseFormat(t, a);
     if (!fmt) return;
-    const target = await pickSavePath(t.name.replace(/.[^.]+$/, "") + "." + fmt, dirName(t.path));
+    const target = await pickSavePath(t.name.replace(/.[^.]+$/, "") + "." + fmt, t.untitled ? "" : dirName(t.path));
     if (!target) return;
     const ext = extOf(target);
     if (a.save && ((ext === extOf(t.path) && !a.saveFormats) || (a.saveFormats || []).includes(ext))) return doSave(t, a, target);
@@ -457,6 +483,7 @@ async function doSave(t, a, target) {
     if (target !== t.path && res.switchTo !== false && extOf(target) === extOf(t.path) && !target.startsWith("download://")) {
       t.path = target;
       t.name = baseName(target);
+      t.untitled = false;
       try { t.info = await api("info", { path: target }); } catch { /* */ }
       if (t.api.renamed) t.api.renamed(target);
     }
@@ -829,5 +856,5 @@ async function boot() {
   renderTabs();
 }
 
-window.MB = { openPaths, openFile, resolveCategory, get tabs() { return tabs; }, modal };
+window.MB = { openPaths, openFile, resolveCategory, get tabs() { return tabs; }, modal, askQuit };
 const READY = boot();

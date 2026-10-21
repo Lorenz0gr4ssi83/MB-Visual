@@ -103,8 +103,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, [contenteditabl
 .tab svg, .tab-closeall svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .tab span:has(> svg), .tab-closeall span:has(> svg) { display: inline-flex; }
 .tab.home-tab { padding: 0 12px; flex: none; }
-.tab-closeall { display: flex; align-items: center; gap: 6px; height: 28px; margin: 0 6px 3px 0; padding: 0 10px; flex: none; align-self: flex-end;
-  border: 1px solid var(--chrome-3); border-radius: 5px; background: transparent; color: var(--chrome-muted); font-size: 12px; cursor: pointer; white-space: nowrap; }
+.tab-closeall { display: flex; align-items: center; gap: 6px; height: 28px; margin: 0 0 3px auto; position: sticky; right: 0; padding: 0 10px; flex: none; align-self: flex-end;
+  border: 1px solid var(--chrome-3); border-radius: 5px; background: var(--chrome-2); color: var(--chrome-muted); font-size: 12px; cursor: pointer; white-space: nowrap; }
 .tab-closeall:hover:not(:disabled) { color: var(--chrome-fg); background: var(--chrome-3); }
 .tab-closeall:disabled { opacity: .45; cursor: default; }
 main { position: relative; min-height: 0; overflow: hidden; }

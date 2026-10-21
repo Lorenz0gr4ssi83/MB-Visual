@@ -1,6 +1,6 @@
 // "Crea nuovo": file vuoti dei formati modificabili, aperti subito nel loro editor.
 // Office, PDF, DXF e database partono dai modelli in ui/templates (tools/make_templates.py); gli altri si generano qui.
-import { api, el, modal, pickSavePath, toast, WEB } from "./core.js";
+import { api, el, modal, toast, WEB } from "./core.js";
 
 const enc = s => new TextEncoder().encode(s);
 const tpl = name => fetch("templates/" + name).then(r => { if (!r.ok) throw new Error("Modello non trovato: " + name); return r.arrayBuffer(); }).then(b => new Uint8Array(b));
@@ -54,7 +54,7 @@ const TYPES = [
   ]],
 ];
 
-export async function createNew({ dir = "", openFile }) {
+export async function createNew({ openFile }) {
   const list = el("select", { size: 18, class: "field", id: "new-type", style: { width: "100%", minWidth: "360px" } });
   const items = [];
   for (const [group, entries] of TYPES) {
@@ -74,12 +74,12 @@ export async function createNew({ dir = "", openFile }) {
     const path = window.MBV_API.register(new Blob([bytes]), `${base}.${ext}`);
     return openFile(path);
   }
-  const target = await pickSavePath(`${base}.${ext}`, dir);
-  if (!target) return;
-  const path = /\.[^.\\/]+$/.test(target) ? target : `${target}.${ext}`;
+  // il file nasce in una cartella temporanea e si apre subito: dove salvarlo si decide con Salva
+  // (alla chiusura, se non e' stato salvato, l'app chiede "Vuoi salvare?")
+  let path;
   try {
+    path = (await api("temp_path", { name: `${base}.${ext}` })).path;
     await api("save", { path }, { body: bytes });
   } catch (e) { return toast("Creazione non riuscita: " + e.message, true); }
-  toast("Creato: " + path.split(/[\\/]/).pop());
-  return openFile(path);
+  return openFile(path, null, { untitled: true });
 }
