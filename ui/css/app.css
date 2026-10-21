@@ -71,7 +71,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, [contenteditabl
 .menu-wrap { position: relative; }
 .menu { position: fixed; z-index: 60; min-width: 260px; max-width: 460px; max-height: 70vh; overflow: auto; background: var(--panel-2); color: var(--fg); border: 1px solid var(--line-strong); border-radius: 8px; box-shadow: var(--shadow); padding: 5px; display: grid; }
 .menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 10px; border-radius: 5px; border: 0; background: none; cursor: pointer; text-align: left; }
-.menu button:hover { background: var(--accent-soft); }
+.menu button:hover:not(:disabled) { background: var(--accent-soft); }
+.menu button:disabled { opacity: .45; cursor: default; }
+.menu button.current { font-weight: 600; }
 .menu button svg { width: 16px; height: 16px; flex: none; }
 .menu .hint { color: var(--muted); font-size: 11.5px; margin-left: auto; padding-left: 16px; white-space: nowrap; }
 .menu .sec { padding: 8px 10px 3px; }
@@ -98,6 +100,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, [contenteditabl
 .tab .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); flex: none; }
 .tab .x { border: 0; background: none; padding: 2px 5px; border-radius: 4px; cursor: pointer; color: inherit; line-height: 1; font-size: 15px; opacity: .7; }
 .tab .x:hover { background: rgba(127, 127, 127, .25); opacity: 1; }
+.tab svg, .tab-closeall svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.tab span:has(> svg), .tab-closeall span:has(> svg) { display: inline-flex; }
+.tab.home-tab { padding: 0 12px; flex: none; }
+.tab-closeall { display: flex; align-items: center; gap: 6px; height: 28px; margin: 0 6px 3px 0; padding: 0 10px; flex: none; align-self: flex-end;
+  border: 1px solid var(--chrome-3); border-radius: 5px; background: transparent; color: var(--chrome-muted); font-size: 12px; cursor: pointer; white-space: nowrap; }
+.tab-closeall:hover:not(:disabled) { color: var(--chrome-fg); background: var(--chrome-3); }
+.tab-closeall:disabled { opacity: .45; cursor: default; }
 main { position: relative; min-height: 0; overflow: hidden; }
 #views { position: absolute; inset: 0; pointer-events: none; }
 .view { position: absolute; inset: 0; display: grid; grid-template-rows: auto 1fr; min-height: 0; pointer-events: auto; background: var(--bg); }
