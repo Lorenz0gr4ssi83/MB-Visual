@@ -384,9 +384,10 @@ export async function mount(ctx) {
   const tBtn = button("Testi", "text", () => { showText = !showText; tBtn.classList.toggle("on", showText); draw(); });
   const lwBtn = button("Spessori", "", () => { showLw = !showLw; lwBtn.classList.toggle("on", showLw); draw(); }, { title: "Mostra lo spessore delle linee" });
   tBtn.classList.add("on");
-  const editBtn = editor ? button("Modifica disegno", "edit", () => { const on = editor.toggle(); editBtn.classList.toggle("on", on); if (on && measure) mBtn.click(); }, { title: "Disegna, quota e modifica: selezione, comandi come in AutoCAD, riga di comando" }) : null;
-  ctx.tb.append(...[editBtn, editBtn ? el("span", { class: "sep" }) : null, button("Adatta", "fit", fit), button("", "zoomIn", () => zoomAt(1.4), { iconOnly: true, title: "Ingrandisci" }), button("", "zoomOut", () => zoomAt(1 / 1.4), { iconOnly: true, title: "Riduci" }),
-    el("span", { class: "sep" }), mBtn, tBtn, lwBtn, bgBtn, el("span", { class: "sep" }),
+  // nell'app per PC gli strumenti di modifica (barra come AutoCAD + riga di comando) sono sempre visibili, come aprendo
+  // un disegno in AutoCAD: niente pulsante "Modifica disegno"; la misura e' nel pannello Utilita' (Distanza, Area)
+  ctx.tb.append(...[button("Adatta", "fit", fit), button("", "zoomIn", () => zoomAt(1.4), { iconOnly: true, title: "Ingrandisci" }), button("", "zoomOut", () => zoomAt(1 / 1.4), { iconOnly: true, title: "Riduci" }),
+    el("span", { class: "sep" }), editor ? null : mBtn, tBtn, lwBtn, bgBtn, el("span", { class: "sep" }),
     button("PNG", "download", () => exportPng()), button("SVG", "download", () => exportSvg()), button("PDF", "download", () => exportPdf()),
     ctx.ext === "dxf" ? button("Modifica DXF (testo)", "code", () => ctx.openAs("text")) : null,
     ctx.tools.trueview ? button("Apri in DWG TrueView", "open", () => api("open_external", { path: ctx.path, app: "trueview" })) : null,
@@ -619,9 +620,10 @@ export async function mount(ctx) {
   }
 
   ctx.status(`${model.groups.reduce((n, g) => n + g.lines.length, 0).toLocaleString("it-IT")} elementi · ${model.texts.length} testi`);
+  if (editor && !editor.on) editor.toggle(); // strumenti di modifica visibili da subito, come in AutoCAD
   return {
     onShow() { resize(); draw(); },
-    onBack() { if (editor?.on) { editBtn.click(); return true; } return false; },
+    onBack() { return false; },
     saveInPlace: ctx.ext === "dxf",
     saveFormats: editor ? ["dxf", "dwg", "pdf", "svg", "png"] : ["png", "svg", "pdf"],
     saveAsName: () => withExt(ctx.name, "dxf"),
