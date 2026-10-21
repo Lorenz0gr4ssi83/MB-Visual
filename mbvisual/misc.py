@@ -318,6 +318,8 @@ def sniff(path: str) -> dict:
     ]
     for cond, kind, descr in tests:
         if cond:
+            if kind == "ole" and path.lower().endswith((".ipt", ".iam", ".idw", ".ipn")):
+                descr = "Documento Autodesk Inventor"  # anche Inventor usa il contenitore OLE
             return {"kind": kind, "descr": descr}
     sample = h[:8192]
     if sample and b"\x00" not in sample:

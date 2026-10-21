@@ -132,6 +132,7 @@
  "app.disponibile_mb_visual_0": "MB Visual {0} ist verfügbar.",
  "app.documenti": "Dokumente",
  "app.documento_firmato": "Signiertes Dokument",
+ "app.documento_inventor": "Inventor-Dokument",
  "app.documento_office_libreoffice": "Office-Dokument (LibreOffice)",
  "app.download_0_onedrive": "„{0}“ wird von OneDrive heruntergeladen...",
  "app.dwg_dxf_layer_quote_misure": "DWG, DXF mit Layern, Bemaßungen und Messungen",

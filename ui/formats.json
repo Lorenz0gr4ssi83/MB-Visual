@@ -1084,6 +1084,28 @@
    ]
   },
   {
+   "id": "inventor",
+   "name": "Autodesk Inventor (parti e assiemi)",
+   "viewer": "model3d",
+   "view": "Modello 3D senza Inventor: il solido ShapeManager della parte convertito in STEP (piani, cilindri, coni, sfere, tori, superfici e curve B-spline), assiemi composti con le posizioni e i colori dei componenti (anche sottoassiemi), albero dei componenti, iProperties (codice, descrizione, materiale, autore, revisione) e anteprima",
+   "edit": "Visibilita' e colori dei componenti, misure, sezioni; esportazione in STEP / IFC / GLB / STL / OBJ",
+   "exts": [
+    "ipt",
+    "iam"
+   ]
+  },
+  {
+   "id": "inventor-doc",
+   "name": "Autodesk Inventor (tavole e presentazioni)",
+   "viewer": "inventor",
+   "view": "Anteprima salvata nel file, iProperties ed elenco dei modelli collegati (si aprono con un clic nel visualizzatore 3D)",
+   "edit": "Sola lettura",
+   "exts": [
+    "idw",
+    "ipn"
+   ]
+  },
+  {
    "id": "navisworks",
    "name": "Navisworks",
    "viewer": "external",

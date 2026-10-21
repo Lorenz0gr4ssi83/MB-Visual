@@ -19,6 +19,7 @@ const NAVIS = { nwd: 1, nwc: 1, nwf: 1 }; // Navisworks letto da nwd2mbv (senza 
 const NEUTRAL = { jt: 1, u3d: 1 }; // lettori propri in un Web Worker, con cache (ui/js/neutral3d.js)
 // nuvole di punti da rilievo (ui/js/pointcloud.js); i PLY si aprono come nuvola se non hanno facce
 const PCLOUD = { las: 1, laz: 1, e57: 1, pts: 1, ptx: 1, xyz: 1, txt: 1, asc: 1, csv: 1, ply: 1 };
+const INVENTOR = { ipt: 1, iam: 1 }; // Inventor letto da mbvisual/inventor.py (senza Inventor)
 const OCCT = { step: "step", stp: "step", p21: "step", stpz: "step", iges: "iges", igs: "iges", brep: "brep", brp: "brep" };
 
 // ---------------------------------------------------------------- caricamento
@@ -295,7 +296,7 @@ function rhinoTree(obj) {
 
 // ---------------------------------------------------------------- visualizzatore
 async function loadAny(c, ld, info) {
-  const bytes = NAVIS[c.ext] || PCLOUD[c.ext] || NEUTRAL[c.ext] ? null : await readBytes(c.path); // Navisworks e nuvole: li legge il motore nativo
+  const bytes = NAVIS[c.ext] || INVENTOR[c.ext] || PCLOUD[c.ext] || NEUTRAL[c.ext] ? null : await readBytes(c.path); // Navisworks, Inventor e nuvole: li legge il motore nativo
   let loaded;
   if (PCLOUD[c.ext]) {
     const { loadPointCloud } = await import("../pointcloud.js");
@@ -307,6 +308,7 @@ async function loadAny(c, ld, info) {
   else if (NAVIS[c.ext]) { const { loadNavis } = await import("../navis.js"); loaded = await loadNavis(c, ld); if (c.navisInfo) info.status = c.navisInfo; }
   else if (NEUTRAL[c.ext]) { const { loadNeutral } = await import("../neutral3d.js"); loaded = await loadNeutral(c, bytes, ld, info); }
   else if (c.ext === "skp") { const { loadSkp } = await import("../sketchup.js"); loaded = await loadSkp(c, bytes, ld); if (c.skpInfo) info.status = c.skpInfo; } // SketchUp senza SketchUp (OpenSKP)
+  else if (INVENTOR[c.ext]) { const { loadInventor } = await import("../inventor3d.js"); loaded = await loadInventor(c, ld, info); }
   else if (LOADERS[c.ext]) loaded = await loadMesh(c, bytes, ld);
   else throw new Error(tr("v_model3d.formato_0_non_modello_3d", c.ext));
   // asse Z verso l'alto per CAD e mesh tecniche (convenzione ingegneristica)
@@ -879,6 +881,7 @@ export async function mount(ctx) {
   let tri = 0;
   model.traverse(m => { if (m.isMesh && m.geometry && !m.userData.merged) tri += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
   ctx.status((info.status ? info.status + (tri || !info.clouds ? " · " : "") : "") + (tri || !info.clouds ? tr("v_model3d.0_triangoli", Math.round(tri).toLocaleString(LOCALE)) : ""));
+  if (info.inventor) import("../inventor3d.js").then(({ inventorWarnings }) => { const w = inventorWarnings(info.inventor); if (w.length) toast(w.join(" · "), true, 12000); });
   const disposeAll = () => { bcfUi?.dispose(); running = false; window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onKey); window.removeEventListener("blur", onBlur); (info.clouds || []).forEach(c => c.dispose()); renderer.dispose(); (info.modelIDs || []).forEach(m => info.ifc?.CloseModel?.(m)); };
   // nuvola di punti aperta come documento: Salva con nome nei formati delle nuvole (tutti i punti, non solo quelli mostrati)
   const firstCloud = first.cloud;

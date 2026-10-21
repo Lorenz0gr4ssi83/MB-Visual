@@ -126,7 +126,7 @@ l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.m
   contagocce e anteprima a scacchi della trasparenza. Ogni modifica scrive un file NUOVO (mai sostituire quello
   aperto da pdf.js). apply_ops lavora in `_apply_ops` + gc + nuovi tentativi: i campi di PyMuPDF tengono aperto il file.
   `_page_draws` esclude dai disegni l'aspetto di campi e annotazioni (get_drawings li riporta).
-- Utente non vuole per ora Inventor/Creo (21/10/2026).
+- Inventor: vedi sezione "Autodesk Inventor senza Inventor" (22/10/2026). Creo: nessun lettore realistico.
 - Migliorie rimandate dall'utente (21/10/2026): pulsanti "Modifica in AutoCAD/BricsCAD/Inventor"; funzioni Navisworks Manage
   (interferenze, viste salvate, annotazioni, computo); motore ODA (a pagamento).
 - Editor CAD professionale (21/10/2026) - FATTO. `ui/js/cadgeom.js` = geometria condivisa (matrici, impaginazione esatta dei
@@ -662,3 +662,41 @@ Tutto scritto da zero, niente codice di terzi:
 - DA FARE: assiemi Solid Edge (ora solo elenco componenti; posizioni non decodificate: Attachments / Preview/Structure/IOT;
   mesh di visualizzazione in Preview/Display/Scene0/Geometries), mesh di visualizzazione SW (DisplayLists) come ripiego,
   sotto-assiemi SW non descritti nell'albero del padre, x_t senza schema incorporato, parti SE vecchie con solo schizzi.
+
+## Autodesk Inventor senza Inventor (22/10/2026) - FATTO
+Lettore scritto da zero (nessun codice GPL: InventorLoader NON usato; librerie: olefile BSD, OpenCascade/occt-import-js LGPL
+gia' presente). Categorie `inventor` (ipt, iam -> model3d) e `inventor-doc` (idw, ipn -> `ui/js/viewers/inventor.js`). Solo app per PC.
+- `mbvisual/inventor.py`: file OLE. iProperties dagli insiemi MS-OLEPS (parser proprio: olefile legge male le stringhe
+  UTF-16; nomi italiani in `NOMI`, 58/59/60/61 = massa g / area cm2 / volume cm3 / densita'), anteprima = proprieta' 17 di
+  "Inventor Summary Information" (PNG, o DIB). RSeStorage: flusso M<x> = meta col nome del tipo di segmento (UTF-16 con
+  lunghezza), B<x> = dati zlib dopo 18 byte. Il solido sta nel segmento `PmBRepSegment` come "ASM BinaryFile4" non compresso.
+  Colore: nome dell'aspetto da `_Private Model Information` prop 16 (StyleName), definizione nel segmento PmApp/AmApp
+  (nome, descrizione, "1:nome", id libreria, GUID testuale, poi RGBA float ambiente/diffuso...).
+- Assiemi: `UFRxDoc` = elenco file (percorso UTF-16 con lunghezza, poi GUID documento) + blocchi per occorrenza
+  (`01 03 01 00 00 00 03` + GUID del documento, `01 05 ... 05` + nome). Con piu' stati del modello l'elenco e' ripetuto per
+  intero: si tiene il primo periodo. Posizioni: segmento `AmRx*`, una matrice 4x4 per occorrenza nello STESSO ordine,
+  compatta: uint32 di indicatori (bit k = elemento k vale 1, con bit k+16 = -1; solo bit k+16 = 0), poi i double rimanenti
+  (righe, cm). Si riconoscono dall'ultima riga 0 0 0 1 (indicatori & 0x70008000) + rotazione ortonormale (`find_transforms`).
+  File copiati con "Salva con nome" hanno lo STESSO GUID: abbinamento GUID unico -> GUID+nome file -> nome visualizzato
+  (scritto in UFRxDoc tra percorso e GUID) -> nome. Ricerca dei file: percorso originale, stessa struttura relativa,
+  cartella e sottocartelle, 3 livelli sopra (`_Finder`).
+- `mbvisual/acis.py`: lettore SAB (valori con byte di tipo; record chiusi da 0x11; i sottotipi `{ }` sono numerati in
+  ordine di scrittura, i `{ ref n }` NON contano). Punti di controllo delle B-spline: u varia piu' in fretta.
+  Estremi dei nodi ACIS con molteplicita' = grado (STEP = grado+1, `_bspline_knots`).
+- `mbvisual/acis_step.py`: STEP AP214 (mm; unita' ACIS dall'intestazione, Inventor = cm). Piani, coni/cilindri (normale
+  verso l'esterno se cos>0; coni ellittici come cono circolare), sfere/tori (raggio negativo = normale invertita),
+  B-spline esatte o approssimazioni delle procedurali (prima B-spline al livello del blocco), estrusioni/rivoluzioni
+  ricostruite, eliche: `helix_int_cur`, `helix_spl_line` (segmento L = componenti su raggio, raggio ruotato, asse),
+  `helix_spl_circ` (tubo di raccordo; verso invertito se il valore dopo gli intervalli e' pi) come B-spline di Hermite;
+  formula elica C + (1+k t/2pi)(M cos t + N sin t) + P t/2pi (k = conicita' dei filetti NPT) verificata sui vertici.
+  Elemento non convertibile: la faccia si salta e finisce nel rapporto (mostrato nell'app).
+- Cache: `api/inventor` (lavoro in background) -> TEMP_DIR/inventor/<hash percorso+data+lettore>/ (modello.stp, info.json,
+  anteprima.png). Interfaccia `ui/js/inventor3d.js`: worker OpenCascade persistente (`ui/js/occtworker.js`, il motore si
+  carica una volta), ogni parte tassellata una volta e ripetuta nelle occorrenze; proprieta' nella scheda (formato navisProps).
+- Collaudo (file pubblici, fuori dal repo in %USERPROFILE%\.mbvisual\ipt-campioni): github.com/gdh-uniandes/gpr20_vna_holder e
+  gpr20_cartesian_arm (32 parti + STL di confronto: dimensioni/area/volume identici; 3 assiemi = anteprime di Inventor) e
+  github.com/RespiraWorks/Ventilator (Apache-2.0, Inventor 2019-2023: 134/134 parti, tutte le facce dopo le eliche;
+  39/39 assiemi senza componenti mancanti; ventilator.iam = 380 componenti, 87 parti, ~3,5 min la prima volta per la
+  scheda da 98 MB; tavole .idw ok). Script di prova nella cartella scratchpad della sessione (non nel repo).
+- Da provare con file dell'utente: nessun file Inventor sul PC. Mai visti: file pre-2010 ("ACIS BinaryFile" vecchio), .ipn,
+  saldature (geometria nell'assieme), pattern di componenti, componenti soppressi, sostituzioni di colore nell'assieme.

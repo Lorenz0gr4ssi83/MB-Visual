@@ -415,6 +415,13 @@ class Handler(BaseHTTPRequestHandler):
         cfg = _q(qs, "config")
         self._json({"ok": True, "job": jobs.start(solidcad.to_step, self._path(qs), int(cfg) if cfg not in (None, "") else None)})
 
+    def api_inventor(self, qs):
+        # Inventor senza Inventor: parti convertite in STEP (cache in TEMP_DIR/inventor), assiemi descritti
+        # con occorrenze e matrici; lavoro in background perche' un assieme grande richiede tempo
+        from . import inventor
+        p = self._path(qs)
+        self._json({"ok": True, "job": jobs.start(inventor.convert, p, str(TEMP_DIR / "inventor"))})
+
     def api_onlyoffice(self, qs):
         self._json({"ok": True, "url": onlyoffice_url()})
 
