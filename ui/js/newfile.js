@@ -2,9 +2,10 @@
 // programma e la miniatura del modello). File vuoti dei formati modificabili, aperti subito nel loro editor.
 // Office, PDF, DXF e database partono dai modelli in ui/templates (tools/make_templates.py); gli altri si generano qui.
 import { api, el, toast, WEB } from "./core.js";
+import { t as tr } from "./i18n.js";
 
 const enc = s => new TextEncoder().encode(s);
-const tpl = name => fetch("templates/" + name).then(r => { if (!r.ok) throw new Error("Modello non trovato: " + name); return r.arrayBuffer(); }).then(b => new Uint8Array(b));
+const tpl = name => fetch("templates/" + name).then(r => { if (!r.ok) throw new Error(tr("newfile.modello_non_trovato") + name); return r.arrayBuffer(); }).then(b => new Uint8Array(b));
 async function canvasImage(w, h, type) {
   const c = document.createElement("canvas");
   c.width = w; c.height = h;
@@ -19,16 +20,16 @@ async function canvasImage(w, h, type) {
 // Un solo modello per tipo: formato, orientamento e dimensioni si cambiano poi nel programma (es. pagina del PDF,
 // limiti del disegno). Niente formati di codice (basta un testo e cambiare estensione) ne' immagini non modificabili.
 const TYPES = [
-  ["Nuovo", [
-    ["docx", "Documento Word", "Nuovo documento", () => tpl("vuoto.docx"), "doc", "Testi, relazioni, lettere"],
-    ["xlsx", "Cartella di lavoro Excel", "Nuovo foglio", () => tpl("vuoto.xlsx"), "sheet", "Tabelle, calcoli, computi"],
-    ["pptx", "Presentazione PowerPoint", "Nuova presentazione", () => tpl("vuoto.pptx"), "slide", "Diapositive"],
-    ["mbpub", "Pubblicazione", "Nuova pubblicazione", () => import("./pubmodel.js").then(m => m.blankMbpub()), "pub", "Volantini, brochure, biglietti, newsletter"],
-    ["mbvid", "Progetto video", "Nuovo progetto video", () => import("./vidmodel.js").then(m => enc(JSON.stringify(m.newProject(), null, 1))), "video-l", "Montaggio video e audio, titoli, transizioni"],
-    ["pdf", "Documento PDF", "Nuovo PDF", () => tpl("vuoto_A4.pdf"), "page", "Moduli, testi, immagini"],
-    ["dxf", "Disegno CAD", "Nuovo disegno", () => tpl("vuoto.dxf"), "cad", "Si apre in AutoCAD e in ogni CAD"],
-    ["png", "Immagine", "Nuova immagine", () => canvasImage(1920, 1080, "image/png"), "image-l", "Disegno, fotoritocco, livelli"],
-    ["txt", "Testo", "Nuovo testo", () => enc(""), "text", "Note, appunti, codice"],
+  [tr("newfile.nuovo"), [
+    ["docx", tr("newfile.documento_word"), tr("newfile.nuovo_documento"), () => tpl("vuoto.docx"), "doc", tr("newfile.testi_relazioni_lettere")],
+    ["xlsx", tr("newfile.cartella_lavoro_excel"), tr("newfile.nuovo_foglio"), () => tpl("vuoto.xlsx"), "sheet", tr("newfile.tabelle_calcoli_computi")],
+    ["pptx", tr("newfile.presentazione_powerpoint"), tr("newfile.nuova_presentazione"), () => tpl("vuoto.pptx"), "slide", tr("newfile.diapositive")],
+    ["mbpub", tr("newfile.pubblicazione"), tr("newfile.nuova_pubblicazione"), () => import("./pubmodel.js").then(m => m.blankMbpub()), "pub", tr("newfile.volantini_brochure_biglietti_newsletter")],
+    ["mbvid", tr("newfile.progetto_video"), tr("newfile.nuovo_progetto_video"), () => import("./vidmodel.js").then(m => enc(JSON.stringify(m.newProject(), null, 1))), "video-l", tr("newfile.montaggio_video_audio_titoli_transizioni")],
+    ["pdf", tr("newfile.documento_pdf"), tr("newfile.nuovo_pdf"), () => tpl("vuoto_A4.pdf"), "page", tr("newfile.moduli_testi_immagini")],
+    ["dxf", tr("newfile.disegno_cad"), tr("newfile.nuovo_disegno"), () => tpl("vuoto.dxf"), "cad", tr("newfile.si_apre_autocad_ogni_cad")],
+    ["png", tr("newfile.immagine"), tr("newfile.nuova_immagine"), () => canvasImage(1920, 1080, "image/png"), "image-l", tr("newfile.disegno_fotoritocco_livelli")],
+    ["txt", tr("newfile.testo"), tr("newfile.nuovo_testo"), () => enc(""), "text", tr("newfile.note_appunti_codice")],
   ]],
 ];
 
@@ -81,9 +82,9 @@ export async function createNew({ openFile }) {
   let sel = items[0];
 
   return new Promise(resolve => {
-    const back = el("div", { class: "nf-back", role: "dialog", "aria-label": "Crea un nuovo file" });
+    const back = el("div", { class: "nf-back", role: "dialog", "aria-label": tr("newfile.crea_nuovo_file") });
     const grid = el("div", { class: "nf-grid" });
-    const createBtn = el("button", { class: "btn primary", onclick: () => go() }, "Crea");
+    const createBtn = el("button", { class: "btn primary", onclick: () => go() }, tr("newfile.crea"));
     const info = el("div", { class: "nf-info" });
     const close = v => { back.remove(); document.removeEventListener("keydown", onKey, true); resolve(v); };
     const visible = () => items;
@@ -112,9 +113,9 @@ export async function createNew({ openFile }) {
       if (mv && list.length) { e.preventDefault(); sel = list[Math.max(0, Math.min(list.length - 1, i + mv))]; renderGrid(); grid.querySelector(".nf-card.on")?.focus(); }
     };
     back.append(el("div", { class: "nf-box" },
-      el("header", { class: "nf-head" }, el("h2", {}, "Nuovo"), el("span", { class: "nf-hint" }, "Scegli il tipo di file: si apre subito, dove salvarlo lo decidi con Salva"), el("button", { class: "nf-x", title: "Chiudi (Esc)", onclick: () => close(null) }, "×")),
+      el("header", { class: "nf-head" }, el("h2", {}, tr("newfile.nuovo")), el("span", { class: "nf-hint" }, tr("newfile.scegli_tipo_file_si_apre")), el("button", { class: "nf-x", title: tr("newfile.chiudi_esc"), onclick: () => close(null) }, "×")),
       el("div", { class: "nf-body nf-single" }, grid),
-      el("footer", { class: "nf-foot" }, info, el("span", { class: "grow" }), el("button", { class: "btn", onclick: () => close(null) }, "Annulla"), createBtn)));
+      el("footer", { class: "nf-foot" }, info, el("span", { class: "grow" }), el("button", { class: "btn", onclick: () => close(null) }, tr("common.annulla")), createBtn)));
     back.addEventListener("pointerdown", e => { if (e.target === back) close(null); });
     document.body.append(back);
     document.addEventListener("keydown", onKey, true);
@@ -136,7 +137,7 @@ export async function createNew({ openFile }) {
     try {
       path = (await api("temp_path", { name: `${base}.${ext}` })).path;
       await api("save", { path }, { body: bytes });
-    } catch (e) { return toast("Creazione non riuscita: " + e.message, true); }
+    } catch (e) { return toast(tr("newfile.creazione_non_riuscita") + e.message, true); }
     return openFile(path, null, { untitled: true });
   });
 }

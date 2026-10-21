@@ -43,10 +43,10 @@ export function keymap(ctx, program, defs, target = window) {
   return () => target.removeEventListener("keydown", onKey, true);
 }
 
-// nomi dei tasti come sulla tastiera italiana
-const IT = { Enter: "Invio", Escape: "Esc", Delete: "Canc", Backspace: "Backspace", Space: "Spazio", Shift: "Maiusc", ArrowLeft: "←", ArrowRight: "→",
-  ArrowUp: "↑", ArrowDown: "↓", Home: "Home", End: "Fine", PageUp: "Pag su", PageDown: "Pag giu'", Plus: "+", Minus: "-" };
-const pretty = keys => keys.split("|").map(c => c.split("+").map(k => IT[k] || k).join("+")).join("  oppure  ");
+// nomi dei tasti: restano quelli delle combinazioni ("Ctrl+Shift+Z", piu' combinazioni separate da "|"); F1 (app.js)
+// li mostra con i nomi della lingua scelta (chiavi keys.* in ui/i18n: Maiusc/Invio/Canc in italiano, Shift/Enter/Del in inglese)
+const ARROWS = { ArrowLeft: "←", ArrowRight: "→", ArrowUp: "↑", ArrowDown: "↓", Plus: "+", Minus: "-" };
+const pretty = keys => keys.split("|").map(c => c.split("+").map(k => ARROWS[k] || k).join("+")).join(" | ");
 
 // solo elenco (scorciatoie gestite altrove, es. dentro ONLYOFFICE o Monaco)
 export function describeKeys(ctx, program, rows) {

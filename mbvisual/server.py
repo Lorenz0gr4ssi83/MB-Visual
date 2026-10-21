@@ -13,7 +13,8 @@ from http.server import BaseHTTPRequestHandler, SimpleHTTPRequestHandler, Thread
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import archive, jobs, media, misc, office, signed
+from . import archive, i18n, jobs, media, misc, office, signed
+from .i18n import t
 from .paths import TEMP_DIR, UI_DIR, find_navisworks, find_nwd2mbv, find_office, find_onlyoffice, find_trueview, tools_status
 
 TOKEN = secrets.token_urlsafe(24)
@@ -145,6 +146,8 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         qs = parse_qs(u.query)
         route = u.path
+        # lingua dell'interfaccia: vale per i messaggi di questa richiesta e dei lavori che avvia (mbvisual/i18n.py)
+        i18n.set_language(self.headers.get("X-MBV-Lang"))
         try:
             if not route.startswith("/api/"):
                 return self._static(route, qs)
@@ -181,6 +184,10 @@ class Handler(BaseHTTPRequestHandler):
             data = p.read_bytes()
             return self._send(200, data, "text/html; charset=utf-8", extra)
         self._serve_file(p)
+
+    # ------------------------------------------------------------ API: lingua (ui/js/i18n.js)
+    def api_lang(self, qs):
+        self._json({"ok": True, "windows": i18n.windows_language(), "lingua": i18n.language()})
 
     # ------------------------------------------------------------ API: aggiornamento automatico (mbvisual/update.py)
     # ------------------------------------------------------------ API: licenza (mbvisual/license.py)

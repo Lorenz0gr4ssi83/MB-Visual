@@ -11,41 +11,41 @@
 <header class="cmdbar">
   <div class="group">
     <div class="menu-wrap">
-      <button id="btn-file" class="cmd" title="File: nuovo, salva, salva con nome, aggiornamenti"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span>File</span><svg class="caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg></button>
+      <button id="btn-file" class="cmd" title="File: nuovo, salva, salva con nome, aggiornamenti" data-i18n-title="idx.file_nuovo_salva_salva_nome"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span data-i18n="idx.file">File</span><svg class="caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg></button>
       <div class="menu" id="menu-file" hidden></div>
     </div>
     <div class="menu-wrap">
-      <button id="btn-open" class="cmd primary-cmd" title="Apri (Ctrl+O)"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg><span>Apri</span><svg class="caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg></button>
+      <button id="btn-open" class="cmd primary-cmd" title="Apri (Ctrl+O)" data-i18n-title="idx.apri_ctrl"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg><span data-i18n="idx.apri">Apri</span><svg class="caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg></button>
       <div class="menu" id="menu-open" hidden></div>
     </div>
   </div>
   <div class="group">
     <div class="menu-wrap">
-      <button id="btn-as" class="cmd" title="Apri il file con un altro visualizzatore compatibile" disabled><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Apri come</span><svg class="caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg></button>
+      <button id="btn-as" class="cmd" title="Apri il file con un altro visualizzatore compatibile" data-i18n-title="idx.apri_file_altro_visualizzatore_compatibile" disabled><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span data-i18n="idx.apri_come">Apri come</span><svg class="caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg></button>
       <div class="menu" id="menu-as" hidden></div>
     </div>
-    <button id="btn-info" class="cmd" title="Proprieta' del file e impronta SHA-256" disabled><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><span>Proprieta'</span></button>
-    <button id="btn-folder" class="cmd desktop-only" title="Mostra il file in Esplora risorse" disabled><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3zM12 12v4M10 14h4"/></svg><span>Cartella</span></button>
-    <button id="btn-external" class="cmd desktop-only" title="Apri il file con il programma predefinito di Windows" disabled><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/></svg><span>Apri con programma predefinito</span></button>
+    <button id="btn-info" class="cmd" title="Proprieta' del file e impronta SHA-256" data-i18n-title="idx.proprieta_file_impronta_sha_256" disabled><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><span data-i18n="idx.proprieta">Proprieta'</span></button>
+    <button id="btn-folder" class="cmd desktop-only" title="Mostra il file in Esplora risorse" data-i18n-title="idx.mostra_file_esplora_risorse" disabled><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3zM12 12v4M10 14h4"/></svg><span data-i18n="idx.cartella">Cartella</span></button>
+    <button id="btn-external" class="cmd desktop-only" title="Apri il file con il programma predefinito di Windows" data-i18n-title="idx.apri_file_programma_predefinito_windows" disabled><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/></svg><span data-i18n="idx.apri_programma_predefinito">Apri con programma predefinito</span></button>
   </div>
   <div class="group" id="ctx-tools"></div>
   <span class="grow"></span>
   <div class="group">
-    <button id="btn-explorer" class="cmd desktop-only" title="Esplora una cartella di progetto"><svg viewBox="0 0 24 24"><path d="M3 4h7v16H3zM14 4h7v7h-7zM14 14h7v6h-7z"/></svg><span>Esplora</span></button>
-    <button id="btn-formats" class="cmd" title="Elenco completo dei formati supportati"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9h16M9 9v11"/></svg><span>Formati</span></button>
-    <button id="btn-theme" class="cmd icon-only" title="Tema chiaro / scuro"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg></button>
+    <button id="btn-explorer" class="cmd desktop-only" title="Esplora una cartella di progetto" data-i18n-title="idx.esplora_cartella_progetto"><svg viewBox="0 0 24 24"><path d="M3 4h7v16H3zM14 4h7v7h-7zM14 14h7v6h-7z"/></svg><span data-i18n="idx.esplora">Esplora</span></button>
+    <button id="btn-formats" class="cmd" title="Elenco completo dei formati supportati" data-i18n-title="idx.elenco_completo_formati_supportati"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9h16M9 9v11"/></svg><span data-i18n="idx.formati">Formati</span></button>
+    <button id="btn-theme" class="cmd icon-only" title="Tema chiaro / scuro" data-i18n-title="idx.tema_chiaro_scuro"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg></button>
   </div>
 </header>
 
 <div class="workspace" id="workspace">
   <aside class="explorer" id="explorer" hidden>
     <div class="ex-head">
-      <span class="label">Cartella di progetto</span>
-      <button class="mini" id="ex-pick" title="Scegli la cartella">Scegli</button>
-      <button class="mini" id="ex-up" title="Cartella superiore">Su</button>
+      <span class="label" data-i18n="idx.cartella_progetto">Cartella di progetto</span>
+      <button class="mini" id="ex-pick" title="Scegli la cartella" data-i18n-title="idx.scegli_cartella" data-i18n="idx.scegli">Scegli</button>
+      <button class="mini" id="ex-up" title="Cartella superiore" data-i18n-title="idx.cartella_superiore" data-i18n="idx.su">Su</button>
     </div>
-    <div class="ex-path" id="ex-path">Nessuna cartella aperta</div>
-    <input class="ex-filter" id="ex-filter" type="search" placeholder="Filtra per nome o estensione">
+    <div class="ex-path" id="ex-path" data-i18n="idx.nessuna_cartella_aperta">Nessuna cartella aperta</div>
+    <input class="ex-filter" id="ex-filter" type="search" placeholder="Filtra per nome o estensione" data-i18n-ph="idx.filtra_nome_estensione">
     <div class="ex-list" id="ex-list"></div>
   </aside>
   <section class="main">
@@ -53,13 +53,13 @@
     <main id="stage">
       <section id="home" class="home">
         <div class="hero" id="drop">
-          <img src="img/logo-512.png" alt="Logo MB Visual" class="hero-logo">
-          <h1>Trascina qui i file da aprire</h1>
-          <p>Documenti, disegni CAD, modelli 3D e BIM, firme digitali, immagini, video e archivi. Anche piu' file insieme.</p>
+          <img src="img/logo-512.png" alt="Logo MB Visual" data-i18n-alt="idx.logo_mb_visual" class="hero-logo">
+          <h1 data-i18n="idx.trascina_qui_i_file_aprire">Trascina qui i file da aprire</h1>
+          <p data-i18n="idx.documenti_disegni_cad_modelli_3d">Documenti, disegni CAD, modelli 3D e BIM, firme digitali, immagini, video e archivi. Anche piu' file insieme.</p>
           <div class="hero-actions">
-            <button class="btn primary" id="home-open"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg>Apri file</button>
-            <button class="btn" id="home-new"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M12 11v6M9 14h6"/></svg>Crea nuovo</button>
-            <button class="btn desktop-only" id="home-folder"><svg viewBox="0 0 24 24"><path d="M3 4h7v16H3zM14 4h7v7h-7zM14 14h7v6h-7z"/></svg>Apri cartella di progetto</button>
+            <button class="btn primary" id="home-open"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg><span data-i18n="idx.apri_file">Apri file</span></button>
+            <button class="btn" id="home-new"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M12 11v6M9 14h6"/></svg><span data-i18n="idx.crea_nuovo">Crea nuovo</span></button>
+            <button class="btn desktop-only" id="home-folder"><svg viewBox="0 0 24 24"><path d="M3 4h7v16H3zM14 4h7v7h-7zM14 14h7v6h-7z"/></svg><span data-i18n="idx.apri_cartella_progetto">Apri cartella di progetto</span></button>
           </div>
         </div>
         <div class="caps" id="home-caps"></div>
@@ -72,14 +72,14 @@
 </div>
 
 <footer class="statusbar">
-  <span id="st-path">Pronto</span>
+  <span id="st-path" data-i18n="idx.pronto">Pronto</span>
   <span class="grow"></span>
   <span id="st-extra" class="mono"></span>
   <span id="st-type"></span>
   <span id="st-size" class="mono"></span>
-  <span id="st-version" class="mono" title="Versione di MB Visual"></span>
+  <span id="st-version" class="mono" title="Versione di MB Visual" data-i18n-title="idx.versione_mb_visual"></span>
 </footer>
-<div class="overlay" id="dragover" hidden><div>Rilascia per aprire</div></div>
+<div class="overlay" id="dragover" hidden><div data-i18n="idx.rilascia_aprire">Rilascia per aprire</div></div>
 <div class="modal-back" id="modal" hidden><div class="modal" id="modal-body"></div></div>
 <div class="toast" id="toast" hidden></div>
 <script type="importmap">{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }</script>

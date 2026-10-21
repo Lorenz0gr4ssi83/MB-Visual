@@ -1,4 +1,5 @@
 // Funzioni condivise: chiamate al motore interno, dialoghi, messaggi, elementi di interfaccia.
+import { t as tr, LANG, fmtNum } from "./i18n.js";
 
 export const isDesktop = () => !!(window.pywebview && window.pywebview.api);
 // Web app (cellulare): nessun motore Python, le stesse funzioni sono in js/webapi.js e i file restano nel browser
@@ -13,30 +14,31 @@ export function fileUrl(path, extra = "") {
 export async function api(route, params = {}, opts = {}) {
   if (WEB) {
     const data = await W().handle(route, params, opts);
-    if (data && data.ok === false && !opts.allowFail) throw new Error(data.errore || "Errore");
+    if (data && data.ok === false && !opts.allowFail) throw new Error(data.errore || tr("core.errore"));
     return data;
   }
   const qs = new URLSearchParams(params).toString();
-  const init = { method: opts.method || (opts.body !== undefined || opts.json !== undefined ? "POST" : "GET"), credentials: "same-origin" };
+  // X-MBV-Lang: lingua dei messaggi del motore (mbvisual/i18n.py)
+  const init = { method: opts.method || (opts.body !== undefined || opts.json !== undefined ? "POST" : "GET"), credentials: "same-origin", headers: { "X-MBV-Lang": LANG } };
   if (opts.json !== undefined) {
     init.body = JSON.stringify(opts.json);
-    init.headers = { "Content-Type": "application/json" };
+    init.headers["Content-Type"] = "application/json";
   } else if (opts.body !== undefined) {
     init.body = opts.body;
   }
   const res = await fetch("/api/" + route + (qs ? "?" + qs : ""), init);
   if (opts.raw) return res;
   let data;
-  try { data = await res.json(); } catch { data = { ok: false, errore: "Risposta non valida dal motore (" + res.status + ")" }; }
+  try { data = await res.json(); } catch { data = { ok: false, errore: tr("core.risposta_non_valida_motore") + res.status + ")" }; }
   if (res.status === 402 && data.licenza) window.dispatchEvent(new CustomEvent("mbv-licenza")); // licenza non attiva (ui/js/license.js)
-  if (data.ok === false && !opts.allowFail) throw new Error(data.errore || "Errore");
+  if (data.ok === false && !opts.allowFail) throw new Error(data.errore || tr("core.errore"));
   return data;
 }
 
 export async function readBytes(path) {
   if (WEB) return W().readBytes(path);
   const r = await fetch(fileUrl(path), { credentials: "same-origin" });
-  if (!r.ok) throw new Error("Impossibile leggere il file");
+  if (!r.ok) throw new Error(tr("core.impossibile_leggere_file"));
   return new Uint8Array(await r.arrayBuffer());
 }
 
@@ -54,10 +56,10 @@ export async function saveBytes(path, bytes) {
 export async function waitJob(id, onProgress) {
   for (;;) {
     const j = await api("job", { id }, { allowFail: true });
-    if (!j.ok) throw new Error(j.errore || "Lavoro non trovato");
+    if (!j.ok) throw new Error(j.errore || tr("core.lavoro_non_trovato"));
     if (onProgress) onProgress(j.progress || 0, j.message || "");
     if (j.status === "done") return j.result;
-    if (j.status === "error") throw new Error(j.error || "Errore");
+    if (j.status === "error") throw new Error(j.error || tr("core.errore"));
     await new Promise(r => setTimeout(r, 400));
   }
 }
@@ -123,7 +125,7 @@ export function button(label, icon, onclick, opts = {}) {
   return b;
 }
 
-export function loading(container, text = "Apertura in corso") {
+export function loading(container, text = tr("core.apertura_corso")) {
   container.innerHTML = "";
   const bar = el("div", { class: "progress" }, el("span"));
   const msg = el("div", {}, text);
@@ -169,18 +171,18 @@ export async function askText(title, label, value = "") {
   const input = el("input", { type: "text", value, id: "ask-input" });
   const wrap = el("label", { style: { display: "grid", gap: "6px" } }, label, input);
   input.addEventListener("keydown", e => { if (e.key === "Enter") document.querySelector("#modal .btn.primary").click(); });
-  return modal(title, wrap, [{ label: "Annulla", value: null }, { label: "OK", primary: true, value: () => input.value }]);
+  return modal(title, wrap, [{ label: tr("common.annulla"), value: null }, { label: "OK", primary: true, value: () => input.value }]);
 }
 
-export async function confirmBox(title, text, okLabel = "Conferma", danger = false) {
-  return modal(title, el("p", {}, text), [{ label: "Annulla", value: false }, { label: okLabel, value: true, primary: !danger, danger }]);
+export async function confirmBox(title, text, okLabel = tr("core.conferma"), danger = false) {
+  return modal(title, el("p", {}, text), [{ label: tr("common.annulla"), value: false }, { label: okLabel, value: true, primary: !danger, danger }]);
 }
 
 // dialoghi di sistema (in modalita' browser: richiesta del percorso a mano)
 export async function pickFiles() {
   if (isDesktop()) return await window.pywebview.api.open_files(true);
   if (WEB) return W().pickFiles();
-  const p = await askText("Apri file", "Percorso completo del file", "");
+  const p = await askText(tr("core.apri_file"), tr("core.percorso_completo_file"), "");
   return p ? [p] : [];
 }
 
@@ -188,24 +190,24 @@ export async function pickSavePath(suggested, dir = "") {
   if (isDesktop()) return await window.pywebview.api.save_as(suggested, dir);
   if (WEB) {
     // nel browser si salva scaricando il file: si sceglie solo il nome
-    const n = await askText("Salva con nome", "Nome del file da scaricare", suggested);
+    const n = await askText(tr("core.salva_nome"), tr("core.nome_file_scaricare"), suggested);
     return n ? "download://" + n : null;
   }
-  return await askText("Salva con nome", "Percorso completo del nuovo file", (dir ? dir + "\\" : "") + suggested);
+  return await askText(tr("core.salva_nome"), tr("core.percorso_completo_nuovo_file"), (dir ? dir + "\\" : "") + suggested);
 }
 
 export async function pickFolder() {
   if (isDesktop()) return await window.pywebview.api.choose_folder();
   if (WEB) return "download://";
-  return await askText("Scegli cartella", "Percorso della cartella", "");
+  return await askText(tr("core.scegli_cartella"), tr("core.percorso_cartella"), "");
 }
 
 export function fmtSize(n) {
   if (n === null || n === undefined) return "";
-  const u = ["byte", "KB", "MB", "GB", "TB"];
+  const u = ["byte", "KB", "MB", "GB", "TB"]; // nomi nella lingua scelta: units.* (in francese octet, Ko, Mo...)
   let i = 0;
   while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
-  return (i ? n.toFixed(n < 10 ? 2 : 1) : n) + " " + u[i];
+  return (i ? fmtNum(n, n < 10 ? 2 : 1) : fmtNum(n)) + " " + tr("units." + u[i]);
 }
 
 export function fmtTime(s) {
@@ -246,12 +248,12 @@ export function loadScript(src) {
       const s = document.createElement("script");
       s.src = src;
       s.onload = resolve;
-      s.onerror = () => reject(new Error("Impossibile caricare " + src));
+      s.onerror = () => reject(new Error(tr("core.impossibile_caricare") + src));
       document.head.append(s);
     });
   } else {
     p = fetch(src).then(r => {
-      if (!r.ok) throw new Error("Impossibile caricare " + src);
+      if (!r.ok) throw new Error(tr("core.impossibile_caricare") + src);
       return r.text();
     }).then(code => {
       // eslint-disable-next-line no-new-func
@@ -282,6 +284,6 @@ export async function saveBlobAs(suggested, blob, dir = "") {
   const path = await pickSavePath(suggested, dir);
   if (!path) return null;
   await saveBytes(path, new Uint8Array(await blob.arrayBuffer()));
-  toast("Salvato: " + baseName(path));
+  toast(tr("core.salvato") + baseName(path));
   return path;
 }

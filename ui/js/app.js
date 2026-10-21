@@ -4,14 +4,15 @@ import {
   pickSavePath, toast, waitJob, WEB,
 } from "./core.js";
 import { licenseGate, showAccount } from "./license.js";
+import { t as tr, has as trHas, LANG, LANGS, LOCALE, MANUAL, keyName, setLanguage } from "./i18n.js";
 
 const $ = id => document.getElementById(id);
 const VIEWER_NAMES = {
-  pdf: "PDF", signed: "Documento firmato", docx: "Word", sheet: "Foglio di calcolo", pptx: "Presentazione",
-  office: "Documento Office (LibreOffice)", text: "Testo / codice", markdown: "Markdown", html: "Pagina web",
-  image: "Immagine", svg: "SVG", media: "Audio / video", cad2d: "Disegno CAD 2D", model3d: "Modello 3D",
-  external: "Programma esterno", archive: "Archivio", email: "Email", epub: "eBook", font: "Font",
-  sqlite: "Database SQLite", video: "Montaggio video", publisher: "Pubblicazione (Publisher)", hex: "Esadecimale (byte grezzi)", oo: "Word / Excel / PowerPoint (ONLYOFFICE)",
+  pdf: "PDF", signed: tr("app.documento_firmato"), docx: "Word", sheet: tr("app.foglio_calcolo"), pptx: tr("app.presentazione"),
+  office: tr("app.documento_office_libreoffice"), text: tr("app.testo_codice"), markdown: "Markdown", html: tr("app.pagina_web"),
+  image: tr("app.immagine"), svg: "SVG", media: tr("app.audio_video"), cad2d: tr("app.disegno_cad_2d"), model3d: tr("app.modello_3d"),
+  external: tr("app.programma_esterno"), archive: tr("app.archivio"), email: tr("app.email"), epub: "eBook", font: "Font",
+  sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"),
 };
 // documenti che sul PC si aprono nell'editor ONLYOFFICE integrato (modifica completa come nei programmi originali)
 const OO_EXTS = new Set(["docx", "docm", "dotx", "dotm", "doc", "dot", "rtf", "odt", "ott", "fodt", "xlsx", "xlsm", "xltx", "xltm", "xls", "xlt", "ods", "fods", "csv",
@@ -86,19 +87,19 @@ function renderTabs() {
   const box = $("tabs");
   box.innerHTML = "";
   // la linguetta Home (pagina per trascinare e aprire i file) all'estrema sinistra, "Chiudi tutto" all'estrema destra
-  box.append(el("div", { class: "tab home-tab" + (!active && $("formats").hidden ? " active" : ""), role: "tab", title: "Home: trascina qui i file da aprire", onclick: () => activate(null) },
-    el("span", { html: '<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 9v12h14V9"/></svg>' }), el("span", { class: "name" }, "Home")));
+  box.append(el("div", { class: "tab home-tab" + (!active && $("formats").hidden ? " active" : ""), role: "tab", title: tr("app.home_trascina_qui_i_file"), onclick: () => activate(null) },
+    el("span", { html: '<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 9v12h14V9"/></svg>' }), el("span", { class: "name" }, tr("app.home"))));
   for (const t of tabs) {
     const b = el("div", { class: "tab" + (t === active ? " active" : ""), role: "tab", title: t.path, onclick: () => activate(t) },
       badgeFor(t.info?.nome || t.name),
       el("span", { class: "name" }, t.name + (t.forced ? "  ·  " + VIEWER_NAMES[t.viewer] : "")),
-      t.dirty ? el("span", { class: "dot", title: "Modifiche non salvate" }) : null,
-      el("button", { class: "x", title: "Chiudi", onclick: e => { e.stopPropagation(); closeTab(t); } }, "×"));
+      t.dirty ? el("span", { class: "dot", title: tr("app.modifiche_non_salvate") }) : null,
+      el("button", { class: "x", title: tr("common.chiudi"), onclick: e => { e.stopPropagation(); closeTab(t); } }, "×"));
     b.addEventListener("auxclick", e => { if (e.button === 1) closeTab(t); });
     box.append(b);
   }
-  box.append(el("button", { class: "tab-closeall", title: "Chiudi tutti i file aperti", disabled: !tabs.length || undefined, onclick: closeAll },
-    el("span", { html: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>' }), "Chiudi tutto"));
+  box.append(el("button", { class: "tab-closeall", title: tr("app.chiudi_tutti_i_file_aperti"), disabled: !tabs.length || undefined, onclick: closeAll },
+    el("span", { html: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>' }), tr("app.chiudi_tutto")));
   const has = !!active;
   for (const id of ["btn-as", "btn-folder", "btn-external", "btn-info"]) $(id).disabled = !has;
   $("home").hidden = has || !$("formats").hidden;
@@ -109,7 +110,7 @@ function renderTabs() {
 
 function updateStatus() {
   const t = active;
-  $("st-path").textContent = t ? (t.path.startsWith("web://") ? t.info?.nome || t.name : t.path) : "Pronto";
+  $("st-path").textContent = t ? (t.path.startsWith("web://") ? t.info?.nome || t.name : t.path) : tr("app.pronto");
   $("st-type").textContent = t ? VIEWER_NAMES[t.viewer] + (t.info?.sniff?.descr ? " · " + t.info.sniff.descr : "") : "";
   $("st-size").textContent = t ? fmtSize(t.info?.size) : "";
   $("st-extra").textContent = t?.extra || "";
@@ -129,8 +130,8 @@ function activate(t) {
 async function settle(t) {
   if (!t.dirty) return true;
   activate(t);
-  const r = await modal("Vuoi salvare?", el("p", {}, t.untitled ? `"${t.name}" e' un file nuovo non ancora salvato. Vuoi salvarlo?` : `Vuoi salvare le modifiche a "${t.name}"?`),
-    [{ label: "Annulla", value: null }, { label: "Non salvare", value: "no" }, { label: "Salva", value: "si", primary: true }]);
+  const r = await modal(tr("app.vuoi_salvare"), el("p", {}, t.untitled ? tr("app.0_file_nuovo_non_ancora", t.name) : tr("app.vuoi_salvare_modifiche_0", t.name)),
+    [{ label: tr("common.annulla"), value: null }, { label: tr("app.non_salvare"), value: "no" }, { label: tr("common.salva"), value: "si", primary: true }]);
   if (!r) return false;
   if (r === "no") return true;
   await save(false);
@@ -193,17 +194,17 @@ function openMenu(anchor) {
   closeMenus();
   m.innerHTML = "";
   const item = (icon, text, hint, fn) => { const b = el("button", { onclick: () => { m.hidden = true; fn(); } }); b.insertAdjacentHTML("beforeend", icon); b.append(el("span", {}, text)); if (hint) b.append(el("span", { class: "hint" }, hint)); return b; };
-  m.append(item(ICON_FILE, "Apri file...", "Ctrl+O", doOpen));
-  if (!WEB) m.append(item(ICON_FOLDER, "Cartella di progetto...", "", chooseExplorerFolder));
-  m.append(el("hr"), el("div", { class: "sec label" }, "Recenti"));
+  m.append(item(ICON_FILE, tr("app.apri_file"), "Ctrl+O", doOpen));
+  if (!WEB) m.append(item(ICON_FOLDER, tr("app.cartella_progetto"), "", chooseExplorerFolder));
+  m.append(el("hr"), el("div", { class: "sec label" }, tr("app.recenti")));
   // nella web app i file non restano disponibili dopo la chiusura: i recenti non si possono riaprire
   const list = WEB ? [] : recentList();
-  if (!list.length) m.append(el("div", { class: "empty" }, WEB ? "Nella web app i file restano solo sul dispositivo: riaprili con Apri file" : "Nessun file aperto di recente"));
+  if (!list.length) m.append(el("div", { class: "empty" }, WEB ? tr("app.web_app_i_file_restano") : tr("app.nessun_file_aperto_recente")));
   for (const r of list) {
     m.append(el("button", { class: "rec", title: r.path, onclick: () => { m.hidden = true; openPaths([r.path]); } },
       badgeFor(r.name), el("span", { class: "nm" }, r.name), el("span", { class: "pt" }, dirName(r.path))));
   }
-  if (list.length) m.append(el("hr"), item("", "Svuota l'elenco dei recenti", "", () => { try { localStorage.removeItem("mbv-recent"); } catch { /* */ } }));
+  if (list.length) m.append(el("hr"), item("", tr("app.svuota_l_elenco_recenti"), "", () => { try { localStorage.removeItem("mbv-recent"); } catch { /* */ } }));
   placeMenu(m, anchor);
 }
 
@@ -218,17 +219,41 @@ function fileMenu(anchor) {
   closeMenus();
   m.innerHTML = "";
   const item = (icon, text, hint, fn, disabled = false) => { const b = el("button", { disabled: disabled || undefined, onclick: () => { m.hidden = true; fn(); } }); b.insertAdjacentHTML("beforeend", icon); b.append(el("span", {}, text)); if (hint) b.append(el("span", { class: "hint" }, hint)); return b; };
-  m.append(item(ICON_NEW, "Crea nuovo...", "Ctrl+N", doNew),
-    item(ICON_SAVE, "Salva", "Ctrl+S", () => save(false), !active),
-    item(ICON_SAVEAS, "Salva con nome...", "Ctrl+Maiusc+S", () => save(true), !active),
-    item('<svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM6 9h2M10 9h2M14 9h2M18 9h0M6 13h12"/></svg>', "Scorciatoie da tastiera", "F1", showShortcuts));
-  if (!WEB) m.append(item('<svg viewBox="0 0 24 24"><path d="M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18"/></svg>', "Firma digitale...", "", () => import("./firma.js").then(f => f.signDialog({ path: active.path, openFile })), !active?.path)); // ui/js/firma.js
-  if (WEB && window.MBV_MOBILE) m.append(el("hr"), item(ICON_ACCOUNT, "Account e licenza...", "", showAccount)); // app per cellulari con licenza
+  m.append(item(ICON_NEW, tr("app.crea_nuovo"), "Ctrl+N", doNew),
+    item(ICON_SAVE, tr("common.salva"), "Ctrl+S", () => save(false), !active),
+    item(ICON_SAVEAS, tr("app.salva_nome"), keysText("Ctrl+Shift+S"), () => save(true), !active),
+    item('<svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM6 9h2M10 9h2M14 9h2M18 9h0M6 13h12"/></svg>', tr("app.scorciatoie_tastiera"), "F1", showShortcuts),
+    item('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>', tr("lang.impostazioni") + " › " + tr("lang.titolo") + "...", LANG.toUpperCase(), showLanguage));
+  if (!WEB) m.append(item('<svg viewBox="0 0 24 24"><path d="M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18"/></svg>', tr("app.firma_digitale"), "", () => import("./firma.js").then(f => f.signDialog({ path: active.path, openFile })), !active?.path)); // ui/js/firma.js
+  if (WEB && window.MBV_MOBILE) m.append(el("hr"), item(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount)); // app per cellulari con licenza
   if (!WEB) {
-    m.append(el("hr"), item(ICON_ACCOUNT, "Account e licenza...", "", showAccount), item(ICON_UPD, "Verifica aggiornamenti", "", () => checkUpdates(true)));
-    if (updInfo?.installabile && !updInfo.installata) m.append(item("", "Installa su questo PC...", "", askInstall));
+    m.append(el("hr"), item(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount), item(ICON_UPD, tr("app.verifica_aggiornamenti"), "", () => checkUpdates(true)));
+    if (updInfo?.installabile && !updInfo.installata) m.append(item("", tr("app.installa_questo_pc"), "", askInstall));
   }
   placeMenu(m, anchor);
+}
+
+// ---- Impostazioni > Lingua: automatica (Windows) o scelta a mano; si applica ricaricando l'interfaccia
+async function showLanguage() {
+  const box = el("div", { style: { display: "grid", gap: "6px", minWidth: "320px" } });
+  const opts = [["", tr("lang.automatica")], ...LANGS];
+  for (const [code, name] of opts) {
+    const r = el("input", { type: "radio", name: "mbv-lang", value: code });
+    r.checked = MANUAL ? code === LANG : code === "";
+    box.append(el("label", { style: { display: "flex", gap: "8px", alignItems: "center" } }, r, name));
+  }
+  box.append(el("p", { class: "note", style: { margin: "6px 0 0", color: "var(--muted)" } }, tr("lang.nota")));
+  const ok = await modal(tr("lang.titolo"), box, [{ label: tr("common.annulla"), value: false }, { label: tr("common.ok"), value: true, primary: true }]);
+  if (!ok) return;
+  const code = box.querySelector("input:checked")?.value ?? "";
+  if ((MANUAL ? code === LANG : code === "")) return;
+  setLanguage(code);
+  if (!tabs.length) return location.reload();
+  const now = await modal(tr("lang.titolo"), el("p", {}, tr("lang.ricarica")), [{ label: tr("lang.dopo"), value: false }, { label: tr("lang.ricarica_ora"), value: true, primary: true }]);
+  if (!now) return toast(tr("lang.al_prossimo_avvio"));
+  for (const t of tabs.filter(x => x.dirty)) if (!(await settle(t))) return;
+  for (const t of tabs) t.dirty = false;
+  location.reload();
 }
 
 // ---- aggiornamento automatico dalla cartella "App per PC" su OneDrive (mbvisual/update.py)
@@ -236,21 +261,21 @@ let updInfo = null;
 const fmtVer = v => v ? `${v.versione}${v.build && v.build !== "sviluppo" ? " del " + v.build.slice(0, 16).split(" ").map((x, i) => i ? x : x.split("-").reverse().join("/")).join(" ") : ""}` : "";
 async function checkUpdates(manual = false) {
   let r;
-  try { r = updInfo = await api("update_check"); } catch (e) { if (manual) toast("Controllo non riuscito: " + e.message, true); return; }
+  try { r = updInfo = await api("update_check"); } catch (e) { if (manual) toast(tr("app.controllo_non_riuscito") + e.message, true); return; }
   updInfo.installata = !r.da_onedrive && r.stato !== "sviluppo" && /\\Programs\\MB Visual\\?$/i.test(r.cartella || "");
   $("st-version").textContent = "v" + r.attuale.versione;
   $("st-version").title = "MB Visual " + fmtVer(r.attuale);
   if (r.stato === "nuova") {
-    const ok = await modal("Aggiornamento disponibile", el("div", {},
-      el("p", {}, `È disponibile MB Visual ${fmtVer(r.disponibile)}.`), el("p", { class: "note" }, `In uso: ${fmtVer(r.attuale)}. L'app si chiude, si aggiorna e si riapre da sola (circa un minuto). Salva prima i file aperti.`)),
-      [{ label: "Più tardi", value: false }, { label: "Aggiorna ora", value: true, primary: true }]);
+    const ok = await modal(tr("app.aggiornamento_disponibile"), el("div", {},
+      el("p", {}, tr("app.disponibile_mb_visual_0", fmtVer(r.disponibile))), el("p", { class: "note" }, tr("app.uso_0_l_app_si", fmtVer(r.attuale)))),
+      [{ label: tr("app.piu_tardi"), value: false }, { label: tr("app.aggiorna_ora"), value: true, primary: true }]);
     if (!ok) return;
-    if (tabs.some(t => t.dirty) && !(await confirmBox("File non salvati", "Ci sono modifiche non salvate che andranno perse. Aggiornare comunque?", "Aggiorna", true))) return;
-    await runUpdateJob("update_apply", "Aggiornamento di MB Visual", "Aggiornamento pronto: MB Visual si chiude e si riapre da sola");
+    if (tabs.some(t => t.dirty) && !(await confirmBox(tr("app.file_non_salvati"), tr("app.ci_sono_modifiche_non_salvate"), tr("app.aggiorna"), true))) return;
+    await runUpdateJob("update_apply", tr("app.aggiornamento_mb_visual"), tr("app.aggiornamento_pronto_mb_visual_si"));
     return;
   }
   if (r.stato === "sincronizzazione") {
-    if (manual || r.da_onedrive) toast(`OneDrive sta ancora scaricando MB Visual ${r.disponibile?.versione || ""}: chiudi e riapri l'app quando la sincronizzazione è finita`, true, 12000);
+    if (manual || r.da_onedrive) toast(tr("app.onedrive_sta_ancora_scaricando_mb", r.disponibile?.versione || ""), true, 12000);
     return;
   }
   if (r.da_onedrive && !manual) {
@@ -260,32 +285,32 @@ async function checkUpdates(manual = false) {
     return;
   }
   if (!manual) return;
-  if (r.stato === "sviluppo") return toast("Versione di sviluppo: gli aggiornamenti valgono solo per l'app per PC");
+  if (r.stato === "sviluppo") return toast(tr("app.versione_sviluppo_aggiornamenti_valgono_solo"));
   if (r.stato === "nessuna_fonte") {
-    const ok = await modal("Aggiornamenti", el("p", {}, "Non trovo su questo PC la cartella \"App per PC\" di MB Visual sincronizzata con OneDrive. Indicala tu: da lì arriveranno gli aggiornamenti."),
-      [{ label: "Annulla", value: false }, { label: "Scegli cartella...", value: true, primary: true }]);
+    const ok = await modal(tr("app.aggiornamenti"), el("p", {}, tr("app.non_trovo_questo_pc_cartella")),
+      [{ label: tr("common.annulla"), value: false }, { label: tr("app.scegli_cartella"), value: true, primary: true }]);
     if (!ok) return;
     const folder = await pickFolder();
     if (!folder) return;
     try { await api("update_source", { folder }); return checkUpdates(true); } catch (e) { return toast(e.message, true, 8000); }
   }
-  toast(`Hai già l'ultima versione (${fmtVer(r.attuale)})`);
+  toast(tr("app.hai_gia_l_ultima_versione", fmtVer(r.attuale)));
 }
 async function askInstall() {
-  const ok = await modal("Installa MB Visual su questo PC", el("div", {},
-    el("p", {}, "Stai usando l'app direttamente dalla cartella di OneDrive: quando arriva una versione nuova, OneDrive la scarica un file alla volta e l'app può partire a metà aggiornamento."),
-    el("p", {}, "Installandola su questo PC (senza diritti di amministratore, nella cartella del tuo utente) avrai i collegamenti sul Desktop e nel menu Start, e ogni nuova versione ti verrà proposta all'avvio.")),
-    [{ label: "Non ora", value: false }, { label: "Installa", value: true, primary: true }]);
+  const ok = await modal(tr("app.installa_mb_visual_questo_pc"), el("div", {},
+    el("p", {}, tr("app.stai_usando_l_app_direttamente")),
+    el("p", {}, tr("app.installandola_questo_pc_senza_diritti"))),
+    [{ label: tr("app.non_ora"), value: false }, { label: tr("app.installa"), value: true, primary: true }]);
   if (!ok) return;
-  await runUpdateJob("update_install", "Installazione di MB Visual", "Installata: MB Visual si riapre dal Desktop / menu Start");
+  await runUpdateJob("update_install", tr("app.installazione_mb_visual"), tr("app.installata_mb_visual_si_riapre"));
 }
 // installazione / aggiornamento con finestra di avanzamento (la copia scarica da OneDrive i file "solo online": puo' richiedere minuti)
 async function runUpdateJob(route, title, doneText) {
   const bar = el("div", { class: "progress" }, el("span"));
-  const msg = el("p", {}, "Avvio...");
+  const msg = el("p", {}, tr("app.avvio"));
   const back = $("modal"), body = $("modal-body");
   body.innerHTML = "";
-  body.append(el("h3", {}, title), msg, bar, el("p", { class: "note" }, "Non chiudere MB Visual: alla fine si riavvia da sola."));
+  body.append(el("h3", {}, title), msg, bar, el("p", { class: "note" }, tr("app.non_chiudere_mb_visual_fine")));
   back.hidden = false;
   try {
     const { job } = await api(route);
@@ -294,7 +319,7 @@ async function runUpdateJob(route, title, doneText) {
     msg.textContent = doneText;
   } catch (e) {
     back.hidden = true;
-    await modal(title + " non riuscita", el("div", {}, el("p", {}, e.message), el("p", { class: "note" }, "Dettagli nel file MBVisual-aggiornamento.log nella cartella temporanea di Windows (%TEMP%).")));
+    await modal(title + tr("app.non_riuscita"), el("div", {}, el("p", {}, e.message), el("p", { class: "note" }, tr("app.dettagli_file_mbvisual_aggiornamento_log"))));
   }
 }
 
@@ -324,7 +349,7 @@ async function loadDir(d) {
     $("ex-path").textContent = exDir;
     $("ex-path").title = exDir;
     renderDir();
-  } catch (e) { toast("Cartella non accessibile: " + e.message, true); }
+  } catch (e) { toast(tr("app.cartella_non_accessibile") + e.message, true); }
 }
 function renderDir() {
   const q = $("ex-filter").value.trim().toLowerCase();
@@ -334,9 +359,9 @@ function renderDir() {
   for (const i of items) {
     box.append(el("button", { class: "ex-item" + (i.dir ? " dir" : ""), title: i.name, onclick: () => (i.dir ? loadDir(i.path) : openPaths([i.path])) },
       badgeFor(i.name, i.dir), el("span", { class: "nm" }, i.name),
-      el("span", { class: "sz", title: i.nuvola ? "Solo su OneDrive: verra' scaricato all'apertura" : "" }, (i.nuvola ? "☁ " : "") + (i.dir ? "" : fmtSize(i.size)))));
+      el("span", { class: "sz", title: i.nuvola ? tr("app.solo_onedrive_verra_scaricato_all") : "" }, (i.nuvola ? "☁ " : "") + (i.dir ? "" : fmtSize(i.size)))));
   }
-  if (!items.length) box.append(el("div", { class: "note", style: { padding: "8px 12px", color: "var(--muted)" } }, q ? "Nessun file corrisponde al filtro" : "Cartella vuota"));
+  if (!items.length) box.append(el("div", { class: "note", style: { padding: "8px 12px", color: "var(--muted)" } }, q ? tr("app.nessun_file_corrisponde_filtro") : tr("app.cartella_vuota")));
 }
 function toggleExplorer() {
   const ex = $("explorer");
@@ -358,20 +383,20 @@ async function showProperties() {
   const i = await api("info", { path: t.path });
   const dl = el("dl", { class: "kv" });
   const add = (k, v, mono) => dl.append(el("dt", {}, k), el("dd", { class: mono ? "mono" : "" }, v));
-  add("Nome", i.nome);
-  add("Cartella", i.cartella);
-  add("Dimensione", `${fmtSize(i.size)} (${i.size.toLocaleString("it-IT")} byte)`);
-  add("Modificato", new Date(i.modificato * 1000).toLocaleString("it-IT"));
-  add("Creato", new Date(i.creato * 1000).toLocaleString("it-IT"));
-  add("Tipo rilevato dal contenuto", i.sniff?.descr || "-");
-  add("Aperto con", VIEWER_NAMES[t.viewer]);
-  add("Scrivibile", i.scrivibile ? "Si" : "No (sola lettura)");
-  const hash = el("dd", { class: "mono" }, "calcolo in corso...");
-  dl.append(el("dt", {}, "Impronta SHA-256"), hash);
-  const copy = el("button", { class: "btn", onclick: () => navigator.clipboard?.writeText(hash.textContent).then(() => toast("Impronta copiata")) }, "Copia impronta");
-  api("file_hash", { path: t.path }).then(r => (hash.textContent = r.sha256)).catch(e => (hash.textContent = "non disponibile: " + e.message));
-  await modal("Proprieta' del file", el("div", { style: { display: "grid", gap: "12px" } }, dl,
-    el("p", { class: "note", style: { margin: 0, color: "var(--muted)" } }, "L'impronta SHA-256 identifica il file in modo univoco: utile per verificare che un elaborato consegnato non sia stato modificato."), copy));
+  add(tr("common.nome"), i.nome);
+  add(tr("app.cartella"), i.cartella);
+  add(tr("app.dimensione"), `${fmtSize(i.size)} (${i.size.toLocaleString(LOCALE)} ${tr("units.byte")})`);
+  add(tr("app.modificato"), new Date(i.modificato * 1000).toLocaleString(LOCALE));
+  add(tr("app.creato"), new Date(i.creato * 1000).toLocaleString(LOCALE));
+  add(tr("app.tipo_rilevato_contenuto"), i.sniff?.descr || "-");
+  add(tr("app.aperto"), VIEWER_NAMES[t.viewer]);
+  add(tr("app.scrivibile"), i.scrivibile ? tr("common.si") : tr("app.no_sola_lettura"));
+  const hash = el("dd", { class: "mono" }, tr("app.calcolo_corso"));
+  dl.append(el("dt", {}, tr("app.impronta_sha_256")), hash);
+  const copy = el("button", { class: "btn", onclick: () => navigator.clipboard?.writeText(hash.textContent).then(() => toast(tr("app.impronta_copiata"))) }, tr("app.copia_impronta"));
+  api("file_hash", { path: t.path }).then(r => (hash.textContent = r.sha256)).catch(e => (hash.textContent = tr("app.non_disponibile") + e.message));
+  await modal(tr("app.proprieta_file"), el("div", { style: { display: "grid", gap: "12px" } }, dl,
+    el("p", { class: "note", style: { margin: 0, color: "var(--muted)" } }, tr("app.l_impronta_sha_256_identifica")), copy));
 }
 
 // ------------------------------------------------------------------ apertura
@@ -387,14 +412,14 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   const existing = tabs.find(t => t.path === path && (!forcedViewer || t.viewer === forcedViewer));
   if (existing && !extraCtx.fresh) return activate(existing);
   let info;
-  try { info = await api("info", { path }); } catch (e) { return toast("Impossibile aprire: " + e.message, true); }
+  try { info = await api("info", { path }); } catch (e) { return toast(tr("app.impossibile_aprire") + e.message, true); }
   if (info.nuvola) {
     // file solo su OneDrive: si scarica solo con conferma; se il download viene annullato l'apertura si ferma
-    const ok = await confirmBox("File solo su OneDrive", `"${info.nome}" (${fmtSize(info.size)}) non e' ancora su questo PC: per aprirlo OneDrive deve scaricarlo. Procedere?`, "Scarica e apri");
+    const ok = await confirmBox(tr("app.file_solo_onedrive"), tr("app.0_1_non_ancora_questo", info.nome, fmtSize(info.size)), tr("app.scarica_apri"));
     if (!ok) return;
-    toast(`Download di "${info.nome}" da OneDrive...`, false, 60000);
+    toast(tr("app.download_0_onedrive", info.nome), false, 60000);
     try { info = await api("info", { path, scarica: 1 }); } catch (e) { return toast(e.message, true, 6000); }
-    toast("File scaricato", false, 1500);
+    toast(tr("app.file_scaricato"), false, 1500);
   }
   const name = extraCtx.displayName || info.nome;
   const { cat } = resolveCategory(extraCtx.displayName && !extOf(extraCtx.displayName) ? info.nome : name, info.sniff);
@@ -434,13 +459,13 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
 export function showError(ctx, e) {
   ctx.el.innerHTML = "";
   ctx.el.append(el("div", { class: "center" }, el("div", { class: "panel", style: { maxWidth: "560px", textAlign: "left" } },
-    el("h3", { style: { marginTop: 0 } }, "Non e' stato possibile mostrare il contenuto"),
+    el("h3", { style: { marginTop: 0 } }, tr("app.non_stato_possibile_mostrare_contenuto")),
     el("p", { class: "err" }, String(e?.message || e)),
-    el("p", {}, "Il file resta comunque apribile come byte grezzi o come testo."),
+    el("p", {}, tr("app.file_resta_comunque_apribile_come")),
     el("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
-      el("button", { class: "btn primary", onclick: () => ctx.openAs("hex") }, "Apri come esadecimale"),
-      el("button", { class: "btn", onclick: () => ctx.openAs("text") }, "Apri come testo"),
-      el("button", { class: "btn", onclick: () => api("open_external", { path: ctx.path }).catch(err => toast(err.message, true)) }, "Apri con programma di Windows")))));
+      el("button", { class: "btn primary", onclick: () => ctx.openAs("hex") }, tr("app.apri_come_esadecimale")),
+      el("button", { class: "btn", onclick: () => ctx.openAs("text") }, tr("app.apri_come_testo")),
+      el("button", { class: "btn", onclick: () => api("open_external", { path: ctx.path }).catch(err => toast(err.message, true)) }, tr("app.apri_programma_windows"))))));
 }
 
 // ------------------------------------------------------------------ salvataggio
@@ -466,7 +491,7 @@ async function save(asNew) {
     if (a.save && ((ext === extOf(t.path) && !a.saveFormats) || (a.saveFormats || []).includes(ext))) return doSave(t, a, target);
     return convertTo(t, a, target);
   }
-  if (!a.save) return toast("Questo tipo di file e' in sola lettura: usa \"Apri come\" o \"Esterno\" per modificarlo.", true);
+  if (!a.save) return toast(tr("app.questo_tipo_file_sola_lettura"), true);
   let target = t.path;
   if (asNew || a.saveInPlace === false || !t.info.scrivibile) {
     const suggested = a.saveAsName ? a.saveAsName() : t.name;
@@ -489,10 +514,10 @@ async function doSave(t, a, target) {
       if (t.api.renamed) t.api.renamed(target);
     }
     renderTabs();
-    toast("Salvato: " + baseName(target));
+    toast(tr("app.salvato") + baseName(target));
   } catch (e) {
     console.error(e);
-    toast("Salvataggio non riuscito: " + e.message, true, 6000);
+    toast(tr("app.salvataggio_non_riuscito") + e.message, true, 6000);
   }
 }
 
@@ -504,22 +529,22 @@ async function chooseFormat(t, a) {
   try { const r = await api("convert_targets", { path: t.path }); conv = r.targets || []; conv.family = r.family; } catch { /* */ }
   const list = el("select", { size: 14, id: "fmt-choice", class: "field", style: { width: "100%", minWidth: "340px" } });
   if (own.length) {
-    const g = el("optgroup", { label: "Formati dell'editor" });
-    own.forEach(e => g.append(el("option", { value: e }, e.toUpperCase() + (a.saveLabels?.[e] ? " - " + a.saveLabels[e] : "") + (e === src ? "  (formato attuale)" : ""))));
+    const g = el("optgroup", { label: tr("app.formati_dell_editor") });
+    own.forEach(e => g.append(el("option", { value: e }, e.toUpperCase() + (a.saveLabels?.[e] ? " - " + a.saveLabels[e] : "") + (e === src ? tr("app.formato_attuale") : ""))));
     list.append(g);
   }
   const extra = conv.filter(c => !own.includes(c.ext));
   if (extra.length) {
-    const g = el("optgroup", { label: "Conversione in altri formati" });
+    const g = el("optgroup", { label: tr("app.conversione_altri_formati") });
     extra.forEach(c => g.append(el("option", { value: c.ext }, `${c.ext.toUpperCase()} - ${c.label}`)));
     list.append(g);
   }
-  if (!list.options.length) { toast("Per questo tipo di file non ci sono altri formati di salvataggio", true); return null; }
+  if (!list.options.length) { toast(tr("app.questo_tipo_file_non_ci"), true); return null; }
   list.selectedIndex = 0;
   list.addEventListener("dblclick", () => document.querySelector("#modal .btn.primary")?.click());
-  const ok = await modal("Salva con nome: scegli il formato", el("div", { style: { display: "grid", gap: "8px" } }, list,
-    el("p", { class: "note", style: { margin: 0, color: "var(--muted)" } }, a.saveNote || ((TOOLS.word || TOOLS.excel) && /^(word|sheet|slides)$/.test(conv.family || "") ? "I documenti Office vengono convertiti con Word, Excel e PowerPoint installati su questo PC." : ""))),
-  [{ label: "Annulla", value: false }, { label: "Avanti", value: true, primary: true }]);
+  const ok = await modal(tr("app.salva_nome_scegli_formato"), el("div", { style: { display: "grid", gap: "8px" } }, list,
+    el("p", { class: "note", style: { margin: 0, color: "var(--muted)" } }, a.saveNote || ((TOOLS.word || TOOLS.excel) && /^(word|sheet|slides)$/.test(conv.family || "") ? tr("app.i_documenti_office_vengono_convertiti") : ""))),
+  [{ label: tr("common.annulla"), value: false }, { label: tr("common.avanti"), value: true, primary: true }]);
   return ok ? list.value : null;
 }
 
@@ -532,14 +557,14 @@ async function convertTo(t, a, target) {
       await a.save(tmp);
       src = tmp;
     }
-    toast(`Conversione in ${extOf(target).toUpperCase()}...`, false, 600000);
+    toast(tr("app.conversione_0", extOf(target).toUpperCase()), false, 600000);
     const { job } = await api("convert", { path: src }, { json: { out: target } });
-    const r = await waitJob(job, (p, m) => { if (active === t) $("st-extra").textContent = `${m || "Conversione"} ${Math.round(p * 100)}%`; });
-    toast("Salvato: " + baseName(target) + (r?.files ? ` (${r.files.length} file)` : r?.cartella ? ` (cartella ${baseName(r.cartella)})` : ""));
+    const r = await waitJob(job, (p, m) => { if (active === t) $("st-extra").textContent = `${m || tr("app.conversione")} ${Math.round(p * 100)}%`; });
+    toast(tr("app.salvato") + baseName(target) + (r?.files ? tr("app.0_file", r.files.length) : r?.cartella ? tr("app.cartella_0", baseName(r.cartella)) : ""));
     updateStatus();
   } catch (e) {
     console.error(e);
-    toast("Conversione non riuscita: " + e.message, true, 8000);
+    toast(tr("app.conversione_non_riuscita") + e.message, true, 8000);
   }
 }
 
@@ -550,9 +575,9 @@ function addOfficeButton(t, tb) {
   if (WEB || t.path.startsWith("web://")) return;
   const app = Object.keys(OFFICE_EXT).find(a => OFFICE_EXT[a].test(extOf(t.path)) && TOOLS[a]);
   if (!app) return;
-  const b = button(`Modifica in ${OFFICE_NAME[app]}`, "open", () => api("open_external", { path: t.path, app })
-    .then(() => toast(`Aperto in ${OFFICE_NAME[app]}: quando salvi, MB Visual si aggiorna da solo`, false, 5000)).catch(e => toast(e.message, true)),
-  { title: `Apre il file in ${OFFICE_NAME[app]}; al salvataggio MB Visual ricarica il file` });
+  const b = button(tr("app.modifica_0", OFFICE_NAME[app]), "open", () => api("open_external", { path: t.path, app })
+    .then(() => toast(tr("app.aperto_0_quando_salvi_mb", OFFICE_NAME[app]), false, 5000)).catch(e => toast(e.message, true)),
+  { title: tr("app.apre_file_0_salvataggio_mb", OFFICE_NAME[app]) });
   tb.prepend(b, el("span", { class: "sep" }));
 }
 
@@ -570,9 +595,9 @@ async function checkExternalChange(t) {
     if (s.modificato === t.info.modificato) return;
     t.info.modificato = s.modificato;
     t.info.size = s.size;
-    if (t.dirty && !(await confirmBox("File modificato da un altro programma", `"${t.name}" e' stato salvato da un altro programma. Ricaricarlo? Le modifiche non salvate in MB Visual andranno perse.`, "Ricarica", true))) return;
+    if (t.dirty && !(await confirmBox(tr("app.file_modificato_altro_programma"), tr("app.0_stato_salvato_altro_programma", t.name), tr("app.ricarica"), true))) return;
     await reloadTab(t);
-    toast(`"${t.name}" aggiornato con le modifiche salvate fuori da MB Visual`);
+    toast(tr("app.0_aggiornato_modifiche_salvate_fuori", t.name));
   } finally { t.checking = false; }
 }
 
@@ -597,15 +622,15 @@ function openAsMenu(anchor) {
   if (!m.hidden) { m.hidden = true; return; }
   closeMenus();
   m.innerHTML = "";
-  m.append(el("div", { class: "sec label" }, `Visualizzatori adatti a .${extFor(active.info?.nome || active.name) || "?"}`));
+  m.append(el("div", { class: "sec label" }, tr("app.visualizzatori_adatti_0", extFor(active.info?.nome || active.name) || "?")));
   for (const v of compatibleViewers(active)) {
     const cur = v === active.viewer;
     m.append(el("button", { class: cur ? "current" : "", onclick: () => { m.hidden = true; if (!cur) openFile(active.path, v, { fresh: true }); } },
-      VIEWER_NAMES[v], cur ? el("span", { class: "hint" }, "in uso") : null));
+      VIEWER_NAMES[v], cur ? el("span", { class: "hint" }, tr("app.uso")) : null));
   }
   const ext = extFor(active.info?.nome || active.name);
-  if (!WEB && TOOLS.navisworks && ["nwd", "nwc", "nwf"].includes(ext)) m.append(el("button", { onclick: () => { m.hidden = true; api("open_external", { path: active.path, app: "navisworks" }); } }, "Navisworks Freedom", el("span", { class: "hint" }, "esterno")));
-  if (!WEB && TOOLS.trueview && ["dwg", "dxf", "dwf"].includes(ext)) m.append(el("button", { onclick: () => { m.hidden = true; api("open_external", { path: active.path, app: "trueview" }); } }, "DWG TrueView", el("span", { class: "hint" }, "esterno")));
+  if (!WEB && TOOLS.navisworks && ["nwd", "nwc", "nwf"].includes(ext)) m.append(el("button", { onclick: () => { m.hidden = true; api("open_external", { path: active.path, app: "navisworks" }); } }, "Navisworks Freedom", el("span", { class: "hint" }, tr("app.esterno"))));
+  if (!WEB && TOOLS.trueview && ["dwg", "dxf", "dwf"].includes(ext)) m.append(el("button", { onclick: () => { m.hidden = true; api("open_external", { path: active.path, app: "trueview" }); } }, "DWG TrueView", el("span", { class: "hint" }, tr("app.esterno"))));
   placeMenu(m, anchor);
 }
 
@@ -632,21 +657,29 @@ function compatibleViewers(t) {
 }
 
 // ------------------------------------------------------------------ pagina formati
+// nome e descrizioni di una categoria del registro nella lingua scelta (chiavi fmt.<id>.name/view/edit; nella web app
+// fmt.<id>.webview se esiste, perche' tools/build_web.py cambia alcune descrizioni); se manca la chiave, il testo di formats.json
+function catText(c, field) {
+  if (WEB && field === "view" && trHas(`fmt.${c.id}.webview`)) return tr(`fmt.${c.id}.webview`);
+  const k = `fmt.${c.id}.${field}`;
+  return trHas(k) ? tr(k) : c[field];
+}
+
 function renderFormats() {
   const outer = $("formats");
   outer.innerHTML = "";
   const box = el("div", { class: "wrap" });
   outer.append(box);
   const all = new Set(REG.categories.flatMap(c => c.exts));
-  const search = el("input", { class: "search", type: "search", id: "fmt-search", placeholder: "Cerca un'estensione, es. dwg, p7m, nwd, step" });
+  const search = el("input", { class: "search", type: "search", id: "fmt-search", placeholder: tr("app.cerca_estensione_es_dwg_p7m") });
   const answer = el("div", { class: "answer", id: "fmt-answer" });
   const list = el("div");
   box.append(
-    el("h1", {}, WEB ? "Formati supportati dalla web app" : "Formati supportati da MB Visual"),
-    ...(WEB ? [el("p", { class: "lead" }, "La versione per PC apre piu' formati (RAW, Navisworks, Office con LibreOffice, conversione di qualsiasi video): questo elenco vale per il telefono e il browser.")] : []),
-    el("p", { class: "lead" }, `${all.size} estensioni in ${REG.categories.length} categorie si aprono con un visualizzatore dedicato. ` +
-      "Questo elenco e' generato dallo stesso registro che l'app usa per decidere come aprire un file: se un'estensione non c'e', " +
-      "il file si apre solo come byte grezzi nell'editor esadecimale."),
+    el("h1", {}, WEB ? tr("app.formati_supportati_web_app") : tr("app.formati_supportati_mb_visual")),
+    ...(WEB ? [el("p", { class: "lead" }, tr("app.versione_pc_apre_piu_formati"))] : []),
+    el("p", { class: "lead" }, tr("app.0_estensioni_1_categorie_si", all.size, REG.categories.length) +
+      tr("app.questo_elenco_generato_dallo_stesso") +
+      tr("app.file_si_apre_solo_come")),
     search, answer, list);
   const draw = () => {
     const q = search.value.trim().toLowerCase().replace(/^\*?\./, "");
@@ -656,28 +689,28 @@ function renderFormats() {
       const hits = EXT.get(q);
       if (hits) {
         answer.innerHTML = "";
-        answer.append(el("span", { class: "chip ok" }, "Si"), " ." + q + " si apre come: " + hits.map(c => c.name).join(" oppure "));
+        answer.append(el("span", { class: "chip ok" }, tr("common.si")), " ." + q + tr("app.si_apre_come") + hits.map(c => catText(c, "name")).join(tr("app.oppure")));
         const req = hits.find(c => c.requires && !TOOLS[c.requires]);
-        if (req) answer.append(el("div", { class: "err", style: { fontWeight: 400 } }, `Attenzione: richiede ${REG.requirements[req.requires].name}, non presente su questo PC.`));
+        if (req) answer.append(el("div", { class: "err", style: { fontWeight: 400 } }, tr("app.attenzione_richiede_0_non_presente", REG.requirements[req.requires].name)));
       } else {
         answer.innerHTML = "";
-        answer.append(el("span", { class: "chip bad" }, "No"), ` .${q} non e' nell'elenco: si apre solo come byte grezzi (esadecimale).`);
+        answer.append(el("span", { class: "chip bad" }, tr("common.no")), tr("app.0_non_nell_elenco_si", q));
       }
     }
     for (const c of REG.categories) {
       const exts = q ? c.exts.filter(e => e.includes(q)) : c.exts;
-      if (q && !exts.length && !c.name.toLowerCase().includes(q)) continue;
+      if (q && !exts.length && !catText(c, "name").toLowerCase().includes(q)) continue;
       const req = c.requires ? REG.requirements[c.requires] : null;
-      const status = req ? (TOOLS[c.requires] ? el("span", { class: "chip ok" }, req.name + " presente") : el("span", { class: "chip warn" }, "Richiede " + req.name + " (gratuito)")) : null;
+      const status = req ? (TOOLS[c.requires] ? el("span", { class: "chip ok" }, tr("app.0_presente", req.name)) : el("span", { class: "chip warn" }, tr("app.richiede_0_gratuito", req.name))) : null;
       list.append(el("section", { class: "fcat" },
-        el("header", {}, el("h2", {}, c.name), el("span", { class: "n" }, `${c.exts.length} estensioni`), status),
-        el("p", {}, el("b", {}, "Visualizza: "), c.view),
-        el("p", {}, el("b", {}, "Modifica: "), c.edit),
+        el("header", {}, el("h2", {}, catText(c, "name")), el("span", { class: "n" }, tr("app.0_estensioni", c.exts.length)), status),
+        el("p", {}, el("b", {}, tr("app.visualizza")), catText(c, "view")),
+        el("p", {}, el("b", {}, tr("app.modifica")), catText(c, "edit")),
         el("div", { class: "exts" }, [...new Set(c.exts)].sort().map(e => el("code", { class: q && e === q ? "hit" : "" }, "." + e)))));
     }
     const fb = REG.fallback;
-    list.append(el("section", { class: "fcat" }, el("header", {}, el("h2", {}, fb.name)),
-      el("p", {}, el("b", {}, "Visualizza: "), fb.view), el("p", {}, el("b", {}, "Modifica: "), fb.edit)));
+    list.append(el("section", { class: "fcat" }, el("header", {}, el("h2", {}, catText(fb, "name"))),
+      el("p", {}, el("b", {}, tr("app.visualizza")), catText(fb, "view")), el("p", {}, el("b", {}, tr("app.modifica")), catText(fb, "edit"))));
   };
   search.addEventListener("input", draw);
   draw();
@@ -725,7 +758,11 @@ function setupBack() {
 }
 
 // ------------------------------------------------------------------ scorciatoie da tastiera (F1)
-// ogni editor dichiara i suoi tasti (ui/js/shortcuts.js), con gli stessi del programma originale
+// ogni editor dichiara i suoi tasti (ui/js/shortcuts.js), con gli stessi del programma originale.
+// Le combinazioni arrivano con i nomi inglesi o italiani dei tasti ("Ctrl+Shift+S", "Maiusc+Invio"; piu' combinazioni
+// separate da "|", " / " o " oppure ") e si mostrano con i nomi della lingua scelta (keys.* in ui/i18n).
+const keyCombos = keys => String(keys).split(/\s*\|\s*|\s+oppure\s+|\s*\/\s*(?=\S)/).filter(Boolean).map(c => c === "+" ? c : c.split(/\+(?!$)/).map(keyName).join("+"));
+const keysText = keys => keyCombos(keys).join(" / ");
 function showShortcuts() {
   const sc = active?.shortcuts;
   const table = rows => {
@@ -733,20 +770,20 @@ function showShortcuts() {
     let group = null;
     for (const r of rows) {
       if (r.group && r.group !== group) { group = r.group; t.append(el("tr", {}, el("td", { colspan: 2, style: { padding: "10px 0 4px", fontWeight: 600 } }, group))); }
-      t.append(el("tr", {}, el("td", { style: { padding: "3px 14px 3px 0", whiteSpace: "nowrap" } }, ...r.keys.split(/\s+oppure\s+|\s*\/\s*/).flatMap((k, i) => [i ? " / " : "", el("kbd", { style: { fontFamily: "Consolas, monospace", border: "1px solid var(--line-strong)", borderBottomWidth: "2px", borderRadius: "4px", padding: "0 5px", background: "var(--panel)" } }, k)])),
+      t.append(el("tr", {}, el("td", { style: { padding: "3px 14px 3px 0", whiteSpace: "nowrap" } }, ...keyCombos(r.keys).flatMap((k, i) => [i ? " / " : "", el("kbd", { style: { fontFamily: "Consolas, monospace", border: "1px solid var(--line-strong)", borderBottomWidth: "2px", borderRadius: "4px", padding: "0 5px", background: "var(--panel)" } }, k)])),
         el("td", { style: { padding: "3px 0", color: "var(--fg)" } }, r.desc)));
     }
     return t;
   };
   const box = el("div", { style: { maxHeight: "65vh", overflow: "auto", minWidth: "min(560px, 80vw)" } });
-  if (sc?.list?.length) box.append(el("p", { class: "note", style: { margin: "0 0 4px" } }, `Tasti come in ${sc.program}${active ? " · " + active.name : ""}`), table(sc.list));
-  else box.append(el("p", { class: "note" }, active ? "Questo visualizzatore non ha scorciatoie proprie." : "Apri un file per vedere le scorciatoie del suo editor."));
+  if (sc?.list?.length) box.append(el("p", { class: "note", style: { margin: "0 0 4px" } }, tr("app.tasti_come_0_1", sc.program, active ? " · " + active.name : "")), table(sc.list));
+  else box.append(el("p", { class: "note" }, active ? tr("app.questo_visualizzatore_non_ha_scorciatoie") : tr("app.apri_file_vedere_scorciatoie_suo")));
   box.append(el("hr", { style: { border: 0, borderTop: "1px solid var(--line)", margin: "12px 0 0" } }), table([
-    { group: "MB Visual", keys: "Ctrl+O", desc: "Apri file" }, { group: "MB Visual", keys: "Ctrl+N", desc: "Crea nuovo" },
-    { group: "MB Visual", keys: "Ctrl+S", desc: "Salva" }, { group: "MB Visual", keys: "Ctrl+Maiusc+S", desc: "Salva con nome (anche in altri formati)" },
-    { group: "MB Visual", keys: "Ctrl+W", desc: "Chiudi il file" }, { group: "MB Visual", keys: "Ctrl+Tab", desc: "File successivo" }, { group: "MB Visual", keys: "F1", desc: "Questo elenco" },
+    { group: "MB Visual", keys: "Ctrl+O", desc: tr("app.apri_file_2") }, { group: "MB Visual", keys: "Ctrl+N", desc: tr("app.crea_nuovo_2") },
+    { group: "MB Visual", keys: "Ctrl+S", desc: tr("common.salva") }, { group: "MB Visual", keys: "Ctrl+Shift+S", desc: tr("app.salva_nome_anche_altri_formati") },
+    { group: "MB Visual", keys: "Ctrl+W", desc: tr("app.chiudi_file") }, { group: "MB Visual", keys: "Ctrl+Tab", desc: tr("app.file_successivo") }, { group: "MB Visual", keys: "F1", desc: tr("app.questo_elenco") },
   ]));
-  modal("Scorciatoie da tastiera", box);
+  modal(tr("app.scorciatoie_tastiera"), box);
 }
 
 // ------------------------------------------------------------------ trascinamento
@@ -793,34 +830,34 @@ async function boot() {
   await loadRegistry();
   const caps = $("home-caps");
   const CAPS = WEB ? [
-    ["doc.pdf", "Documenti", "PDF, Word, Excel, PowerPoint"],
-    ["firma.p7m", "Firme digitali", "p7m, p7s, tsd, m7m, PDF firmati PAdES"],
-    ["pianta.dwg", "Disegni CAD 2D", "DWG, DXF con layer, quote e misure"],
-    ["modello.step", "Modelli CAD 3D", "STEP, IGES, BREP con albero delle parti"],
-    ["edificio.ifc", "BIM e 3D", "IFC, STL, OBJ, GLB, FBX"],
-    ["foto.jpg", "Immagini", "JPG, PNG, WEBP, TIFF, HEIC dell'iPhone"],
-    ["video.mp4", "Audio e video", "MP4, MOV, WEBM, MP3, WAV, M4A e altri"],
-    ["archivio.zip", "Archivi ed email", "ZIP, RAR, 7Z, TAR, ISO, EML"],
-    ["codice.py", "Testo, codice e dati", "Editor professionale, SQLite, esadecimale"],
+    ["doc.pdf", tr("app.documenti"), "PDF, Word, Excel, PowerPoint"],
+    ["firma.p7m", tr("app.firme_digitali"), tr("app.p7m_p7s_pdf_firmati")],
+    ["pianta.dwg", tr("app.disegni_cad_2d"), tr("app.dwg_dxf_layer_quote_misure")],
+    ["modello.step", tr("app.modelli_cad_3d"), tr("app.step_iges_brep_albero_parti")],
+    ["edificio.ifc", tr("app.bim_3d"), "IFC, STL, OBJ, GLB, FBX"],
+    ["foto.jpg", tr("app.immagini"), tr("app.jpg_png_webp_tiff_heic")],
+    ["video.mp4", tr("app.audio_video_2"), tr("app.mp4_mov_webm_mp3_altri")],
+    ["archivio.zip", tr("app.archivi_ed_email"), "ZIP, RAR, 7Z, TAR, ISO, EML"],
+    ["codice.py", tr("app.testo_codice_dati"), tr("app.editor_professionale_sqlite_esadecimale")],
   ] : [
-    ["doc.pdf", "Documenti", "PDF, Word, Excel, PowerPoint, OpenDocument"],
-    ["firma.p7m", "Firme digitali", "p7m, p7s, tsd, m7m, PDF firmati PAdES"],
-    ["pianta.dwg", "Disegni CAD 2D", "DWG, DXF con layer, quote e misure"],
-    ["modello.step", "Modelli CAD 3D", "STEP, IGES, BREP con albero delle parti"],
-    ["edificio.ifc", "BIM e 3D", "IFC, Navisworks, STL, OBJ, GLB, FBX"],
-    ["foto.cr2", "Immagini", "JPG, PNG, TIFF, HEIC, PSD e RAW fotocamere"],
-    ["video.mp4", "Audio e video", "Qualsiasi formato, con taglio e conversione"],
-    ["archivio.zip", "Archivi ed email", "ZIP, RAR, 7Z, ISO, EML, MSG"],
-    ["codice.py", "Testo, codice e dati", "Editor professionale, SQLite, esadecimale"],
+    ["doc.pdf", tr("app.documenti"), "PDF, Word, Excel, PowerPoint, OpenDocument"],
+    ["firma.p7m", tr("app.firme_digitali"), tr("app.p7m_p7s_pdf_firmati")],
+    ["pianta.dwg", tr("app.disegni_cad_2d"), tr("app.dwg_dxf_layer_quote_misure")],
+    ["modello.step", tr("app.modelli_cad_3d"), tr("app.step_iges_brep_albero_parti")],
+    ["edificio.ifc", tr("app.bim_3d"), "IFC, Navisworks, STL, OBJ, GLB, FBX"],
+    ["foto.cr2", tr("app.immagini"), tr("app.jpg_png_psd_raw")],
+    ["video.mp4", tr("app.audio_video_2"), tr("app.qualsiasi_formato_taglio_conversione")],
+    ["archivio.zip", tr("app.archivi_ed_email"), "ZIP, RAR, 7Z, ISO, EML, MSG"],
+    ["codice.py", tr("app.testo_codice_dati"), tr("app.editor_professionale_sqlite_esadecimale")],
   ];
   if (WEB) {
     document.documentElement.classList.add("web");
-    $("drop").querySelector("h1").textContent = "Apri i file da visualizzare";
-    $("drop").querySelector("p").textContent = "I file restano sul tuo dispositivo: nessun invio a server. Puoi anche condividerli da altre app verso MB Visual.";
+    $("drop").querySelector("h1").textContent = tr("app.apri_i_file_visualizzare");
+    $("drop").querySelector("p").textContent = tr("app.i_file_restano_tuo_dispositivo");
   }
   for (const [f, t, d] of CAPS) caps.append(el("div", { class: "cap" }, badgeFor(f), el("b", {}, t), el("span", { class: "d" }, d)));
   const total = new Set(REG.categories.flatMap(c => c.exts)).size;
-  $("home-formats").textContent = `${total} estensioni supportate · vedi l'elenco completo`;
+  $("home-formats").textContent = tr("app.0_estensioni_supportate_vedi_l", total);
   $("home-formats").addEventListener("click", toggleFormats);
   setupDrop();
   setupTheme();
