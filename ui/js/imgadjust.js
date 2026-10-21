@@ -1,6 +1,7 @@
 // Editor di immagini: regolazioni (come Immagine > Regolazioni di Photoshop, usate anche dai livelli di regolazione)
 // e filtri. Ogni regolazione ha parametri semplici (salvati nei livelli, in ORA e in PSD), una funzione che agisce sui
 // pixel RGBA e un pannello di controlli; i filtri lavorano su canvas e restituiscono un canvas nuovo.
+import { t as tr } from "./i18n.js";
 import { el } from "./core.js";
 
 const clamp = (v, a = 0, b = 255) => (v < a ? a : v > b ? b : v);
@@ -9,17 +10,17 @@ export const lum = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
 
 // ---------------------------------------------------------------- elenco (ordine e nomi del pannello Regolazioni)
 export const ADJ = {
-  brightness: { name: "Luminosita'/contrasto", icon: "brightness", def: () => ({ b: 0, c: 0 }) },
-  levels: { name: "Livelli", icon: "levels", keys: "Ctrl+L", def: () => ({ rgb: [0, 1, 255, 0, 255], r: [0, 1, 255, 0, 255], g: [0, 1, 255, 0, 255], b: [0, 1, 255, 0, 255] }) },
-  curves: { name: "Curve", icon: "curves", keys: "Ctrl+M", def: () => ({ rgb: [[0, 0], [255, 255]], r: [[0, 0], [255, 255]], g: [[0, 0], [255, 255]], b: [[0, 0], [255, 255]] }) },
-  exposure: { name: "Esposizione", icon: "exposure", def: () => ({ e: 0, o: 0, g: 1 }) },
-  vibrance: { name: "Vividezza", icon: "vibrance", def: () => ({ v: 0, s: 0 }) },
-  hueSat: { name: "Tonalita'/saturazione", icon: "hueSat", keys: "Ctrl+U", def: () => ({ h: 0, s: 0, l: 0, colorize: false }) },
-  colorBalance: { name: "Bilanciamento colore", icon: "colorBalance", keys: "Ctrl+B", def: () => ({ sh: [0, 0, 0], mid: [0, 0, 0], hi: [0, 0, 0], keep: true }) },
-  bw: { name: "Bianco e nero", icon: "bw", keys: "Ctrl+Alt+Shift+B", def: () => ({ r: 40, y: 60, g: 40, c: 60, b: 20, m: 80, tint: false, th: 42, ts: 20 }) },
-  invert: { name: "Inverti", icon: "invert", keys: "Ctrl+I", def: () => ({}) },
-  posterize: { name: "Posterizza", icon: "posterize", def: () => ({ n: 4 }) },
-  threshold: { name: "Soglia", icon: "threshold", def: () => ({ t: 128 }) },
+  brightness: { name: tr("imgadjust.luminosita_contrasto"), icon: "brightness", def: () => ({ b: 0, c: 0 }) },
+  levels: { name: tr("imgadjust.livelli"), icon: "levels", keys: "Ctrl+L", def: () => ({ rgb: [0, 1, 255, 0, 255], r: [0, 1, 255, 0, 255], g: [0, 1, 255, 0, 255], b: [0, 1, 255, 0, 255] }) },
+  curves: { name: tr("imgadjust.curve"), icon: "curves", keys: "Ctrl+M", def: () => ({ rgb: [[0, 0], [255, 255]], r: [[0, 0], [255, 255]], g: [[0, 0], [255, 255]], b: [[0, 0], [255, 255]] }) },
+  exposure: { name: tr("imgadjust.esposizione"), icon: "exposure", def: () => ({ e: 0, o: 0, g: 1 }) },
+  vibrance: { name: tr("imgadjust.vividezza"), icon: "vibrance", def: () => ({ v: 0, s: 0 }) },
+  hueSat: { name: tr("imgadjust.tonalita_saturazione"), icon: "hueSat", keys: "Ctrl+U", def: () => ({ h: 0, s: 0, l: 0, colorize: false }) },
+  colorBalance: { name: tr("imgadjust.bilanciamento_colore"), icon: "colorBalance", keys: "Ctrl+B", def: () => ({ sh: [0, 0, 0], mid: [0, 0, 0], hi: [0, 0, 0], keep: true }) },
+  bw: { name: tr("imgadjust.bianco_nero"), icon: "bw", keys: "Ctrl+Alt+Shift+B", def: () => ({ r: 40, y: 60, g: 40, c: 60, b: 20, m: 80, tint: false, th: 42, ts: 20 }) },
+  invert: { name: tr("imgadjust.inverti"), icon: "invert", keys: "Ctrl+I", def: () => ({}) },
+  posterize: { name: tr("imgadjust.posterizza"), icon: "posterize", def: () => ({ n: 4 }) },
+  threshold: { name: tr("imgadjust.soglia"), icon: "threshold", def: () => ({ t: 128 }) },
 };
 
 // ---------------------------------------------------------------- tabelle di conversione (LUT)
@@ -211,7 +212,7 @@ function check(label, get, set, onChange) {
   return el("label", { class: "ps-check" }, c, label);
 }
 function chanSelect(get, set, onChange) {
-  const s = el("select", { class: "field ps-sel" }, ...[["rgb", "RGB"], ["r", "Rosso"], ["g", "Verde"], ["b", "Blu"]].map(([v, t]) => el("option", { value: v }, t)));
+  const s = el("select", { class: "field ps-sel" }, ...[["rgb", "RGB"], ["r", tr("imgadjust.rosso")], ["g", tr("imgadjust.verde")], ["b", tr("imgadjust.blu")]].map(([v, t]) => el("option", { value: v }, t)));
   s.value = get();
   s.addEventListener("change", () => { set(s.value); onChange(); });
   return s;
@@ -230,44 +231,44 @@ export function adjustControls(type, p, onChange, hist) {
   const box = el("div", { class: "ps-adjui" });
   const S = (label, key, min, max, step = 1, o = {}) => slider(label, () => p[key], v => (p[key] = v), min, max, step, onChange, { def: ADJ[type].def()[key], ...o });
   switch (type) {
-    case "brightness": box.append(S("Luminosita'", "b", -150, 150), S("Contrasto", "c", -50, 100)); break;
-    case "exposure": box.append(S("Esposizione", "e", -5, 5, 0.01), S("Spostamento", "o", -0.5, 0.5, 0.0001), S("Correzione gamma", "g", 0.01, 9.99, 0.01, { def: 1 })); break;
-    case "vibrance": box.append(S("Vividezza", "v", -100, 100), S("Saturazione", "s", -100, 100)); break;
+    case "brightness": box.append(S(tr("imgadjust.luminosita"), "b", -150, 150), S(tr("imgadjust.contrasto"), "c", -50, 100)); break;
+    case "exposure": box.append(S(tr("imgadjust.esposizione"), "e", -5, 5, 0.01), S(tr("imgadjust.spostamento"), "o", -0.5, 0.5, 0.0001), S(tr("imgadjust.correzione_gamma"), "g", 0.01, 9.99, 0.01, { def: 1 })); break;
+    case "vibrance": box.append(S(tr("imgadjust.vividezza"), "v", -100, 100), S(tr("imgadjust.saturazione"), "s", -100, 100)); break;
     case "hueSat": {
       const hueGrad = "linear-gradient(90deg,#0ff,#00f,#f0f,#f00,#ff0,#0f0,#0ff)";
-      box.append(S("Tonalita'", "h", -180, 180, 1, { grad: hueGrad }), S("Saturazione", "s", -100, 100), S("Luminosita'", "l", -100, 100),
-        check("Colora", () => p.colorize, v => (p.colorize = v), onChange));
+      box.append(S(tr("imgadjust.tonalita"), "h", -180, 180, 1, { grad: hueGrad }), S(tr("imgadjust.saturazione"), "s", -100, 100), S(tr("imgadjust.luminosita"), "l", -100, 100),
+        check(tr("imgadjust.colora"), () => p.colorize, v => (p.colorize = v), onChange));
       break;
     }
     case "colorBalance": {
       let tone = "mid";
-      const tsel = el("select", { class: "field ps-sel" }, el("option", { value: "sh" }, "Ombre"), el("option", { value: "mid" }, "Mezzitoni"), el("option", { value: "hi" }, "Luci"));
+      const tsel = el("select", { class: "field ps-sel" }, el("option", { value: "sh" }, tr("imgadjust.ombre")), el("option", { value: "mid" }, tr("imgadjust.mezzitoni")), el("option", { value: "hi" }, tr("imgadjust.luci")));
       tsel.value = tone;
       const sl = el("div");
       const build = () => {
         sl.innerHTML = "";
-        [["Ciano", "Rosso", "linear-gradient(90deg,#0cc,#e33)"], ["Magenta", "Verde", "linear-gradient(90deg,#c3c,#3b3)"], ["Giallo", "Blu", "linear-gradient(90deg,#dd3,#36e)"]].forEach(([a, b, gr], i) =>
+        [[tr("imgadjust.ciano"), tr("imgadjust.rosso"), "linear-gradient(90deg,#0cc,#e33)"], [tr("imgadjust.magenta"), tr("imgadjust.verde"), "linear-gradient(90deg,#c3c,#3b3)"], [tr("imgadjust.giallo"), tr("imgadjust.blu"), "linear-gradient(90deg,#dd3,#36e)"]].forEach(([a, b, gr], i) =>
           sl.append(slider(`${a} / ${b}`, () => p[tone][i], v => (p[tone][i] = v), -100, 100, 1, onChange, { grad: gr })));
       };
       tsel.addEventListener("change", () => { tone = tsel.value; build(); });
       build();
-      box.append(el("label", { class: "ps-row" }, "Tono:", tsel), sl, check("Mantieni luminosita'", () => p.keep, v => (p.keep = v), onChange));
+      box.append(el("label", { class: "ps-row" }, tr("imgadjust.tono"), tsel), sl, check(tr("imgadjust.mantieni_luminosita"), () => p.keep, v => (p.keep = v), onChange));
       break;
     }
     case "bw":
-      box.append(S("Rossi", "r", -200, 300, 1, { unit: "%", grad: "linear-gradient(90deg,#000,#e33)" }), S("Gialli", "y", -200, 300, 1, { unit: "%", grad: "linear-gradient(90deg,#000,#ee3)" }),
-        S("Verdi", "g", -200, 300, 1, { unit: "%", grad: "linear-gradient(90deg,#000,#3c3)" }), S("Ciani", "c", -200, 300, 1, { unit: "%", grad: "linear-gradient(90deg,#000,#3ee)" }),
-        S("Blu", "b", -200, 300, 1, { unit: "%", grad: "linear-gradient(90deg,#000,#36e)" }), S("Magenta", "m", -200, 300, 1, { unit: "%", grad: "linear-gradient(90deg,#000,#e3e)" }),
-        check("Tinta", () => p.tint, v => (p.tint = v), onChange), S("Tonalita' tinta", "th", 0, 360), S("Saturazione tinta", "ts", 0, 100, 1, { unit: "%" }));
+      box.append(S(tr("imgadjust.rossi"), "r", -200, 300, 1, { unit: "%", grad: "linear-gradient(90deg,#000,#e33)" }), S(tr("imgadjust.gialli"), "y", -200, 300, 1, { unit: "%", grad: "linear-gradient(90deg,#000,#ee3)" }),
+        S(tr("imgadjust.verdi"), "g", -200, 300, 1, { unit: "%", grad: "linear-gradient(90deg,#000,#3c3)" }), S(tr("imgadjust.ciani"), "c", -200, 300, 1, { unit: "%", grad: "linear-gradient(90deg,#000,#3ee)" }),
+        S(tr("imgadjust.blu"), "b", -200, 300, 1, { unit: "%", grad: "linear-gradient(90deg,#000,#36e)" }), S(tr("imgadjust.magenta"), "m", -200, 300, 1, { unit: "%", grad: "linear-gradient(90deg,#000,#e3e)" }),
+        check(tr("imgadjust.tinta"), () => p.tint, v => (p.tint = v), onChange), S(tr("imgadjust.tonalita_tinta"), "th", 0, 360), S(tr("imgadjust.saturazione_tinta"), "ts", 0, 100, 1, { unit: "%" }));
       break;
-    case "invert": box.append(el("p", { class: "ps-note" }, "Nessuna opzione: i colori vengono invertiti.")); break;
-    case "posterize": box.append(S("Livelli", "n", 2, 255)); break;
+    case "invert": box.append(el("p", { class: "ps-note" }, tr("imgadjust.nessuna_opzione_i_colori_vengono"))); break;
+    case "posterize": box.append(S(tr("imgadjust.livelli"), "n", 2, 255)); break;
     case "threshold": {
       const cv = el("canvas", { width: 256, height: 70, class: "ps-hist" });
       const g = cv.getContext("2d");
       const draw = () => { g.clearRect(0, 0, 256, 70); drawHist(g, hist?.()?.rgb, 256, 70, CH_COLOR.rgb); g.fillStyle = "#e33"; g.fillRect(p.t, 0, 1, 70); };
       const o = onChange; onChange = () => { draw(); o(); };
-      box.append(cv, S("Livello soglia", "t", 1, 255));
+      box.append(cv, S(tr("imgadjust.livello_soglia"), "t", 1, 255));
       draw();
       break;
     }
@@ -335,8 +336,8 @@ function levelsUI(p, onChange, hist) {
     const h = H[ch]; let n = 0; for (let i = 0; i < 256; i++) n += h[i];
     let lo = 0, hi = 255, s = 0; while (lo < 254 && (s += h[lo]) < n * 0.001) lo++; s = 0; while (hi > lo + 1 && (s += h[hi]) < n * 0.001) hi--;
     p[ch][0] = lo; p[ch][2] = hi; draw(); onChange();
-  } }, "Auto");
-  wrap.append(el("div", { class: "ps-row" }, chanSelect(() => ch, v => (ch = v), draw), auto), el("div", { class: "ps-lab" }, "Livelli di input"), cv, inRow, el("div", { class: "ps-lab" }, "Livelli di output"), out, outRow);
+  } }, tr("imgadjust.auto"));
+  wrap.append(el("div", { class: "ps-row" }, chanSelect(() => ch, v => (ch = v), draw), auto), el("div", { class: "ps-lab" }, tr("imgadjust.livelli_input")), cv, inRow, el("div", { class: "ps-lab" }, tr("imgadjust.livelli_output")), out, outRow);
   draw();
   return wrap;
 }
@@ -382,11 +383,11 @@ function curvesUI(p, onChange, hist) {
   cv.addEventListener("pointerup", () => (drag = false));
   const setNum = () => { const pts = p[ch]; if (selI < 0) return; pts[selI] = [clamp(+inN.value), clamp(+outN.value)]; pts.sort((a, b) => a[0] - b[0]); draw(); onChange(); };
   inN.addEventListener("change", setNum); outN.addEventListener("change", setNum);
-  const reset = el("button", { class: "btn", type: "button", onclick: () => { p[ch] = [[0, 0], [255, 255]]; selI = -1; draw(); onChange(); } }, "Ripristina canale");
+  const reset = el("button", { class: "btn", type: "button", onclick: () => { p[ch] = [[0, 0], [255, 255]]; selI = -1; draw(); onChange(); } }, tr("imgadjust.ripristina_canale"));
   draw();
   return el("div", {}, el("div", { class: "ps-row" }, chanSelect(() => ch, v => { ch = v; selI = -1; }, draw), reset), cv,
-    el("div", { class: "ps-row" }, el("label", {}, "Input:", inN), el("label", {}, "Output:", outN)),
-    el("p", { class: "ps-note" }, "Clic sulla curva: nuovo punto. Trascina un punto fuori dal riquadro per eliminarlo."));
+    el("div", { class: "ps-row" }, el("label", {}, tr("imgadjust.input"), inN), el("label", {}, tr("imgadjust.output"), outN)),
+    el("p", { class: "ps-note" }, tr("imgadjust.clic_curva_nuovo_punto_trascina")));
 }
 
 // ---------------------------------------------------------------- filtri
@@ -468,15 +469,15 @@ function highPass(src, radius) {
 
 // menu Filtro: [gruppo, id, nome, parametri predefiniti, controlli]
 export const FILTERS = {
-  gauss: { group: "Sfocatura", name: "Sfocatura gaussiana...", def: { r: 2 }, ui: [["r", "Raggio", 0.1, 250, 0.1, "pixel"]], run: (c, p) => blurCanvas(c, p.r) },
-  motion: { group: "Sfocatura", name: "Sfocatura con movimento...", def: { a: 0, d: 10 }, ui: [["a", "Angolo", -90, 90, 1, "°"], ["d", "Distanza", 1, 500, 1, "pixel"]], run: (c, p) => motionBlur(c, p.a, p.d) },
-  blur: { group: "Sfocatura", name: "Sfoca", run: c => blurCanvas(c, 1) },
-  sharpen: { group: "Contrasta", name: "Contrasta", run: c => unsharp(c, 60, 0.7, 0) },
-  unsharp: { group: "Contrasta", name: "Maschera di contrasto...", def: { a: 100, r: 1.5, t: 0 }, ui: [["a", "Fattore", 1, 500, 1, "%"], ["r", "Raggio", 0.1, 100, 0.1, "pixel"], ["t", "Soglia", 0, 255, 1, "livelli"]], run: (c, p) => unsharp(c, p.a, p.r, p.t) },
-  noise: { group: "Disturbo", name: "Aggiungi disturbo...", def: { a: 10, gauss: true, mono: false }, ui: [["a", "Fattore", 0.1, 400, 0.1, "%"], ["gauss", "Gaussiana (altrimenti uniforme)"], ["mono", "Monocromatico"]], run: (c, p) => addNoise(c, p.a, p.gauss, p.mono) },
-  median: { group: "Disturbo", name: "Mediana...", def: { r: 1 }, ui: [["r", "Raggio", 1, 20, 1, "pixel"]], run: (c, p) => median(c, Math.round(p.r)) },
-  mosaic: { group: "Effetto pixel", name: "Mosaico...", def: { s: 10 }, ui: [["s", "Dimensione cella", 2, 200, 1, "quadrato"]], run: (c, p) => mosaic(c, Math.round(p.s)) },
-  highpass: { group: "Altro", name: "Accentua passaggio...", def: { r: 10 }, ui: [["r", "Raggio", 0.1, 1000, 0.1, "pixel"]], run: (c, p) => highPass(c, p.r) },
+  gauss: { group: tr("imgadjust.sfocatura"), name: tr("imgadjust.sfocatura_gaussiana"), def: { r: 2 }, ui: [["r", tr("imgadjust.raggio"), 0.1, 250, 0.1, "pixel"]], run: (c, p) => blurCanvas(c, p.r) },
+  motion: { group: tr("imgadjust.sfocatura"), name: tr("imgadjust.sfocatura_movimento"), def: { a: 0, d: 10 }, ui: [["a", tr("imgadjust.angolo"), -90, 90, 1, "°"], ["d", tr("imgadjust.distanza"), 1, 500, 1, "pixel"]], run: (c, p) => motionBlur(c, p.a, p.d) },
+  blur: { group: tr("imgadjust.sfocatura"), name: tr("imgadjust.sfoca"), run: c => blurCanvas(c, 1) },
+  sharpen: { group: tr("imgadjust.contrasta"), name: tr("imgadjust.contrasta"), run: c => unsharp(c, 60, 0.7, 0) },
+  unsharp: { group: tr("imgadjust.contrasta"), name: tr("imgadjust.maschera_contrasto"), def: { a: 100, r: 1.5, t: 0 }, ui: [["a", tr("imgadjust.fattore"), 1, 500, 1, "%"], ["r", tr("imgadjust.raggio"), 0.1, 100, 0.1, "pixel"], ["t", tr("imgadjust.soglia"), 0, 255, 1, "livelli"]], run: (c, p) => unsharp(c, p.a, p.r, p.t) },
+  noise: { group: tr("imgadjust.disturbo"), name: tr("imgadjust.aggiungi_disturbo"), def: { a: 10, gauss: true, mono: false }, ui: [["a", tr("imgadjust.fattore"), 0.1, 400, 0.1, "%"], ["gauss", tr("imgadjust.gaussiana_altrimenti_uniforme")], ["mono", tr("imgadjust.monocromatico")]], run: (c, p) => addNoise(c, p.a, p.gauss, p.mono) },
+  median: { group: tr("imgadjust.disturbo"), name: tr("imgadjust.mediana"), def: { r: 1 }, ui: [["r", tr("imgadjust.raggio"), 1, 20, 1, "pixel"]], run: (c, p) => median(c, Math.round(p.r)) },
+  mosaic: { group: tr("imgadjust.effetto_pixel"), name: tr("imgadjust.mosaico"), def: { s: 10 }, ui: [["s", tr("imgadjust.dimensione_cella"), 2, 200, 1, "quadrato"]], run: (c, p) => mosaic(c, Math.round(p.s)) },
+  highpass: { group: tr("imgadjust.altro"), name: tr("imgadjust.accentua_passaggio"), def: { r: 10 }, ui: [["r", tr("imgadjust.raggio"), 0.1, 1000, 0.1, "pixel"]], run: (c, p) => highPass(c, p.r) },
 };
 export function filterControls(f, p, onChange) {
   return el("div", { class: "ps-adjui" }, ...f.ui.map(([k, label, min, max, step, unit]) => (min === undefined

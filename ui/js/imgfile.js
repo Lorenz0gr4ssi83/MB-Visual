@@ -1,18 +1,19 @@
 // Editor di immagini: file a livelli. PSD di Photoshop con ag-psd (livelli, opacita', metodi di fusione, maschere,
 // livelli di regolazione) e OpenRaster (.ora, letto anche da GIMP e Krita) con JSZip; nell'ORA restano anche
 // i dati propri di MB Visual (testi, forme, regolazioni, maschere) in attributi mbv:* che gli altri programmi ignorano.
+import { t as tr } from "./i18n.js";
 import { loadScript } from "./core.js";
 import { mkCanvas } from "./imgadjust.js";
 
 // metodi di fusione: [canvas, nome di Photoshop in italiano, nome PSD, nome ORA]; "" = separatore del menu
 export const BLENDS = [
-  ["source-over", "Normale", "normal", "svg:src-over"], "",
-  ["darken", "Scurisci", "darken", "svg:darken"], ["multiply", "Moltiplica", "multiply", "svg:multiply"], ["color-burn", "Brucia colore", "color burn", "svg:color-burn"], "",
-  ["lighten", "Schiarisci", "lighten", "svg:lighten"], ["screen", "Scolora", "screen", "svg:screen"], ["color-dodge", "Colore scherma", "color dodge", "svg:color-dodge"],
-  ["lighter", "Scherma lineare (aggiungi)", "linear dodge", "svg:plus"], "",
-  ["overlay", "Sovrapponi", "overlay", "svg:overlay"], ["soft-light", "Luce soffusa", "soft light", "svg:soft-light"], ["hard-light", "Luce intensa", "hard light", "svg:hard-light"], "",
-  ["difference", "Differenza", "difference", "svg:difference"], ["exclusion", "Esclusione", "exclusion", "svg:exclusion"], "",
-  ["hue", "Tonalita'", "hue", "svg:hue"], ["saturation", "Saturazione", "saturation", "svg:saturation"], ["color", "Colore", "color", "svg:color"], ["luminosity", "Luminosita'", "luminosity", "svg:luminosity"],
+  ["source-over", tr("imgfile.normale"), "normal", "svg:src-over"], "",
+  ["darken", tr("imgfile.scurisci"), "darken", "svg:darken"], ["multiply", tr("imgfile.moltiplica"), "multiply", "svg:multiply"], ["color-burn", tr("imgfile.brucia_colore"), "color burn", "svg:color-burn"], "",
+  ["lighten", tr("imgfile.schiarisci"), "lighten", "svg:lighten"], ["screen", tr("imgfile.scolora"), "screen", "svg:screen"], ["color-dodge", tr("imgfile.colore_scherma"), "color dodge", "svg:color-dodge"],
+  ["lighter", tr("imgfile.scherma_lineare_aggiungi"), "linear dodge", "svg:plus"], "",
+  ["overlay", tr("imgfile.sovrapponi"), "overlay", "svg:overlay"], ["soft-light", tr("imgfile.luce_soffusa"), "soft light", "svg:soft-light"], ["hard-light", tr("imgfile.luce_intensa"), "hard light", "svg:hard-light"], "",
+  ["difference", tr("imgfile.differenza"), "difference", "svg:difference"], ["exclusion", tr("imgfile.esclusione"), "exclusion", "svg:exclusion"], "",
+  ["hue", tr("imgfile.tonalita"), "hue", "svg:hue"], ["saturation", tr("imgfile.saturazione"), "saturation", "svg:saturation"], ["color", tr("common.colore"), "color", "svg:color"], ["luminosity", tr("imgfile.luminosita"), "luminosity", "svg:luminosity"],
 ];
 const B = BLENDS.filter(Boolean);
 const fromPsd = n => (B.find(b => b[2] === n) || B[0])[0];
@@ -85,7 +86,7 @@ export async function readPsd(bytes, ADJ) {
   const walk = (list, vis, op) => {
     for (const n of list || []) {
       if (n.children) { walk(n.children, vis && !n.hidden, op * (n.opacity ?? 1)); continue; }
-      const L = { name: n.name || "Livello", visible: vis && !n.hidden, opacity: Math.round((n.opacity ?? 1) * op * 100), blend: fromPsd(n.blendMode), x: n.left || 0, y: n.top || 0, mask: null, props: null };
+      const L = { name: n.name || tr("imgfile.livello"), visible: vis && !n.hidden, opacity: Math.round((n.opacity ?? 1) * op * 100), blend: fromPsd(n.blendMode), x: n.left || 0, y: n.top || 0, mask: null, props: null };
       if (n.adjustment) {
         const a = adjFromPsd(n.adjustment);
         if (!a || !ADJ[a[0]]) { skipped.push(n.name); continue; }
@@ -105,7 +106,7 @@ export async function readPsd(bytes, ADJ) {
     }
   };
   walk(psd.children, true, 1);
-  if (!layers.length && psd.canvas) layers.push({ name: "Sfondo", kind: "pixel", c: psd.canvas, x: 0, y: 0, visible: true, opacity: 100, blend: "source-over", mask: null, props: null });
+  if (!layers.length && psd.canvas) layers.push({ name: tr("imgfile.sfondo"), kind: "pixel", c: psd.canvas, x: 0, y: 0, visible: true, opacity: 100, blend: "source-over", mask: null, props: null });
   return { W, H, layers, skipped };
 }
 
@@ -144,7 +145,7 @@ export async function readOra(bytes) {
       if (n.tagName === "stack") { await walk(n, v, o, x, y); continue; }
       if (n.tagName !== "layer") continue;
       const kind = n.getAttribute("mbv:kind") || "pixel";
-      const L = { name: n.getAttribute("name") || "Livello", kind, visible: v, opacity: Math.round(o * 100), blend: fromOra(n.getAttribute("composite-op")), x, y, mask: null, props: null };
+      const L = { name: n.getAttribute("name") || tr("imgfile.livello"), kind, visible: v, opacity: Math.round(o * 100), blend: fromOra(n.getAttribute("composite-op")), x, y, mask: null, props: null };
       const props = n.getAttribute("mbv:props");
       if (props) try { L.props = JSON.parse(props); } catch { /* */ }
       L.c = kind === "adjust" ? null : await file(n.getAttribute("mbv:pixels") || n.getAttribute("src"));
