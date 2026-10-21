@@ -254,33 +254,6 @@ Crea nuovo; nel lettore audio/video pulsante "Apri nel montaggio" (progetto temp
 - Stabilizza = vidstab in due passate su una copia; Normalizza = volumedetect -> guadagno clip; loudnorm opzionale sul mix.
 - Prove dalla console: `MB.tabs[i].api._ve` (P, player, importPaths, placeMedia, addTransition, goto, sel...).
 
-## Editor immagini con IA locale (21/10/2026)
-Richiesta dell'utente: modifiche per moda, marketing, campionati IFBB senza i filtri dei servizi online. Filtri al MINIMO
-concordati: solo (1) minori: blocco assoluto (parole del prompt + controllo eta' CLIP ViT-B/32 su ingresso e risultato,
-blocco se p(bambino)+p(adolescente) > 0.45) e (2) atti sessuali espliciti: blocco del prompt. Nudo artistico/moda, intimo,
-costumi (anche "meno vestiti"), pose audaci: permessi. safety_checker di diffusers disattivato. Non togliere i due blocchi.
-- Motore: `ia/engine.py`, processo separato con il suo Python (ARM64 nativo su questo PC) in `%USERPROFILE%\.mbvisual\ia\venv`
-  (o `%LOCALAPPDATA%\MBVisual\ia\venv`), modelli in `...\ia\modelli` (~8 GB). Server HTTP 127.0.0.1 con token,
-  `/run {op}`: segment (SegFormer-B3 abiti), subject/removebg (BiRefNet ONNX), erase (LaMa ONNX), fill (Realistic Vision 6
-  inpainting + LCM-LoRA 6 passi), generate, upscale (RRDBNet scritto a mano: spandrel e transformers vogliono torchvision,
-  che per Windows ARM64 non c'e'). torch CPU da download.pytorch.org (non su PyPI per win_arm64); bf16 lentissimo.
-- `mbvisual/ia.py` avvia il motore e fa da ponte (API ia/status, ia/put, ia/run come job); `ui/js/aiedit.js` = menu IA
-  dell'editor immagini (`imgedit.js`, `aiHost`): risultati come livelli nuovi, la selezione e' la maschera. Solo app per PC.
-- fill con `persona: true` (spunta "Abiti su una persona", attiva da sola dopo Seleziona parti): zona = selezione DENTRO la
-  sagoma (BiRefNet), base = colore pelle (SegFormer) x luminosita' dell'originale solo dove c'era il capo, strength 0.82:
-  il corpo non cambia forma. Livelli col risultato: `with_alpha` (paste con maschera su RGBA vuoto scuriva i bordi due volte
-  = la "riga/alone" attorno alle zone). MBV_IA_DEBUG=cartella salva i passaggi intermedi.
-- Forme: ControlNet Depth SD1.5 (`modelli/controlnet-depth`) guidato da Depth Anything V2 Small ONNX sul ritaglio originale
-  (`StableDiffusionControlNetInpaintPipeline.from_pipe`); dopo: `match_color` (guadagno per canale dalla pelle attorno) e
-  `match_grain` (rumore stimato con la mediana degli scarti, max 5). Qualita': veloce 512 LCM / alta 768 LCM (predefinita) /
-  massima 768 DPM++ 28 passi; LCM-LoRA NON fusa (set_mode la accende/spegne). Alta con forme: ~7-9 min su questo PC.
-- Tempi su questo PC (CPU): genera 512x768 ~5 min, cambio abito 2,5-3,5 min, soggetto 30-60 s, parti 10-30 s.
-- Elaborazioni NON bloccanti: riquadro in basso a destra (aiedit.js `run`), si lavora negli altri file; risultato nella
-  scheda di partenza, "Vai all'immagine" (window.MB.activate/active). Interrompi = effetto immediato nell'app + `ia_cancel`
-  (`_id` della richiesta): il motore si ferma al passo successivo (progress() solleva Cancelled; un calcolo ONNX o il
-  caricamento di un modello non si spezzano).
-- Altri PC: `python tools/ia_setup.py` (Python 3.13 ARM64 o x64; CUDA se c'e' nvidia-smi) in %LOCALAPPDATA%\MBVisual\ia.
-
 ## Firma digitale PAdES/CAdES (22/10/2026) - FATTO (prova con smart card vera: la fa l'utente)
 - `mbvisual/firma.py` (pyHanko 0.38, MIT): PAdES nei PDF (sottotipo ETSI.CAdES.detached; visibile con riquadro o invisibile;
   campi Firma1, Firma2... con aggiornamento incrementale: le firme precedenti restano valide), CAdES .p7m / .p7s separata /

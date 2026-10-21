@@ -12,7 +12,6 @@ import { keymap, describeKeys } from "./shortcuts.js";
 import { psIcon } from "./psicons.js";
 import { ADJ, FILTERS, makeAdjust, autoAdjust, histogram, adjustControls, filterControls, blurCanvas, mkCanvas, hexToRgb, rgbToHex, lum } from "./imgadjust.js";
 import { BLENDS, readPsd, writePsd, readOra, writeOra } from "./imgfile.js";
-import { aiMenu, genFill, removeObj } from "./aiedit.js";
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const g2 = c => c.getContext("2d");
@@ -1840,15 +1839,6 @@ export function createEditor(ctx, init) {
   const noSel = () => !sel, noLayer = () => !cur(), noMask = () => !cur()?.mask;
   const adjItems = () => [...Object.entries(ADJ).map(([k, a]) => ({ label: a.name + (k === "invert" ? "" : "..."), keys: a.keys, run: () => runAdjust(k) })),
     "-", { label: tr("imgedit.togli_saturazione"), keys: "Ctrl+Shift+U", run: () => quickAdjust("desaturate") }];
-  // accesso del menu IA all'editor: documento appiattito, selezione, livelli nuovi, dimensione del quadro
-  const aiHost = {
-    ctx, size: () => [W, H], version: () => ver, flatten: () => flatten(), selMask: () => sel?.c || null,
-    setSel: (c, name) => { endText(true); sel = makeSel(c); if (sel) lastSel = sel; invalidate(); commit(name || tr("imgedit.selezione_ia")); },
-    addLayer: (c, x, y, name) => { endText(true); addLayer({ c, x, y, name }, layers.length, name); },
-    canvasSize: (nw, nh, ax, ay) => canvasSize(nw, nh, ax, ay, null),
-    hideBelowTop: () => { layers.forEach((L, i) => { if (i < layers.length - 1) L.visible = false; }); invalidate(); commit(tr("imgedit.nascondi_originale")); },
-    openResult: p => ctx.openFile(p),
-  };
   const MENUS = {
     Modifica: () => [
       { label: tr("common.annulla_op") + (hi > 0 ? " " + history[hi].name : ""), keys: "Ctrl+Z", run: undo, disabled: () => hi <= 0 },
@@ -1900,8 +1890,6 @@ export function createEditor(ctx, init) {
       return [{ label: lastFilter ? tr("imgedit.ultimo_filtro") + FILTERS[lastFilter.id].name.replace("...", "") : tr("imgedit.ultimo_filtro_2"), keys: "Ctrl+Alt+F", run: () => lastFilter && runFilter(lastFilter.id, true), disabled: () => !lastFilter }, "-",
         ...Object.entries(groups).map(([g, items]) => ({ label: g, sub: () => items }))];
     },
-    // funzioni IA del motore locale (ui/js/aiedit.js): solo nell'app per PC
-    ...(WEB ? {} : { IA: () => aiMenu(aiHost) }),
     Visualizza: () => [
       { label: tr("imgedit.zoom_avanti"), keys: "Ctrl+Plus", run: () => zoomStep(1) }, { label: tr("imgedit.zoom_indietro"), keys: "Ctrl+Minus", run: () => zoomStep(-1) },
       { label: tr("imgedit.adatta_allo_schermo"), keys: "Ctrl+0", run: () => fit(true) }, { label: "100%", keys: "Ctrl+1", run: () => setZoom(1) }, "-",
@@ -1954,10 +1942,6 @@ export function createEditor(ctx, init) {
     ["Alt+clic", tr("imgedit.timbro_clone_imposta_l_origine"), tr("imgedit.strumenti")], ["Maiusc+clic", tr("imgedit.pennello_gomma_linea_retta_dall"), tr("imgedit.strumenti")], ["Ctrl+clic", tr("imgedit.strumento_sposta_seleziona_livello_sotto"), tr("imgedit.strumenti")],
     [tr("imgedit.ctrl_clic_miniatura"), tr("imgedit.carica_trasparenza_livello_come_selezione"), tr("imgedit.livelli")], [tr("imgedit.alt_clic_sull_occhio"), tr("imgedit.mostra_solo_questo_livello"), tr("imgedit.livelli")],
     [tr("imgedit.alt_rotella_ctrl_rotella"), tr("imgedit.zoom_punto_puntatore"), tr("imgedit.vista")], ["Ctrl+V", tr("imgedit.incolla_come_nuovo_livello_anche"), tr("imgedit.modifica_2")]]);
-  if (!WEB) {
-    K("Ctrl+Shift+G", tr("imgedit.riempimento_generativo_ia_selezione"), () => genFill(aiHost), "IA");
-    K("Ctrl+Shift+R", tr("imgedit.rimuovi_oggetto_ia_selezione"), () => removeObj(aiHost), "IA");
-  }
   K("D", tr("imgedit.colori_predefiniti_nero_bianco"), defaultColors, tr("imgedit.colori"));
   K("X", tr("imgedit.inverti_primo_piano_sfondo"), swapColors, tr("imgedit.colori"));
   K("[|Ctrl+Alt+[", tr("imgedit.pennello_piu_piccolo"), () => brushSize(s => (s > 100 ? s * 0.9 : s - (s > 10 ? 5 : 1))), tr("imgedit.pennello"));
