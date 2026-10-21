@@ -59,7 +59,27 @@ def main() -> None:
     im.save(out / "logo.png")
     big = im.resize((512, 512), Image.LANCZOS)
     big.save(out / "logo-512.png")
-    big.save(ROOT / "app.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+    # icona di Windows: fino a 32 px una versione semplificata (solo "mb", tratti ingrossati, senza la scritta VISUAL
+    # che a quelle dimensioni diventa una riga grigia e fa sembrare l'icona un quadrato vuoto)
+    from PIL import ImageFilter
+    small = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    small.putalpha(0)
+    small.paste(GREY + (255,), (0, 0, w, h), mask)
+    glyph = im.crop((0, 0, w, 200))
+    white = glyph.convert("L").point(lambda v: 255 if v > 200 else 0)
+    # via i residui chiari del bordo originale (angoli), prima di ingrossare i tratti
+    edge = Image.new("L", (w * k, 200 * k), 0)
+    ImageDraw.Draw(edge).rounded_rectangle((12 * k, 8 * k, (w - 12) * k - 1, 200 * k - 1), radius=30 * k, fill=255)
+    white = ImageChops.multiply(white, edge.resize((w, 200), Image.LANCZOS).point(lambda v: 255 if v > 128 else 0))
+    white = white.filter(ImageFilter.MaxFilter(7))
+    gw, gh = int(w * 0.80), int(200 * 0.80)
+    white = white.resize((gw, gh), Image.LANCZOS)
+    small.paste(WHITE + (255,), ((w - gw) // 2, (h - gh) // 2 + 4), white)
+    small.putalpha(ImageChops.multiply(small.getchannel("A"), mask))
+    small.save(out / "logo-small.png")
+    sizes = [16, 24, 32, 48, 64, 128, 256]
+    imgs = [(small if s <= 32 else big).resize((s, s), Image.LANCZOS) for s in sizes]
+    imgs[-1].save(ROOT / "app.ico", sizes=[(s, s) for s in sizes], append_images=imgs[:-1])
     print("ok")
 
 

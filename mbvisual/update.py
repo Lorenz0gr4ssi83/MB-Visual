@@ -204,7 +204,9 @@ def _shortcuts(exe: Path) -> None:
             lnk = sh.CreateShortcut(str(Path(folder) / "MB Visual.lnk"))
             lnk.TargetPath = str(exe)
             lnk.WorkingDirectory = str(exe.parent)
-            lnk.IconLocation = f"{exe},0"
+            # icona da file .ico locale (se l'exe fosse un file OneDrive "solo online" Windows mostrerebbe un riquadro vuoto)
+            ico = exe.parent / "_internal" / "app.ico"
+            lnk.IconLocation = f"{ico},0" if ico.is_file() else f"{exe},0"
             lnk.Description = "MB Visual"
             lnk.Save()
     finally:
