@@ -5,6 +5,12 @@ name = "mbvisual-licenze"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
 
+# app per cellulari: file statici serviti dal Worker solo ai dispositivi attivati (tools/build_web.py --mobile)
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+
 [vars]
 PUBLIC_KEY = "__PUBLIC_KEY__"
 

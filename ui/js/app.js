@@ -204,6 +204,7 @@ function fileMenu(anchor) {
   m.append(item(ICON_NEW, "Crea nuovo...", "Ctrl+N", doNew),
     item(ICON_SAVE, "Salva", "Ctrl+S", () => save(false), !active),
     item(ICON_SAVEAS, "Salva con nome...", "Ctrl+Maiusc+S", () => save(true), !active));
+  if (WEB && window.MBV_MOBILE) m.append(el("hr"), item(ICON_ACCOUNT, "Account e licenza...", "", showAccount)); // app per cellulari con licenza
   if (!WEB) {
     m.append(el("hr"), item(ICON_ACCOUNT, "Account e licenza...", "", showAccount), item(ICON_UPD, "Verifica aggiornamenti", "", () => checkUpdates(true)));
     if (updInfo?.installabile && !updInfo.installata) m.append(item("", "Installa su questo PC...", "", askInstall));

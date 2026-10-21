@@ -19,6 +19,10 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 UI = ROOT / "ui"
 FINAL = ROOT / "docs"
+# --mobile: versione per cellulari con licenza, nella copia di lavoro del server (FUORI da OneDrive e dal repository)
+MOBILE = "--mobile" in sys.argv
+if MOBILE:
+    FINAL = Path.home() / ".mbvisual" / "server" / "public"
 # si costruisce fuori da OneDrive (che blocca i file durante la sincronizzazione) e poi si allinea docs/ con robocopy
 OUT = Path.home() / ".mbvisual" / "webbuild"
 CACHE = Path.home() / ".mbvisual" / "webvendor"
@@ -195,6 +199,10 @@ def main() -> None:
     html = html.replace('"/vendor/', '"./vendor/')
     html = html.replace('<script type="module" src="js/app.js"></script>', '<script type="module" src="js/webapi.js"></script>\n<script type="module" src="js/app.js"></script>')
     html = html.replace('<html lang="it">', '<html lang="it" class="web">')
+    if MOBILE:
+        # app per cellulari servita dal server delle licenze: controllo della licenza e menu Account
+        html = html.replace("window.MBV_WEB = true;", "window.MBV_WEB = true; window.MBV_MOBILE = true;")
+        html = html.replace('<script type="module" src="js/webapi.js"></script>', '<script type="module" src="js/mlicenza.js"></script>\n<script type="module" src="js/webapi.js"></script>')
     (OUT / "index.html").write_text(html, encoding="utf-8")
     (OUT / "formats.json").write_text(json.dumps(web_registry(), ensure_ascii=False, indent=1), encoding="utf-8")
     (OUT / "manifest.webmanifest").write_text(json.dumps(MANIFEST, ensure_ascii=False, indent=1), encoding="utf-8")

@@ -215,19 +215,108 @@ async function admin(env, req, url) {
   return fail(404, "Percorso sconosciuto");
 }
 
+// ---------------------------------------------------------------- app per cellulari (file statici protetti)
+// I file dell'app (cartella public, binding ASSETS) si consegnano solo con un'attivazione "mobile" valida nel cookie
+// mbv_m (HttpOnly). Senza: la pagina di attivazione (nel browser spiega come installare l'app; installata chiede la chiave).
+const COOKIE = "mbv_m";
+const PUBLIC = /^\/(manifest\.webmanifest|sw\.js|img\/(icon-\d+|icon-maskable-512|logo-512|logo)\.png|favicon\.ico)$/;
+const getCookie = (req, name) => (req.headers.get("cookie") || "").split(/;\s*/).map(c => c.split("=")).find(([k]) => k === name)?.[1] || "";
+const setCookie = (res, token) => {
+  const r = new Response(res.body, res);
+  r.headers.append("set-cookie", token ? `${COOKIE}=${token}; Path=/; Max-Age=${TOKEN_DAYS * 86400}; HttpOnly; Secure; SameSite=Lax` : `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`);
+  return r;
+};
+async function mobileToken(env, req) {
+  const t = await readToken(env, getCookie(req, COOKIE));
+  return t && t.t === "mobile" && t.exp > Date.now() / 1000 ? t : null;
+}
+async function serveApp(env, req, url) {
+  if (PUBLIC.test(url.pathname)) return env.ASSETS.fetch(req);
+  if (url.pathname !== "/attiva" && await mobileToken(env, req)) {
+    const r = await env.ASSETS.fetch(req);
+    if (url.pathname === "/" || url.pathname.endsWith(".html")) { const h = new Response(r.body, r); h.headers.set("cache-control", "no-store"); return h; }
+    return r;
+  }
+  const html = req.headers.get("accept")?.includes("text/html") || url.pathname === "/" || url.pathname.endsWith(".html");
+  if (!html) return fail(401, "App non attivata");
+  return new Response(ACTIVATION_PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+}
+
+const ACTIVATION_PAGE = `<!doctype html><html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e2225"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/img/icon-192.png">
+<link rel="apple-touch-icon" href="/img/icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes">
+<title>MB Visual</title>
+<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#17191b;color:#e6e8e5;font:15px system-ui,"Segoe UI",sans-serif;padding:20px}
+.box{width:min(440px,100%);text-align:center}img{width:110px;height:110px}h1{font-size:22px;margin:10px 0 6px}p{color:#9ea29b;line-height:1.45}
+input{width:100%;font:17px Consolas,monospace;letter-spacing:.04em;text-align:center;padding:12px;border-radius:8px;border:1px solid #454a4e;background:#26292c;color:#e6e8e5}
+button{margin-top:14px;width:100%;padding:12px;border:0;border-radius:8px;background:#6aa7d8;color:#0d1b26;font:600 16px system-ui}.err{color:#e0605a;min-height:1.3em}
+ol{text-align:left;color:#cfd2cc;line-height:1.6;padding-left:22px}.hide{display:none}</style></head><body><div class="box">
+<img src="/img/logo-512.png" alt="MB Visual"><h1>MB Visual</h1>
+<div id="browser"><p>L'app per cellulare si usa solo installata. Installala, poi aprila dalla schermata Home e inserisci la chiave di licenza.</p>
+<ol id="steps"></ol><button id="inst" class="hide">Installa l'app</button></div>
+<div id="app" class="hide"><p id="msg">Inserisci la chiave di licenza ricevuta. Ogni licenza vale per 1 PC e 2 cellulari.</p>
+<input id="k" placeholder="MBV-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" autocapitalize="characters" spellcheck="false">
+<p class="err" id="err"></p><button id="go">Attiva</button></div></div>
+<script>
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const $ = id => document.getElementById(id);
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+const why = new URLSearchParams(location.search).get("motivo");
+if (why) $("msg").textContent = why;
+if (standalone) { $("browser").classList.add("hide"); $("app").classList.remove("hide"); }
+else {
+  $("steps").innerHTML = ios ? "<li>Tocca il pulsante Condividi di Safari (quadrato con la freccia).</li><li>Scegli <b>Aggiungi alla schermata Home</b>.</li><li>Apri MB Visual dalla schermata Home.</li>"
+    : "<li>Apri il menu del browser (tre puntini).</li><li>Scegli <b>Installa app</b> o <b>Aggiungi a schermata Home</b>.</li><li>Apri MB Visual dalla schermata Home.</li>";
+  let prompt = null;
+  addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; $("inst").classList.remove("hide"); });
+  $("inst").onclick = () => prompt && prompt.prompt();
+}
+let dev = localStorage.getItem("mbv-dispositivo");
+if (!dev) { dev = crypto.randomUUID(); localStorage.setItem("mbv-dispositivo", dev); }
+const fmt = v => { const s = v.toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/^MBV/, "").slice(0, 20); return s ? "MBV-" + s.replace(/(.{5})(?=.)/g, "$1-") : ""; };
+$("k").addEventListener("input", e => { e.target.value = fmt(e.target.value); });
+$("go").onclick = async () => {
+  $("err").textContent = ""; $("go").disabled = true;
+  try {
+    const name = (/android/i.test(navigator.userAgent) ? "Android" : ios ? "iPhone/iPad" : "Cellulare") + " " + new Date().toLocaleDateString("it-IT");
+    const r = await fetch("/v1/activate", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: $("k").value, device: dev, kind: "mobile", name }) }).then(r => r.json());
+    if (!r.ok) { $("err").textContent = r.errore + (r.suggerimento ? " " + r.suggerimento : ""); return; }
+    localStorage.setItem("mbv-licenza-scade", String(Date.now() + 30 * 86400000));
+    location.replace("/");
+  } catch (e) { $("err").textContent = "Serve una connessione a internet per l'attivazione."; } finally { $("go").disabled = false; }
+};
+</script></body></html>`;
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     if (req.method === "OPTIONS") return json({});
     try {
       if (url.pathname.startsWith("/admin")) return await admin(env, req, url);
-      if (req.method !== "POST") return json({ ok: true, servizio: "Licenze MB Visual" });
+      if (!url.pathname.startsWith("/v1/")) {
+        if (env.ASSETS && (req.method === "GET" || req.method === "HEAD")) return await serveApp(env, req, url);
+        if (req.method !== "POST") return json({ ok: true, servizio: "Licenze MB Visual" });
+      }
       const b = await req.json().catch(() => ({}));
-      if (url.pathname === "/v1/activate") return await activate(env, b);
-      if (url.pathname === "/v1/check") return await check(env, b);
-      if (url.pathname === "/v1/account") return await account(env, b);
-      if (url.pathname === "/v1/request") return await request(env, b);
-      return fail(404, "Percorso sconosciuto");
+      // app per cellulari: l'attivazione viaggia nel cookie (HttpOnly) invece che nel corpo della richiesta
+      const viaCookie = !b.token && !b.key && getCookie(req, COOKIE);
+      if (viaCookie) b.token = getCookie(req, COOKIE);
+      let res;
+      if (url.pathname === "/v1/activate") res = await activate(env, b);
+      else if (url.pathname === "/v1/check") res = await check(env, b);
+      else if (url.pathname === "/v1/account") res = await account(env, b);
+      else if (url.pathname === "/v1/request") res = await request(env, b);
+      else return fail(404, "Percorso sconosciuto");
+      // cookie aggiornato: attivazione o rinnovo di un cellulare; tolto se la licenza non vale piu'
+      if ((url.pathname === "/v1/activate" && b.kind === "mobile") || (url.pathname === "/v1/check" && viaCookie)) {
+        const data = await res.clone().json();
+        if (data.token) return setCookie(res, data.token);
+        if (viaCookie && [401, 403, 410].includes(res.status)) return setCookie(res, "");
+      }
+      if (viaCookie && url.pathname === "/v1/request" && b.type === "change" && res.ok && (await res.clone().json()).nuova_chiave) return setCookie(res, "");
+      return res;
     } catch (e) {
       return fail(500, "Errore del server: " + (e?.message || e));
     }

@@ -13,6 +13,18 @@ const STATI = {
 };
 const fmtKey = v => { const s = v.toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/^MBV/, "").slice(0, 20); return s ? "MBV-" + s.replace(/(.{5})(?=.)/g, "$1-") : ""; };
 
+// sul PC si passa dal motore dell'app (mbvisual/license.py); sul cellulare (app servita dal server delle licenze)
+// si parla direttamente con il server, con l'attivazione nel cookie
+const MOBILE = () => WEB && window.MBV_MOBILE;
+async function remote(kind, body = {}) {
+  if (!MOBILE()) return api("license/" + kind, {}, kind === "account" ? {} : { json: body });
+  const r = await fetch("/v1/" + kind, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({ ok: false, errore: "Server non raggiungibile" }));
+  if (d.ok === false) throw new Error(d.errore || "Errore");
+  return d;
+}
+const toActivation = reason => location.replace("/attiva" + (reason ? "?motivo=" + encodeURIComponent(reason) : ""));
+
 let shown = null;
 export async function licenseGate() {
   if (WEB) return true;
@@ -78,9 +90,10 @@ async function showNewKey(r) {
   if (r.in_attesa) return modal("Richiesta inviata", el("p", {}, r.messaggio));
   const k = el("div", { style: { fontFamily: "Consolas, monospace", fontSize: "20px", letterSpacing: ".05em", padding: "12px", background: "var(--panel)", border: "1px dashed var(--accent)", borderRadius: "8px", textAlign: "center", userSelect: "all" } }, r.nuova_chiave);
   const v = await modal("Nuova chiave di licenza", el("div", { style: { display: "grid", gap: "10px", minWidth: "380px" } },
-    el("p", { style: { margin: 0 } }, r.messaggio || ""), k, el("p", { class: "note", style: { margin: 0 } }, "Annotala: serve su ogni dispositivo che continui a usare (questo PC compreso).")),
-    [{ label: "Copia", value: "copy" }, { label: "Usala su questo PC", value: "use", primary: true }, { label: "Chiudi", value: false }]);
+    el("p", { style: { margin: 0 } }, r.messaggio || ""), k, el("p", { class: "note", style: { margin: 0 } }, `Annotala: serve su ogni dispositivo che continui a usare (questo ${MOBILE() ? "cellulare" : "PC"} compreso).`)),
+    [{ label: "Copia", value: "copy" }, { label: MOBILE() ? "Usala su questo cellulare" : "Usala su questo PC", value: "use", primary: true }, { label: "Chiudi", value: false }]);
   if (v === "copy") { await navigator.clipboard?.writeText(r.nuova_chiave); toast("Chiave copiata"); return showNewKey(r); }
+  if (MOBILE()) return toActivation(v === "use" ? "Inserisci la chiave nuova: " + r.nuova_chiave : "La chiave e' stata sostituita: inserisci la chiave nuova.");
   if (v === "use") {
     const a = await api("license/activate", {}, { json: { key: r.nuova_chiave }, allowFail: true });
     if (a.attiva) { hideGate(); toast("Questo PC usa la chiave nuova"); } else toast(a.errore || "Attivazione non riuscita", true, 8000);
@@ -92,7 +105,7 @@ async function showNewKey(r) {
 // ---- File -> Account
 export async function showAccount() {
   let a;
-  try { a = await api("license/account"); } catch (e) { toast("Account non disponibile: " + e.message, true, 7000); return licenseGate(); }
+  try { a = await remote("account"); } catch (e) { toast("Account non disponibile: " + e.message, true, 7000); return MOBILE() ? null : licenseGate(); }
   const fmtD = s => (s ? new Date(s.replace(" ", "T") + "Z").toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" }) : "");
   const devRow = d => el("tr", {}, el("td", {}, d.kind === "pc" ? "PC" : "Cellulare"), el("td", {}, d.name || "-", d.questo ? el("b", {}, " (questo)") : ""), el("td", {}, fmtD(d.activated)), el("td", {}, fmtD(d.last_seen)));
   const pcs = a.dispositivi.filter(d => d.kind === "pc").length, tels = a.dispositivi.filter(d => d.kind === "mobile").length;
@@ -107,22 +120,22 @@ export async function showAccount() {
   const v = await modal("Account e licenza", content, [{ label: "Segnalazione...", value: "report" }, { label: "Cambio PC / cellulare...", value: "change" }, { label: "Inserisci nuova chiave...", value: "key" }, { label: "Chiudi", value: false, primary: true }]);
   if (v === "report") return report();
   if (v === "change") return changeFromAccount();
-  if (v === "key") return showGate({ stato: "da_attivare" });
+  if (v === "key") return MOBILE() ? toActivation("Inserisci la chiave nuova.") : showGate({ stato: "da_attivare" });
 }
 
 async function report() {
   const ta = el("textarea", { rows: 6, class: "field", style: { width: "100%" }, placeholder: "Descrivi il problema o la richiesta" });
   if (!(await modal("Segnalazione", el("div", { style: { minWidth: "420px" } }, ta), [{ label: "Annulla", value: false }, { label: "Invia", value: true, primary: true }]))) return;
   if (!ta.value.trim()) return toast("Scrivi il testo della segnalazione", true);
-  try { const r = await api("license/request", {}, { json: { type: "report", message: ta.value } }); toast(r.messaggio || "Segnalazione inviata"); } catch (e) { toast(e.message, true, 7000); }
+  try { const r = await remote("request", { type: "report", message: ta.value }); toast(r.messaggio || "Segnalazione inviata"); } catch (e) { toast(e.message, true, 7000); }
 }
 
 async function changeFromAccount() {
   const ta = el("textarea", { rows: 3, class: "field", style: { width: "100%" }, placeholder: "Quale dispositivo cambi e perche' (es. nuovo cellulare)" });
   const ok = await modal("Cambio PC / cellulare", el("div", { style: { display: "grid", gap: "8px", minWidth: "400px" } },
-    el("p", { style: { margin: 0 } }, "Viene generata una chiave nuova e quella attuale smette subito di funzionare su tutti i dispositivi, compreso questo PC."),
+    el("p", { style: { margin: 0 } }, `Viene generata una chiave nuova e quella attuale smette subito di funzionare su tutti i dispositivi, compreso questo ${MOBILE() ? "cellulare" : "PC"}.`),
     el("p", { class: "note", style: { margin: 0 } }, "Inserisci poi la chiave nuova sui dispositivi che continui a usare."), ta),
     [{ label: "Annulla", value: false }, { label: "Genera chiave nuova", value: true, primary: true }]);
   if (!ok) return;
-  try { await showNewKey(await api("license/request", {}, { json: { type: "change", message: ta.value } })); } catch (e) { toast(e.message, true, 8000); }
+  try { await showNewKey(await remote("request", { type: "change", message: ta.value })); } catch (e) { toast(e.message, true, 8000); }
 }

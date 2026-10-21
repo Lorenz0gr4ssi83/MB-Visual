@@ -3,7 +3,8 @@
 //   node test/harness.mjs            collaudo completo (database in memoria)
 //   node test/harness.mjs serve 8787 server locale su http://127.0.0.1:8787 (database in %USERPROFILE%\.mbvisual\server-prova, fuori da OneDrive)
 import { DatabaseSync } from "node:sqlite";
-import { readFileSync, mkdirSync } from "node:fs";
+import { readFileSync, mkdirSync, existsSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { createServer } from "node:http";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
@@ -26,17 +27,29 @@ function d1(db) {
     batch: async list => { db.exec("BEGIN"); try { list.forEach(s => s._exec()); db.exec("COMMIT"); } catch (e) { db.exec("ROLLBACK"); throw e; } return []; },
   };
 }
-function makeEnv(file = ":memory:") {
+// file statici dell'app per cellulari (binding ASSETS) letti da una cartella
+const TYPES = { html: "text/html; charset=utf-8", js: "text/javascript", css: "text/css", json: "application/json", png: "image/png", webmanifest: "application/manifest+json", wasm: "application/wasm", svg: "image/svg+xml" };
+function assets(dir) {
+  return { fetch: async req => {
+    let p = decodeURIComponent(new URL(req.url).pathname);
+    if (p.endsWith("/")) p += "index.html";
+    const f = join(dir, p);
+    if (!f.startsWith(dir) || !existsSync(f) || !statSync(f).isFile()) return new Response("Non trovato", { status: 404 });
+    return new Response(readFileSync(f), { headers: { "content-type": TYPES[f.split(".").pop()] || "application/octet-stream" } });
+  } };
+}
+function makeEnv(file = ":memory:", publicDir = null) {
   const db = new DatabaseSync(file);
   db.exec(readFileSync(join(here, "..", "schema.sql"), "utf8"));
   const keys = JSON.parse(readFileSync(join(homedir(), ".mbvisual", "licenze", "chiavi.json"), "utf8"));
-  return { DB: d1(db), SIGNING_KEY: keys.private_pkcs8, PUBLIC_KEY: keys.public_raw, ADMIN_TOKEN: process.env.MBV_ADMIN_PROVA || keys.admin_token, _db: db }; // MBV_ADMIN_PROVA: codice di prova al posto di quello vero
+  return { DB: d1(db), SIGNING_KEY: keys.private_pkcs8, PUBLIC_KEY: keys.public_raw, ADMIN_TOKEN: process.env.MBV_ADMIN_PROVA || keys.admin_token, _db: db, ...(publicDir ? { ASSETS: assets(publicDir) } : {}) }; // MBV_ADMIN_PROVA: codice di prova al posto di quello vero
 }
 
 if (process.argv[2] === "serve") {
   const dir = join(homedir(), ".mbvisual", "server-prova");
   mkdirSync(dir, { recursive: true });
-  const env = makeEnv(join(dir, "prova.sqlite"));
+  const pub = join(homedir(), ".mbvisual", "server", "public");
+  const env = makeEnv(join(dir, "prova.sqlite"), existsSync(pub) ? pub : null);
   const port = +(process.argv[3] || 8787);
   createServer(async (req, res) => {
     const chunks = [];
@@ -132,6 +145,35 @@ if (process.argv[2] === "serve") {
   ok(sum.ok && ev.avvisi.length > 5, "riepilogo e avvisi", `${ev.avvisi.length} avvisi; tipi: ${[...new Set(ev.avvisi.map(e => e.kind))].join(", ")}`);
   await call("/admin/events/read", { upto: ev.avvisi.at(-1).id }, true);
   ok((await call("/admin/summary", undefined, true)).avvisi_non_letti === 0, "avvisi segnati come letti");
+
+  // ---- app per cellulari: file consegnati solo con attivazione "mobile" nel cookie
+  const pub = join(tmpdir(), "mbv-pub-prova");
+  mkdirSync(join(pub, "js"), { recursive: true }); mkdirSync(join(pub, "img"), { recursive: true });
+  writeFileSync(join(pub, "index.html"), "<html>APP VERA</html>"); writeFileSync(join(pub, "js", "app.js"), "// codice");
+  writeFileSync(join(pub, "manifest.webmanifest"), "{}"); writeFileSync(join(pub, "img", "icon-192.png"), "png");
+  env.ASSETS = assets(pub);
+  const get = (path, cookie) => worker.fetch(new Request("https://x" + path, { headers: { accept: path.endsWith(".js") ? "*/*" : "text/html", ...(cookie ? { cookie } : {}) } }), env);
+  const home = await (await get("/")).text();
+  ok(home.includes("installata") && !home.includes("APP VERA"), "senza attivazione: pagina di attivazione al posto dell'app");
+  ok((await get("/js/app.js")).status === 401, "senza attivazione: codice dell'app non consegnato");
+  ok((await get("/manifest.webmanifest")).status === 200 && (await get("/img/icon-192.png")).status === 200, "manifest e icone pubblici (installazione)");
+  const nl = (await call("/admin/licenses", { customer: "Cellulari" }, true)).key;
+  const ra = await worker.fetch(new Request("https://x/v1/activate", { method: "POST", body: JSON.stringify({ key: nl, device: "uuid-1", kind: "mobile", name: "Android" }) }), env);
+  const ck = (ra.headers.get("set-cookie") || "").split(";")[0];
+  ok(ck.startsWith("mbv_m=") && /HttpOnly/.test(ra.headers.get("set-cookie")), "attivazione del cellulare: cookie protetto");
+  ok((await (await get("/", ck)).text()).includes("APP VERA") && (await get("/js/app.js", ck)).status === 200, "con attivazione: app consegnata");
+  ok(!(await (await get("/attiva", ck)).text()).includes("APP VERA"), "/attiva mostra sempre la pagina di attivazione");
+  const pcTok = (await call("/v1/activate", { key: nl, device: "pc-x", kind: "pc" })).token;
+  ok(!(await (await get("/", "mbv_m=" + pcTok)).text()).includes("APP VERA"), "un'attivazione da PC non apre l'app per cellulari");
+  const rc = await worker.fetch(new Request("https://x/v1/check", { method: "POST", headers: { cookie: ck }, body: "{}" }), env);
+  ok(rc.ok && /mbv_m=[^;]+/.test(rc.headers.get("set-cookie") || ""), "rinnovo dal cellulare tramite cookie");
+  const acc2 = await (await worker.fetch(new Request("https://x/v1/account", { method: "POST", headers: { cookie: ck }, body: "{}" }), env)).json();
+  ok(acc2.ok && acc2.dispositivi.some(d => d.questo && d.kind === "mobile"), "account dal cellulare tramite cookie");
+  const rch = await worker.fetch(new Request("https://x/v1/request", { method: "POST", headers: { cookie: ck }, body: JSON.stringify({ type: "change" }) }), env);
+  const dch = await rch.clone().json();
+  ok(dch.nuova_chiave && /Max-Age=0/.test(rch.headers.get("set-cookie") || ""), "cambio dal cellulare: chiave nuova e cookie tolto");
+  const rc2 = await worker.fetch(new Request("https://x/v1/check", { method: "POST", headers: { cookie: ck }, body: "{}" }), env);
+  ok(rc2.status === 410 && /Max-Age=0/.test(rc2.headers.get("set-cookie") || ""), "vecchio cellulare: licenza sostituita, cookie tolto");
 
   console.log(fails ? `\n${fails} prove NON riuscite` : "\nTutte le prove riuscite");
   process.exit(fails ? 1 : 0);
