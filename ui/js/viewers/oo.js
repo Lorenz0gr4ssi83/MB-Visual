@@ -2,6 +2,7 @@
 // formattazione completa, formule con suggerimenti e selezione delle celle mentre si scrive la formula, revisioni.
 // Il file viene passato all'editor come byte e torna indietro come byte al salvataggio.
 import { api, el, extOf, readBytes, toast } from "../core.js";
+import { describeKeys } from "../shortcuts.js";
 
 // formati che l'editor scrive direttamente (gli altri passano dal convertitore di MB Visual)
 const NATIVE = { word: ["docx", "odt", "rtf", "txt", "pdf"], cell: ["xlsx", "ods", "csv", "pdf"], slide: ["pptx", "odp", "pdf"] };
@@ -11,6 +12,16 @@ const MAIN = { word: "docx", cell: "xlsx", slide: "pptx" };
 export async function mount(ctx) {
   ctx.fillBody(true);
   const ext = extOf(ctx.path), kind = KIND(ext);
+  // l'editor ONLYOFFICE usa gli stessi tasti di Microsoft Office: qui solo l'elenco dei principali (F1)
+  describeKeys(ctx, kind === "cell" ? "Excel" : kind === "slide" ? "PowerPoint" : "Word", [
+    ["Ctrl+B / Ctrl+I / Ctrl+U", "Grassetto / corsivo / sottolineato", "Formato"], ["Ctrl+C / Ctrl+X / Ctrl+V", "Copia / taglia / incolla", "Modifica"],
+    ["Ctrl+Z / Ctrl+Y", "Annulla / ripeti", "Modifica"], ["Ctrl+F / Ctrl+H", "Trova / sostituisci", "Modifica"], ["Ctrl+P", "Stampa", "File"], ["Ctrl+S", "Salva", "File"],
+    ...(kind === "cell" ? [["F2", "Modifica la cella", "Celle"], ["F4", "Riferimento assoluto ($A$1) mentre scrivi una formula", "Celle"], ["Alt+=", "Somma automatica", "Celle"],
+      ["Ctrl+frecce", "Bordo dei dati", "Celle"], ["Ctrl+Maiusc+L", "Filtro", "Celle"], ["Ctrl+1", "Formato celle", "Celle"], ["Ctrl+;", "Data di oggi", "Celle"]]
+      : kind === "slide" ? [["F5 / Maiusc+F5", "Presentazione dall'inizio / dalla diapositiva corrente", "Presentazione"], ["Ctrl+M", "Nuova diapositiva", "Presentazione"], ["Ctrl+D", "Duplica", "Presentazione"]]
+      : [["Ctrl+E / Ctrl+L / Ctrl+R / Ctrl+J", "Centrato / sinistra / destra / giustificato", "Formato"], ["Ctrl+Invio", "Interruzione di pagina", "Inserisci"], ["Ctrl+K", "Collegamento", "Inserisci"],
+        ["Ctrl+Maiusc+C / Ctrl+Maiusc+V", "Copia / incolla formato", "Formato"]]),
+  ]);
   const { url } = await api("onlyoffice");
   const frame = el("iframe", {
     class: "fill", title: ctx.name, style: { border: "0", background: "#fff" },

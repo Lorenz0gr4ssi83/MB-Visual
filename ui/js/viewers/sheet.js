@@ -1,5 +1,6 @@
 // Fogli di calcolo (SheetJS): tutti i fogli, modifica celle e formule, righe/colonne; salvataggio nel formato originale.
 import { api, button, el, extOf, loadScript, readBytes, toast, withExt } from "../core.js";
+import { describeKeys } from "../shortcuts.js";
 
 const MAX_R = 3000, MAX_C = 200;
 const WRITE = { xlsx: "xlsx", xlsm: "xlsm", xlsb: "xlsb", xls: "biff8", xltx: "xlsx", xltm: "xlsm", xlt: "biff8", ods: "ods",
@@ -87,7 +88,10 @@ export async function mount(ctx) {
     gridBox.querySelector(`td[data-r="${sel.r}"][data-c="${sel.c}"]`)?.classList.add("sel");
   }
 
-  function setCell(r, c, raw) {
+  const undoStack = [], redoStack = [];
+  const rawOf = (r, c) => { const cell = ws()[addr(r, c)]; return cell ? (cell.f ? "=" + cell.f : cell.v instanceof Date ? cell.v.toLocaleDateString("it-IT") : cell.v ?? "") : ""; };
+  function setCell(r, c, raw, track = true) {
+    if (track) { const old = rawOf(r, c); if (String(old) === String(raw ?? "")) return; undoStack.push([sheetName, r, c, old, raw]); redoStack.length = 0; }
     const s = ws();
     const a = addr(r, c);
     if (raw === "" || raw === null) { delete s[a]; }
@@ -131,26 +135,103 @@ export async function mount(ctx) {
     sel = { r: +td.dataset.r, c: +td.dataset.c };
     showSel();
   });
-  gridBox.addEventListener("dblclick", e => {
-    const td = e.target.closest("td[data-r]");
+  // modifica nella cella, come Excel: doppio clic o F2 (testo attuale), oppure si comincia a scrivere (sostituisce)
+  function editCell(initial, replace) {
+    const td = gridBox.querySelector(`td[data-r="${sel.r}"][data-c="${sel.c}"]`);
     if (!td) return;
-    const input = el("input", { type: "text", value: formulaBar.value, style: { width: Math.max(80, td.offsetWidth) + "px", font: "inherit", border: "0", outline: "2px solid var(--accent)" } });
+    const input = el("input", { type: "text", value: replace ? initial : rawOf(sel.r, sel.c), style: { width: Math.max(80, td.offsetWidth) + "px", font: "inherit", border: "0", outline: "2px solid var(--accent)" } });
     td.textContent = "";
     td.append(input);
     input.focus();
-    const done = ok => { if (ok) setCell(sel.r, sel.c, input.value); render(); };
-    input.addEventListener("keydown", ev => { if (ev.key === "Enter") { done(true); sel.r++; showSel(); } if (ev.key === "Escape") done(false); });
+    input.setSelectionRange(input.value.length, input.value.length);
+    let finished = false;
+    const done = (ok, move) => {
+      if (finished) return;
+      finished = true;
+      if (ok) setCell(sel.r, sel.c, input.value);
+      render();
+      if (move) { sel = { r: Math.max(0, sel.r + move[0]), c: Math.max(0, sel.c + move[1]) }; showSel(); }
+      gridBox.focus();
+    };
+    input.addEventListener("keydown", ev => {
+      ev.stopPropagation();
+      if (ev.key === "Enter") { ev.preventDefault(); done(true, ev.shiftKey ? [-1, 0] : [1, 0]); }
+      else if (ev.key === "Tab") { ev.preventDefault(); done(true, ev.shiftKey ? [0, -1] : [0, 1]); }
+      else if (ev.key === "Escape") { ev.preventDefault(); done(false); }
+    });
     input.addEventListener("blur", () => done(true), { once: true });
-  });
-  formulaBar.addEventListener("keydown", e => { if (e.key === "Enter") { setCell(sel.r, sel.c, formulaBar.value); render(); } });
+  }
+  gridBox.addEventListener("dblclick", e => { if (e.target.closest("td[data-r]")) editCell(); });
+  formulaBar.addEventListener("keydown", e => { if (e.key === "Enter") { setCell(sel.r, sel.c, formulaBar.value); render(); sel.r++; showSel(); gridBox.focus(); } if (e.key === "Escape") { showSel(); gridBox.focus(); } });
   gridBox.tabIndex = 0;
-  gridBox.addEventListener("keydown", e => {
+  const used = () => X.utils.decode_range(ws()["!ref"] || "A1");
+  const filled = (r, c) => { const v = ws()[addr(r, c)]; return !!v && v.v !== "" && v.v !== undefined || !!v?.f; };
+  function jump(dr, dc) { // Ctrl+freccia: fino al bordo del blocco di dati (come Excel)
+    const R = used();
+    let { r, c } = sel;
+    const inside = (rr, cc) => rr >= 0 && cc >= 0 && rr <= Math.max(R.e.r, 0) + 1 && cc <= Math.max(R.e.c, 0) + 1;
+    const startFilled = filled(r, c) && inside(r + dr, c + dc) && filled(r + dr, c + dc);
+    while (inside(r + dr, c + dc)) {
+      r += dr; c += dc;
+      if (startFilled ? !inside(r + dr, c + dc) || !filled(r + dr, c + dc) : filled(r, c)) break;
+    }
+    sel = { r: Math.max(0, r), c: Math.max(0, c) };
+    showSel();
+  }
+  function undoRedo(from, to) {
+    const it = from.pop();
+    if (!it) return;
+    const [sh, r, c, oldV, newV] = it;
+    if (sh !== sheetName) { from.push(it); return toast("Annulla vale per il foglio in uso"); }
+    setCell(r, c, from === undoStack ? oldV : newV, false);
+    to.push(it);
+    sel = { r, c };
+    render();
+  }
+  gridBox.addEventListener("keydown", async e => {
     if (e.target !== gridBox) return;
-    const mv = { ArrowDown: [1, 0], ArrowUp: [-1, 0], ArrowRight: [0, 1], ArrowLeft: [0, -1], Enter: [1, 0], Tab: [0, 1] }[e.key];
-    if (mv) { e.preventDefault(); sel = { r: Math.max(0, sel.r + mv[0]), c: Math.max(0, sel.c + mv[1]) }; showSel(); return; }
-    if (e.key === "Delete") { setCell(sel.r, sel.c, ""); render(); return; }
-    if (e.key.length === 1 && !e.ctrlKey) { formulaBar.value = ""; formulaBar.focus(); }
+    const k = e.key, ctrl = e.ctrlKey || e.metaKey;
+    const go = (r, c) => { e.preventDefault(); sel = { r: Math.max(0, r), c: Math.max(0, c) }; showSel(); };
+    if (ctrl && k.startsWith("Arrow")) { e.preventDefault(); return jump(...{ ArrowDown: [1, 0], ArrowUp: [-1, 0], ArrowRight: [0, 1], ArrowLeft: [0, -1] }[k]); }
+    const mv = { ArrowDown: [1, 0], ArrowUp: [-1, 0], ArrowRight: [0, 1], ArrowLeft: [0, -1], Enter: [e.shiftKey ? -1 : 1, 0], Tab: [0, e.shiftKey ? -1 : 1] }[k];
+    if (mv) return go(sel.r + mv[0], sel.c + mv[1]);
+    if (ctrl && k === "Home") return go(0, 0);
+    if (ctrl && k === "End") { const R = used(); return go(R.e.r, R.e.c); }
+    if (k === "Home") return go(sel.r, 0);
+    if (k === "PageDown") return go(sel.r + 20, sel.c);
+    if (k === "PageUp") return go(sel.r - 20, sel.c);
+    if (k === "F2") { e.preventDefault(); return editCell(); }
+    if (k === "Delete") { e.preventDefault(); setCell(sel.r, sel.c, ""); render(); return; }
+    if (k === "Backspace") { e.preventDefault(); return editCell("", true); }
+    if (ctrl && k.toLowerCase() === "z") { e.preventDefault(); return undoRedo(undoStack, redoStack); }
+    if (ctrl && k.toLowerCase() === "y") { e.preventDefault(); return undoRedo(redoStack, undoStack); }
+    if (ctrl && (k.toLowerCase() === "c" || k.toLowerCase() === "x")) {
+      e.preventDefault();
+      try { await navigator.clipboard.writeText(String(rawOf(sel.r, sel.c))); } catch { /* */ }
+      if (k.toLowerCase() === "x") { setCell(sel.r, sel.c, ""); render(); }
+      return;
+    }
+    if (ctrl && k.toLowerCase() === "v") {
+      e.preventDefault();
+      let t = "";
+      try { t = await navigator.clipboard.readText(); } catch { return toast("Appunti non leggibili", true); }
+      // testo a righe e colonne (da Excel o da un altro foglio): incolla a partire dalla cella selezionata
+      t.replace(/\r?\n$/, "").split(/\r?\n/).forEach((line, i) => line.split("\t").forEach((v, j) => setCell(sel.r + i, sel.c + j, v)));
+      render();
+      return;
+    }
+    if (ctrl && k === ";") { e.preventDefault(); setCell(sel.r, sel.c, e.shiftKey ? new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : new Date().toLocaleDateString("it-IT")); render(); return; }
+    if (k.length === 1 && !ctrl && !e.altKey) { e.preventDefault(); editCell(k, true); }
   });
+  describeKeys(ctx, "Excel", [
+    ["Scrivere", "Sostituisce il contenuto della cella e inizia la modifica", "Celle"], ["F2", "Modifica la cella (testo attuale)", "Celle"],
+    ["Invio / Maiusc+Invio", "Conferma e scende / sale", "Celle"], ["Tab / Maiusc+Tab", "Conferma e va a destra / sinistra", "Celle"],
+    ["Esc", "Annulla la modifica", "Celle"], ["Canc", "Svuota la cella", "Celle"], ["Backspace", "Svuota e modifica", "Celle"],
+    ["Ctrl+Z / Ctrl+Y", "Annulla / Ripeti", "Modifica"], ["Ctrl+C / Ctrl+X / Ctrl+V", "Copia / Taglia / Incolla (anche blocchi da Excel)", "Modifica"],
+    ["Ctrl+;  /  Ctrl+Maiusc+;", "Data / ora di oggi", "Modifica"],
+    ["Ctrl+frecce", "Salta al bordo dei dati", "Movimento"], ["Ctrl+Home / Ctrl+Fine", "Prima cella / ultima cella usata", "Movimento"],
+    ["Home", "Inizio della riga", "Movimento"], ["Pag su / Pag giu'", "Su / giu' di 20 righe", "Movimento"],
+  ]);
   render();
 
   const outExt = () => (WRITE[ctx.ext] ? ctx.ext : "xlsx");

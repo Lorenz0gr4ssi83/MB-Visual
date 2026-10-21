@@ -203,7 +203,8 @@ function fileMenu(anchor) {
   const item = (icon, text, hint, fn, disabled = false) => { const b = el("button", { disabled: disabled || undefined, onclick: () => { m.hidden = true; fn(); } }); b.insertAdjacentHTML("beforeend", icon); b.append(el("span", {}, text)); if (hint) b.append(el("span", { class: "hint" }, hint)); return b; };
   m.append(item(ICON_NEW, "Crea nuovo...", "Ctrl+N", doNew),
     item(ICON_SAVE, "Salva", "Ctrl+S", () => save(false), !active),
-    item(ICON_SAVEAS, "Salva con nome...", "Ctrl+Maiusc+S", () => save(true), !active));
+    item(ICON_SAVEAS, "Salva con nome...", "Ctrl+Maiusc+S", () => save(true), !active),
+    item('<svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM6 9h2M10 9h2M14 9h2M18 9h0M6 13h12"/></svg>', "Scorciatoie da tastiera", "F1", showShortcuts));
   if (WEB && window.MBV_MOBILE) m.append(el("hr"), item(ICON_ACCOUNT, "Account e licenza...", "", showAccount)); // app per cellulari con licenza
   if (!WEB) {
     m.append(el("hr"), item(ICON_ACCOUNT, "Account e licenza...", "", showAccount), item(ICON_UPD, "Verifica aggiornamenti", "", () => checkUpdates(true)));
@@ -695,6 +696,31 @@ function setupBack() {
   window.addEventListener("popstate", () => { arm(); goBack(); });
 }
 
+// ------------------------------------------------------------------ scorciatoie da tastiera (F1)
+// ogni editor dichiara i suoi tasti (ui/js/shortcuts.js), con gli stessi del programma originale
+function showShortcuts() {
+  const sc = active?.shortcuts;
+  const table = rows => {
+    const t = el("table", { class: "kv-table", style: { borderCollapse: "collapse", width: "100%", fontSize: "12.5px" } });
+    let group = null;
+    for (const r of rows) {
+      if (r.group && r.group !== group) { group = r.group; t.append(el("tr", {}, el("td", { colspan: 2, style: { padding: "10px 0 4px", fontWeight: 600 } }, group))); }
+      t.append(el("tr", {}, el("td", { style: { padding: "3px 14px 3px 0", whiteSpace: "nowrap" } }, ...r.keys.split(/\s+oppure\s+|\s*\/\s*/).flatMap((k, i) => [i ? " / " : "", el("kbd", { style: { fontFamily: "Consolas, monospace", border: "1px solid var(--line-strong)", borderBottomWidth: "2px", borderRadius: "4px", padding: "0 5px", background: "var(--panel)" } }, k)])),
+        el("td", { style: { padding: "3px 0", color: "var(--fg)" } }, r.desc)));
+    }
+    return t;
+  };
+  const box = el("div", { style: { maxHeight: "65vh", overflow: "auto", minWidth: "min(560px, 80vw)" } });
+  if (sc?.list?.length) box.append(el("p", { class: "note", style: { margin: "0 0 4px" } }, `Tasti come in ${sc.program}${active ? " · " + active.name : ""}`), table(sc.list));
+  else box.append(el("p", { class: "note" }, active ? "Questo visualizzatore non ha scorciatoie proprie." : "Apri un file per vedere le scorciatoie del suo editor."));
+  box.append(el("hr", { style: { border: 0, borderTop: "1px solid var(--line)", margin: "12px 0 0" } }), table([
+    { group: "MB Visual", keys: "Ctrl+O", desc: "Apri file" }, { group: "MB Visual", keys: "Ctrl+N", desc: "Crea nuovo" },
+    { group: "MB Visual", keys: "Ctrl+S", desc: "Salva" }, { group: "MB Visual", keys: "Ctrl+Maiusc+S", desc: "Salva con nome (anche in altri formati)" },
+    { group: "MB Visual", keys: "Ctrl+W", desc: "Chiudi il file" }, { group: "MB Visual", keys: "Ctrl+Tab", desc: "File successivo" }, { group: "MB Visual", keys: "F1", desc: "Questo elenco" },
+  ]));
+  modal("Scorciatoie da tastiera", box);
+}
+
 // ------------------------------------------------------------------ trascinamento
 function setupDrop() {
   // "Rilascia per aprire": acceso finche' arrivano gli eventi dragover (ogni ~50 ms mentre si trascina sopra la
@@ -797,6 +823,7 @@ async function boot() {
     else if (e.ctrlKey && k === "s") { e.preventDefault(); save(e.shiftKey); }
     else if (e.ctrlKey && k === "w") { e.preventDefault(); if (active) closeTab(active); }
     else if (e.ctrlKey && k === "tab" && tabs.length) { e.preventDefault(); activate(tabs[(tabs.indexOf(active) + (e.shiftKey ? -1 : 1) + tabs.length) % tabs.length]); }
+    else if (e.key === "F1") { e.preventDefault(); showShortcuts(); }
   });
   window.addEventListener("beforeunload", e => { if (tabs.some(t => t.dirty)) { e.preventDefault(); e.returnValue = ""; } });
   renderTabs();

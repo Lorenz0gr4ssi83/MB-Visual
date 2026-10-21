@@ -1,8 +1,16 @@
 // Testo e codice sorgente con Monaco: colorazione, ricerca/sostituzione, mantenimento della codifica.
 import { api, button, el, loading } from "../core.js";
 import { languageFor, loadMonaco } from "../monaco.js";
+import { describeKeys } from "../shortcuts.js";
 
 export async function mount(ctx, opts = {}) {
+  // editor Monaco: gli stessi tasti di Visual Studio Code
+  describeKeys(ctx, "Visual Studio Code", [
+    ["Ctrl+F / Ctrl+H", "Trova / sostituisci", "Modifica"], ["Ctrl+D", "Seleziona la prossima occorrenza", "Modifica"], ["Alt+clic", "Piu' cursori", "Modifica"],
+    ["Ctrl+/", "Commenta / togli commento", "Modifica"], ["Alt+Su / Alt+Giu'", "Sposta la riga", "Modifica"], ["Maiusc+Alt+Giu'", "Duplica la riga", "Modifica"],
+    ["Ctrl+Maiusc+K", "Elimina la riga", "Modifica"], ["Ctrl+G", "Vai alla riga", "Navigazione"], ["Ctrl+Z / Ctrl+Y", "Annulla / ripeti", "Modifica"],
+    ["Maiusc+Alt+F", "Formatta il documento", "Modifica"], ["F1", "Questo elenco (in MB Visual)", "Aiuto"],
+  ]);
   const ld = loading(ctx.el, "Caricamento dell'editor");
   const [monaco, doc] = await Promise.all([loadMonaco(), api("text", { path: ctx.path })]);
   ctx.el.innerHTML = "";

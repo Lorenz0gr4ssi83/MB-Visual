@@ -1,5 +1,6 @@
 // Immagini (anche RAW, HEIC, PSD, TIFF...): zoom e modifica (ruota, rifletti, ritaglia, ridimensiona, regolazioni, disegno, testo).
 import { api, askText, button, el, extOf, fileUrl, loading, modal, withExt } from "../core.js";
+import { keymap } from "../shortcuts.js";
 
 const NATIVE = new Set(["png", "apng", "jpg", "jpeg", "jpe", "jfif", "pjpeg", "pjp", "gif", "webp", "bmp", "dib", "ico", "cur", "avif"]);
 const CLIENT_ENC = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", jpe: "image/jpeg", jfif: "image/jpeg", webp: "image/webp" };
@@ -90,8 +91,8 @@ export async function mount(ctx) {
   view.addEventListener("pointerup", () => { drawing = false; if (mode === "crop" && cropRect) applyBtn.disabled = false; });
   stage.addEventListener("wheel", e => { if (!e.ctrlKey) return; e.preventDefault(); zoom = Math.max(0.05, Math.min(16, (zoom || fitZoom()) * (e.deltaY < 0 ? 1.15 : 1 / 1.15))); draw(); }, { passive: false });
 
-  const setMode = m => { mode = mode === m ? null : m; cropBtn.classList.toggle("on", mode === "crop"); penBtn.classList.toggle("on", mode === "pen"); txtBtn.classList.toggle("on", mode === "text"); view.style.cursor = mode ? "crosshair" : "default"; if (mode !== "crop") { cropRect = null; applyBtn.disabled = true; draw(); } };
-  const cropBtn = button("Ritaglia", "crop", () => setMode("crop"));
+  const setMode = m => { mode = mode === m ? null : m; cropBtn.classList.toggle("on", mode === "crop"); penBtn.classList.toggle("on", mode === "pen"); txtBtn.classList.toggle("on", mode === "text"); if (mode !== "crop") { cropRect = null; applyBtn.disabled = true; draw(); } };
+  const cropBtn = button("Ritaglia", "crop", () => setMode("crop"), { title: "Ritaglia (C) · Invio applica, Esc annulla" });
   const applyBtn = button("Applica ritaglio", null, () => {
     const { x, y, w, h } = norm(cropRect);
     if (w < 2 || h < 2) return;
@@ -99,8 +100,8 @@ export async function mount(ctx) {
     cropRect = null; applyBtn.disabled = true; setMode(null);
   });
   applyBtn.disabled = true;
-  const penBtn = button("Disegna", "pen", () => setMode("pen"));
-  const txtBtn = button("Testo", "text", () => setMode("text"));
+  const penBtn = button("Disegna", "pen", () => setMode("pen"), { title: "Pennello (B) · [ e ] cambiano la dimensione" });
+  const txtBtn = button("Testo", "text", () => setMode("text"), { title: "Testo (T)" });
   const colorIn = el("input", { type: "color", value: color, title: "Colore", id: "imgcol-" + ctx.tab.name, oninput: e => (color = e.target.value) });
   const mk = (label, key, min, max, def) => { const s = el("input", { type: "range", min, max, value: def, "data-def": def, title: label, id: `adj-${key}-${ctx.tab.name}` }); s.addEventListener("input", () => { adj[key] = +s.value; ctx.setDirty(true); draw(); }); return el("label", {}, label, s); };
   const adjBox = [mk("Luminosita'", "b", 0, 200, 100), mk("Contrasto", "c", 0, 200, 100), mk("Saturazione", "s", 0, 200, 100), mk("B/N", "g", 0, 100, 0)];
@@ -112,16 +113,38 @@ export async function mount(ctx) {
     el("span", { class: "sep" }),
     button("", "rotateL", () => rotate(-90), { iconOnly: true, title: "Ruota a sinistra" }), button("", "rotate", () => rotate(90), { iconOnly: true, title: "Ruota a destra" }),
     button("", "flipH", () => flip(true), { iconOnly: true, title: "Rifletti orizzontalmente" }), button("", "flipV", () => flip(false), { iconOnly: true, title: "Rifletti verticalmente" }),
-    cropBtn, applyBtn, button("Ridimensiona", null, async () => {
-      const v = await askText("Ridimensiona", `Nuova larghezza in pixel (attuale ${work.width}); l'altezza segue le proporzioni`, String(work.width));
-      const w = parseInt(v, 10);
-      if (!w || w < 1) return;
-      const h = Math.round(work.height * w / work.width);
-      transform((g, s) => { g.imageSmoothingQuality = "high"; g.drawImage(s, 0, 0, w, h); }, w, h);
-    }),
+    cropBtn, applyBtn, button("Ridimensiona", null, resize, { title: "Dimensione immagine (Ctrl+Alt+I)" }),
     el("span", { class: "sep" }), penBtn, txtBtn, colorIn, el("span", { class: "sep" }), ...adjBox,
-    button("", "undo", () => { const h = history.pop(); if (h) { work = h; draw(); } }, { iconOnly: true, title: "Annulla" }),
+    button("", "undo", () => undo(), { iconOnly: true, title: "Annulla (Ctrl+Z)" }),
     button("Info", null, () => showInfo()));
+  async function resize() {
+    const v = await askText("Ridimensiona", `Nuova larghezza in pixel (attuale ${work.width}); l'altezza segue le proporzioni`, String(work.width));
+    const w = parseInt(v, 10);
+    if (!w || w < 1) return;
+    const h = Math.round(work.height * w / work.width);
+    transform((g, s) => { g.imageSmoothingQuality = "high"; g.drawImage(s, 0, 0, w, h); }, w, h);
+  }
+  const undo = () => { const h = history.pop(); if (h) { work = h; ctx.setDirty(true); draw(); } };
+  const zoomBy = f => { zoom = Math.max(0.05, Math.min(16, (zoom || fitZoom()) * f)); draw(); };
+  // tasti di Photoshop
+  keymap(ctx, "Photoshop", [
+    { keys: "C", desc: "Strumento Ritaglia", run: () => setMode("crop"), group: "Strumenti" },
+    { keys: "B", desc: "Pennello (disegno a mano libera)", run: () => setMode("pen"), group: "Strumenti" },
+    { keys: "T", desc: "Testo", run: () => setMode("text"), group: "Strumenti" },
+    { keys: "Enter", desc: "Applica il ritaglio", run: () => { if (cropRect && !applyBtn.disabled) applyBtn.click(); }, group: "Strumenti" },
+    { keys: "Escape", desc: "Annulla il ritaglio / esci dallo strumento", run: () => setMode(null), group: "Strumenti" },
+    { keys: "[", desc: "Pennello piu' piccolo", run: () => { penSize = Math.max(1, penSize - 2); ctx.status(`Pennello ${penSize} px`); }, group: "Strumenti" },
+    { keys: "]", desc: "Pennello piu' grande", run: () => { penSize = Math.min(200, penSize + 2); ctx.status(`Pennello ${penSize} px`); }, group: "Strumenti" },
+    { keys: "Ctrl+Z", desc: "Annulla", run: undo, group: "Modifica" },
+    { keys: "Ctrl+Alt+I", desc: "Dimensione immagine (ridimensiona)", run: resize, group: "Immagine" },
+    { keys: "Ctrl+Shift+U", desc: "Togli saturazione (bianco e nero)", run: () => { adj.g = 100; sliders[3].value = 100; ctx.setDirty(true); draw(); }, group: "Immagine" },
+    { keys: "Ctrl+R", desc: "Ruota di 90° a destra", run: () => rotate(90), group: "Immagine" },
+    { keys: "Ctrl+Shift+R", desc: "Ruota di 90° a sinistra", run: () => rotate(-90), group: "Immagine" },
+    { keys: "Ctrl+0", desc: "Adatta allo schermo", run: () => { zoom = 0; draw(); }, group: "Vista" },
+    { keys: "Ctrl+1", desc: "Dimensioni reali (100%)", run: () => { zoom = 1; draw(); }, group: "Vista" },
+    { keys: "Ctrl+Plus", desc: "Ingrandisci", run: () => zoomBy(1.25), group: "Vista" },
+    { keys: "Ctrl+Minus", desc: "Riduci", run: () => zoomBy(1 / 1.25), group: "Vista" },
+  ]);
   async function showInfo() {
     const dl = el("dl", { class: "kv" });
     const add = (k, v) => v !== undefined && dl.append(el("dt", {}, k), el("dd", {}, String(v)));

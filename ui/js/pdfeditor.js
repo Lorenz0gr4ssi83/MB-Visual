@@ -839,6 +839,15 @@ export function createPdfEditor(ctx, frame, setBusy) {
     doc().addEventListener("keydown", e => {
       if (e.target.closest?.("textarea, input, [contenteditable=plaintext-only], .freeTextEditor, .annotationEditorLayer [contenteditable]")) return;
       const k = e.key.toLowerCase();
+      // tasti di Acrobat (strumenti a lettera singola, frecce per spostare gli oggetti selezionati)
+      if (!e.ctrlKey && !e.altKey && !e.metaKey) {
+        const ACC = { v: "select", t: "line", w: "typewriter", i: "image", s: "note", d: "pj-ink", r: "shape", q: "f-text", h: null };
+        if (k === "u") { e.preventDefault(); const cyc = ["pj-highlight", "underline", "strikeout"]; setMode(e.shiftKey ? cyc[(cyc.indexOf(mode) + 1) % 3] : "pj-highlight"); return; }
+        if (k in ACC && !e.shiftKey) { e.preventDefault(); setMode(ACC[k]); return; }
+        const arrow = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, 1], arrowdown: [0, -1] }[k];
+        if (arrow && mode === "select" && sel.length) { e.preventDefault(); nudge(arrow[0] * (e.shiftKey ? 10 : 1), arrow[1] * (e.shiftKey ? 10 : 1)); return; }
+      }
+      if (e.ctrlKey && k === "a" && mode === "select") { e.preventDefault(); const layer = doc().querySelector(`.page[data-page-number="${curPage() + 1}"] .mbv-layer`); if (layer) setSel([...layer.querySelectorAll(".mbv-obj")].map(n => ({ pno: curPage(), o: n._obj, d: n, vp: app().pdfViewer.getPageView(curPage()).viewport }))); return; }
       if (e.ctrlKey && k === "z" && work) { e.preventDefault(); undoLast(); return; }
       if (e.ctrlKey && k === "y" && work) { e.preventDefault(); redoLast(); return; }
       if (mode === "select" && sel.length && e.key === "Delete") { e.preventDefault(); deleteSel(); return; }
@@ -849,6 +858,20 @@ export function createPdfEditor(ctx, frame, setBusy) {
         setMode(null);
       }
     }, true);
+  }
+  // spostamento con le frecce: i riquadri si muovono subito, la modifica si applica quando si smette di premere
+  let nudgeAcc = [0, 0], nudgeTimer = 0;
+  function nudge(dx, dy) {
+    nudgeAcc = [nudgeAcc[0] + dx, nudgeAcc[1] + dy];
+    for (const s of sel) if (s.d) { const k = s.vp.scale; s.d.style.left = parseFloat(s.d.style.left) + dx * k + "px"; s.d.style.top = parseFloat(s.d.style.top) - dy * k + "px"; }
+    doc().querySelectorAll(".mbv-h").forEach(n => n.remove());
+    clearTimeout(nudgeTimer);
+    nudgeTimer = setTimeout(() => {
+      const [ax, ay] = nudgeAcc;
+      nudgeAcc = [0, 0];
+      const list = sel.flatMap(s => moveOps(s.pno, s.o, [s.o.box[0] + ax, s.o.box[1] + ay, s.o.box[2] + ax, s.o.box[3] + ay]));
+      if (list.length) ops(list);
+    }, 500);
   }
   function setMode(m) {
     hook();
@@ -865,8 +888,16 @@ export function createPdfEditor(ctx, frame, setBusy) {
     return mode;
   }
 
+  const KEYS = [["V", "Seleziona oggetti", "Strumenti"], ["T", "Modifica testo (riga)", "Strumenti"], ["W", "Macchina da scrivere", "Strumenti"], ["I", "Inserisci immagine", "Strumenti"],
+    ["U", "Evidenzia (Maiusc+U: evidenzia / sottolinea / barra)", "Strumenti"], ["S", "Nota adesiva", "Strumenti"], ["D", "Penna (disegno)", "Strumenti"], ["R", "Forme", "Strumenti"],
+    ["Q", "Campo di testo del modulo", "Strumenti"], ["H", "Nessuno strumento (scorri e compila i moduli)", "Strumenti"], ["Esc", "Deseleziona / esci dallo strumento", "Strumenti"],
+    ["Frecce", "Sposta gli oggetti selezionati di 1 pt (Maiusc: 10 pt)", "Oggetti"], ["Canc", "Elimina gli oggetti selezionati", "Oggetti"],
+    ["Ctrl+A", "Seleziona tutti gli oggetti della pagina", "Oggetti"], ["Maiusc+clic / Ctrl+clic", "Aggiungi o togli dalla selezione", "Oggetti"],
+    ["Doppio clic", "Riscrivi un testo / entra in un gruppo di disegni", "Oggetti"], ["Ctrl+Z / Ctrl+Y", "Annulla / Ripeti", "Modifica"], ["Ctrl+S", "Salva", "Modifica"]];
   return {
     bar, panel,
+    keys: KEYS,
+    attach() { hook(); injectCss(); },
     get mode() { return mode; },
     setMode, undoLast,
     escape() { if (!mode) return false; setMode(null); return true; },
