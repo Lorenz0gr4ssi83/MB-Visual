@@ -898,6 +898,16 @@ export async function mount(ctx) {
   return {
     onShow() { resize(); },
     _bcf: { get: bcfGet, async load(store, path) { (await bcfGet()).load(store, path); } }, // usato da ui/js/viewers/bcf.js
+    // ricerca nel progetto (ui/js/search.js): seleziona e inquadra l'elemento IFC trovato
+    selectExpressId(id) {
+      let o = null;
+      model.traverse(m => { if (!o && m.userData.expressID === id) o = m; });
+      if (!o) return false;
+      o = unitOf(o);
+      select([o]);
+      zoomTo(o);
+      return true;
+    },
     saveInPlace: false,
     // formati tecnici (ui/js/export3d.js) + formati mesh di three.js
     saveFormats: ["stp", "step", "ifc", "glb", "gltf", "stl", "obj", "3mf", "dxf", "ply", "wrl", "usdz"],

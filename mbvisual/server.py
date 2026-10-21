@@ -280,6 +280,40 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": False, "errore": t("srv_server.download_onedrive_annullato_non_riuscito")}, 409)
         self._json({**base, "sniff": misc.sniff(str(p))})
 
+    # ------------------------------------------------------------ ricerca nel progetto (mbvisual/search.py, ui/js/search.js)
+    def api_search_status(self, qs):
+        from . import search
+        self._json(search.status(self._path(qs)))
+
+    def api_search_update(self, qs):
+        from . import search
+        self._json(search.update(self._path(qs)))
+
+    def api_search_query(self, qs):
+        from . import search
+        b = self._body_json()
+        self._json(search.search(self._path(qs), b.get("q", ""), b.get("kind", ""), b.get("sub", ""), b.get("from"), b.get("to")))
+
+    def api_search_folders(self, qs):
+        from . import search
+        self._json(search.folders(self._path(qs)))
+
+    def api_search_files(self, qs):
+        from . import search
+        self._json(search.files_in_state(self._path(qs), _q(qs, "state", "nuvola")))
+
+    def api_search_rebuild(self, qs):
+        from . import search
+        self._json(search.rebuild(self._path(qs)))
+
+    def api_search_dwg_pending(self, qs):
+        from . import search
+        self._json(search.dwg_pending(self._path(qs)))
+
+    def api_search_dwg_put(self, qs):
+        from . import search
+        self._json(search.dwg_put(self._path(qs), self._body_json()))
+
     # ------------------------------------------------------------ disegni CAD modificati
     def api_cad_save(self, qs):
         from . import cadedit

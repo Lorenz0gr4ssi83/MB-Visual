@@ -480,3 +480,25 @@ File -> Stampa (Ctrl+P, anche il pulsante/Ctrl+P di pdf.js) e Stampa a lotti (Ct
   stesso host): nelle prove aggiungere `t=` alle richieste /api.
 - ezdxf tronca il foglio ai punti interi (297 mm -> 841 pt) e scala il disegno su quel valore: in compose la pagina di
   ezdxf si posa con il fattore esatto (A0 a 1:10: 1000,003 mm invece di 999,4). Testi: chiavi `print.*` e `srv_stampa.*`.
+
+## Ricerca nel progetto (22/10/2026) - FATTO
+Pannello "Cerca nel progetto" (Ctrl+Maiusc+F o pulsante Cerca di Esplora; usa la cartella di Esplora) = `ui/js/search.js`
++ `ui/css/search.css`; motore `mbvisual/search.py` (API search/*), estrattori `mbvisual/search_extract.py`.
+- Indice SQLite FTS5 per cartella in %LOCALAPPDATA%\MBVisual\indice\<sha1>.sqlite (unicode61 senza accenti, prefix=3);
+  rowid dei blocchi = id file << 20 | n (cancellazione per intervallo). Se una cartella superiore ha gia' un indice si usa
+  quello con filtro sottocartella. Aggiornamento in thread: scansione (stat), rilettura solo dei file cambiati
+  (dimensione/data/VERSION), ricontrollo automatico ogni 120 s delle cartelle usate nell'ultima ora.
+- File solo online di OneDrive (attributi RECALL/OFFLINE): MAI letti; stato "nuvola" = solo nome e proprieta',
+  contenuto quando tornano locali. DWG: stato "dwg", testo letto nell'interfaccia (`ui/js/searchdwg.worker.js`, libredwg
+  in un worker nuovo per ogni disegno) e inviato con search/dwg_put.
+- Blocchi con posizione: loc {page|sheet|slide|line|attach|block} + pos {k: cell|handle|ifc, o: scostamenti, v: valori};
+  `_precise` sceglie la voce con piu' parole trovate. Etichette e avvisi nell'indice = chiavi `search_extract.L(...)`
+  (JSON ["srv_search.x", arg...]) tradotte alla ricerca da `search.tr_label`; i testi aggiunti al contenuto (Da:, Layer:...)
+  sono nella lingua attiva al momento dell'indicizzazione. Testi del pannello: chiavi search.* (5 lingue). Apertura al punto: PDF (pagina + ricerca pdf.js), Monaco (riga),
+  IFC (`selectExpressId` in model3d.js), DXF/DWG (zoom con `__cad` di cad2d); per ONLYOFFICE solo avviso con il punto.
+- Estrattori: PDF (testo e OCR gia' presente, note, metadati; avvisa se scansione senza testo), docx/xlsx/pptx e
+  OpenDocument via XML, doc/xls/ppt binari via olefile (testo approssimato), RTF, testo/codice/HTML, eml/msg/mbox con
+  allegati (anche il loro contenuto), DXF (parser dei codici di gruppo), IFC (STEP: nomi, Pset/Qto, materiali, piano,
+  classificazioni), STEP (PRODUCT), p7m (contenuto firmato), zip/7z (elenco), immagini (EXIF/XMP/PNG text).
+- Collaudo: `python tests/make_search_samples.py <cartella> --copie 3000` poi `python tests/test_search.py <cartella> --nuovo`
+  (47/47). NOTA: nel venv e' installato pymupdf_layout (con pymupdf4llm): `import pymupdf` carica modelli ONNX (11-18 s).

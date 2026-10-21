@@ -840,7 +840,7 @@ function showShortcuts() {
     { group: "MB Visual", keys: "Ctrl+O", desc: tr("app.apri_file_2") }, { group: "MB Visual", keys: "Ctrl+N", desc: tr("app.crea_nuovo_2") },
     { group: "MB Visual", keys: "Ctrl+S", desc: tr("common.salva") }, { group: "MB Visual", keys: "Ctrl+Shift+S", desc: tr("app.salva_nome_anche_altri_formati") },
     { group: "MB Visual", keys: "Ctrl+P", desc: tr("app.stampa_desc") }, { group: "MB Visual", keys: "Ctrl+Shift+P", desc: tr("app.stampa_lotti_desc") },
-    { group: "MB Visual", keys: "Ctrl+W", desc: tr("app.chiudi_file") }, { group: "MB Visual", keys: "Ctrl+Tab", desc: tr("app.file_successivo") }, { group: "MB Visual", keys: "F1", desc: tr("app.questo_elenco") },
+    { group: "MB Visual", keys: "Ctrl+W", desc: tr("app.chiudi_file") }, { group: "MB Visual", keys: "Ctrl+Shift+F", desc: tr("search.scorciatoia") }, { group: "MB Visual", keys: "Ctrl+Tab", desc: tr("app.file_successivo") }, { group: "MB Visual", keys: "F1", desc: tr("app.questo_elenco") },
   ]));
   modal(tr("app.scorciatoie_tastiera"), box);
 }
@@ -936,6 +936,7 @@ async function boot() {
   $("ex-pick").addEventListener("click", chooseExplorerFolder);
   $("ex-up").addEventListener("click", () => exDir && dirName(exDir) && loadDir(dirName(exDir)));
   $("ex-filter").addEventListener("input", renderDir);
+  $("ex-search").addEventListener("click", () => import("./search.js").then(m => m.toggle(true)));
   $("btn-file").addEventListener("click", e => fileMenu(e.currentTarget));
   $("btn-as").addEventListener("click", e => openAsMenu(e.currentTarget));
   $("btn-folder").addEventListener("click", () => active && api("reveal", { path: active.path }));
@@ -944,7 +945,8 @@ async function boot() {
   document.addEventListener("click", e => { if (!e.target.closest(".menu-wrap")) closeMenus(); });
   document.addEventListener("keydown", e => {
     const k = e.key.toLowerCase();
-    if (e.ctrlKey && k === "o") { e.preventDefault(); doOpen(); }
+    if (e.ctrlKey && e.shiftKey && k === "f" && !WEB) { e.preventDefault(); import("./search.js").then(m => m.toggle()); } // ricerca nel progetto
+    else if (e.ctrlKey && k === "o") { e.preventDefault(); doOpen(); }
     else if (e.ctrlKey && k === "n") { e.preventDefault(); doNew(); }
     else if (e.ctrlKey && k === "s") { e.preventDefault(); save(e.shiftKey); }
     else if (e.ctrlKey && k === "p" && !WEB) { e.preventDefault(); doPrint(e.shiftKey); }
@@ -956,5 +958,5 @@ async function boot() {
   renderTabs();
 }
 
-window.MB = { openPaths, openFile, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, activate, modal, askQuit, print: doPrint };
+window.MB = { openPaths, openFile, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, get exDir() { return exDir; }, activate, modal, askQuit, print: doPrint };
 const READY = boot();
