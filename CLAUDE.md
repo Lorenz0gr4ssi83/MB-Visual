@@ -142,6 +142,22 @@ l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.m
   altre si trasformano con `_xf` (prima le linee spostate venivano spostate due volte). Collaudo dalla console:
   `tests/cad_harness.js` (clic simulati in coordinate del disegno).
 
+## Editor di immagini in stile Photoshop (21/10/2026) - FATTO
+Le immagini si aprono in `ui/js/imgedit.js` (da `ui/js/viewers/image.js`): menu Modifica/Immagine/Livello/Seleziona/Filtro/
+Visualizza/Finestra nella barra del visualizzatore, barra opzioni dello strumento, barra strumenti verticale con gli stessi gruppi,
+icone (`ui/js/psicons.js`) e lettere di Photoshop (Maiusc+lettera = strumento successivo del gruppo), pannelli Proprieta'/Regolazioni/
+Cronologia e Livelli. Scorciatoie in `keymap` (F1). Il puntatore resta la freccia: il contorno del pennello e' disegnato sul canvas.
+- Modello: livelli dal basso { kind pixel|text|shape|adjust, c, x, y, opacity, blend (globalCompositeOperation), mask {c,x,y,on} con
+  l'alfa come visibilita' }. I canvas NON si modificano mai sul posto (copia nuova a ogni modifica): la cronologia (50 stati) tiene
+  solo riferimenti. Selezione = canvas alfa grande quanto il documento + contorno (Path2D) per le formiche.
+- `ui/js/imgadjust.js`: regolazioni (anche livelli di regolazione non distruttivi) e filtri; `ui/js/imgfile.js`: PSD con ag-psd
+  (`ui/vendor/ag-psd`, tools/fetch_vendor.py, versione fissa 31.0.2: livelli, maschere, fusione, regolazioni vere; verificato con
+  psd-tools) e ORA con JSZip (attributi mbv:* per testi, forme, regolazioni e maschere; gli altri programmi vedono i pixel).
+- Salva: PSD/ORA con livelli, PNG/JPG/WEBP nel browser, TIFF/BMP/GIF via `api/image_save`. Ctrl+S su un JPG con piu' livelli
+  chiede dove salvare proponendo .psd (come Photoshop).
+- Prove dalla console: `MB.tabs[i].api._ps` (stato, comandi) con eventi puntatore simulati; con il riquadro del browser nascosto
+  requestAnimationFrame e' fermo (anteprime e adattamento allo schermo aspettano che torni visibile).
+
 ## Licenze (21/10/2026) - in corso
 Decisioni dell'utente: Cloudflare Workers + D1 piano GRATUITO (Firebase Blaze scartato: a pagamento), attivazione online,
 1 PC + 2 cellulari per licenza, cambio dispositivo da File -> Account = chiave nuova (la vecchia smette di funzionare

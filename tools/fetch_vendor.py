@@ -40,6 +40,8 @@ PACKAGES = [
      ["package/web-ifc-api.js", "package/web-ifc.wasm", "package/web-ifc-mt.wasm"]),
     ("pdfjs", "https://github.com/mozilla/pdf.js/releases/download/v4.10.38/pdfjs-4.10.38-dist.zip",
      [""]),
+    ("ag-psd", "https://registry.npmjs.org/ag-psd/-/ag-psd-31.0.2.tgz",
+     ["package/dist/bundle.js"]),
 ]
 
 

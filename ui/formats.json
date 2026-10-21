@@ -520,7 +520,7 @@
    "name": "Immagini",
    "viewer": "image",
    "view": "Zoom, adatta, pixel reali, informazioni (dimensioni, EXIF)",
-   "edit": "Ruota, rifletti, ritaglia, ridimensiona, luminosita'/contrasto/saturazione, bianco e nero, disegno a mano, testo; salvataggio nel formato originale o in PNG/JPG/WEBP/TIFF",
+   "edit": "Editor in stile Photoshop: livelli (opacita', metodi di fusione, maschere, regolazioni), strumenti di selezione, pittura, timbro clone, sfumatura, testo e forme, regolazioni (livelli, curve, tonalita'/saturazione, bilanciamento colore...), filtri, trasformazione libera, ritaglio, dimensione immagine e quadro; salvataggio in PSD e ORA con i livelli o in PNG/JPG/WEBP/TIFF/BMP/GIF",
    "exts": [
     "png",
     "apng",
@@ -561,6 +561,7 @@
     "jpf",
     "j2c",
     "psd",
+    "ora",
     "xbm",
     "xpm",
     "im",

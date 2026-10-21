@@ -45,7 +45,7 @@ WEB_EXTS = {
     "pdf": "*", "signed": "*", "word": "*", "sheet": "*", "pptx": "*", "text": "*", "markdown": "*", "svg": "*",
     "html": ["html", "htm", "xhtml", "shtml"],
     "image": ["png", "apng", "jpg", "jpeg", "jpe", "jfif", "pjpeg", "pjp", "gif", "webp", "bmp", "dib", "ico", "cur", "avif", "avifs",
-              "tif", "tiff", "heic", "heif", "hif", "heics", "heifs"],
+              "tif", "tiff", "heic", "heif", "hif", "heics", "heifs", "psd", "ora"],
     "media": ["mp4", "m4v", "mov", "webm", "ogv", "3gp", "mkv"],
     "audio": ["mp3", "wav", "wave", "flac", "ogg", "oga", "opus", "m4a", "aac"],
     "cad2d": ["dwg", "dxf", "dwt"], "cad3d": "*", "mesh3d": "*",
@@ -57,7 +57,7 @@ WEB_EXTS = {
 WEB_NOTES = {
     "media": "Riproduzione dei formati supportati dal browser del dispositivo (la conversione di altri formati e' nella versione per PC)",
     "audio": "Riproduzione con forma d'onda dei formati supportati dal browser del dispositivo",
-    "image": "Zoom, rotazione, ritaglio, regolazioni, disegno e testo; salvataggio in PNG, JPG, WEBP o TIFF",
+    "image": "Editor in stile Photoshop: livelli, maschere, regolazioni, filtri, pennelli, testo e forme; salvataggio in PSD e ORA con i livelli o in PNG, JPG, WEBP, TIFF",
     "archive": "Contenuto ed estrazione dei file; modifica (aggiunta, eliminazione, rinomina) solo per gli archivi ZIP",
     "email": "Messaggi EML e caselle MBOX con allegati (i .msg di Outlook si aprono nella versione per PC)",
 }
