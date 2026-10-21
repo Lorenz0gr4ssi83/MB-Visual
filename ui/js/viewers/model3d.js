@@ -296,9 +296,10 @@ function rhinoTree(obj) {
 
 // ---------------------------------------------------------------- visualizzatore
 async function loadAny(c, ld, info) {
-  const bytes = NAVIS[c.ext] || INVENTOR[c.ext] || PCLOUD[c.ext] || NEUTRAL[c.ext] ? null : await readBytes(c.path); // Navisworks, Inventor e nuvole: li legge il motore nativo
+  const bytes = NAVIS[c.ext] || INVENTOR[c.ext] || PCLOUD[c.ext] || NEUTRAL[c.ext] || c.preloaded ? null : await readBytes(c.path); // Navisworks, Inventor e nuvole: li legge il motore nativo
   let loaded;
-  if (PCLOUD[c.ext]) {
+  if (c.preloaded) loaded = await c.preloaded(ld); // geometria gia' letta da un altro visualizzatore (es. modelli 3D dei DWF)
+  else if (PCLOUD[c.ext]) {
     const { loadPointCloud } = await import("../pointcloud.js");
     loaded = await loadPointCloud(c, ld, info);
     if (loaded) { loaded.root.name = c.name; return loaded; }

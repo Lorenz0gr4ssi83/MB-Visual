@@ -978,6 +978,18 @@
    ]
   },
   {
+   "id": "dwf",
+   "name": "Pubblicazioni Autodesk DWF / DWFx",
+   "viewer": "dwf",
+   "view": "Elenco dei fogli con miniature, fogli 2D vettoriali (W2D e XPS) con zoom/pan, layer, testi e ricerca, proprieta' degli oggetti (AutoCAD, Revit, Inventor), marcature di revisione, misure di distanza e area in unita' del disegno, modelli 3D W3D nel visualizzatore 3D",
+   "edit": "Esportazione in PDF vettoriale (tutti i fogli), SVG e PNG del foglio aperto",
+   "exts": [
+    "dwf",
+    "dwfx",
+    "w2d"
+   ]
+  },
+  {
    "id": "cad3d",
    "name": "Modelli CAD 3D (STEP, IGES, BREP)",
    "viewer": "model3d",
