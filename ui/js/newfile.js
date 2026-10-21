@@ -23,6 +23,7 @@ const TYPES = [
     ["docx", "Documento Word", "Nuovo documento", () => tpl("vuoto.docx"), "doc", "Testi, relazioni, lettere"],
     ["xlsx", "Cartella di lavoro Excel", "Nuovo foglio", () => tpl("vuoto.xlsx"), "sheet", "Tabelle, calcoli, computi"],
     ["pptx", "Presentazione PowerPoint", "Nuova presentazione", () => tpl("vuoto.pptx"), "slide", "Diapositive"],
+    ["mbpub", "Pubblicazione", "Nuova pubblicazione", () => import("./pubmodel.js").then(m => m.blankMbpub()), "pub", "Volantini, brochure, biglietti, newsletter"],
     ["pdf", "Documento PDF", "Nuovo PDF", () => tpl("vuoto_A4.pdf"), "page", "Moduli, testi, immagini"],
     ["dxf", "Disegno CAD", "Nuovo disegno", () => tpl("vuoto.dxf"), "cad", "Si apre in AutoCAD e in ogni CAD"],
     ["png", "Immagine", "Nuova immagine", () => canvasImage(1920, 1080, "image/png"), "image-l", "Disegno, fotoritocco, livelli"],
@@ -32,7 +33,7 @@ const TYPES = [
 
 // icona del programma (colori e iniziale come le app originali, senza marchi)
 const APP = {
-  docx: ["#185abd", "W"], xlsx: ["#107c41", "X"], csv: ["#107c41", "a,b"], pptx: ["#c43e1c", "P"], pdf: ["#d93025", "PDF"], dxf: ["#c0392b", "DXF"],
+  docx: ["#185abd", "W"], xlsx: ["#107c41", "X"], csv: ["#107c41", "a,b"], pptx: ["#c43e1c", "P"], mbpub: ["#077568", "P"], pdf: ["#d93025", "PDF"], dxf: ["#c0392b", "DXF"],
   txt: ["#5f6b76", "TXT"], md: ["#37474f", "MD"], html: ["#e65100", "</>"], json: ["#6a4fb3", "{ }"], xml: ["#00838f", "XML"], py: ["#2b6cb0", "PY"], bat: ["#3c3c3c", "BAT"],
   png: ["#0078d4", "PNG"], jpg: ["#0078d4", "JPG"], svg: ["#f57c00", "SVG"], sqlite: ["#0f6d8c", "DB"],
 };
@@ -52,7 +53,8 @@ function thumb(kind, color) {
     for (let i = 0; i <= 6; i++) inner += `<line x1="${x}" y1="${y + 8 + i * 11}" x2="${x + W}" y2="${y + 8 + i * 11}" stroke="#dfe3e7"/>`;
     for (let j = 0; j <= 5; j++) inner += `<line x1="${x + 14 + j * 20}" y1="${y}" x2="${x + 14 + j * 20}" y2="${y + H}" stroke="#dfe3e7"/>`;
     inner += `<rect x="${x + 14}" y="${y + 8}" width="20" height="11" fill="none" stroke="${color}" stroke-width="1.6"/>`;
-  } else if (kind === "slide") inner = `<rect x="${x + 22}" y="${y + 24}" width="${W - 44}" height="8" rx="2" fill="#c9ced3"/><rect x="${x + 34}" y="${y + 38}" width="${W - 68}" height="5" rx="2" fill="#dfe3e7"/>`;
+  } else if (kind === "pub") inner = `<rect x="${x}" y="${y}" width="${W}" height="${H * 0.3}" fill="${color}" opacity=".85"/><rect x="${x + 8}" y="${y + 9}" width="${W * 0.55}" height="5" rx="2" fill="#fff"/><rect x="${x + 8}" y="${y + H * 0.36}" width="${W - 16}" height="${H * 0.28}" fill="#dfe3e7"/><path d="M${x + 12} ${y + H * 0.6} l10 -9 7 6 5 -4 10 7z" fill="#c9ced3"/>` + Array.from({ length: 3 }, (_, i) => `<rect x="${x + 8}" y="${y + H * 0.7 + i * 7}" width="${(W - 20) / 2}" height="3" rx="1.5" fill="#dfe3e7"/><rect x="${x + W / 2 + 2}" y="${y + H * 0.7 + i * 7}" width="${(W - 20) / 2}" height="3" rx="1.5" fill="#dfe3e7"/>`).join("");
+  else if (kind === "slide") inner = `<rect x="${x + 22}" y="${y + 24}" width="${W - 44}" height="8" rx="2" fill="#c9ced3"/><rect x="${x + 34}" y="${y + 38}" width="${W - 68}" height="5" rx="2" fill="#dfe3e7"/>`;
   else if (kind.startsWith("page")) inner = "";
   else if (kind === "cad") inner = `<path d="M${x + 20} ${y + 55} L${x + 50} ${y + 25} L${x + 85} ${y + 45}" fill="none" stroke="${color}" stroke-width="1.4"/><circle cx="${x + 50}" cy="${y + 25}" r="2" fill="${color}"/><circle cx="${x + 68}" cy="${y + 50}" r="12" fill="none" stroke="#7a8691"/>`;
   else if (kind === "cad-sheet") inner = `<rect x="${x + 4}" y="${y + 4}" width="${W - 8}" height="${H - 8}" fill="none" stroke="#7a8691" stroke-width="1.2"/><rect x="${x + W - 48}" y="${y + H - 22}" width="44" height="18" fill="none" stroke="#7a8691"/><line x1="${x + W - 48}" y1="${y + H - 13}" x2="${x + W - 4}" y2="${y + H - 13}" stroke="#7a8691"/><line x1="${x + W - 20}" y1="${y + H - 22}" x2="${x + W - 20}" y2="${y + H - 13}" stroke="#7a8691"/>`;

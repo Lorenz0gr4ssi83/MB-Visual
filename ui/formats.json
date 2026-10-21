@@ -87,6 +87,17 @@
    ]
   },
   {
+   "id": "publisher",
+   "name": "Pubblicazioni (Publisher)",
+   "viewer": "publisher",
+   "view": "Pagine impaginate con caselle di testo collegate, immagini, forme, tabelle, WordArt e pagine master",
+   "edit": "Editor in stile Publisher (MBPUB modificabile, esportazione PDF/PNG/JPG); i .pub di Publisher si importano (impaginazione completa con Publisher installato, altrimenti testo e immagini)",
+   "exts": [
+    "mbpub",
+    "pub"
+   ]
+  },
+  {
    "id": "office-lo",
    "name": "Altri documenti Office e OpenDocument",
    "viewer": "office",
@@ -112,7 +123,6 @@
     "vsd",
     "vsdx",
     "vsdm",
-    "pub",
     "wpd",
     "wps",
     "wpt",

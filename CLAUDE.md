@@ -194,3 +194,20 @@ ode-x64 e wrangler installato in
   `tools/license_setup.py chiavi` (scrive LICENSE_URL in license_pub.py) e fare una build SOLO quando l'utente ha creato le
   licenze per se' e i colleghi con MB Visual Admin. Poi rendere privato il repository MB-Visual (lo fa l'utente; prima
   spostare/spegnere la web app di GitHub Pages, sostituita dall'app per cellulari sul server).
+
+## Editor di pubblicazioni in stile Publisher (21/10/2026) - FATTO
+Formato proprio `.mbpub` (zip: document.json + immagini/ + anteprima.png), categoria `publisher` in formats.json (anche `.pub`,
+tolto da office-lo), voce "Pubblicazione" in Crea nuovo (un file vuoto; i modelli si scelgono nella galleria che si apre da sola).
+- `ui/js/pubmodel.js` modello (punti tipografici; colori "sN"/"sN:tinta" della combinazione, caratteri "+t"/"+b"; storie =
+  caratteri con stile condiviso, "\n" porta le proprieta' del paragrafo, U+2028 a capo, U+FFFC campi pagina/data/unione),
+  `pubtext.js` impaginazione del testo nelle caselle collegate (colonne, giustificato, elenchi, contorno attorno agli oggetti),
+  `pubrender.js` disegno unico per schermo/miniature/PDF (CanvasPainter e RecordPainter), forme, matrici,
+  `pubedit.js` editor (selezione, maniglie, rotazione, aggancio a guide/margini/oggetti, gruppi, ritaglio, testo, cronologia,
+  tasti in keymap), `pubribbon.js` barra multifunzione e finestre, `pubcmds.js` comandi, `pubtemplates.js` 15 modelli,
+  `pubexport.js` esportazioni, `pubicons.js`, `ui/css/publisher.css`, `ui/js/viewers/publisher.js`.
+- PDF: `mbvisual/publisher.py` (API pub_pdf) con caratteri di Windows dal registro (grassetto/corsivo simulati se manca il file);
+  morph di PyMuPDF lavora con y verso l'alto: la matrice del testo va coniugata (b e c col segno cambiato).
+  Web app: PDF di ripiego con le pagine come immagini.
+- `.pub`: API pub_import (job). Con Publisher installato tutto via COM (pagine, caselle collegate, forme, tabelle, WordArt;
+  il resto con SaveAsPicture); senza Publisher solo testo (Quill/QuillSub/CONTENTS) e immagini. Colori COM = BGR.
+- Prove dalla console: `MB.tabs[i].api._pb` (interfaccia E) e `E._pb` (stato, toPage/toScreen, canvas per eventi simulati).

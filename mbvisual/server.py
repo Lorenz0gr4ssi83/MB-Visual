@@ -496,6 +496,15 @@ class Handler(BaseHTTPRequestHandler):
     def api_pdf_signatures(self, qs):
         self._json(signed.pdf_signatures(self._path(qs)))
 
+    # ------------------------------------------------------------ pubblicazioni (editor in stile Publisher)
+    def api_pub_pdf(self, qs):
+        from . import publisher
+        self._json(publisher.export_pdf(self._body(), self._path(qs)))
+
+    def api_pub_import(self, qs):
+        from . import publisher
+        self._json({"ok": True, "job": jobs.start(publisher.import_pub, self._path(qs))})
+
     # ------------------------------------------------------------ archivi
     def api_archive_list(self, qs):
         self._json(archive.list_entries(self._path(qs), _q(qs, "password")))
