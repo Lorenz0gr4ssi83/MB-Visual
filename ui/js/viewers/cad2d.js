@@ -3,6 +3,7 @@ import { api, button, el, loading, readBytes, saveBlobAs, toast, withExt, WEB } 
 import { createCadEditor } from "../cadedit.js";
 import { parseDxf } from "../dxf.js";
 import { I, TAU, R2D, mul, ap, apv, det, similar, arcPts, sweepPts, bulgeArc, bulgePts, splinePts, textLayout, patternDefLines, hatchSegments, dimGeom, dimTextEntity, osnap, drawSnapMarker } from "../cadgeom.js";
+import { LOCALE } from "../i18n.js";
 
 
 // ---------------------------------------------------------------- colori ACI
@@ -511,7 +512,7 @@ export async function mount(ctx) {
       if (msnap) { const [x, y] = toScreen(msnap.x, msnap.y); drawSnapMarker(g2, x, y, msnap.k, dpr); }
     }
   }
-  const fmt = v => v.toLocaleString("it-IT", { maximumFractionDigits: 4 });
+  const fmt = v => v.toLocaleString(LOCALE, { maximumFractionDigits: 4 });
 
   function zoomAt(f, px = canvas.width / 2, py = canvas.height / 2) {
     view.tx = px - (px - view.tx) * f;
@@ -619,7 +620,7 @@ export async function mount(ctx) {
     await saveBlobAs(withExt(ctx.name, "svg"), new Blob([parts.join("")], { type: "image/svg+xml" }), ctx.path.replace(/[\\/][^\\/]*$/, ""));
   }
 
-  ctx.status(`${model.groups.reduce((n, g) => n + g.lines.length, 0).toLocaleString("it-IT")} elementi · ${model.texts.length} testi`);
+  ctx.status(`${model.groups.reduce((n, g) => n + g.lines.length, 0).toLocaleString(LOCALE)} elementi · ${model.texts.length} testi`);
   if (editor && !editor.on) editor.toggle(); // strumenti di modifica visibili da subito, come in AutoCAD
   return {
     onShow() { resize(); draw(); },

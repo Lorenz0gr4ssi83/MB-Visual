@@ -1,3 +1,4 @@
+import { LOCALE } from "../i18n.js";
 // Modelli 3D: CAD (STEP/IGES/BREP con OpenCascade), BIM (IFC con web-ifc), mesh (STL, OBJ, GLB, FBX...).
 // Navigazione orbitale, albero parti, nascondi/isola, sezioni, misure, filo di ferro, proprieta' BIM, esportazione.
 import * as THREE from "three";
@@ -175,7 +176,7 @@ async function loadIfc(ctx, bytes, ld, info) {
     const STEP = 1500;
     for (let s = 0; s < ids.length; s += STEP) {
       ifc.StreamMeshes(modelID, ids.slice(s, s + STEP), onMesh);
-      ld.set(0.3 + 0.55 * Math.min(1, (s + STEP) / ids.length), `Geometria: ${Math.min(ids.length, s + STEP).toLocaleString("it-IT")} di ${ids.length.toLocaleString("it-IT")} elementi`);
+      ld.set(0.3 + 0.55 * Math.min(1, (s + STEP) / ids.length), `Geometria: ${Math.min(ids.length, s + STEP).toLocaleString(LOCALE)} di ${ids.length.toLocaleString(LOCALE)} elementi`);
       await new Promise(r => setTimeout(r, 0));
     }
   } else ifc.StreamAllMeshes(modelID, onMesh);
@@ -437,12 +438,12 @@ export async function mount(ctx) {
     const dl = el("dl", { class: "kv stack" });
     const add = (k, v) => v !== undefined && v !== null && v !== "" && dl.append(el("dt", {}, k), el("dd", {}, String(v)));
     if (one) add("Nome", one.name);
-    else add("Elementi selezionati", objs.length.toLocaleString("it-IT"));
+    else add("Elementi selezionati", objs.length.toLocaleString(LOCALE));
     add("Ingombro (X × Y × Z)", `${fmt(s.x)} × ${fmt(s.y)} × ${fmt(s.z)}`);
     add("Centro", `${fmt(c.x)} ; ${fmt(c.y)} ; ${fmt(c.z)}`);
     let tri = 0;
     for (const o of objs) o.traverse(m => { if (m.isMesh && m.geometry) tri += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
-    add("Triangoli", Math.round(tri).toLocaleString("it-IT"));
+    add("Triangoli", Math.round(tri).toLocaleString(LOCALE));
     if (one) {
       const path = [];
       for (let p = one.parent; p && p !== model; p = p.parent) if (p.name) path.unshift(p.name);
@@ -659,7 +660,7 @@ export async function mount(ctx) {
     });
     const list = [...found];
     select(multi ? [...selection, ...list] : list);
-    ctx.status(`${selection.length.toLocaleString("it-IT")} elementi selezionati`);
+    ctx.status(`${selection.length.toLocaleString(LOCALE)} elementi selezionati`);
   }
   const isVisibleChain = o => { while (o) { if (!o.visible) return false; o = o.parent; } return true; };
   const distLabel = el("div", { hidden: true, style: { position: "absolute", left: "12px", bottom: "12px", padding: "6px 12px", background: "rgba(0,0,0,.75)", color: "#fff", borderRadius: "6px", fontWeight: 600 } });
@@ -783,7 +784,7 @@ export async function mount(ctx) {
   requestAnimationFrame(() => { resize(); fit(); });
   let tri = 0;
   model.traverse(m => { if (m.isMesh && m.geometry && !m.userData.merged) tri += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
-  ctx.status((info.status ? info.status + " · " : "") + Math.round(tri).toLocaleString("it-IT") + " triangoli");
+  ctx.status((info.status ? info.status + " · " : "") + Math.round(tri).toLocaleString(LOCALE) + " triangoli");
 
   return {
     onShow() { resize(); },
@@ -833,4 +834,4 @@ export async function mount(ctx) {
   };
 }
 
-const fmt = v => Number(v).toLocaleString("it-IT", { maximumFractionDigits: 3 });
+const fmt = v => Number(v).toLocaleString(LOCALE, { maximumFractionDigits: 3 });

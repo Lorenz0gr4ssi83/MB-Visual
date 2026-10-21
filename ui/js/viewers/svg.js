@@ -1,6 +1,7 @@
 // SVG: disegno vettoriale con zoom, codice modificabile, esportazione PNG.
 import { button, dirName, el, saveBlobAs, withExt } from "../core.js";
 import { mount as mountText } from "./text.js";
+import { t } from "../i18n.js";
 
 export async function mount(ctx) {
   const left = el("div", { style: { height: "100%", position: "relative" } });
@@ -17,9 +18,9 @@ export async function mount(ctx) {
   const apply = () => (img.style.transform = `scale(${zoom})`);
   const sub = await mountText({ ...ctx, el: left, fillBody() {} }, {
     wrap: true, onChange: render, extraTools: [
-      button("", "zoomIn", () => { zoom *= 1.25; apply(); }, { iconOnly: true, title: "Ingrandisci" }),
-      button("", "zoomOut", () => { zoom /= 1.25; apply(); }, { iconOnly: true, title: "Riduci" }),
-      button("Esporta PNG", "download", async () => {
+      button("", "zoomIn", () => { zoom *= 1.25; apply(); }, { iconOnly: true, title: t("v_svg.ingrandisci") }),
+      button("", "zoomOut", () => { zoom /= 1.25; apply(); }, { iconOnly: true, title: t("v_svg.riduci") }),
+      button(t("v_svg.esporta_png"), "download", async () => {
         const w = img.naturalWidth || 1024, h = img.naturalHeight || 1024, k = Math.max(1, 2048 / Math.max(w, h));
         const c = document.createElement("canvas");
         c.width = w * k; c.height = h * k;

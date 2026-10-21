@@ -1,21 +1,22 @@
 // Pubblicazioni (.mbpub, formato proprio di MB Visual) nell'editor in stile Publisher (ui/js/pubedit.js).
 // I file di Microsoft Publisher (.pub) si importano (mbvisual/publisher.py): con Publisher installato tutta
 // l'impaginazione, altrimenti solo testo e immagini; si salvano poi come .mbpub o si esportano in PDF.
+import { t } from "../i18n.js";
 import { api, loading, readBytes, toast, waitJob, withExt, extOf, WEB } from "../core.js";
 import { readMbpub, writeMbpub, newDoc, normalizeDoc, newId, S, MM, imageBox, shapeBox, wordArt, baseObj } from "../pubmodel.js";
 import { createPublisher } from "../pubedit.js";
 import { exportPdfFile, exportImages, thumbnailPng } from "../pubexport.js";
 
 export async function mount(ctx) {
-  const ld = loading(ctx.el, "Apertura della pubblicazione");
+  const ld = loading(ctx.el, t("v_publisher.apertura_pubblicazione"));
   const isPub = ctx.ext === "pub";
   let doc, note = null;
   if (isPub) {
-    if (WEB) throw new Error("I file di Publisher (.pub) si aprono solo nell'app per PC");
+    if (WEB) throw new Error(t("v_publisher.i_file_publisher_pub_si"));
     const { job } = await api("pub_import", { path: ctx.path });
-    const r = await waitJob(job, (p, m) => ld.set(p, m || "Lettura del file di Publisher"));
+    const r = await waitJob(job, (p, m) => ld.set(p, m || t("v_publisher.lettura_file_publisher")));
     doc = await fromImport(r);
-    note = r.nota || (r.mode === "publisher" ? "File di Publisher importato: salvalo come .mbpub per conservarlo modificabile, o esportalo in PDF." : null);
+    note = r.nota || (r.mode === "publisher" ? t("v_publisher.file_publisher_importato_salvalo_come") : null);
   } else {
     const bytes = await readBytes(ctx.path);
     doc = bytes.length ? await readMbpub(bytes) : newDoc();
@@ -27,15 +28,15 @@ export async function mount(ctx) {
 
   return {
     saveFormats: WEB ? ["mbpub", "pdf", "png", "jpg"] : ["mbpub", "pdf", "png", "jpg"],
-    saveLabels: { mbpub: "Pubblicazione MB Visual (modificabile)", pdf: WEB ? "PDF (pagine come immagini)" : "PDF per la stampa (testo e grafica vettoriali)", png: "Immagine PNG per pagina (200 dpi)", jpg: "Immagine JPEG per pagina (200 dpi)" },
-    saveNote: "MBPUB conserva tutto modificabile; PDF, PNG e JPG sono esportazioni. Il formato .pub di Publisher non si puo' scrivere.",
+    saveLabels: { mbpub: t("v_publisher.pubblicazione_mb_visual_modificabile"), pdf: WEB ? t("v_publisher.pdf_pagine_come_immagini") : t("v_publisher.pdf_stampa_testo_grafica_vettoriali"), png: t("v_publisher.immagine_png_pagina_200_dpi"), jpg: t("v_publisher.immagine_jpeg_pagina_200_dpi") },
+    saveNote: t("v_publisher.mbpub_conserva_tutto_modificabile_pdf"),
     saveInPlace: !isPub,
     saveAsName: () => withExt(ctx.tab.name, "mbpub"),
     async save(path) {
       const ext = extOf(path);
       const D = E.doc();
       if (ext === "pdf") { await exportPdfFile(E, path); return { switchTo: false }; }
-      if (ext === "png" || ext === "jpg" || ext === "jpeg") { const f = await exportImages(D, path); if (f.length > 1) toast(`Salvate ${f.length} immagini (una per pagina)`); return { switchTo: false }; }
+      if (ext === "png" || ext === "jpg" || ext === "jpeg") { const f = await exportImages(D, path); if (f.length > 1) toast(t("v_publisher.salvate_0_immagini_pagina", f.length)); return { switchTo: false }; }
       let thumb = null;
       try { thumb = await thumbnailPng(D); } catch { /* */ }
       await api("save", { path }, { body: await writeMbpub(D, thumb) });
@@ -64,7 +65,7 @@ export async function mount(ctx) {
 // risultato di mbvisual/publisher.import_pub -> documento
 async function fromImport(r) {
   const doc = newDoc(r.w / MM, r.h / MM);
-  doc.scheme = { name: "Importata", c: ["#000000", "#1f4e79", "#2e75b6", "#c55a11", "#7f7f7f", "#ffffff"] };
+  doc.scheme = { name: t("v_publisher.importata"), c: ["#000000", "#1f4e79", "#2e75b6", "#c55a11", "#7f7f7f", "#ffffff"] };
   doc.pages = [];
   const imgIds = {};
   for (const [k, path] of Object.entries(r.images || {})) {
@@ -126,7 +127,7 @@ async function fromImport(r) {
     }
     return null;
   };
-  doc.masters = [{ id: "A", name: "Pagina master A", items: (r.masters?.[0]?.items || []).map(conv).filter(Boolean) }];
+  doc.masters = [{ id: "A", name: t("v_publisher.pagina_master"), items: (r.masters?.[0]?.items || []).map(conv).filter(Boolean) }];
   for (const p of r.pages || []) {
     const pg = { id: newId(doc, "p"), master: "A", items: (p.items || []).map(conv).filter(Boolean), guides: { v: [], h: [] }, bg: null };
     doc.pages.push(pg);

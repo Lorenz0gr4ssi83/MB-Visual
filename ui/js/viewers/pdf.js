@@ -1,3 +1,4 @@
+import { LOCALE } from "../i18n.js";
 // PDF con il visualizzatore di Mozilla (pdf.js): pagine, ricerca, stampa, annotazioni; firme PAdES.
 import { api, baseName, button, dirName, el, fileUrl, modal, pickFiles, pickFolder, pickSavePath, toast, waitJob, WEB } from "../core.js";
 import { createPdfEditor, PDFJS_HIDE } from "../pdfeditor.js";
@@ -85,7 +86,7 @@ export async function mount(ctx) {
       if (await ask("Filigrana diagonale", [f.row, p.row])) run("stamp", { text: f.input.value, mode: "filigrana", pages: p.input.value }, stem + "_filigrana.pdf");
     }, "Testo diagonale semitrasparente su ogni pagina"],
     ["Timbro", "sign", async () => {
-      const today = new Date().toLocaleDateString("it-IT");
+      const today = new Date().toLocaleDateString(LOCALE);
       const f = el("textarea", { id: "pdf-st-" + ctx.tab.name, rows: 3, class: "field", style: { width: "100%", fontFamily: "var(--ui)" } }, `APPROVATO\nMB Engineering srl\n${today}`);
       const p = field("Pagine (vuoto = tutte)", "1", "pdf-stp");
       if (await ask("Timbro in alto a destra", [el("label", { style: { display: "grid", gap: "4px" } }, "Testo del timbro (una riga per riga)", f), p.row])) run("stamp", { text: f.value, mode: "timbro", pages: p.input.value }, stem + "_timbrato.pdf");

@@ -1,5 +1,6 @@
 // Caratteri: anteprima a piu' dimensioni con testo personalizzabile e tabella dei glifi.
 import { el, fileUrl } from "../core.js";
+import { t } from "../i18n.js";
 
 export async function mount(ctx) {
   const family = "mbv-font-" + Math.random().toString(36).slice(2);
@@ -17,7 +18,7 @@ export async function mount(ctx) {
   const ranges = [[0x20, 0x7e], [0xa0, 0x17f], [0x2000, 0x206f], [0x20a0, 0x20bf], [0x2190, 0x21ff], [0x2200, 0x22ff]];
   for (const [a, b] of ranges) for (let c = a; c <= b; c++) glyphs.append(el("div", { title: "U+" + c.toString(16).toUpperCase().padStart(4, "0"), style: { border: "1px solid var(--line)", borderRadius: "4px", textAlign: "center", padding: "4px 0" } }, String.fromCodePoint(c)));
   box.append(el("h2", { style: { margin: 0, fontFamily: `"${family}"`, fontSize: "34px" } }, ctx.name), sample,
-    ...sizes.map((s, i) => el("div", {}, el("span", { class: "note" }, s + " px"), lines[i])), el("h3", { style: { marginBottom: 0 } }, "Caratteri"), glyphs);
+    ...sizes.map((s, i) => el("div", {}, el("span", { class: "note" }, s + " px"), lines[i])), el("h3", { style: { marginBottom: 0 } }, t("v_font.caratteri")), glyphs);
   ctx.el.append(box);
   return {};
 }

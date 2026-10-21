@@ -91,7 +91,7 @@ def js_literals(src: str):
                         if not depth:
                             break
                     k += 1
-                exprs.append(src[start:k])
+                exprs.append((src[start:k], start))  # testo e posizione nel file
                 j = k + 1
                 continue
             buf.append(c)
@@ -127,7 +127,7 @@ def js_literals(src: str):
                 # letterali dentro ${}: rianalizzati a parte
                 sub = js_literals(src[a:b])
                 for (x, y, q, p, e) in sub:
-                    out.append((a + x, a + y, q, p, e))
+                    out.append((a + x, a + y, q, p, [(et, a + es) for et, es in e]))
             i = j
             last = "str"
             continue
@@ -427,7 +427,8 @@ def apply_plan(plan: Path) -> None:
     out = src
     count = 0
     fn = tname(src, path)
-    for i in sorted(chosen, reverse=True):
+    sel = []
+    for i in sorted(chosen):
         c = cands[i]
         key, text = chosen[i]
         if catalog_text(c) != text:
@@ -435,12 +436,34 @@ def apply_plan(plan: Path) -> None:
         if key in it and it[key] != text:
             sys.exit(f"Chiave {key} gia' usata con un altro testo: {it[key]!r}")
         it[key] = text
-        args = "".join(", " + e.strip() for e in c["exprs"])
-        out = out[:c["a"]] + f'{fn}("{key}"{args})' + out[c["b"]:]
-        count += 1
+        sel.append((c, key))
+
+    def top_level(items):
+        return [x for x in items if not any(o is not x and o[0]["a"] <= x[0]["a"] and x[0]["b"] <= o[0]["b"] for o in items)]
+
+    def render(c, key):
+        # i testi dentro ${...} di un template scelto si traducono dentro l'argomento
+        args = []
+        for e in c["exprs"]:
+            et, es = e if isinstance(e, tuple) else (e, None)
+            if es is not None:
+                inner = top_level([x for x in sel if x[0] is not c and x[0]["a"] >= es and x[0]["b"] <= es + len(et)])
+                for ic, ik in sorted(inner, key=lambda x: -x[0]["a"]):
+                    et = et[:ic["a"] - es] + render(ic, ik) + et[ic["b"] - es:]
+            args.append(et.strip())
+        return f'{fn}("{key}"' + "".join(", " + x for x in args) + ")"
+
+    for c, key in sorted(top_level(sel), key=lambda x: -x[0]["a"]):
+        out = out[:c["a"]] + render(c, key) + out[c["b"]:]
+    count = len(sel)
     if count and path.suffix == ".py" and not re.search(r"^from (?:\.|mbvisual\.)i18n import t\b", out, re.M):
         out = _add_py_import(out, path, fn)
-    if count and path.suffix == ".js" and not re.search(r"^import \{[^}]*\} from \"[./]+(?:js/)?i18n\.js\";", out, re.M):
+    m = re.search(r"^import \{([^}]*)\} from \"[./]+(?:js/)?i18n\.js\";", out, re.M) if path.suffix == ".js" else None
+    if count and m and not re.search(r"(?:^|,)\s*t\b", m.group(1)):
+        # import di i18n.js gia' presente (es. solo LOCALE): si aggiunge la funzione di traduzione
+        name = "t" if fn == "t" else "t as " + fn
+        out = out[:m.start(1)] + " " + name + "," + m.group(1) + out[m.end(1):]
+    if count and path.suffix == ".js" and not m:
         rel = "../i18n.js" if path.parent.name == "viewers" else "./i18n.js"
         imp = f'import {{ {"t" if fn == "t" else "t as " + fn} }} from "{rel}";\n'
         # dopo l'ultimo import in testa al file

@@ -3,15 +3,16 @@
 import { api, dirName, loading, readBytes } from "../core.js";
 import { createVideoEditor } from "../videdit.js";
 import { newProject } from "../vidmodel.js";
+import { t } from "../i18n.js";
 
 export async function mount(ctx) {
-  loading(ctx.el, "Apertura del progetto video");
+  loading(ctx.el, t("v_video.apertura_progetto_video"));
   let P;
   const text = new TextDecoder().decode(await readBytes(ctx.path)).trim();
   if (!text) P = newProject();
   else {
-    try { P = JSON.parse(text); } catch { throw new Error("Il file non e' un progetto video MB Visual valido"); }
-    if (!P.mbvid) throw new Error("Il file non e' un progetto video MB Visual (manca l'intestazione mbvid)");
+    try { P = JSON.parse(text); } catch { throw new Error(t("v_video.file_non_progetto_video_mb")); }
+    if (!P.mbvid) throw new Error(t("v_video.file_non_progetto_video_mb_2"));
     P = { ...newProject(P.settings), ...P };
     P.settings = { ...newProject().settings, ...P.settings };
   }
@@ -26,6 +27,6 @@ export async function mount(ctx) {
   }
   const off = P.media.filter(m => m.offline).length;
   const api_ = createVideoEditor(ctx, P, { openSourceFirst: !!ctx.openSource });
-  if (off) setTimeout(() => ctx.status(`${off} supporti non in linea: clic destro nel pannello Progetto > Collega supporto`), 500);
+  if (off) setTimeout(() => ctx.status(t("v_video.0_supporti_non_linea_clic", off)), 500);
   return api_;
 }

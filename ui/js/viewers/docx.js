@@ -1,5 +1,6 @@
 // Word: vista fedele (docx-preview) e modifica con editor formattato; salvataggio in DOCX.
 import { api, button, el, loadScript, readBytes, withExt } from "../core.js";
+import { t } from "../i18n.js";
 
 
 
@@ -38,26 +39,26 @@ export async function mount(ctx) {
   }
 
   const cmd = (c, v) => () => { document.execCommand(c, false, v); editor?.focus(); ctx.setDirty(true); };
-  const block = el("select", { title: "Stile paragrafo", id: "docx-block-" + ctx.tab.name, onchange: e => { cmd("formatBlock", e.target.value)(); e.target.value = ""; } },
-    el("option", { value: "" }, "Stile..."), el("option", { value: "p" }, "Normale"), el("option", { value: "h1" }, "Titolo 1"),
-    el("option", { value: "h2" }, "Titolo 2"), el("option", { value: "h3" }, "Titolo 3"));
+  const block = el("select", { title: t("v_docx.stile_paragrafo"), id: "docx-block-" + ctx.tab.name, onchange: e => { cmd("formatBlock", e.target.value)(); e.target.value = ""; } },
+    el("option", { value: "" }, t("v_docx.stile")), el("option", { value: "p" }, t("v_docx.normale")), el("option", { value: "h1" }, t("v_docx.titolo_1")),
+    el("option", { value: "h2" }, t("v_docx.titolo_2")), el("option", { value: "h3" }, t("v_docx.titolo_3")));
   const fmt = el("span", { style: { display: "contents" } }, el("span", { class: "sep" }), block,
-    button("G", null, cmd("bold"), { title: "Grassetto (Ctrl+B)" }), button("C", null, cmd("italic"), { title: "Corsivo (Ctrl+I)" }),
-    button("S", null, cmd("underline"), { title: "Sottolineato (Ctrl+U)" }),
-    button("Elenco", null, cmd("insertUnorderedList")), button("Numerato", null, cmd("insertOrderedList")),
-    button("", "undo", cmd("undo"), { iconOnly: true, title: "Annulla" }), button("", "redo", cmd("redo"), { iconOnly: true, title: "Ripeti" }));
+    button("G", null, cmd("bold"), { title: t("v_docx.grassetto_ctrl_b") }), button("C", null, cmd("italic"), { title: t("v_docx.corsivo_ctrl_i") }),
+    button("S", null, cmd("underline"), { title: t("v_docx.sottolineato_ctrl_u") }),
+    button(t("v_docx.elenco"), null, cmd("insertUnorderedList")), button(t("v_docx.numerato"), null, cmd("insertOrderedList")),
+    button("", "undo", cmd("undo"), { iconOnly: true, title: t("common.annulla_op") }), button("", "redo", cmd("redo"), { iconOnly: true, title: t("common.ripeti") }));
   fmt.hidden = true;
-  const viewBtn = button("Vista originale", "eye", showView);
-  const editBtn = button("Modifica testo", "edit", showEdit);
+  const viewBtn = button(t("v_docx.vista_originale"), "eye", showView);
+  const editBtn = button(t("v_docx.modifica_testo"), "edit", showEdit);
   ctx.tb.append(viewBtn, editBtn, fmt, el("span", { class: "grow" }),
-    el("span", { class: "note" }, "In modifica si mantengono testi, titoli, grassetti, elenchi, tabelle e immagini; impaginazioni complesse vengono semplificate."));
+    el("span", { class: "note" }, t("v_docx.modifica_si_mantengono_testi_titoli")));
   await showView();
 
   return {
     saveInPlace: false,
     saveAsName: () => withExt(ctx.name.replace(/(\.[^.]+)$/, "_modificato$1"), "docx"),
     async save(target) {
-      if (mode !== "edit" || !editor) throw new Error("Passa a \"Modifica testo\" per modificare il documento prima di salvarlo.");
+      if (mode !== "edit" || !editor) throw new Error(t("v_docx.passa_modifica_testo_modificare_documento"));
       await api("docx_save", { path: target }, { json: { html: editor.innerHTML, title: ctx.name } });
       return { switchTo: false };
     },

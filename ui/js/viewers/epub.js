@@ -1,5 +1,6 @@
 // eBook EPUB: lettura a pagine con indice.
 import { button, el, loadScript, readBytes } from "../core.js";
+import { t } from "../i18n.js";
 
 export async function mount(ctx) {
   await loadScript("/vendor/jszip/dist/jszip.min.js");
@@ -18,8 +19,8 @@ export async function mount(ctx) {
     if (it.subitems?.length) addItems(it.subitems, depth + 1);
   });
   addItems(nav.toc, 0);
-  ctx.tb.append(button("", "rotateL", () => rendition.prev(), { iconOnly: true, title: "Pagina precedente" }), button("", "rotate", () => rendition.next(), { iconOnly: true, title: "Pagina successiva" }),
-    el("span", { class: "note" }, "Frecce sinistra/destra per sfogliare"));
+  ctx.tb.append(button("", "rotateL", () => rendition.prev(), { iconOnly: true, title: t("v_epub.pagina_precedente") }), button("", "rotate", () => rendition.next(), { iconOnly: true, title: t("v_epub.pagina_successiva") }),
+    el("span", { class: "note" }, t("v_epub.frecce_sinistra_destra_sfogliare")));
   const key = e => { if (ctx.tab.view.hidden) return; if (e.key === "ArrowRight") rendition.next(); if (e.key === "ArrowLeft") rendition.prev(); };
   document.addEventListener("keydown", key);
   rendition.on("keyup", key);

@@ -1,3 +1,4 @@
+import { LOCALE } from "../i18n.js";
 // Fogli di calcolo (SheetJS): tutti i fogli, modifica celle e formule, righe/colonne; salvataggio nel formato originale.
 import { api, button, el, extOf, loadScript, readBytes, toast, withExt } from "../core.js";
 import { describeKeys } from "../shortcuts.js";
@@ -60,7 +61,7 @@ export async function mount(ctx) {
         const cell = s[addr(r, c)];
         const td = el("td", { "data-r": r, "data-c": c });
         if (cell) {
-          td.textContent = cell.w !== undefined ? cell.w : cell.v !== undefined ? String(cell.v instanceof Date ? cell.v.toLocaleDateString("it-IT") : cell.v) : cell.f ? "=" + cell.f : "";
+          td.textContent = cell.w !== undefined ? cell.w : cell.v !== undefined ? String(cell.v instanceof Date ? cell.v.toLocaleDateString(LOCALE) : cell.v) : cell.f ? "=" + cell.f : "";
           if (cell.t === "n") td.style.textAlign = "right";
           if (cell.f) td.title = "=" + cell.f;
         }
@@ -83,13 +84,13 @@ export async function mount(ctx) {
   function showSel() {
     const cell = ws()[addr(sel.r, sel.c)];
     cellRef.textContent = addr(sel.r, sel.c);
-    formulaBar.value = cell ? (cell.f ? "=" + cell.f : cell.v instanceof Date ? cell.v.toLocaleDateString("it-IT") : cell.v ?? "") : "";
+    formulaBar.value = cell ? (cell.f ? "=" + cell.f : cell.v instanceof Date ? cell.v.toLocaleDateString(LOCALE) : cell.v ?? "") : "";
     gridBox.querySelectorAll("td.sel").forEach(x => x.classList.remove("sel"));
     gridBox.querySelector(`td[data-r="${sel.r}"][data-c="${sel.c}"]`)?.classList.add("sel");
   }
 
   const undoStack = [], redoStack = [];
-  const rawOf = (r, c) => { const cell = ws()[addr(r, c)]; return cell ? (cell.f ? "=" + cell.f : cell.v instanceof Date ? cell.v.toLocaleDateString("it-IT") : cell.v ?? "") : ""; };
+  const rawOf = (r, c) => { const cell = ws()[addr(r, c)]; return cell ? (cell.f ? "=" + cell.f : cell.v instanceof Date ? cell.v.toLocaleDateString(LOCALE) : cell.v ?? "") : ""; };
   function setCell(r, c, raw, track = true) {
     if (track) { const old = rawOf(r, c); if (String(old) === String(raw ?? "")) return; undoStack.push([sheetName, r, c, old, raw]); redoStack.length = 0; }
     const s = ws();
@@ -220,7 +221,7 @@ export async function mount(ctx) {
       render();
       return;
     }
-    if (ctrl && k === ";") { e.preventDefault(); setCell(sel.r, sel.c, e.shiftKey ? new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : new Date().toLocaleDateString("it-IT")); render(); return; }
+    if (ctrl && k === ";") { e.preventDefault(); setCell(sel.r, sel.c, e.shiftKey ? new Date().toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit" }) : new Date().toLocaleDateString(LOCALE)); render(); return; }
     if (k.length === 1 && !ctrl && !e.altKey) { e.preventDefault(); editCell(k, true); }
   });
   describeKeys(ctx, "Excel", [

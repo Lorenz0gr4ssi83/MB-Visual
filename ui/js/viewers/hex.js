@@ -1,5 +1,6 @@
 // Editor esadecimale: apre qualsiasi file (anche di molti GB) leggendo solo la parte visibile; modifica dei byte.
 import { api, button, el, fmtSize, modal, readRange, toast } from "../core.js";
+import { t as tr, LOCALE } from "../i18n.js";
 
 const ROW = 16, LH = 20, BLOCK = 65536, MAX_SPACER = 8_000_000;
 
@@ -13,30 +14,30 @@ export async function mount(ctx) {
   // ---- intestazione informativa
   const banner = el("div", { class: "panel", style: { margin: "10px 12px 0", display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" } });
   if (ctx.reason === "unlisted") {
-    banner.append(el("span", { class: "chip warn" }, "Formato non nell'elenco"),
-      el("span", {}, `L'estensione .${ctx.ext || "(nessuna)"} non e' tra i formati supportati: il file e' aperto come byte grezzi.`));
+    banner.append(el("span", { class: "chip warn" }, tr("v_hex.formato_non_nell_elenco")),
+      el("span", {}, tr("v_hex.l_estensione_0_non_tra", ctx.ext || tr("v_hex.nessuna"))));
   } else {
-    banner.append(el("span", { class: "chip mute" }, "Byte grezzi"), el("span", {}, "Vista esadecimale del contenuto del file."));
+    banner.append(el("span", { class: "chip mute" }, tr("v_hex.byte_grezzi")), el("span", {}, tr("v_hex.vista_esadecimale_contenuto_file")));
   }
   const sn = ctx.info.sniff;
-  if (sn?.descr) banner.append(el("span", {}, "Contenuto rilevato: ", el("b", {}, sn.descr)));
+  if (sn?.descr) banner.append(el("span", {}, tr("v_hex.contenuto_rilevato"), el("b", {}, sn.descr)));
   const SUGGEST = { pdf: "pdf", zip: "archive", archive: "archive", image: "image", media: "media", sqlite: "sqlite", cad2d: "cad2d",
     mesh3d: "model3d", ifc: "model3d", cad3d: "model3d", font: "font", signed: "signed", text: "text", svg: "svg", html: "html", email: "email" };
   if (sn?.kind && SUGGEST[sn.kind] && ctx.reason === "unlisted") {
-    banner.append(el("button", { class: "btn primary", onclick: () => ctx.openAs(SUGGEST[sn.kind]) }, "Prova ad aprirlo come " + sn.descr.toLowerCase()));
+    banner.append(el("button", { class: "btn primary", onclick: () => ctx.openAs(SUGGEST[sn.kind]) }, tr("v_hex.prova_ad_aprirlo_come") + sn.descr.toLowerCase()));
   }
 
   // ---- barra strumenti
-  const goto = el("input", { type: "text", placeholder: "Vai a offset (es. 0x1F00)", id: "hex-goto-" + ctx.tab.name, style: { width: "170px" } });
-  const find = el("input", { type: "text", placeholder: "Cerca testo o hex (es. 25 50 44 46)", id: "hex-find-" + ctx.tab.name, style: { width: "230px" } });
+  const goto = el("input", { type: "text", placeholder: tr("v_hex.vai_offset_es_0x1f00"), id: "hex-goto-" + ctx.tab.name, style: { width: "170px" } });
+  const find = el("input", { type: "text", placeholder: tr("v_hex.cerca_testo_hex_es_25"), id: "hex-find-" + ctx.tab.name, style: { width: "230px" } });
   goto.addEventListener("keydown", e => { if (e.key === "Enter") { const v = parseInt(goto.value.trim(), goto.value.trim().toLowerCase().startsWith("0x") ? 16 : 10); if (!isNaN(v)) moveTo(Math.min(size - 1, v)); } });
   find.addEventListener("keydown", e => { if (e.key === "Enter") search(find.value); });
-  ctx.tb.append(goto, find, button("Cerca", "search", () => search(find.value)),
+  ctx.tb.append(goto, find, button(tr("v_hex.cerca"), "search", () => search(find.value)),
     el("span", { class: "sep" }),
-    button("Testo leggibile", "text", showStrings, { title: "Estrae le stringhe di testo presenti nel file" }),
-    button("Annulla modifiche", "undo", () => { mods.clear(); ctx.setDirty(false); draw(); }),
+    button(tr("v_hex.testo_leggibile"), "text", showStrings, { title: tr("v_hex.estrae_stringhe_testo_presenti_file") }),
+    button(tr("v_hex.annulla_modifiche"), "undo", () => { mods.clear(); ctx.setDirty(false); draw(); }),
     el("span", { class: "grow" }),
-    el("span", { class: "note" }, `${fmtSize(size)} · ${size.toLocaleString("it-IT")} byte · clic su un byte e digita per modificarlo`));
+    el("span", { class: "note" }, tr("v_hex.0_1_byte_clic_byte", fmtSize(size), size.toLocaleString(LOCALE))));
 
   // ---- area con scorrimento virtuale
   const spacerH = Math.min(rows * LH, MAX_SPACER);
@@ -111,7 +112,7 @@ export async function mount(ctx) {
     }
     content.innerHTML = html;
     content.style.top = scroller.scrollTop + "px";
-    ctx.status(`Offset ${cursor} (0x${cursor.toString(16).toUpperCase()})` + (mods.size ? ` · ${mods.size} byte modificati` : ""));
+    ctx.status(`Offset ${cursor} (0x${cursor.toString(16).toUpperCase()})` + (mods.size ? tr("v_hex.0_byte_modificati", mods.size) : ""));
   }
 
   function moveTo(off) {
@@ -166,7 +167,7 @@ export async function mount(ctx) {
       needle = new TextEncoder().encode(q);
     }
     const CH = 1 << 20;
-    ctx.status("Ricerca in corso...");
+    ctx.status(tr("v_hex.ricerca_corso"));
     for (let pos = cursor + 1; pos < size; pos += CH - needle.length) {
       const buf = await readRange(ctx.path, pos, Math.min(size, pos + CH) - 1);
       outer: for (let i = 0; i <= buf.length - needle.length; i++) {
@@ -175,14 +176,14 @@ export async function mount(ctx) {
       }
       if (buf.length < CH) break;
     }
-    toast("Nessun'altra occorrenza trovata");
+    toast(tr("v_hex.nessun_altra_occorrenza_trovata"));
     draw();
   }
 
   async function showStrings() {
     const r = await api("strings", { path: ctx.path });
-    const pre = el("pre", { style: { maxHeight: "60vh", overflow: "auto", fontFamily: "var(--mono)", fontSize: "12px", margin: 0, whiteSpace: "pre-wrap" } }, r.strings.join("\n") || "(nessun testo leggibile)");
-    await modal(`Testo leggibile (${r.strings.length} stringhe)`, pre);
+    const pre = el("pre", { style: { maxHeight: "60vh", overflow: "auto", fontFamily: "var(--mono)", fontSize: "12px", margin: 0, whiteSpace: "pre-wrap" } }, r.strings.join("\n") || tr("v_hex.nessun_testo_leggibile"));
+    await modal(tr("v_hex.testo_leggibile_0_stringhe", r.strings.length), pre);
   }
 
   draw();
