@@ -102,5 +102,24 @@ l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.m
   OneDrive l'ha scaricata tutta; uno script PowerShell attende la chiusura, copia (/MIR solo dentro _internal) e riavvia.
   "Installa su questo PC" copia in %LOCALAPPDATA%\Programs\MB Visual con collegamenti Desktop e Start. Versione nella barra di stato.
   Le copie anteriori alla 1.3.0 non hanno l'aggiornamento: vanno sostituite una volta a mano.
+  Dalla 1.3.1 installazione/aggiornamento sono lavori con avanzamento (la copia la fa Python: legge e quindi scarica
+  i file "solo online"), collegamenti via pywin32, sostituzione a app chiusa con uno script .cmd (niente PowerShell).
+- OneDrive (21/10/2026): la cartella del progetto restava "Sincronizzazione in sospeso" perche' ogni build riscriveva
+  1,1 GB + zip da 450 MB + docs/. Ora `tools/synctree.py` copia solo i file con contenuto cambiato (App per PC e docs)
+  e lo zip sta in %USERPROFILE%\.mbvisual\dist. OneDrive non sincronizza i .lnk.
+- Build pulita quando ci sono modifiche altrui non committate: `git worktree add --detach %USERPROFILE%\.mbvisual\wt-build main`,
+  copiare ui/vendor (in .gitignore), `tools/build_portable.py --no-publish` li', poi `--solo-pubblica` dal progetto.
+- IFC (21/10/2026): la pagina e' isolata (COOP/COEP per ONLYOFFICE) e web-ifc sceglieva la versione multi-thread,
+  che non parte: Init() restava in attesa per sempre. Ora `Init(undefined, true)`. Lettura a blocchi (StreamMeshes) con
+  avanzamento; oltre 15 MB geometria unita per colore (`navis.buildBatches`) con copie di selezione che condividono
+  i vertici (`navis.sharedProxy`). IFC sintetico 500 MB: 57 s, 2,1 GB.
+- Editor PDF, motore (pdfobjects.py): gruppi (`cluster_drawings`) e tracciati (`tracciati` con seqno) -> `draw_edit`
+  (style/targets/delete/to); rimozione con LINE_ART_REMOVE_IF_TOUCHED (IF_COVERED non toglie i tracciati racchiusi
+  in un altro) e ridisegno dei tracciati estranei; immagini tolte con redazione solo in quel punto (`_take_image`,
+  mai delete_image: cambierebbe l'immagine condivisa su tutte le pagine); `image_edit` (colori trasparenti multipli
+  con tolleranza, opacita', rotazione, specchio, b/n); annotazioni `annot_add/update/delete`.
+  DA FARE: interfaccia nuova (barra unica sempre visibile, strumenti di pdf.js pilotati da noi senza le loro tendine,
+  un pulsante per ogni tipo di campo modulo, pannello immagine con contagocce e anteprima della trasparenza,
+  selezione multipla e filtro dei selezionabili).
 - Migliorie rimandate dall'utente (21/10/2026): pulsanti "Modifica in AutoCAD/BricsCAD/Inventor"; funzioni Navisworks Manage
   (interferenze, viste salvate, annotazioni, computo); editor CAD piu' completo; motore ODA (a pagamento).
