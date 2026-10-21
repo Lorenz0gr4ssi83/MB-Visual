@@ -60,7 +60,7 @@ def main() -> int:
         "--collect-data", "pptx", "--collect-data", "docx",
         "--hidden-import", "clr", "--hidden-import", "asn1crypto", "--hidden-import", "mbvisual.pdftools", "--collect-submodules", "pypdf",
         # firma digitale PAdES/CAdES (pyHanko, MIT) con smart card via CNG (winsign.py)
-        "--hidden-import", "mbvisual.firma", "--hidden-import", "mbvisual.winsign", "--collect-submodules", "pyhanko.sign", "--collect-submodules", "pyhanko.pdf_utils", "--collect-submodules", "pyhanko.stamp", "--collect-data", "pyhanko", "--collect-submodules", "pyhanko_certvalidator", "--hidden-import", "win32crypt",
+        "--hidden-import", "mbvisual.firma", "--hidden-import", "mbvisual.winsign", "--hidden-import", "mbvisual.csc", "--hidden-import", "mbvisual.firmaponte", "--collect-submodules", "pyhanko.sign", "--collect-submodules", "pyhanko.pdf_utils", "--collect-submodules", "pyhanko.stamp", "--collect-data", "pyhanko", "--collect-submodules", "pyhanko_certvalidator", "--hidden-import", "win32crypt",
         # editor PDF (PyMuPDF) e conversione PDF -> Word
         "--hidden-import", "mbvisual.pdfedit", "--hidden-import", "mbvisual.pdfobjects", "--collect-all", "pymupdf", "--collect-submodules", "pdf2docx", "--collect-data", "pdf2docx",
         # convertitore universale (Office via automazione COM, markdown, openpyxl, fontTools)

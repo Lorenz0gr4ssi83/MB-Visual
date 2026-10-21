@@ -21,14 +21,18 @@ from cryptography.hazmat.primitives.asymmetric import ec, rsa  # noqa: E402
 from cryptography.hazmat.primitives.serialization import pkcs12  # noqa: E402
 from cryptography.x509.oid import NameOID  # noqa: E402
 
-from mbvisual import firma, signed, winsign  # noqa: E402
+from mbvisual import firma, firmaponte, signed, winsign  # noqa: E402
+from tests.csc_mock import MockCSC  # noqa: E402
 
 PW = "prova-collaudo"
 
 
-def make_pfx(folder: Path, kind="rsa") -> Path:
+KEYS = {}  # percorso del .pfx -> (chiave, certificato), per il servizio CSC simulato
+
+
+def make_pfx(folder: Path, kind="rsa", issuer_org=None) -> Path:
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048) if kind == "rsa" else ec.generate_private_key(ec.SECP256R1())
-    name = x509.Name([x509.NameAttribute(NameOID.COUNTRY_NAME, "IT"), x509.NameAttribute(NameOID.ORGANIZATION_NAME, "MB Visual - PROVA"),
+    name = x509.Name([x509.NameAttribute(NameOID.COUNTRY_NAME, "IT"), x509.NameAttribute(NameOID.ORGANIZATION_NAME, issuer_org or "MB Visual - PROVA"),
                       x509.NameAttribute(NameOID.COMMON_NAME, f"Niccolò Prova ({kind.upper()})"),
                       x509.NameAttribute(NameOID.SERIAL_NUMBER, "TINIT-PRVNCC80A01H501X")])
     now = dt.datetime.now(dt.timezone.utc)
@@ -36,7 +40,8 @@ def make_pfx(folder: Path, kind="rsa") -> Path:
             .serial_number(x509.random_serial_number()).not_valid_before(now - dt.timedelta(days=1)).not_valid_after(now + dt.timedelta(days=30))
             .add_extension(x509.KeyUsage(True, True, False, False, False, False, False, False, False), critical=True)
             .sign(key, hashes.SHA256()))
-    p = folder / f"prova_{kind}.pfx"
+    p = folder / f"prova_{kind}{'_cie' if issuer_org else ''}.pfx"
+    KEYS[p] = (key, cert)
     p.write_bytes(pkcs12.serialize_key_and_certificates(b"prova", key, cert, None, serialization.BestAvailableEncryption(PW.encode())))
     return p
 
@@ -60,7 +65,7 @@ def check(name, cond, extra=""):
 def main():
     tsa = sys.argv[sys.argv.index("--tsa") + 1] if "--tsa" in sys.argv else None
     tmp = Path(tempfile.mkdtemp(prefix="mbv-firma-"))
-    firma.SETTINGS = tmp / "firma.json"  # le impostazioni vere dell'utente restano intatte
+    firma.SETTINGS = firmaponte.SETTINGS = tmp / "firma.json"  # le impostazioni vere dell'utente restano intatte
     pfx = make_pfx(tmp)
     pfx_ec = make_pfx(tmp, "ec")
     pdf = tmp / "documento.pdf"
@@ -148,7 +153,70 @@ def main():
         mt = r["verifica"]["livelli"][0]["firmatari"][0].get("marca_temporale")
         check("CAdES con marca temporale", r["firme_valide"] and mt and mt.get("data"), mt)
 
-    # 6) alterazione: il verificatore deve accorgersene
+    # 6) CIE riconosciuta (certificato emesso dal Ministero dell'Interno), anche se non qualificata
+    pfx_cie = make_pfx(tmp, issuer_org="Ministero dell'Interno")
+    winsign.use_test_pfx(pfx_cie.read_bytes(), PW)
+    try:
+        c = firma.list_certs()["certificati"][0]
+        check("CIE riconosciuta come firma elettronica avanzata", c["cie"] and not c["qualificato"])
+    finally:
+        winsign.use_test_pfx(None)
+
+    # 7) firma remota CSC (servizio simulato in locale), v1 e v2, SCAL 1 e 2, ECDSA
+    for ver, scal, kind in (("v1", 1, "rsa"), ("v2", 2, "rsa"), ("v2", 1, "ec")):
+        key, cert = KEYS[pfx if kind == "rsa" else pfx_ec]
+        mock = MockCSC(key, cert, scal=scal)
+        try:
+            base = mock.url + ("/csc/" + ver if ver == "v1" else "")  # v1 nell'indirizzo, v2 scoperta da info
+            try:
+                firma.run("csc_collega", {"url": base, "utente": "mario", "password": "sbagliata"})
+                check(f"CSC {ver}: password errata rifiutata", False)
+            except ValueError as e:
+                check(f"CSC {ver}: password errata rifiutata", "credenziali errate" in str(e) or "401" in str(e) or "negat" in str(e).lower(), e)
+            r = firma.run("csc_collega", {"url": base, "utente": "mario", "password": "segreta"})
+            cred = r["credenziali"][0]
+            check(f"CSC {ver} (SCAL {scal}, {kind.upper()}): credenziale con PIN e OTP", r["versione"] == ver and cred["pin"] and cred["otp"], cred["nome"])
+            firma.run("csc_otp", {"url": base, "utente": "mario", "credenziale": cred["id"]})
+            csc_opts = {"url": base, "utente": "mario", "credenziale": cred["id"], "pin": "12345678", "otp": "654321"}
+            try:
+                firma.sign_pdf(str(pdf), str(tmp / f"csc_ko_{ver}.pdf"), {"csc": {**csc_opts, "otp": "000000"}})
+                check(f"CSC {ver}: OTP errato rifiutato", False)
+            except ValueError as e:
+                check(f"CSC {ver}: OTP errato rifiutato", "OTP" in str(e), str(e)[:80])
+            r = firma.sign_pdf(str(pdf), str(tmp / f"csc_{ver}_{scal}_{kind}.pdf"), {"csc": csc_opts, "visibile": True, "pagina": 0})
+            check(f"CSC {ver}: PAdES remota valida", r["firme_valide"] and r["pdf_apribile"] and mock.otp_sent == 1)
+            r = firma.sign_cades(str(src), str(tmp / f"csc_{ver}_{scal}_{kind}.docx.p7m"), {"csc": csc_opts})
+            check(f"CSC {ver}: CAdES remota valida", r["firme_valide"])
+        finally:
+            mock.close()
+
+    # 8) firma con lo smartphone tramite cartella di scambio (il "telefono" qui e' simulato firmando con il .pfx)
+    import os
+    scambio = tmp / "OneDrive" / firmaponte.NOME_CARTELLA
+    st = firma.run("tel_avvia", {"path": str(pdf), "cartella": str(scambio)})
+    check("cartella di scambio: documento copiato", (scambio / st["copia"]).read_bytes() == pdf.read_bytes())
+    check("cartella di scambio: in attesa", firma.run("tel_stato", {"id": st["id"]})["fase"] == 1)
+    (scambio / "appunti.pdf").write_bytes(b"%PDF-1.4 non firmato")  # file estraneo: va ignorato
+    signed_on_phone = scambio / "documento-signed.pdf"
+    firma.sign_pdf(str(scambio / st["copia"]), str(signed_on_phone), p12)
+    old = os.path.getmtime(signed_on_phone) - 10
+    for f in scambio.iterdir():
+        os.utime(f, (old, old))
+    r = firma.run("tel_stato", {"id": st["id"]})
+    check("cartella di scambio: file firmato trovato e verificato", r["fase"] == 2 and r["nome"] == "documento-signed.pdf" and r["esito"]["firme_valide"], r.get("nome"))
+    check("cartella di scambio: stesso documento dell'originale", r["esito"]["stesso_documento"] is True)
+    out_tel = tmp / "documento_firmato_telefono.pdf"
+    firma.run("tel_salva", {"id": st["id"], "out": str(out_tel)})
+    check("cartella di scambio: salvato accanto all'originale", out_tel.read_bytes() == signed_on_phone.read_bytes())
+    st = firma.run("tel_avvia", {"path": str(src), "cartella": str(scambio)})
+    firma.sign_cades(str(scambio / st["copia"]), str(scambio / (st["copia"] + ".p7m")), p12)
+    for f in scambio.iterdir():
+        os.utime(f, (old, old))
+    r = firma.run("tel_stato", {"id": st["id"]})
+    check("cartella di scambio: .p7m dal telefono verificato", r["fase"] == 2 and r["esito"]["firme_valide"] and r["esito"]["stesso_documento"] and r["out"].endswith(".docx.p7m"))
+    firma.run("tel_stop", {"id": st["id"]})
+
+    # 9) alterazione: il verificatore deve accorgersene
     bad = bytearray(out1.read_bytes())
     i = bad.find(b"Documento di prova")
     if i < 0:

@@ -8,6 +8,8 @@ import ctypes
 import hashlib
 from ctypes import wintypes as W
 
+from .i18n import t
+
 crypt32 = ctypes.WinDLL("crypt32", use_last_error=True)
 ncrypt = ctypes.WinDLL("ncrypt")
 advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
@@ -110,21 +112,15 @@ advapi32.CryptSignHashW.argtypes = [ctypes.c_size_t, W.DWORD, W.LPCWSTR, W.DWORD
 advapi32.CryptDestroyHash.argtypes = [ctypes.c_size_t]
 advapi32.CryptReleaseContext.argtypes = [ctypes.c_size_t, W.DWORD]
 
-# errori frequenti con smart card e token: messaggi comprensibili
+# errori frequenti con smart card e token: messaggi comprensibili (chiavi srv_firma.win_*)
 _ERRORI = {
-    0x8010006E: "Operazione annullata dall'utente.",
-    0x800704C7: "Operazione annullata dall'utente.",
-    0x80090030: "Il dispositivo con la chiave non risponde (smart card o token non inseriti?).",
-    0x8010000C: "Smart card non inserita nel lettore.",
-    0x80100069: "Smart card rimossa durante la firma.",
-    0x8010006B: "PIN errato.",
-    0x8010006C: "PIN bloccato: sbloccalo con il PUK usando il programma del certificatore.",
-    0x80090016: "Chiave privata non trovata sul dispositivo (inserire la smart card o il token giusto).",
-    0x8009000D: "Chiave privata non trovata sul dispositivo (inserire la smart card o il token giusto).",
-    0x80090029: "L'operazione non e' supportata dal driver del dispositivo.",
-    0x8009000F: "Il contenitore della chiave non esiste.",
-    0x80090027: "Parametro non valido per il driver del dispositivo.",
+    0x8010006E: "srv_firma.win_annullato", 0x800704C7: "srv_firma.win_annullato", 0x80090030: "srv_firma.win_non_risponde",
+    0x8010000C: "srv_firma.win_non_inserita", 0x80100069: "srv_firma.win_rimossa", 0x8010006B: "srv_firma.win_pin_errato",
+    0x8010006C: "srv_firma.win_pin_bloccato", 0x80090016: "srv_firma.win_chiave_assente", 0x8009000D: "srv_firma.win_chiave_assente",
+    0x80090029: "srv_firma.win_non_supportato", 0x8009000F: "srv_firma.win_contenitore", 0x80090027: "srv_firma.win_parametro",
 }
+_OPERAZIONI = {"magazzino": "srv_firma.winop_magazzino", "prova": "srv_firma.winop_prova", "chiave": "srv_firma.winop_chiave",
+               "firma": "srv_firma.winop_firma", "impronta": "srv_firma.winop_impronta"}
 
 
 class WinSignError(Exception):
@@ -133,10 +129,8 @@ class WinSignError(Exception):
 
 def _err(code: int, what: str) -> WinSignError:
     code &= 0xFFFFFFFF
-    msg = _ERRORI.get(code)
-    if not msg:
-        msg = ctypes.FormatError(code).strip() if code else "errore sconosciuto"
-    return WinSignError(f"{msg} ({what}, codice 0x{code:08X})")
+    msg = t(_ERRORI[code]) if code in _ERRORI else (ctypes.FormatError(code).strip() if code else "?")
+    return WinSignError(f"{msg} ({t(_OPERAZIONI[what])}, 0x{code:08X})")
 
 
 def _der(ctx) -> bytes:
@@ -164,7 +158,7 @@ def _open_my():
                               CERT_SYSTEM_STORE_CURRENT_USER | CERT_STORE_READONLY_FLAG | CERT_STORE_OPEN_EXISTING_FLAG,
                               ctypes.c_wchar_p("MY"))
     if not h:
-        raise _err(ctypes.get_last_error(), "apertura del magazzino certificati")
+        raise _err(ctypes.get_last_error(), "magazzino")
     return h
 
 
@@ -182,7 +176,7 @@ def use_test_pfx(pfx: bytes | None, password: str = "") -> None:
     blob = CRYPT_DATA_BLOB(len(pfx), ctypes.cast(ctypes.create_string_buffer(pfx, len(pfx)), ctypes.POINTER(ctypes.c_ubyte)))
     mem = crypt32.PFXImportCertStore(ctypes.byref(blob), password, 0x8000 | 0x200)  # NO_PERSIST_KEY | ALWAYS_CNG_KSP
     if not mem:
-        raise _err(ctypes.get_last_error(), "importazione del certificato di prova")
+        raise _err(ctypes.get_last_error(), "prova")
     _open_store = lambda: crypt32.CertDuplicateStore(mem)  # noqa: E731
 
 
@@ -249,12 +243,12 @@ def sign_digest(cert_id: str, digest: bytes, hash_name: str, key_algo: str, hwnd
     """Firma un'impronta gia' calcolata. RSA -> PKCS#1 v1.5; EC -> (r||s) grezzo come lo restituisce Windows."""
     hash_name = hash_name.lower()
     if hash_name not in NCRYPT_ALG:
-        raise WinSignError(f"Algoritmo di impronta non supportato: {hash_name}")
+        raise WinSignError(t("srv_firma.impronta_non_supportata", hash_name))
     store = _open_store()
     try:
         ctx = _find(store, cert_id)
         if not ctx:
-            raise WinSignError("Certificato non piu' presente in Windows (smart card o token scollegati?).")
+            raise WinSignError(t("srv_firma.cert_non_trovato"))
         try:
             key = ctypes.c_size_t(0)
             spec = W.DWORD(0)
@@ -265,7 +259,7 @@ def sign_digest(cert_id: str, digest: bytes, hash_name: str, key_algo: str, hwnd
                 flags |= CRYPT_ACQUIRE_WINDOW_HANDLE_FLAG
             if not crypt32.CryptAcquireCertificatePrivateKey(ctx, flags, ctypes.byref(hw) if hw else None, ctypes.byref(key),
                                                              ctypes.byref(spec), ctypes.byref(free)):
-                raise _err(ctypes.get_last_error(), "accesso alla chiave privata")
+                raise _err(ctypes.get_last_error(), "chiave")
             try:
                 if spec.value == CERT_NCRYPT_KEY_SPEC:
                     return _sign_cng(key.value, digest, hash_name, key_algo)
@@ -301,10 +295,10 @@ def _sign_cng(key: int, digest: bytes, hash_name: str, key_algo: str) -> bytes:
 
 def _sign_capi(prov: int, spec: int, digest: bytes, hash_name: str, key_algo: str) -> bytes:
     if key_algo != "rsa":
-        raise WinSignError("Il driver CryptoAPI del dispositivo supporta solo chiavi RSA.")
+        raise WinSignError(t("srv_firma.capi_solo_rsa"))
     h = ctypes.c_size_t(0)
     if not advapi32.CryptCreateHash(prov, CALG[hash_name], 0, 0, ctypes.byref(h)):
-        raise _err(ctypes.get_last_error(), f"impronta {hash_name.upper()} non supportata dal driver")
+        raise _err(ctypes.get_last_error(), "impronta")
     try:
         if not advapi32.CryptSetHashParam(h.value, HP_HASHVAL, digest, 0):
             raise _err(ctypes.get_last_error(), "impronta")

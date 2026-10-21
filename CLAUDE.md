@@ -274,7 +274,22 @@ costumi (anche "meno vestiti"), pose audaci: permessi. safety_checker di diffuse
   PDF, "Aggiungi firma" nei .p7m, File -> Firma digitale... per qualsiasi file. Solo app per PC.
 - Collaudo: `python tests/test_firma.py [--tsa http://timestamp.digicert.com]` (21/21, 23/23 con marca): certificato
   autofirmato di prova generato al momento. In un browser di prova con piu' server MB Visual aperti il cookie di
-  127.0.0.1 e' condiviso tra le porte: usare http://localhost:<porta>/?t=... per non avere "non autorizzato".
+  127.0.0.1 e' condiviso tra le porte: usare http://<nome>.localhost:<porta>/?t=... (nome a piacere: cookie separato) per non avere "non autorizzato".
+- Revisione 2 (22/10/2026), richiesta dell'utente "CIE, anche senza lettore tramite app" e firma remota:
+  * CIE con lettore: riconosciuta dall'emittente (Ministero dell'Interno) -> `cie: true`, mostrata come "CIE" (firma
+    elettronica avanzata, non qualificata), mai filtrata.
+  * Senza lettore: `mbvisual/firmaponte.py` = cartella di scambio (OneDrive, proposta da OneDriveCommercial/Consumer,
+    "MB Visual - Firma"): il documento si copia li', sul telefono si firma con CieSign (app ufficiale IPZS, NFC) o con
+    l'app del certificatore e si salva nella stessa cartella; `tel_stato` trova il file nuovo/modificato (fermo da 2 s),
+    lo verifica (firme valide + stesso documento: PDF originale come prefisso, o contenuto del p7m uguale) e `tel_salva`
+    lo copia accanto all'originale. CieSign NON ha API per altri programmi. Un ponte Wi-Fi con server sulla rete locale
+    e' stato scartato (bloccato dai permessi: niente server esposti sulla LAN).
+  * Firma remota: `mbvisual/csc.py` = client Cloud Signature Consortium v1/v2 (info, auth/login Basic, credentials/list|
+    info|sendOTP|authorize, signatures/signHash; SCAL 1/2; RSA/ECDSA) agganciato a pyHanko. Collaudato con
+    `tests/csc_mock.py` (servizio simulato su 127.0.0.1). Con Aruba/InfoCert/Namirial serve che il certificatore attivi
+    l'accesso API (indirizzo e credenziali): non verificato con un servizio reale.
+  * Testi in t() (chiavi firma.* e srv_firma.*, 5 lingue). server.py: risposta 403 chiude la connessione (la POST non
+    letta rompeva la richiesta successiva con 501).
 
 ## Multilingua (22/10/2026) - REGOLA PER TUTTE LE SESSIONI
 **Ogni testo nuovo visibile all'utente passa da t() con la chiave in `ui/i18n/it.json` E in `ui/i18n/en.json`** (anche es/fr/de

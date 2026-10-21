@@ -152,6 +152,7 @@ class Handler(BaseHTTPRequestHandler):
             if not route.startswith("/api/"):
                 return self._static(route, qs)
             if not self._authorized(qs):
+                self.close_connection = True  # corpo della POST non letto: la connessione non si riusa (prima la richiesta dopo dava 501)
                 return self._json({"ok": False, "errore": t("srv_server.non_autorizzato")}, 403)
             fn = getattr(self, "api_" + route[5:].replace("/", "_").replace("-", "_"), None)
             if fn is None:
