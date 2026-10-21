@@ -165,7 +165,16 @@ privato (lo fa l'utente SOLO dopo che l'app per cellulari e' online su Cloudflar
 - App per cellulari: `ui/js/mlicenza.js` (solo nella build --mobile) + File -> Account tramite cookie.
 - `admin/`: MB Visual Admin (pywebview + pystray: area di notifica, notifiche di Windows ogni 20 s, avvio con Windows);
   eseguibile con `python admin/build_admin.py` -> `%USERPROFILE%\.mbvisual\dist\MB Visual Admin`.
-- DA FARE: messa online (account Cloudflare dell'utente, `npx wrangler login` fatto da lui, `wrangler d1 create
-  mbvisual-licenze` -> database_id.txt, schema con `wrangler d1 execute --remote`, `wrangler secret put SIGNING_KEY` e
-  `ADMIN_TOKEN`, deploy; poi server_url.txt + `license_setup.py chiavi` e nuova build); setup.exe (Inno Setup, chiedere
-  il permesso prima di installarlo) e aggiornamenti via internet per i clienti esterni.
+- ONLINE (21/10/2026): server https://mbvisual-licenze.lorenzograssi83.workers.dev (account Cloudflare dell'utente,
+  D1 "mbvisual-licenze" in EEUR, segreti SIGNING_KEY/ADMIN_TOKEN caricati, app per cellulari = stessa URL).
+  wrangler NON gira con Node ARM64: usare Node x64 portatile in %USERPROFILE%\.mbvisual
+ode-x64 e wrangler installato in
+  %USERPROFILE%\.mbvisual\server (PATH="$NODE:$PATH" "$NODE/npx.cmd" wrangler deploy|d1 ...). Ripubblicare: license_setup.py
+  server, build_web.py --mobile, poi deploy dalla copia di lavoro.
+- Setup: `tools/build_setup.py` (Inno Setup 6 in %LOCALAPPDATA%\Programs\Inno Setup 6) -> MBVisual-Setup-<ver>.exe; release
+  pubblicate con gh (account Lorenz0gr4ssi83) su https://github.com/Lorenz0gr4ssi83/MB-Visual-Rilasci (v1.4.2):
+  `gh release create v<ver> <setup> --repo Lorenz0gr4ssi83/MB-Visual-Rilasci`. L'app senza OneDrive si aggiorna da li'.
+- DA FARE (decisione dell'utente): attivare l'obbligo di licenza = `server_url.txt` gia' scritto; lanciare
+  `tools/license_setup.py chiavi` (scrive LICENSE_URL in license_pub.py) e fare una build SOLO quando l'utente ha creato le
+  licenze per se' e i colleghi con MB Visual Admin. Poi rendere privato il repository MB-Visual (lo fa l'utente; prima
+  spostare/spegnere la web app di GitHub Pages, sostituita dall'app per cellulari sul server).
