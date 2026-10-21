@@ -783,11 +783,33 @@ export async function mount(ctx) {
   return {
     onShow() { resize(); },
     saveInPlace: false,
-    saveFormats: ["glb", "gltf", "stl", "obj", "ply", "usdz"],
+    // formati tecnici (ui/js/export3d.js) + formati mesh di three.js
+    saveFormats: ["stp", "step", "ifc", "glb", "gltf", "stl", "obj", "3mf", "dxf", "ply", "wrl", "usdz"],
+    saveLabels: { stp: "STEP per CAD (SolidWorks, Inventor, Creo, Rhino...)", step: "STEP per CAD", ifc: "IFC 4 per BIM (Revit, Archicad, Navisworks...)", glb: "glTF binario (web, realta' aumentata)",
+      gltf: "glTF testo", stl: "STL per stampa 3D", obj: "OBJ mesh universale", "3mf": "3MF per stampa 3D (con colori)", dxf: "DXF 3D (facce su layer, AutoCAD)", ply: "PLY nuvola/mesh",
+      wrl: "VRML", usdz: "USDZ (Apple, realta' aumentata)" },
+    saveNote: "STEP e IFC contengono superfici a facce piane ricavate dal modello visualizzato: geometria e nomi degli oggetti si conservano, le superfici curve esatte e i parametri del modello originale no.",
     saveAsName: () => withExt(ctx.name, "glb"),
     async save(target) {
       const ext = target.split(".").pop().toLowerCase();
       if (!this.saveFormats.includes(ext)) throw new Error("Formati del modello 3D: " + this.saveFormats.join(", ").toUpperCase());
+      if (["stp", "step", "ifc", "3mf", "dxf", "wrl"].includes(ext)) {
+        // unita' della scena secondo il formato d'origine: IFC, Navisworks e glTF in metri, CAD e mesh in millimetri
+        const src = (ctx.ext || "").toLowerCase();
+        const mpu = ["ifc", "nwd", "nwc", "nwf", "glb", "gltf", "usdz", "vrm"].includes(src) ? 1 : 0.001;
+        const X = await import("../export3d.js");
+        const els = X.collectElements(model, mpu);
+        if (!els.length) throw new Error("Nessun oggetto visibile da salvare");
+        const stem = ctx.name.replace(/\.[^.]+$/, "");
+        let out;
+        if (ext === "stp" || ext === "step") out = X.toSTEP(els, stem);
+        else if (ext === "ifc") out = X.toIFC(els, stem);
+        else if (ext === "3mf") out = await X.to3MF(els);
+        else if (ext === "dxf") out = X.toDXF(els);
+        else out = X.toVRML(els);
+        await api("save", { path: target }, { body: typeof out === "string" ? new TextEncoder().encode(out) : out });
+        return { switchTo: false };
+      }
       // si esporta solo cio' che e' visibile (niente elementi nascosti, niente copie di servizio dei modelli uniti)
       const copy = model.clone(true);
       const drop = [];

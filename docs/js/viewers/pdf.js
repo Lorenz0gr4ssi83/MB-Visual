@@ -1,6 +1,7 @@
 // PDF con il visualizzatore di Mozilla (pdf.js): pagine, ricerca, stampa, annotazioni; firme PAdES.
 import { api, baseName, button, dirName, el, fileUrl, modal, pickFiles, pickFolder, pickSavePath, toast, waitJob, WEB } from "../core.js";
 import { createPdfEditor, PDFJS_HIDE } from "../pdfeditor.js";
+import { describeKeys } from "../shortcuts.js";
 import { renderSigner } from "./signed.js";
 
 export async function mount(ctx) {
@@ -24,6 +25,7 @@ export async function mount(ctx) {
     if (!a) return;
     await a.initializedPromise;
     a.eventBus.on("documentloaded", () => {
+      ed?.attach(); // tasti dell'editor attivi subito, anche prima di scegliere uno strumento
       const store = a.pdfDocument.annotationStorage;
       store.onSetModified = () => ctx.setDirty(true);
       store.onResetModified = () => ctx.setDirty(false);
@@ -97,6 +99,7 @@ export async function mount(ctx) {
     ed.panel.style.width = "270px";
     ed.panel.style.flex = "none";
     backHandler = () => ed.escape();
+    describeKeys(ctx, "Acrobat", ed.keys);
   }
   for (const [label, icon, fn, title] of tools) ctx.tb.append(button(label, icon, fn, { title }));
   if (ed) {

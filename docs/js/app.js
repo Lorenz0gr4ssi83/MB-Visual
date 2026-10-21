@@ -3,6 +3,7 @@ import {
   api, baseName, button, confirmBox, dirName, el, extOf, fmtSize, isDesktop, modal, pickFiles, pickFolder,
   pickSavePath, toast, waitJob, WEB,
 } from "./core.js";
+import { licenseGate, showAccount } from "./license.js";
 
 const $ = id => document.getElementById(id);
 const VIEWER_NAMES = {
@@ -84,6 +85,11 @@ export function badgeFor(name, isDir = false) {
 function renderTabs() {
   const box = $("tabs");
   box.innerHTML = "";
+  // a sinistra: "Chiudi tutto" e la linguetta Home (pagina per trascinare e aprire i file)
+  box.append(el("button", { class: "tab-closeall", title: "Chiudi tutti i file aperti", disabled: !tabs.length || undefined, onclick: closeAll },
+    el("span", { html: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>' }), "Chiudi tutto"));
+  box.append(el("div", { class: "tab home-tab" + (!active && $("formats").hidden ? " active" : ""), role: "tab", title: "Home: trascina qui i file da aprire", onclick: () => activate(null) },
+    el("span", { html: '<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 9v12h14V9"/></svg>' }), el("span", { class: "name" }, "Home")));
   for (const t of tabs) {
     const b = el("div", { class: "tab" + (t === active ? " active" : ""), role: "tab", title: t.path, onclick: () => activate(t) },
       badgeFor(t.info?.nome || t.name),
@@ -94,7 +100,7 @@ function renderTabs() {
     box.append(b);
   }
   const has = !!active;
-  for (const id of ["btn-save", "btn-saveas", "btn-as", "btn-folder", "btn-external", "btn-info"]) $(id).disabled = !has;
+  for (const id of ["btn-as", "btn-folder", "btn-external", "btn-info"]) $(id).disabled = !has;
   $("home").hidden = has || !$("formats").hidden;
   $("views").hidden = !has || !$("formats").hidden;
   updateStatus();
@@ -116,6 +122,15 @@ function activate(t) {
   renderTabs();
   if (t?.api?.onShow) try { t.api.onShow(); } catch { /* */ }
   document.title = t ? t.name + " - MB Visual" : "MB Visual";
+}
+
+async function closeAll() {
+  const dirty = tabs.filter(t => t.dirty);
+  if (dirty.length && !(await confirmBox("Modifiche non salvate", `${dirty.length === 1 ? `"${dirty[0].name}" ha` : `${dirty.length} file hanno`} modifiche non salvate. Chiudere tutto senza salvare?`, "Chiudi tutto", true))) return;
+  for (const t of [...tabs]) { try { t.api?.dispose?.(); } catch { /* */ } t.view.remove(); }
+  tabs.length = 0;
+  seen.length = 0;
+  activate(null);
 }
 
 async function closeTab(t) {
@@ -147,7 +162,7 @@ const ICON_FILE = '<svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/
 const ICON_NEW = '<svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M12 11v6M9 14h6"/></svg>';
 const ICON_FOLDER = '<svg viewBox="0 0 24 24"><path d="M3 4h7v16H3zM14 4h7v7h-7zM14 14h7v6h-7z"/></svg>';
 
-function closeMenus() { $("menu-open").hidden = true; $("menu-as").hidden = true; }
+function closeMenus() { for (const id of ["menu-open", "menu-as", "menu-file"]) $(id).hidden = true; }
 function placeMenu(m, anchor) {
   const r = anchor.getBoundingClientRect();
   m.style.left = Math.min(r.left, innerWidth - 470) + "px";
@@ -161,7 +176,6 @@ function openMenu(anchor) {
   closeMenus();
   m.innerHTML = "";
   const item = (icon, text, hint, fn) => { const b = el("button", { onclick: () => { m.hidden = true; fn(); } }); b.insertAdjacentHTML("beforeend", icon); b.append(el("span", {}, text)); if (hint) b.append(el("span", { class: "hint" }, hint)); return b; };
-  m.append(item(ICON_NEW, "Crea nuovo...", "Ctrl+N", doNew));
   m.append(item(ICON_FILE, "Apri file...", "Ctrl+O", doOpen));
   if (!WEB) m.append(item(ICON_FOLDER, "Cartella di progetto...", "", chooseExplorerFolder));
   m.append(el("hr"), el("div", { class: "sec label" }, "Recenti"));
@@ -173,8 +187,27 @@ function openMenu(anchor) {
       badgeFor(r.name), el("span", { class: "nm" }, r.name), el("span", { class: "pt" }, dirName(r.path))));
   }
   if (list.length) m.append(el("hr"), item("", "Svuota l'elenco dei recenti", "", () => { try { localStorage.removeItem("mbv-recent"); } catch { /* */ } }));
+  placeMenu(m, anchor);
+}
+
+const ICON_SAVE = '<svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5zM8 3v6h8V3M8 21v-7h8v7"/></svg>';
+const ICON_SAVEAS = '<svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v6M5 3v18h7M8 3v6h8V3M17 15v6M14 18h6"/></svg>';
+const ICON_UPD = '<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>';
+// menu File: nuovo, salva, salva con nome, aggiornamenti (le voci di apertura stanno nel menu Apri)
+const ICON_ACCOUNT = '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>';
+function fileMenu(anchor) {
+  const m = $("menu-file");
+  if (!m.hidden) { m.hidden = true; return; }
+  closeMenus();
+  m.innerHTML = "";
+  const item = (icon, text, hint, fn, disabled = false) => { const b = el("button", { disabled: disabled || undefined, onclick: () => { m.hidden = true; fn(); } }); b.insertAdjacentHTML("beforeend", icon); b.append(el("span", {}, text)); if (hint) b.append(el("span", { class: "hint" }, hint)); return b; };
+  m.append(item(ICON_NEW, "Crea nuovo...", "Ctrl+N", doNew),
+    item(ICON_SAVE, "Salva", "Ctrl+S", () => save(false), !active),
+    item(ICON_SAVEAS, "Salva con nome...", "Ctrl+Maiusc+S", () => save(true), !active),
+    item('<svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM6 9h2M10 9h2M14 9h2M18 9h0M6 13h12"/></svg>', "Scorciatoie da tastiera", "F1", showShortcuts));
+  if (WEB && window.MBV_MOBILE) m.append(el("hr"), item(ICON_ACCOUNT, "Account e licenza...", "", showAccount)); // app per cellulari con licenza
   if (!WEB) {
-    m.append(el("hr"), item("", "Verifica aggiornamenti", "", () => checkUpdates(true)));
+    m.append(el("hr"), item(ICON_ACCOUNT, "Account e licenza...", "", showAccount), item(ICON_UPD, "Verifica aggiornamenti", "", () => checkUpdates(true)));
     if (updInfo?.installabile && !updInfo.installata) m.append(item("", "Installa su questo PC...", "", askInstall));
   }
   placeMenu(m, anchor);
@@ -440,11 +473,11 @@ async function chooseFormat(t, a) {
   const src = extOf(t.path);
   const own = [...new Set([...(a.save && (!a.saveFormats || a.saveFormats.includes(src)) ? [src] : []), ...(a.saveFormats || [])])];
   let conv = [];
-  try { conv = (await api("convert_targets", { path: t.path })).targets || []; } catch { /* */ }
+  try { const r = await api("convert_targets", { path: t.path }); conv = r.targets || []; conv.family = r.family; } catch { /* */ }
   const list = el("select", { size: 14, id: "fmt-choice", class: "field", style: { width: "100%", minWidth: "340px" } });
   if (own.length) {
     const g = el("optgroup", { label: "Formati dell'editor" });
-    own.forEach(e => g.append(el("option", { value: e }, e.toUpperCase() + (e === src ? "  (formato attuale)" : ""))));
+    own.forEach(e => g.append(el("option", { value: e }, e.toUpperCase() + (a.saveLabels?.[e] ? " - " + a.saveLabels[e] : "") + (e === src ? "  (formato attuale)" : ""))));
     list.append(g);
   }
   const extra = conv.filter(c => !own.includes(c.ext));
@@ -457,7 +490,7 @@ async function chooseFormat(t, a) {
   list.selectedIndex = 0;
   list.addEventListener("dblclick", () => document.querySelector("#modal .btn.primary")?.click());
   const ok = await modal("Salva con nome: scegli il formato", el("div", { style: { display: "grid", gap: "8px" } }, list,
-    el("p", { class: "note", style: { margin: 0, color: "var(--muted)" } }, TOOLS.word || TOOLS.excel ? "I documenti Office vengono convertiti con Word, Excel e PowerPoint installati su questo PC." : "")),
+    el("p", { class: "note", style: { margin: 0, color: "var(--muted)" } }, a.saveNote || ((TOOLS.word || TOOLS.excel) && /^(word|sheet|slides)$/.test(conv.family || "") ? "I documenti Office vengono convertiti con Word, Excel e PowerPoint installati su questo PC." : ""))),
   [{ label: "Annulla", value: false }, { label: "Avanti", value: true, primary: true }]);
   return ok ? list.value : null;
 }
@@ -536,13 +569,38 @@ function openAsMenu(anchor) {
   if (!m.hidden) { m.hidden = true; return; }
   closeMenus();
   m.innerHTML = "";
-  const order = [...(TOOLS.onlyoffice && !WEB ? ["oo"] : []), "text", "hex", "pdf", "image", "media", "docx", "sheet", "pptx", "office", "cad2d", "model3d", "archive", "signed", "email", "sqlite", "font", "html", "markdown", "svg", "epub"];
-  for (const v of order) {
-    m.append(el("button", { onclick: () => { m.hidden = true; openFile(active.path, v, { fresh: true }); } }, VIEWER_NAMES[v]));
+  m.append(el("div", { class: "sec label" }, `Visualizzatori adatti a .${extFor(active.info?.nome || active.name) || "?"}`));
+  for (const v of compatibleViewers(active)) {
+    const cur = v === active.viewer;
+    m.append(el("button", { class: cur ? "current" : "", onclick: () => { m.hidden = true; if (!cur) openFile(active.path, v, { fresh: true }); } },
+      VIEWER_NAMES[v], cur ? el("span", { class: "hint" }, "in uso") : null));
   }
-  if (TOOLS.navisworks) m.append(el("button", { onclick: () => { m.hidden = true; api("open_external", { path: active.path, app: "navisworks" }); } }, "Navisworks Freedom", el("span", { class: "hint" }, "esterno")));
-  if (TOOLS.trueview) m.append(el("button", { onclick: () => { m.hidden = true; api("open_external", { path: active.path, app: "trueview" }); } }, "DWG TrueView", el("span", { class: "hint" }, "esterno")));
+  const ext = extFor(active.info?.nome || active.name);
+  if (!WEB && TOOLS.navisworks && ["nwd", "nwc", "nwf"].includes(ext)) m.append(el("button", { onclick: () => { m.hidden = true; api("open_external", { path: active.path, app: "navisworks" }); } }, "Navisworks Freedom", el("span", { class: "hint" }, "esterno")));
+  if (!WEB && TOOLS.trueview && ["dwg", "dxf", "dwf"].includes(ext)) m.append(el("button", { onclick: () => { m.hidden = true; api("open_external", { path: active.path, app: "trueview" }); } }, "DWG TrueView", el("span", { class: "hint" }, "esterno")));
   placeMenu(m, anchor);
+}
+
+// visualizzatori che sanno davvero leggere il file aperto (per tipo e contenuto), nell'ordine in cui conviene proporli
+const TEXT_LIKE = new Set(["ifc", "step", "stp", "iges", "igs", "dxf", "obj", "gltf", "dae", "x3d", "wrl", "vrml", "ply", "stl", "svg", "csv", "tsv", "eml", "html", "htm",
+  "xml", "json", "md", "markdown", "txt", "log", "ini", "cfg", "yaml", "yml", "rtf", "fodt", "fods", "fodp", "kml", "gpx", "geojson", "sql"]);
+const ZIP_BASED = new Set(["docx", "docm", "dotx", "xlsx", "xlsm", "xltx", "pptx", "pptm", "potx", "ppsx", "odt", "ott", "ods", "odp", "otp", "epub", "3mf", "kmz", "jar", "apk", "vsdx", "xps", "oxps", "idml", "sketch", "ifczip"]);
+function compatibleViewers(t) {
+  const ext = extFor(t.info?.nome || t.name);
+  const kind = t.info?.sniff?.kind;
+  const out = [];
+  const add = v => { if (v && VIEWER_NAMES[v] && !out.includes(v)) out.push(v); };
+  add(t.viewer);
+  for (const c of EXT.get(ext) || []) add(c.viewer);
+  if (!WEB && TOOLS.onlyoffice && OO_EXTS.has(ext)) add("oo");
+  if (ext === "svg") { add("svg"); add("image"); }
+  if (["html", "htm", "xhtml"].includes(ext)) add("html");
+  if (["md", "markdown"].includes(ext)) add("markdown");
+  if (ext === "pdf" || kind === "pdf") add("pdf");
+  if (kind === "text" || TEXT_LIKE.has(ext)) add("text");
+  if (kind === "zip" || ZIP_BASED.has(ext)) add("archive");
+  add("hex"); // i byte grezzi si possono sempre vedere
+  return out;
 }
 
 // ------------------------------------------------------------------ pagina formati
@@ -618,7 +676,7 @@ function toggleFormats() {
 // precedente e la rimette. Nella schermata iniziale non succede nulla: l'app non si chiude mai.
 function goBack() {
   if (!$("modal").hidden) return document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-  if (!$("menu-open").hidden || !$("menu-as").hidden) return closeMenus();
+  if (!$("menu-open").hidden || !$("menu-as").hidden || !$("menu-file").hidden) return closeMenus();
   if (!$("dragover").hidden) { $("dragover").hidden = true; return; }
   if (document.fullscreenElement) return document.exitFullscreen?.();
   if (!$("formats").hidden) return toggleFormats();
@@ -636,6 +694,31 @@ function setupBack() {
   document.addEventListener("pointerdown", arm, true);
   document.addEventListener("keydown", arm, true);
   window.addEventListener("popstate", () => { arm(); goBack(); });
+}
+
+// ------------------------------------------------------------------ scorciatoie da tastiera (F1)
+// ogni editor dichiara i suoi tasti (ui/js/shortcuts.js), con gli stessi del programma originale
+function showShortcuts() {
+  const sc = active?.shortcuts;
+  const table = rows => {
+    const t = el("table", { class: "kv-table", style: { borderCollapse: "collapse", width: "100%", fontSize: "12.5px" } });
+    let group = null;
+    for (const r of rows) {
+      if (r.group && r.group !== group) { group = r.group; t.append(el("tr", {}, el("td", { colspan: 2, style: { padding: "10px 0 4px", fontWeight: 600 } }, group))); }
+      t.append(el("tr", {}, el("td", { style: { padding: "3px 14px 3px 0", whiteSpace: "nowrap" } }, ...r.keys.split(/\s+oppure\s+|\s*\/\s*/).flatMap((k, i) => [i ? " / " : "", el("kbd", { style: { fontFamily: "Consolas, monospace", border: "1px solid var(--line-strong)", borderBottomWidth: "2px", borderRadius: "4px", padding: "0 5px", background: "var(--panel)" } }, k)])),
+        el("td", { style: { padding: "3px 0", color: "var(--fg)" } }, r.desc)));
+    }
+    return t;
+  };
+  const box = el("div", { style: { maxHeight: "65vh", overflow: "auto", minWidth: "min(560px, 80vw)" } });
+  if (sc?.list?.length) box.append(el("p", { class: "note", style: { margin: "0 0 4px" } }, `Tasti come in ${sc.program}${active ? " · " + active.name : ""}`), table(sc.list));
+  else box.append(el("p", { class: "note" }, active ? "Questo visualizzatore non ha scorciatoie proprie." : "Apri un file per vedere le scorciatoie del suo editor."));
+  box.append(el("hr", { style: { border: 0, borderTop: "1px solid var(--line)", margin: "12px 0 0" } }), table([
+    { group: "MB Visual", keys: "Ctrl+O", desc: "Apri file" }, { group: "MB Visual", keys: "Ctrl+N", desc: "Crea nuovo" },
+    { group: "MB Visual", keys: "Ctrl+S", desc: "Salva" }, { group: "MB Visual", keys: "Ctrl+Maiusc+S", desc: "Salva con nome (anche in altri formati)" },
+    { group: "MB Visual", keys: "Ctrl+W", desc: "Chiudi il file" }, { group: "MB Visual", keys: "Ctrl+Tab", desc: "File successivo" }, { group: "MB Visual", keys: "F1", desc: "Questo elenco" },
+  ]));
+  modal("Scorciatoie da tastiera", box);
 }
 
 // ------------------------------------------------------------------ trascinamento
@@ -714,6 +797,7 @@ async function boot() {
   setupDrop();
   setupTheme();
   setupBack();
+  if (!WEB) licenseGate(); // licenza dell'app per PC: senza attivazione copre l'app con la schermata della chiave
   if (!WEB) setTimeout(() => checkUpdates(false), 3000);
   setInterval(() => { if (!document.hidden) checkExternalChange(active); }, 2000);
   window.addEventListener("focus", () => tabs.forEach(checkExternalChange));
@@ -726,8 +810,7 @@ async function boot() {
   $("ex-pick").addEventListener("click", chooseExplorerFolder);
   $("ex-up").addEventListener("click", () => exDir && dirName(exDir) && loadDir(dirName(exDir)));
   $("ex-filter").addEventListener("input", renderDir);
-  $("btn-save").addEventListener("click", () => save(false));
-  $("btn-saveas").addEventListener("click", () => save(true));
+  $("btn-file").addEventListener("click", e => fileMenu(e.currentTarget));
   $("btn-as").addEventListener("click", e => openAsMenu(e.currentTarget));
   $("btn-folder").addEventListener("click", () => active && api("reveal", { path: active.path }));
   $("btn-external").addEventListener("click", () => active && api("open_external", { path: active.path }).catch(e => toast(e.message, true)));
@@ -740,6 +823,7 @@ async function boot() {
     else if (e.ctrlKey && k === "s") { e.preventDefault(); save(e.shiftKey); }
     else if (e.ctrlKey && k === "w") { e.preventDefault(); if (active) closeTab(active); }
     else if (e.ctrlKey && k === "tab" && tabs.length) { e.preventDefault(); activate(tabs[(tabs.indexOf(active) + (e.shiftKey ? -1 : 1) + tabs.length) % tabs.length]); }
+    else if (e.key === "F1") { e.preventDefault(); showShortcuts(); }
   });
   window.addEventListener("beforeunload", e => { if (tabs.some(t => t.dirty)) { e.preventDefault(); e.returnValue = ""; } });
   renderTabs();

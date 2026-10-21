@@ -7,6 +7,8 @@
 // misure, proprieta' su piu' oggetti. Al salvataggio il motore ezdxf scrive il DXF (mbvisual/cadedit.py).
 import { askText, el, modal, toast } from "./core.js";
 import * as G from "./cadgeom.js";
+import { cadIcon } from "./cadicons.js";
+import { describeKeys } from "./shortcuts.js";
 
 // copia profonda (i DWG possono contenere interi BigInt nei dati estesi)
 const plain = (k, v) => (typeof v === "bigint" ? Number(v) : v);
@@ -18,6 +20,8 @@ const LTYPES_STD = ["ByLayer", "ByBlock", "Continuous", "DASHED", "HIDDEN", "CEN
 const TYPE_IT = { LINE: "Linea", CIRCLE: "Cerchio", ARC: "Arco", ELLIPSE: "Ellisse", LWPOLYLINE: "Polilinea", POLYLINE2D: "Polilinea 2D", POLYLINE3D: "Polilinea 3D", SPLINE: "Spline",
   TEXT: "Testo", MTEXT: "Testo multiriga", INSERT: "Blocco", DIMENSION: "Quota", HATCH: "Tratteggio", POINT: "Punto", SOLID: "Solido 2D", LEADER: "Direttrice", "3DFACE": "Faccia 3D", ATTRIB: "Attributo", TRACE: "Traccia" };
 const MIRX = [-1, 0, 0, 1, 0, 0];
+// appunti condivisi tra i disegni aperti (Ctrl+C / Ctrl+V come in AutoCAD)
+let CLIP = null;
 const CANCEL = new Error("annullato");
 const num = v => { const n = parseFloat(String(v).trim().replace(",", ".")); return isFinite(n) ? n : null; };
 const f4 = v => (typeof v === "number" ? +v.toFixed(4) : v);
@@ -170,7 +174,8 @@ export function createCadEditor(o) {
   let on = false;
   const sel = new Set(); // chiavi: "12" (entita' di primo livello) o "12|/3/a1" (dentro un blocco)
   let hover = null, cursor = null, cursorPx = null, snapHit = null, box = null, clickBox = null, lastPick = null;
-  let ortho = false, osnapOn = true;
+  let ortho = false, osnapOn = true, polarOn = false, gridOn = false, polarHit = null, propsHidden = false;
+  let polarInc = 15;
   const modes = { end: true, mid: true, cen: true, int: true, per: true, qua: true, ins: true, nod: true, nea: false };
   const cur = { layer: "0", color: 256, lineType: "ByLayer", lineweight: -1, textH: H.DIMTXT > 0 ? H.DIMTXT * (H.DIMSCALE > 0 ? H.DIMSCALE : 1) : 2.5 };
   const dimStyle = { txt: H.DIMTXT > 0 ? H.DIMTXT : 2.5, asz: H.DIMASZ > 0 ? H.DIMASZ : 2.5, scale: H.DIMSCALE > 0 ? H.DIMSCALE : 1, dec: Number.isFinite(H.DIMDEC) ? H.DIMDEC : 2, adec: 0,
@@ -476,14 +481,30 @@ export function createCadEditor(o) {
     toast("Punto non valido: scrivi x,y oppure @dx,dy oppure @distanza<angolo, o una distanza", true, 5000);
   }
   let lastPt = null;
-  const effectivePoint = p => (ortho && pending?.opts?.base && !snapHit ? orthoC(p, pending.opts.base) : p);
+  const effectivePoint = p => {
+    const b = pending?.opts?.base;
+    polarHit = null;
+    if (!b || snapHit) return p;
+    if (ortho) return orthoC(p, b);
+    if (polarOn) { // puntamento polare: si aggancia alle direzioni multiple dell'incremento (tolleranza in pixel)
+      const d = dist(b, p);
+      if (d * o.view.s < 4) return p;
+      const a = Math.atan2(p[1] - b[1], p[0] - b[0]), inc = polarInc / R2D, k = Math.round(a / inc), ak = k * inc;
+      if (Math.abs(Math.sin(a - ak)) * d * o.view.s < 9 * dpr()) {
+        const t = (p[0] - b[0]) * Math.cos(ak) + (p[1] - b[1]) * Math.sin(ak);
+        polarHit = { a: ak, d: t };
+        return [b[0] + Math.cos(ak) * t, b[1] + Math.sin(ak) * t];
+      }
+    }
+    return p;
+  };
   const orthoC = (p, b) => (Math.abs(p[0] - b[0]) >= Math.abs(p[1] - b[1]) ? [p[0], b[1]] : [b[0], p[1]]);
 
   // ---- comandi
   const CMDS = {};
   const def = (id, label, title, aliases, fn, group) => { CMDS[id] = { id, label, title, fn, group }; for (const a of aliases) ALIAS[a] = id; ALIAS[label.toUpperCase()] = id; };
   const ALIAS = {};
-  function startCmd(id) { const c = CMDS[id]; if (!c) return; if (!["undo", "redo", "dimstyle", "select"].includes(id)) mem.lastCmd = id; run(id, c.fn); }
+  function startCmd(id, arg) { const c = CMDS[id]; if (!c) return; if (!["undo", "redo", "dimstyle", "select", "zoomext", "selectall", "copyclip", "copybase"].includes(id)) mem.lastCmd = id; run(id, () => c.fn(arg)); }
 
   // .... disegno
   def("line", "Linea", "Linea (L): clic sui punti, Invio per finire, C chiude, A annulla l'ultimo tratto", ["L", "LINEA", "LINE"], async () => {
@@ -539,8 +560,8 @@ export function createCadEditor(o) {
     const b = await needPoint("Angolo opposto (o @larghezza,altezza)", { base: a, preview: p => [{ type: "LWPOLYLINE", flag: 1, vertices: rect(p) }] });
     command([], () => add({ ...base(), type: "LWPOLYLINE", flag: 1, vertices: rect(b) }));
   }, "draw");
-  def("circle", "Cerchio", "Cerchio (C): centro e raggio; D = diametro, 3P = per tre punti", ["C", "CERCHIO", "CIRCLE"], async () => {
-    const r0 = await needPoint("Centro [3 punti (3P)]", { keys: { "3P": 1 } });
+  def("circle", "Cerchio", "Cerchio (C): centro e raggio; D = diametro, 3P = per tre punti", ["C", "CERCHIO", "CIRCLE"], async mode => {
+    const r0 = mode === "3p" ? { key: "3P" } : await needPoint("Centro [3 punti (3P)]", { keys: { "3P": 1 } });
     if (r0.key === "3P") {
       const a = await needPoint("Primo punto"), b = await needPoint("Secondo punto", { base: a });
       const c = await needPoint("Terzo punto", { base: b, preview: p => { const C = G.circle3(a, b, p); return C ? [{ type: "CIRCLE", center: P([C.cx, C.cy]), radius: C.r }] : []; } });
@@ -550,7 +571,7 @@ export function createCadEditor(o) {
     }
     const c = r0;
     lastPt = c;
-    let diam = false;
+    let diam = mode === "d";
     for (;;) {
       const r = await getPoint(diam ? "Diametro" : "Raggio [Diametro (D)]", { base: c, keys: { D: 1 }, allowValue: true, preview: p => [{ type: "CIRCLE", center: P(c), radius: Math.max(1e-9, dist(c, p) / (diam ? 2 : 1)) }] });
       if (r === null) return;
@@ -560,8 +581,8 @@ export function createCadEditor(o) {
       return;
     }
   }, "draw");
-  def("arc", "Arco", "Arco (A): inizio, secondo punto, fine; C = centro, inizio, fine", ["A", "ARCO", "ARC"], async () => {
-    const r0 = await needPoint("Punto iniziale [Centro (C)]", { keys: { C: 1 } });
+  def("arc", "Arco", "Arco (A): inizio, secondo punto, fine; C = centro, inizio, fine", ["A", "ARCO", "ARC"], async mode => {
+    const r0 = mode === "cse" ? { key: "C" } : await needPoint("Punto iniziale [Centro (C)]", { keys: { C: 1 } });
     const toEnt = A => ({ type: "ARC", center: P([A.cx, A.cy]), radius: A.r, startAngle: G.normA(A.sw > 0 ? A.a0 : A.a0 + A.sw), endAngle: G.normA(A.sw > 0 ? A.a0 + A.sw : A.a0) });
     if (r0.key === "C") {
       const c = await needPoint("Centro"), s = await needPoint("Punto iniziale", { base: c });
@@ -871,11 +892,11 @@ export function createCadEditor(o) {
     if (r?.key === "S" || r?.key === "SI") command(keys, () => keys.forEach(k => xform(getE(k), A, blocks)));
     else copyWith(keys, A);
   }, "modify");
-  def("array", "Serie", "Serie (AR): copie in righe e colonne o attorno a un centro", ["AR", "SERIE", "ARRAY"], async () => {
+  def("array", "Serie", "Serie (AR): copie in righe e colonne o attorno a un centro", ["AR", "SERIE", "ARRAY"], async mode => {
     const keys = await needSelection();
     const f = {};
     const inp = (k, v) => (f[k] = el("input", { type: "text", class: "field", value: fmt(v), style: { width: "90px" } }));
-    const kind = el("select", { class: "field" }, el("option", { value: "r" }, "Rettangolare"), el("option", { value: "p" }, "Polare (attorno a un centro)"));
+    const kind = el("select", { class: "field" }, el("option", { value: "r" }, "Rettangolare"), el("option", { value: "p", selected: mode === "p" || undefined }, "Polare (attorno a un centro)"));
     const rot2 = el("input", { type: "checkbox", checked: true });
     const ok = await modal("Serie", el("div", { style: { display: "grid", gridTemplateColumns: "auto auto", gap: "8px 12px", alignItems: "center" } },
       "Tipo", kind, "Righe", inp("rows", 2), "Colonne", inp("cols", 3), "Distanza tra le righe", inp("dy", mem.ady || 10), "Distanza tra le colonne", inp("dx", mem.adx || 10),
@@ -961,6 +982,94 @@ export function createCadEditor(o) {
     sel.clear(); renderProps();
     toast(n ? `${n} oggetti esplosi` : "Niente da esplodere (seleziona blocchi, polilinee o quote)", !n);
   }, "modify");
+  def("stretch", "Stira", "Stira (ST): finestra d'intersezione attorno ai vertici da spostare, poi punto base e secondo punto", ["ST", "STIRA", "STRETCH"], async () => {
+    const a = await needPoint("Primo angolo della finestra d'intersezione", { nosnap: true });
+    const rectEnt = q => ({ type: "LWPOLYLINE", flag: 1, vertices: [[a[0], a[1]], [q[0], a[1]], [q[0], q[1]], [a[0], q[1]]].map(([x, y]) => ({ x, y })) });
+    const b = await needPoint("Angolo opposto", { nosnap: true, preview: q => [rectEnt(q)] });
+    const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]);
+    const ins = (x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
+    const keys = inRect(x0, y0, x1, y1, true);
+    if (!keys.length) { toast("Nessun oggetto nella finestra", true); return; }
+    sel.clear(); keys.forEach(k => sel.add(k)); gripCache = null; o.draw();
+    const p1 = await needPoint("Punto base");
+    lastPt = p1;
+    const whole = new Map(keys.map(k => [k, itemsOf(k).every(it => it.bb && it.bb[0] >= x0 && it.bb[2] <= x1 && it.bb[1] >= y0 && it.bb[3] <= y1)]));
+    const apply = (k, e, dx, dy) => stretchEnt(e, dx, dy, ins, whole.get(k));
+    const p2 = await needPoint("Secondo punto", { base: p1, preview: q => keys.map(k => apply(k, clone(getE(k)), q[0] - p1[0], q[1] - p1[1])) });
+    command(keys, () => keys.forEach(k => apply(k, getE(k), p2[0] - p1[0], p2[1] - p1[1])));
+    sel.clear();
+  }, "modify");
+  // stira: si spostano i vertici dentro la finestra; gli oggetti senza vertici si spostano se il loro punto di riferimento e' dentro
+  function stretchEnt(e, dx, dy, ins, whole) {
+    if (whole) return xform(e, G.trn(dx, dy), blocks);
+    const W = e.extrusionDirection && e.extrusionDirection.z < -0.5;
+    const mv = p => { if (p && typeof p.x === "number" && ins(W ? -p.x : p.x, p.y)) { p.x += W ? -dx : dx; p.y += dy; } };
+    switch (e.type) {
+      case "LINE": mv(e.startPoint); mv(e.endPoint); break;
+      case "LWPOLYLINE": case "POLYLINE2D": (e.vertices || []).forEach(v => { if (v.point) { const on = ins(W ? -v.point.x : v.point.x, v.point.y); mv(v.point); if (on) { v.x = v.point.x; v.y = v.point.y; } } else mv(v); }); break;
+      case "SOLID": case "TRACE": case "3DFACE": ["corner1", "corner2", "corner3", "corner4"].forEach(k => mv(e[k])); break;
+      case "DIMENSION": if (e.dimKind) { ["p1", "p2", "loc", "c", "feat", "leader"].forEach(k => mv(e[k])); break; } // continua
+      // falls through
+      default: {
+        const r = e.center || e.insertionPoint || e.position || ((e.halign || e.valign) && e.endPoint ? e.endPoint : e.startPoint) || e.definitionPoint;
+        if (r && ins(W ? -r.x : r.x, r.y)) xform(e, G.trn(dx, dy), blocks);
+      }
+    }
+    return e;
+  }
+  def("matchprop", "Copia proprietà", "Copia proprietà (MA): oggetto di origine, poi gli oggetti di destinazione (layer, colore, tipo linea, spessore, altezza testo, stile quota)", ["MA", "COPIAPROP", "MATCHPROP", "PAINTER"], async () => {
+    const src = await getEntity("Seleziona l'oggetto di origine");
+    if (!src) return;
+    const e0 = clone(src.e);
+    const isTxt = e => ["TEXT", "MTEXT", "ATTRIB"].includes(e?.type);
+    for (;;) {
+      const t = await getEntity("Seleziona gli oggetti di destinazione (Invio per finire)");
+      if (!t) return;
+      command([t.key], () => {
+        const x = getE(t.key);
+        x.layer = e0.layer; x.lineType = e0.lineType; x.lineweight = e0.lineweight; x.lineTypeScale = e0.lineTypeScale;
+        if (e0.colorIndex === undefined && typeof e0.color === "number") { x.color = e0.color; x.colorIndex = undefined; } else { x.colorIndex = e0.colorIndex ?? 256; delete x.color; }
+        if (isTxt(e0) && isTxt(x)) x.textHeight = e0.textHeight;
+        if (e0.dimKind && x.dimKind) x.style = clone(e0.style);
+      });
+    }
+  }, "modify");
+  async function copyToClip(withBase) {
+    const keys = await needSelection();
+    let bp;
+    if (withBase) bp = await needPoint("Punto base");
+    else { const bb = selBox(keys); bp = [bb[0], bb[1]]; }
+    CLIP = { base: bp, ents: keys.map(k => clone(getE(k))).filter(e => !(e.type === "DIMENSION" && !e.dimKind)), blocks: Object.fromEntries([...blocks].map(([n, b]) => [n, true])) };
+    toast(`${CLIP.ents.length} oggetti copiati negli appunti${withBase ? " con punto base" : ""}`);
+  }
+  def("copyclip", "Copia negli appunti", "Copia negli appunti (Ctrl+C); con punto base: Ctrl+Maiusc+C", ["COPYCLIP"], async () => copyToClip(false), "clip");
+  def("copybase", "Copia con punto base", "Copia negli appunti con punto base (Ctrl+Maiusc+C)", ["COPYBASE"], async () => copyToClip(true), "clip");
+  def("paste", "Incolla", "Incolla dagli appunti (Ctrl+V): punto di inserimento", ["PASTECLIP", "INCOLLA"], async () => {
+    if (!CLIP?.ents.length) { toast("Gli appunti sono vuoti: seleziona e premi Ctrl+C", true); return; }
+    const ok = CLIP.ents.filter(e => e.type !== "INSERT" || blocks.has(e.name));
+    const skipped = CLIP.ents.length - ok.length;
+    const at = q => ok.map(e => { const c = clone(e); delete c.handle; delete c._dirty; c._new = true; return xform(c, G.trn(q[0] - CLIP.base[0], q[1] - CLIP.base[1]), blocks); });
+    const q = await needPoint("Punto di inserimento", { base: CLIP.base, preview: at });
+    command([], () => at(q).forEach(e => add(e)));
+    if (skipped) toast(`${skipped} blocchi non incollati: la loro definizione non esiste in questo disegno`, true, 6000);
+  }, "clip");
+  def("zoomext", "Estensioni", "Zoom estensioni (Z E): mostra tutto il disegno", ["ZE", "ZOOMEST", "ZOOMEXT"], async () => o.zoomTo(model().bbox), "view");
+  def("zoomwin", "Finestra", "Zoom finestra (Z F): due angoli della zona da ingrandire", ["ZW", "ZF", "ZOOMFIN", "ZOOM"], async () => {
+    const a = await needPoint("Primo angolo", { nosnap: true });
+    const b = await needPoint("Angolo opposto", { nosnap: true, preview: q => [{ type: "LWPOLYLINE", flag: 1, vertices: [[a[0], a[1]], [q[0], a[1]], [q[0], q[1]], [a[0], q[1]]].map(([x, y]) => ({ x, y })) }] });
+    if (dist(a, b) > 0) o.zoomTo([Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])]);
+  }, "view");
+  def("layercur", "Corrente da oggetto", "Rendi corrente il layer di un oggetto (LAYMCUR)", ["LAYMCUR", "LAYCUR"], async () => {
+    const t = await getEntity("Seleziona l'oggetto del layer da rendere corrente");
+    if (!t) return;
+    cur.layer = t.e.layer || "0"; fillLayers(); toast(`Layer corrente: ${cur.layer}`);
+  }, "layer");
+  def("layernew", "Nuovo layer", "Crea un nuovo layer e lo rende corrente", ["LAYNEW", "NUOVOLAYER"], async () => {
+    const n = await askText("Nuovo layer", "Nome del layer");
+    if (n) { newLayers.set(n, { name: n, aci: 7 }); cur.layer = n; ctx.setDirty(true); fillLayers(); }
+  }, "layer");
+  def("selectall", "Seleziona tutto", "Seleziona tutti gli oggetti visibili (Ctrl+A)", ["TUTTO", "SELALL"], async () => selectAll(), "util");
+  def("props", "Proprietà", "Mostra o nasconde la tavolozza Proprietà (Ctrl+1)", ["PR", "PROPRIETA", "PROPERTIES"], async () => { propsHidden = !propsHidden; renderProps(); }, "util");
   def("erase", "Elimina", "Elimina (E o Canc)", ["E", "CANCELLA", "ELIMINA", "ERASE"], async () => { const keys = await needSelection(); removeKeys(keys); }, "modify");
   def("undo", "Annulla", "Annulla (Ctrl+Z)", ["U", "ANNULLA", "UNDO"], async () => doUndo(), "edit");
   def("redo", "Ripeti", "Ripeti (Ctrl+Y)", ["RIPETI", "REDO"], async () => doRedo(), "edit");
@@ -1272,6 +1381,16 @@ export function createCadEditor(o) {
     const d = dpr();
     g2.save();
     g2.lineJoin = "round";
+    if (gridOn) { // griglia a punti: passo potenza di 10 (o 5x) che resta leggibile a questa scala
+      let step = 10 ** Math.ceil(Math.log10(14 * d / o.view.s));
+      if (step * o.view.s / 2 >= 14 * d) step /= 2;
+      const { w, h } = o.canvasSize(), [wx0, wy0] = o.toWorld(0, h), [wx1, wy1] = o.toWorld(w, 0);
+      g2.fillStyle = "rgba(150,160,175,.45)";
+      for (let x = Math.ceil(wx0 / step) * step; x <= wx1; x += step) for (let y = Math.ceil(wy0 / step) * step; y <= wy1; y += step) {
+        const [sx, sy] = o.toScreen(x, y), major = Math.abs(Math.round(x / step) % 5) === 0 && Math.abs(Math.round(y / step) % 5) === 0;
+        g2.fillRect(sx - (major ? 1.2 : 0.6) * d, sy - (major ? 1.2 : 0.6) * d, (major ? 2.4 : 1.2) * d, (major ? 2.4 : 1.2) * d);
+      }
+    }
     if (hover && !sel.has(hover)) { g2.strokeStyle = "rgba(120,190,255,.95)"; g2.lineWidth = 3 * d; g2.setLineDash([]); strokeItems(g2, itemsOf(hover)); }
     g2.lineWidth = 2 * d;
     for (const k of sel) {
@@ -1304,12 +1423,17 @@ export function createCadEditor(o) {
       }
     }
     const base = pending?.opts?.base;
+    if (base && cp && polarHit) { // traccia del puntamento polare
+      const [ax, ay] = o.toScreen(...base), L = 4000 * d;
+      g2.strokeStyle = "rgba(61,220,132,.8)"; g2.setLineDash([2 * d, 4 * d]); g2.lineWidth = 1 * d;
+      g2.beginPath(); g2.moveTo(ax, ay); g2.lineTo(ax + Math.cos(polarHit.a) * L, ay - Math.sin(polarHit.a) * L); g2.stroke(); g2.setLineDash([]);
+    }
     if (base && cp && pending.kind !== "entity") {
       const [ax, ay] = o.toScreen(...base), [bx, by] = o.toScreen(...cp);
       g2.strokeStyle = "rgba(255,255,255,.55)"; g2.setLineDash([4 * d, 4 * d]); g2.lineWidth = 1 * d;
       g2.beginPath(); g2.moveTo(ax, ay); g2.lineTo(bx, by); g2.stroke(); g2.setLineDash([]);
       const L = dist(base, cp), an = Math.atan2(cp[1] - base[1], cp[0] - base[0]) * R2D;
-      const label = `${fmt(+L.toFixed(4))}  <  ${fmt(+((an + 360) % 360).toFixed(2))}°`;
+      const label = `${polarHit ? "Polare: " : ""}${fmt(+L.toFixed(4))}  <  ${fmt(+((an + 360) % 360).toFixed(2))}°`;
       g2.font = `${12 * d}px Segoe UI, sans-serif`;
       const w = g2.measureText(label).width + 10 * d;
       g2.fillStyle = "rgba(20,24,30,.85)"; g2.fillRect(bx + 14 * d, by - 30 * d, w, 18 * d);
@@ -1468,7 +1592,12 @@ export function createCadEditor(o) {
     if (e.ctrlKey && k.toLowerCase() === "y") { doRedo(); return true; }
     if (k === "F8") { setOrtho(!ortho); return true; }
     if (k === "F3") { setOsnap(!osnapOn); return true; }
+    if (k === "F7") { setGrid(!gridOn); return true; }
+    if (k === "F10") { setPolar(!polarOn); return true; }
     if (e.target === input) return false; // il resto lo gestisce la riga di comando
+    if (e.ctrlKey && k === "1") { startCmd("props"); return true; }
+    if (e.ctrlKey && k.toLowerCase() === "c") { startCmd(e.shiftKey ? "copybase" : "copyclip"); return true; }
+    if (e.ctrlKey && k.toLowerCase() === "v") { startCmd("paste"); return true; }
     if (e.ctrlKey && k.toLowerCase() === "a") { selectAll(); return true; }
     if (k === "Delete") { if (sel.size && !pending) removeKeys([...sel]); return true; }
     if (k === "Enter" || k === " ") { submit(input.value); return true; }
@@ -1514,7 +1643,7 @@ export function createCadEditor(o) {
   function renderProps() {
     gripCache = null;
     props.innerHTML = "";
-    if (!on || !sel.size) { props.style.display = "none"; return; }
+    if (!on || !sel.size || propsHidden) { props.style.display = "none"; return; }
     props.style.display = "";
     const list = [...sel].filter(k => getE(k)), ents = list.map(getE), one = list.length === 1 ? ents[0] : null;
     const counts = {};
@@ -1609,23 +1738,49 @@ export function createCadEditor(o) {
       ...["move", "copy", "rotate", "scale", "mirror", "explode", "erase"].map(id => el("button", { class: "btn", title: CMDS[id].title, onclick: () => startCmd(id) }, CMDS[id].label))));
   }
 
-  // ---- barra degli strumenti, riga di comando
+  // ---- barra multifunzione (come AutoCAD: schede, pannelli con il titolo sotto, pulsanti grandi e piccoli, tendine)
   const btns = {};
-  const mk = id => (btns[id] = el("button", { class: "btn", title: CMDS[id].title, onclick: () => startCmd(id) }, CMDS[id].label));
-  const grp = (title, ...ids) => el("div", { class: "cad-grp" }, el("span", { class: "cad-grp-t" }, title), ...ids.map(id => (typeof id === "string" ? mk(id) : id)));
-  const layerPick = el("select", { class: "field", title: "Layer corrente per i nuovi oggetti" });
+  const aliasOf = id => Object.entries(ALIAS).filter(([a, v]) => v === id && a.length <= 4 && a !== CMDS[id].label.toUpperCase()).map(([a]) => a)[0] || "";
+  const tip = (id, variant) => { const c = CMDS[id], al = aliasOf(id); return `${c.label}${variant && variant !== c.label ? ` - ${variant}` : ""}${al ? ` (${al})` : ""}\n${c.title.replace(/^[^:]*:\s*/, "")}`; };
+  const ICO = { circle: "circle", arc: "arc", array: "array", dimlin: "dimlin" };
+  const ddMenu = el("div", { class: "cad-menu", hidden: true });
+  document.addEventListener("pointerdown", ev => { if (!ddMenu.contains(ev.target) && !ev.target.closest?.(".cad-dd")) ddMenu.hidden = true; });
+  function openMenu(anchor, items, onPick) {
+    ddMenu.innerHTML = "";
+    for (const it of items) ddMenu.append(el("button", { class: "cad-menu-it", title: tip(it.id, it.label), onclick: () => { ddMenu.hidden = true; onPick(it); } }, cadIcon(it.icon || it.id, 20), el("span", {}, it.label || CMDS[it.id].label)));
+    const r = anchor.getBoundingClientRect(), rb = bar.getBoundingClientRect();
+    ddMenu.style.left = `${r.left - rb.left}px`; ddMenu.style.top = `${r.bottom - rb.top + 2}px`;
+    ddMenu.hidden = false;
+  }
+  // pulsante con tendina: la parte principale ripete l'ultima variante scelta (come in AutoCAD)
+  function button(kind, id, opts = {}) {
+    const variants = opts.menu;
+    let curV = variants ? variants[0] : { id, arg: opts.arg, label: opts.label, icon: opts.icon };
+    const size = kind === "big" ? 32 : 18;
+    const ico = el("span", {}, cadIcon(curV.icon || ICO[curV.id] || curV.id, size)), lab = el("span", { class: "cad-lab" }, opts.label || CMDS[curV.id].label);
+    const main = el("button", { class: `cad-${kind}`, title: tip(curV.id, curV.label), onclick: () => startCmd(curV.id, curV.arg) }, ico, lab);
+    const setV = v => { curV = v; ico.replaceChildren(cadIcon(v.icon || ICO[v.id] || v.id, size)); lab.textContent = opts.label || CMDS[v.id].label; main.title = tip(v.id, v.label); btns[v.id] = main; };
+    btns[curV.id] = main;
+    if (!variants) return main;
+    const dd = el("button", { class: `cad-dd cad-dd-${kind}`, title: "Altre opzioni", onclick: ev => { ev.stopPropagation(); openMenu(wrap, variants, v => { setV(v); startCmd(v.id, v.arg); }); } }, "▾");
+    const wrap = el("span", { class: `cad-split cad-split-${kind}` }, main, dd);
+    return wrap;
+  }
+  const big = (id, o2) => button("big", id, o2), small = (id, o2) => button("small", id, o2);
+  const col = (...c) => el("div", { class: "cad-col" }, ...c);
+  const panel = (title, ...c) => el("div", { class: "cad-panel" }, el("div", { class: "cad-panel-body" }, ...c), el("div", { class: "cad-panel-t" }, title));
+  const labeled = (icon, title, ctl) => el("label", { class: "cad-field", title }, cadIcon(icon, 16), ctl);
+
+  const layerPick = el("select", { class: "field cad-layersel", title: "Layer corrente: i nuovi oggetti vanno su questo layer" });
   const colorPick = el("select", { class: "field", title: "Colore dei nuovi oggetti" }, ...COLORS.filter(([v]) => v !== 0).map(([v, n]) => el("option", { value: v }, n)));
   colorPick.addEventListener("change", () => { cur.color = +colorPick.value; });
-  const ltPick = el("select", { class: "field", title: "Tipo linea dei nuovi oggetti" }, ...ltypeNames().map(n => el("option", { value: n }, n === "ByLayer" ? "DaLayer" : n === "ByBlock" ? "DaBlocco" : n)));
+  const ltPick = el("select", { class: "field", title: "Tipo di linea dei nuovi oggetti" }, ...ltypeNames().map(n => el("option", { value: n }, n === "ByLayer" ? "DaLayer" : n === "ByBlock" ? "DaBlocco" : n)));
   ltPick.addEventListener("change", () => { cur.lineType = ltPick.value; });
-  const lwPick = el("select", { class: "field", title: "Spessore dei nuovi oggetti" }, ...LWEIGHTS.filter(([v]) => v !== -2).map(([v, n]) => el("option", { value: v }, n)));
+  const lwPick = el("select", { class: "field", title: "Spessore di linea dei nuovi oggetti" }, ...LWEIGHTS.filter(([v]) => v !== -2).map(([v, n]) => el("option", { value: v }, n)));
   lwPick.addEventListener("change", () => { cur.lineweight = +lwPick.value; });
   layerPick.addEventListener("change", async () => {
-    if (layerPick.value === "__new") {
-      const n = await askText("Nuovo layer", "Nome del layer");
-      if (n) { newLayers.set(n, { name: n, aci: 7 }); cur.layer = n; ctx.setDirty(true); } else layerPick.value = cur.layer;
-      fillLayers();
-    } else cur.layer = layerPick.value;
+    if (layerPick.value === "__new") { layerPick.value = cur.layer; startCmd("layernew"); }
+    else cur.layer = layerPick.value;
   });
   function fillLayers() {
     layerPick.innerHTML = "";
@@ -1637,32 +1792,86 @@ export function createCadEditor(o) {
   }
   const hInput = el("input", { type: "text", class: "field", value: fmt(cur.textH), title: "Altezza dei nuovi testi", style: { width: "64px" } });
   hInput.addEventListener("change", () => { const n = num(hInput.value); if (n > 0) cur.textH = n; });
-  const orthoBtn = el("button", { class: "btn", title: "Ortogonale (F8): solo linee orizzontali e verticali", onclick: () => setOrtho(!ortho) }, "ORTO");
-  const snapBtn = el("button", { class: "btn on", title: "Aggancio ai punti notevoli (F3)", onclick: () => setOsnap(!osnapOn) }, "SNAP");
+
+  const DIMS = [{ id: "dimlin" }, { id: "dimali" }, { id: "dimang" }, { id: "dimrad" }, { id: "dimdia" }, { id: "dimord" }];
+  const tabHome = el("div", { class: "cad-tabpage" },
+    panel("Disegna", big("line"), big("pline"),
+      big("circle", { menu: [{ id: "circle", label: "Centro, raggio", icon: "circle" }, { id: "circle", arg: "d", label: "Centro, diametro", icon: "circled" }, { id: "circle", arg: "3p", label: "3 punti", icon: "circle3p" }] }),
+      big("arc", { menu: [{ id: "arc", label: "3 punti", icon: "arc" }, { id: "arc", arg: "cse", label: "Centro, inizio, fine", icon: "arccse" }] }),
+      col(small("rect"), small("ellipse"), small("hatch"))),
+    panel("Modifica",
+      col(small("move"), small("rotate"), small("trim", { menu: [{ id: "trim" }, { id: "extend" }] })),
+      col(small("copy"), small("mirror"), small("fillet", { menu: [{ id: "fillet" }, { id: "chamfer" }] })),
+      col(small("stretch"), small("scale"), small("array", { menu: [{ id: "array", label: "Serie rettangolare", icon: "array" }, { id: "array", arg: "p", label: "Serie polare", icon: "arraypolar" }] })),
+      col(small("erase"), small("explode"), small("offset"))),
+    panel("Annotazione",
+      big("mtext", { menu: [{ id: "mtext", label: "Testo multiriga" }, { id: "text", label: "Testo su riga singola" }] }),
+      big("dimlin", { menu: DIMS }),
+      col(small("dimstyle"), small("dimcont"), small("dimbase"))),
+    panel("Layer", col(labeled("layer", "Layer corrente", layerPick), el("div", { class: "cad-row" }, small("layernew", { label: "Nuovo" }), small("layercur", { label: "Da oggetto" })))),
+    panel("Proprietà", big("matchprop"), col(labeled("props", "Colore", colorPick), labeled("line", "Tipo di linea", ltPick), labeled("pline", "Spessore di linea", lwPick))),
+    panel("Utilità", big("dist", { menu: [{ id: "dist" }, { id: "area" }] }), col(small("selectall", { label: "Sel. tutto" }), small("props"))),
+    panel("Appunti", big("paste"), col(small("copyclip", { label: "Copia" }), small("copybase", { label: "Copia base" }))));
+  const tabAnnot = el("div", { class: "cad-tabpage", hidden: true },
+    panel("Testo", big("mtext"), big("text"), col(labeled("text", "Altezza dei nuovi testi", hInput))),
+    panel("Quote", big("dimlin", { menu: DIMS }), col(small("dimali"), small("dimang"), small("dimord")), col(small("dimrad"), small("dimdia"), small("dimstyle")), big("dimcont"), big("dimbase")),
+    panel("Misura", big("dist"), big("area")));
+  const tabView = el("div", { class: "cad-tabpage", hidden: true },
+    panel("Navigazione", big("zoomext"), big("zoomwin")),
+    panel("Tavolozze", big("props")));
+  const pages = { Inizio: tabHome, Annota: tabAnnot, Vista: tabView };
+  const tabBtns = Object.keys(pages).map(n => el("button", { class: "cad-tab" + (n === "Inizio" ? " on" : ""), onclick: ev => { for (const [k, pg] of Object.entries(pages)) pg.hidden = k !== n; tabBtns.forEach(b => b.classList.toggle("on", b === ev.currentTarget)); } }, n));
+  const quick = el("span", { class: "cad-quick" }, ...["undo", "redo"].map(id => (btns[id] = el("button", { class: "cad-qa", title: tip(id), onclick: () => startCmd(id) }, cadIcon(id, 16)))));
+  const bar = el("div", { class: "cad-ribbon", style: { display: "none" } }, el("div", { class: "cad-tabs" }, quick, ...tabBtns), el("div", { class: "cad-ribbon-body" }, tabHome, tabAnnot, tabView), ddMenu);
+
+  // ---- riga di comando e barra di stato (in basso, come in AutoCAD)
+  const stBtn = (label, title, onclick) => el("button", { class: "cad-st", title, onclick }, label);
+  const gridBtn = stBtn("GRIGLIA", "Griglia (F7)", () => setGrid(!gridOn));
+  const orthoBtn = stBtn("ORTO", "Modo Orto (F8): solo direzioni orizzontali e verticali", () => setOrtho(!ortho));
+  const polarBtn = stBtn("POLARE", "Puntamento polare (F10): aggancio alle direzioni multiple dell'angolo scelto", () => setPolar(!polarOn));
+  const snapBtn = stBtn("OSNAP", "Snap ad oggetto (F3): fine, medio, centro, intersezione...", () => setOsnap(!osnapOn));
+  snapBtn.classList.add("on");
   const snapMenu = el("div", { class: "cad-snapmenu", hidden: true }, ...Object.keys(modes).map(k => {
     const cb = el("input", { type: "checkbox", checked: modes[k] });
     cb.addEventListener("change", () => { modes[k] = cb.checked; });
     return el("label", {}, cb, " ", G.SNAP_IT[k]);
   }));
-  const snapMore = el("button", { class: "btn", title: "Scegli i punti di aggancio", onclick: ev => { ev.stopPropagation(); snapMenu.hidden = !snapMenu.hidden; } }, "▾");
-  document.addEventListener("click", ev => { if (!snapMenu.contains(ev.target)) snapMenu.hidden = true; });
-  function setOrtho(v) { ortho = v; orthoBtn.classList.toggle("on", v); o.draw(); }
+  const polarMenu = el("div", { class: "cad-snapmenu", hidden: true }, ...[90, 45, 30, 22.5, 15, 10, 5].map(v => {
+    const rb = el("input", { type: "radio", name: "polar" + Math.random(), checked: v === polarInc });
+    rb.addEventListener("change", () => { polarInc = v; setPolar(true); });
+    return el("label", {}, rb, ` ${fmt(v)}°`);
+  }));
+  const more = (menu, title) => el("button", { class: "cad-st cad-st-more", title, onclick: ev => { ev.stopPropagation(); for (const m of [snapMenu, polarMenu]) if (m !== menu) m.hidden = true; menu.hidden = !menu.hidden; } }, "▾");
+  document.addEventListener("click", ev => { for (const m of [snapMenu, polarMenu]) if (!m.contains(ev.target)) m.hidden = true; });
+  function setOrtho(v) { ortho = v; if (v) { polarOn = false; polarBtn.classList.remove("on"); } orthoBtn.classList.toggle("on", v); o.draw(); }
+  function setPolar(v) { polarOn = v; if (v) { ortho = false; orthoBtn.classList.remove("on"); } polarBtn.classList.toggle("on", v); o.draw(); }
   function setOsnap(v) { osnapOn = v; snapBtn.classList.toggle("on", v); o.draw(); }
-  const bar = el("div", { class: "cad-bar", style: { display: "none" } },
-    grp("Disegna", "line", "pline", "rect", "circle", "arc", "ellipse", "text", "mtext", "hatch"),
-    grp("Quote", "dimlin", "dimali", "dimang", "dimrad", "dimdia", "dimord", "dimcont", "dimbase", "dimstyle"),
-    grp("Modifica", "move", "copy", "rotate", "scale", "mirror", "array", "offset", "trim", "extend", "fillet", "chamfer", "explode", "erase"),
-    grp("Misura", "dist", "area"),
-    grp("Proprietà", el("span", { class: "note" }, "Layer"), layerPick, el("span", { class: "note" }, "Colore"), colorPick, el("span", { class: "note" }, "Linea"), ltPick, lwPick, el("span", { class: "note" }, "H testo"), hInput),
-    grp("", "undo", "redo", el("span", { class: "cad-snapwrap" }, snapBtn, snapMore, snapMenu), orthoBtn));
+  function setGrid(v) { gridOn = v; gridBtn.classList.toggle("on", v); o.draw(); }
   const promptEl = el("span", { class: "cad-prompt" }, "Comando:");
-  const input = el("input", { type: "text", class: "cad-input", spellcheck: false, autocomplete: "off", placeholder: "scrivi un comando (L, PL, C, DLI, M, TR, O, F...) o ? per l'elenco" });
+  const input = el("input", { type: "text", class: "cad-input", spellcheck: false, autocomplete: "off", placeholder: "Digitare un comando (L, PL, C, DLI, M, TR, O, F...) o ? per l'elenco" });
   const coordEl = el("span", { class: "cad-coord" });
   input.addEventListener("keydown", ev => {
     if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); ev.stopPropagation(); submit(input.value); }
     else if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); key({ key: "Escape", target: document.body }); input.blur(); }
   });
-  const cmdline = el("div", { class: "cad-cmdline", style: { display: "none" } }, promptEl, input, coordEl);
+  const cmdline = el("div", { class: "cad-bottom", style: { display: "none" } },
+    el("div", { class: "cad-cmdline" }, el("span", { class: "cad-cmd-ico" }, "▸"), promptEl, input),
+    el("div", { class: "cad-status" }, coordEl, el("span", { class: "grow" }), el("span", { class: "cad-st-t" }, "MODELLO"), gridBtn,
+      el("span", { class: "cad-snapwrap" }, polarBtn, more(polarMenu, "Angolo del puntamento polare"), polarMenu), orthoBtn,
+      el("span", { class: "cad-snapwrap" }, snapBtn, more(snapMenu, "Punti di aggancio attivi"), snapMenu)));
+  // scorciatoie per l'aiuto (F1)
+  describeKeys(ctx, "AutoCAD", [
+    ...["line", "pline", "circle", "arc", "rect", "ellipse", "hatch", "mtext", "text"].map(id => [aliasOf(id) || CMDS[id].label, CMDS[id].label, "Disegna (scrivi e premi Invio)"]),
+    ...["move", "copy", "rotate", "scale", "mirror", "stretch", "array", "offset", "trim", "extend", "fillet", "chamfer", "explode", "erase", "matchprop"].map(id => [aliasOf(id) || CMDS[id].label, CMDS[id].label, "Modifica (scrivi e premi Invio)"]),
+    ...["dimlin", "dimali", "dimang", "dimrad", "dimdia", "dimord", "dimcont", "dimbase", "dimstyle", "dist", "area"].map(id => [aliasOf(id) || CMDS[id].label, CMDS[id].label, "Quote e misure (scrivi e premi Invio)"]),
+    ["Invio / Spazio / clic destro", "Conferma; a vuoto ripete l'ultimo comando", "Generale"], ["Esc", "Annulla il comando o la selezione", "Generale"],
+    ["Ctrl+Z", "Annulla", "Generale"], ["Ctrl+Y", "Ripeti", "Generale"], ["Canc", "Cancella la selezione", "Generale"], ["Ctrl+A", "Seleziona tutto", "Generale"],
+    ["Ctrl+C", "Copia negli appunti", "Generale"], ["Ctrl+Maiusc+C", "Copia con punto base", "Generale"], ["Ctrl+V", "Incolla", "Generale"], ["Ctrl+1", "Tavolozza Proprietà", "Generale"],
+    ["F3", "Snap ad oggetto", "Aiuti al disegno"], ["F7", "Griglia", "Aiuti al disegno"], ["F8", "Orto", "Aiuti al disegno"], ["F10", "Puntamento polare", "Aiuti al disegno"],
+    ["Maiusc+clic", "Toglie dalla selezione", "Selezione"], ["Ctrl+clic", "Seleziona dentro un blocco", "Selezione"], ["Clic ripetuto", "Oggetto sovrapposto successivo", "Selezione"],
+    ["Trascina da sinistra / da destra", "Finestra / intersezione", "Selezione"], ["Doppio clic su un testo", "Modifica il testo", "Selezione"],
+    ["x,y · @dx,dy · @d<a · numero", "Coordinate assolute, relative, polari, distanza diretta", "Riga di comando"],
+  ]);
   function showHelp() {
     const rows = Object.values(CMDS).map(c => el("tr", {}, el("td", {}, c.label), el("td", { class: "note" }, Object.entries(ALIAS).filter(([, v]) => v === c.id).map(([a]) => a).filter(a => a.length <= 4).join(", ")), el("td", {}, c.title)));
     modal("Comandi dell'editor CAD", el("div", { style: { maxHeight: "60vh", overflow: "auto" } }, el("table", { class: "grid" }, ...rows),
@@ -1675,6 +1884,7 @@ export function createCadEditor(o) {
     toggle() {
       on = !on;
       bar.style.display = on ? "flex" : "none";
+      ddMenu.hidden = true;
       cmdline.style.display = on ? "flex" : "none";
       if (on) { fillLayers(); ctx.status("Editor attivo: clic per selezionare, comandi dalla barra o scrivendo (es. L, C, DLI, TR). ? = elenco comandi"); }
       else { cancelTask(); sel.clear(); box = null; clickBox = null; hover = null; }

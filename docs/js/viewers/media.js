@@ -1,5 +1,6 @@
 // Audio e video: riproduzione nativa o conversione automatica con FFmpeg; taglio, rotazione, estrazione audio, fotogrammi, conversione.
 import { api, button, dirName, el, fileUrl, fmtTime, loading, modal, pickSavePath, toast, waitJob, withExt } from "../core.js";
+import { keymap } from "../shortcuts.js";
 
 const NATIVE_V = new Set(["mp4", "m4v", "webm", "ogv", "mov"]);
 const NATIVE_A = new Set(["mp3", "wav", "wave", "flac", "ogg", "oga", "opus", "m4a", "aac"]);
@@ -73,8 +74,8 @@ export async function mount(ctx) {
     isVideo ? button("", "rotateL", () => step(-1 / 25), { iconOnly: true, title: "Fotogramma precedente" }) : null,
     isVideo ? button("", "rotate", () => step(1 / 25), { iconOnly: true, title: "Fotogramma successivo" }) : null,
     el("span", { class: "sep" }),
-    button("Inizio qui", "scissors", () => { inP = media.currentTime; if (outP !== null && outP <= inP) outP = null; showMarks(); }, { title: "Imposta l'inizio del taglio alla posizione attuale" }),
-    button("Fine qui", "scissors", () => { outP = media.currentTime; if (inP !== null && inP >= outP) inP = null; showMarks(); }, { title: "Imposta la fine del taglio alla posizione attuale" }),
+    button("Inizio qui", "scissors", () => { inP = media.currentTime; if (outP !== null && outP <= inP) outP = null; showMarks(); }, { title: "Imposta l'inizio del taglio alla posizione attuale (I)" }),
+    button("Fine qui", "scissors", () => { outP = media.currentTime; if (inP !== null && inP >= outP) inP = null; showMarks(); }, { title: "Imposta la fine del taglio alla posizione attuale (O)" }),
     button("Azzera", null, () => { inP = outP = null; showMarks(); }), marks,
     el("span", { class: "sep" }),
     button("Esporta / converti", "download", () => exportDialog()),
@@ -87,6 +88,29 @@ export async function mount(ctx) {
     el("span", { class: "grow" }),
     el("span", { class: "note" }, (probe.flussi || []).map(s => s.tipo + ": " + s.dettagli.split(",")[0]).join(" · ")));
   [...ctx.tb.childNodes].forEach(n => { if (n.nodeType === 3 && n.textContent === "null") n.remove(); });
+  // tasti di Premiere / VLC
+  const markIn = () => { inP = media.currentTime; if (outP !== null && outP <= inP) outP = null; showMarks(); };
+  const markOut = () => { outP = media.currentTime; if (inP !== null && inP >= outP) inP = null; showMarks(); };
+  const toggle = () => (media.paused ? media.play() : media.pause());
+  const seek = d => { media.currentTime = Math.max(0, Math.min(media.duration || 0, media.currentTime + d)); };
+  let shuttle = 1;
+  keymap(ctx, "Premiere / VLC", [
+    { keys: "Space|K", desc: "Riproduci / pausa", run: toggle, group: "Riproduzione" },
+    { keys: "L", desc: "Avanti (premuto piu' volte: piu' veloce)", run: () => { shuttle = media.paused ? 1 : Math.min(8, shuttle * 2); media.playbackRate = shuttle; media.play(); ctx.status(`Velocita' ${shuttle}×`); }, group: "Riproduzione" },
+    { keys: "J", desc: "Indietro di 5 secondi", run: () => seek(-5), group: "Riproduzione" },
+    { keys: "ArrowLeft", desc: "Indietro di 5 secondi", run: () => seek(-5), group: "Riproduzione" },
+    { keys: "ArrowRight", desc: "Avanti di 5 secondi", run: () => seek(5), group: "Riproduzione" },
+    { keys: ",", desc: "Fotogramma precedente", run: () => step(-1 / 25), group: "Riproduzione" },
+    { keys: ".", desc: "Fotogramma successivo", run: () => step(1 / 25), group: "Riproduzione" },
+    { keys: "Home", desc: "Vai all'inizio", run: () => { media.currentTime = 0; }, group: "Riproduzione" },
+    { keys: "End", desc: "Vai alla fine", run: () => { media.currentTime = media.duration || 0; }, group: "Riproduzione" },
+    { keys: "M", desc: "Audio si'/no", run: () => { media.muted = !media.muted; }, group: "Riproduzione" },
+    ...(isVideo ? [{ keys: "F", desc: "Schermo intero", run: () => (document.fullscreenElement ? document.exitFullscreen() : media.requestFullscreen?.()), group: "Riproduzione" }] : []),
+    { keys: "I", desc: "Inizio del taglio qui (punto di attacco)", run: markIn, group: "Taglio" },
+    { keys: "O", desc: "Fine del taglio qui (punto di stacco)", run: markOut, group: "Taglio" },
+    { keys: "Ctrl+Shift+X", desc: "Azzera i punti di taglio", run: () => { inP = outP = null; showMarks(); }, group: "Taglio" },
+    { keys: "Ctrl+M", desc: "Esporta / converti", run: () => exportDialog(), group: "Taglio" },
+  ]);
 
   async function exportDialog(defaultExt) {
     const fmtSel = el("select", { id: "exp-fmt-" + ctx.tab.name, class: "field" },
