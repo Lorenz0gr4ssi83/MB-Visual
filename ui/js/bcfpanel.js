@@ -3,14 +3,15 @@
 // crea punti di vista e li ripristina) e da solo per i file .bcfzip aperti senza modello (ui/js/viewers/bcf.js).
 import { askText, baseName, confirmBox, dirName, el, loadCss, modal, pickFiles, pickSavePath, readBytes, saveBlobAs, saveBytes, toast } from "./core.js";
 import { bridge } from "./bcfview.js";
-import { DEFAULTS, IT, dateIt, isOverdue, newStore, newTopic, nowIso, readBcf, statusTone, tr, uuid, writeBcf } from "./bcf.js";
+import { DEFAULTS, dateIt, hasLbl, isOverdue, newStore, newTopic, nowIso, readBcf, statusTone, lbl, uuid, writeBcf } from "./bcf.js";
+import { LOCALE, t as tr } from "./i18n.js";
 
 const AUTHOR_KEY = "mbv-bcf-autore";
 function storedAuthor() { try { return localStorage.getItem(AUTHOR_KEY) || ""; } catch { return ""; } }
 export async function author(force = false) {
   let a = storedAuthor();
   if (!a || force) {
-    const v = await askText("Autore delle segnalazioni", "Nome o email con cui firmare segnalazioni e commenti (lo usano Revit, Navisworks, Solibri, BIMcollab)", a);
+    const v = await askText(tr("bcfpanel.autore_segnalazioni"), tr("bcfpanel.nome_email_cui_firmare_segnalazioni"), a);
     if (v === null) return a || "";
     a = v.trim();
     try { localStorage.setItem(AUTHOR_KEY, a); } catch { /* */ }
@@ -74,17 +75,17 @@ export function createPanel(opt) {
   function renderHead() {
     head.innerHTML = "";
     const n = S.store.topics.length;
-    const title = el("div", { class: "bcf-title" }, el("b", {}, "Segnalazioni BCF"), el("span", { class: "bcf-count" }, String(n)),
-      S.dirty ? el("span", { class: "bcf-unsaved", title: "Modifiche non salvate in un file BCF" }, "non salvate") : null,
+    const title = el("div", { class: "bcf-title" }, el("b", {}, tr("bcfpanel.segnalazioni_bcf")), el("span", { class: "bcf-count" }, String(n)),
+      S.dirty ? el("span", { class: "bcf-unsaved", title: tr("bcfpanel.modifiche_non_salvate_file_bcf") }, tr("bcfpanel.non_salvate")) : null,
       el("span", { style: { flex: 1 } }),
-      opt.onClose ? el("button", { class: "bcf-x", title: "Chiudi il pannello", html: ICON.close, onclick: () => opt.onClose() }) : null);
-    const report = el("select", { title: "Report delle segnalazioni (quelle filtrate)", onchange: e => { const v = e.target.value; e.target.value = ""; if (v) doReport(v); } },
-      el("option", { value: "" }, "Report..."), el("option", { value: "pdf" }, "Report PDF"), el("option", { value: "xlsx" }, "Report Excel"));
+      opt.onClose ? el("button", { class: "bcf-x", title: tr("bcfpanel.chiudi_pannello"), html: ICON.close, onclick: () => opt.onClose() }) : null);
+    const report = el("select", { title: tr("bcfpanel.report_segnalazioni_quelle_filtrate"), onchange: e => { const v = e.target.value; e.target.value = ""; if (v) doReport(v); } },
+      el("option", { value: "" }, tr("bcfpanel.report")), el("option", { value: "pdf" }, tr("bcfpanel.report_pdf")), el("option", { value: "xlsx" }, tr("bcfpanel.report_excel")));
     const row = el("div", { class: "bcf-actions" },
-      br ? el("button", { class: "btn primary", onclick: createTopic, title: "Nuova segnalazione con il punto di vista attuale (camera, selezione, sezione) e l'istantanea", html: ICON.plus + "Nuova" }) : null,
-      el("button", { class: "btn", onclick: openBcf, title: br ? "Apri un file BCF e sovrapponi le segnalazioni a questo modello" : "Apri un altro file BCF" }, "Apri BCF"),
-      el("button", { class: "btn", onclick: () => save(false), title: S.path ? "Salva in " + baseName(S.path) : "Salva in un file .bcfzip" }, "Salva"),
-      el("button", { class: "btn", onclick: () => save(true), title: "Salva in un nuovo file, BCF 2.1 o 3.0" }, "Salva con nome"),
+      br ? el("button", { class: "btn primary", onclick: createTopic, title: tr("bcfpanel.nuova_segnalazione_punto_vista_attuale"), html: ICON.plus + tr("bcfpanel.nuova") }) : null,
+      el("button", { class: "btn", onclick: openBcf, title: br ? tr("bcfpanel.apri_file_bcf_sovrapponi_segnalazioni") : tr("bcfpanel.apri_altro_file_bcf") }, tr("bcfpanel.apri_bcf")),
+      el("button", { class: "btn", onclick: () => save(false), title: S.path ? tr("bcfpanel.salva_0", baseName(S.path)) : tr("bcfpanel.salva_file_bcfzip") }, tr("common.salva")),
+      el("button", { class: "btn", onclick: () => save(true), title: tr("bcfpanel.salva_nuovo_file_bcf_2") }, tr("bcfpanel.salva_nome")),
       report);
     head.append(title, row);
     if (S.path) head.append(el("div", { class: "bcf-file", title: S.path }, `${baseName(S.path)} · BCF ${S.store.version}`));
@@ -96,14 +97,14 @@ export function createPanel(opt) {
     if (S.current) { filters.hidden = true; return; }
     filters.hidden = false;
     const T = S.store.topics;
-    const opts = (kind, key) => [...new Set(T.map(t => t[key]).filter(Boolean))].sort().map(v => el("option", { value: v, selected: S.f[kind] === v }, kind === "assigned" ? v : tr(kind, v)));
+    const opts = (kind, key) => [...new Set(T.map(t => t[key]).filter(Boolean))].sort().map(v => el("option", { value: v, selected: S.f[kind] === v }, kind === "assigned" ? v : lbl(kind, v)));
     const sel = (kind, key, label) => el("select", { onchange: e => { S.f[kind] = e.target.value; renderList(); } }, el("option", { value: "" }, label), ...opts(kind, key));
-    const q = el("input", { type: "search", placeholder: "Cerca nel titolo, descrizione, commenti...", value: S.f.q });
+    const q = el("input", { type: "search", placeholder: tr("bcfpanel.cerca_titolo_descrizione_commenti"), value: S.f.q });
     q.addEventListener("input", () => { S.f.q = q.value; renderList(); });
     const od = el("input", { type: "checkbox", checked: S.f.overdue });
     od.addEventListener("change", () => { S.f.overdue = od.checked; renderList(); });
-    filters.append(q, el("div", { class: "bcf-frow" }, sel("status", "status", "Tutti gli stati"), sel("type", "type", "Tutti i tipi"), sel("priority", "priority", "Ogni priorita'"),
-      sel("assigned", "assignedTo", "Tutti gli assegnatari"), el("label", { class: "bcf-chk" }, od, "Scadute")));
+    filters.append(q, el("div", { class: "bcf-frow" }, sel("status", "status", tr("bcfpanel.tutti_stati")), sel("type", "type", tr("bcfpanel.tutti_i_tipi")), sel("priority", "priority", tr("bcfpanel.ogni_priorita")),
+      sel("assigned", "assignedTo", tr("bcfpanel.tutti_assegnatari")), el("label", { class: "bcf-chk" }, od, tr("bcfpanel.scadute"))));
   }
   function visible() {
     const f = S.f, q = f.q.trim().toLowerCase();
@@ -118,19 +119,19 @@ export function createPanel(opt) {
     const list = visible();
     if (!S.store.topics.length) {
       body.append(el("div", { class: "bcf-empty" },
-        el("p", {}, br ? "Nessuna segnalazione. Inquadra il punto da segnalare, seleziona gli elementi interessati (ed eventualmente una sezione) e premi Nuova." : "Il file non contiene segnalazioni."),
-        el("p", { class: "note" }, "Le segnalazioni si salvano in formato BCF (.bcfzip), leggibile da Revit, Navisworks, Solibri, BIMcollab, Archicad, Tekla e dagli altri programmi BIM.")));
+        el("p", {}, br ? tr("bcfpanel.nessuna_segnalazione_inquadra_punto_segnalare") : tr("bcfpanel.file_non_contiene_segnalazioni")),
+        el("p", { class: "note" }, tr("bcfpanel.segnalazioni_si_salvano_formato_bcf"))));
       return;
     }
-    if (!list.length) { body.append(el("p", { class: "bcf-empty note" }, "Nessuna segnalazione corrisponde ai filtri.")); return; }
+    if (!list.length) { body.append(el("p", { class: "bcf-empty note" }, tr("bcfpanel.nessuna_segnalazione_corrisponde_filtri"))); return; }
     for (const t of list) {
       const i = S.store.topics.indexOf(t);
       const snap = t.viewpoints.find(v => v.snapshot)?.snapshot;
       const card = el("div", { class: "bcf-card" + (S.lastOpened === t ? " sel" : ""), tabindex: "0" },
-        el("div", { class: "bcf-thumb" }, snap ? el("img", { src: urlOf(snap), alt: "" }) : el("span", {}, "nessuna immagine")),
+        el("div", { class: "bcf-thumb" }, snap ? el("img", { src: urlOf(snap), alt: "" }) : el("span", {}, tr("bcfpanel.nessuna_immagine"))),
         el("div", { class: "bcf-cbody" },
-          el("div", { class: "bcf-ctitle" }, el("span", { class: "bcf-num" }, String(i + 1)), t.title || "Senza titolo"),
-          el("div", { class: "bcf-meta" }, pill(t.status), t.priority ? el("span", { class: "bcf-prio p-" + prioTone(t.priority) }, tr("priority", t.priority)) : null, el("span", {}, tr("type", t.type))),
+          el("div", { class: "bcf-ctitle" }, el("span", { class: "bcf-num" }, String(i + 1)), t.title || tr("bcfpanel.senza_titolo")),
+          el("div", { class: "bcf-meta" }, pill(t.status), t.priority ? el("span", { class: "bcf-prio p-" + prioTone(t.priority) }, lbl("priority", t.priority)) : null, el("span", {}, lbl("type", t.type))),
           el("div", { class: "bcf-meta" }, t.assignedTo ? el("span", {}, "→ " + t.assignedTo) : null,
             t.dueDate ? el("span", { class: isOverdue(t) ? "bcf-late" : "" }, "entro " + dateIt(t.dueDate)) : null,
             t.comments.length ? el("span", {}, `${t.comments.length} comment${t.comments.length === 1 ? "o" : "i"}`) : null)));
@@ -139,7 +140,7 @@ export function createPanel(opt) {
       body.append(card);
     }
   }
-  const pill = s => (s ? el("span", { class: "bcf-pill t-" + statusTone(s) }, tr("status", s)) : null);
+  const pill = s => (s ? el("span", { class: "bcf-pill t-" + statusTone(s) }, lbl("status", s)) : null);
   const prioTone = p => ({ Critical: "c", High: "h", Major: "h" })[p] || "n";
 
   async function openTopic(t, vpIndex = 0) {
@@ -156,61 +157,61 @@ export function createPanel(opt) {
     if (!br || !v.vi) return;
     try {
       const r = await br.apply(v.vi);
-      if (r && r.wanted && r.found === 0) toast("Gli elementi indicati nel punto di vista non sono in questo modello (GUID diversi): ripristinata solo la camera", true, 5000);
-    } catch (e) { console.error(e); toast("Punto di vista non ripristinato: " + e.message, true); }
+      if (r && r.wanted && r.found === 0) toast(tr("bcfpanel.elementi_indicati_punto_vista_non"), true, 5000);
+    } catch (e) { console.error(e); toast(tr("bcfpanel.punto_vista_non_ripristinato_0", e.message), true); }
   }
 
   // ---------------------------------------------------------------- scheda
   function choices(kind, extKey, cur) {
     const vals = [...new Set([...(S.store.extensions?.[extKey] || []), ...DEFAULTS[extKey], cur].filter(Boolean))];
-    return vals.map(v => el("option", { value: v, selected: v === cur }, IT[kind][v] ? `${IT[kind][v]} (${v})` : v));
+    return vals.map(v => el("option", { value: v, selected: v === cur }, hasLbl(kind, v) && lbl(kind, v) !== v ? `${lbl(kind, v)} (${v})` : lbl(kind, v)));
   }
   function renderTopic() {
     const t = S.current;
     body.innerHTML = "";
     const field = (label, input) => el("label", { class: "bcf-field" }, el("span", {}, label), input);
     const bind = (input, key, conv = v => v) => { input.addEventListener("change", () => { t[key] = conv(input.value); touch(t); if (key === "title") renderHead(); }); return input; };
-    const title = bind(el("input", { type: "text", value: t.title, placeholder: "Titolo della segnalazione" }), "title");
-    const desc = bind(el("textarea", { rows: 4, placeholder: "Descrizione del problema" }, t.description), "description");
+    const title = bind(el("input", { type: "text", value: t.title, placeholder: tr("bcfpanel.titolo_segnalazione") }), "title");
+    const desc = bind(el("textarea", { rows: 4, placeholder: tr("bcfpanel.descrizione_problema") }, t.description), "description");
     const type = bind(el("select", {}, ...choices("type", "types", t.type)), "type");
     const status = bind(el("select", {}, ...choices("status", "statuses", t.status)), "status");
     const prio = bind(el("select", {}, el("option", { value: "" }, "—"), ...choices("priority", "priorities", t.priority)), "priority");
     const users = [...new Set([...(S.store.extensions?.users || []), ...S.store.topics.flatMap(x => [x.assignedTo, x.creationAuthor])].filter(Boolean))];
     const dl = el("datalist", { id: "bcf-users-" + (S.dlId ??= uuid().slice(0, 8)) }, ...users.map(u => el("option", { value: u })));
-    const assigned = bind(el("input", { type: "text", value: t.assignedTo, list: dl.id, placeholder: "nome o email" }), "assignedTo");
+    const assigned = bind(el("input", { type: "text", value: t.assignedTo, list: dl.id, placeholder: tr("bcfpanel.nome_email") }), "assignedTo");
     const due = bind(el("input", { type: "date", value: t.dueDate ? t.dueDate.slice(0, 10) : "" }), "dueDate", v => (v ? v + "T00:00:00Z" : ""));
-    const stage = bind(el("input", { type: "text", value: t.stage, placeholder: "es. Progetto esecutivo" }), "stage");
-    const labels = bind(el("input", { type: "text", value: t.labels.join(", "), placeholder: "separate da virgole" }), "labels", v => v.split(",").map(s => s.trim()).filter(Boolean));
+    const stage = bind(el("input", { type: "text", value: t.stage, placeholder: tr("bcfpanel.es_progetto_esecutivo") }), "stage");
+    const labels = bind(el("input", { type: "text", value: t.labels.join(", "), placeholder: tr("bcfpanel.separate_virgole") }), "labels", v => v.split(",").map(s => s.trim()).filter(Boolean));
     const i = S.store.topics.indexOf(t);
     body.append(
       el("div", { class: "bcf-nav" },
-        el("button", { class: "btn", html: ICON.back + "Elenco", onclick: () => { S.current = null; renderFilters(); renderList(); } }),
+        el("button", { class: "btn", html: ICON.back + tr("bcfpanel.elenco"), onclick: () => { S.current = null; renderFilters(); renderList(); } }),
         el("span", { style: { flex: 1 } }),
-        el("button", { class: "btn icon", title: "Segnalazione precedente", disabled: i <= 0, onclick: () => openTopic(S.store.topics[i - 1]) }, "‹"),
-        el("span", { class: "note" }, `${i + 1} di ${S.store.topics.length}`),
-        el("button", { class: "btn icon", title: "Segnalazione successiva", disabled: i >= S.store.topics.length - 1, onclick: () => openTopic(S.store.topics[i + 1]) }, "›")),
+        el("button", { class: "btn icon", title: tr("bcfpanel.segnalazione_precedente"), disabled: i <= 0, onclick: () => openTopic(S.store.topics[i - 1]) }, "‹"),
+        el("span", { class: "note" }, tr("bcfpanel.n_di_m", i + 1, S.store.topics.length)),
+        el("button", { class: "btn icon", title: tr("bcfpanel.segnalazione_successiva"), disabled: i >= S.store.topics.length - 1, onclick: () => openTopic(S.store.topics[i + 1]) }, "›")),
       title, dl,
-      el("div", { class: "bcf-grid" }, field("Tipo", type), field("Stato", status), field("Priorita'", prio), field("Scadenza", due), field("Assegnato a", assigned), field("Fase", stage)),
-      field("Etichette", labels), field("Descrizione", desc),
-      el("div", { class: "bcf-info note" }, `Creata ${dateIt(t.creationDate, true)}${t.creationAuthor ? " da " + t.creationAuthor : ""}`
-        + (t.modifiedDate ? ` · modificata ${dateIt(t.modifiedDate, true)}${t.modifiedAuthor ? " da " + t.modifiedAuthor : ""}` : "")),
+      el("div", { class: "bcf-grid" }, field(tr("bcfpanel.tipo"), type), field(tr("bcfpanel.stato"), status), field(tr("bcfpanel.priorita"), prio), field(tr("bcfpanel.scadenza"), due), field(tr("bcfpanel.assegnato"), assigned), field(tr("bcfpanel.fase"), stage)),
+      field(tr("bcfpanel.etichette"), labels), field(tr("bcfpanel.descrizione"), desc),
+      el("div", { class: "bcf-info note" }, [t.creationAuthor ? tr("bcfpanel.creata_0_1", dateIt(t.creationDate, true), t.creationAuthor) : tr("bcfpanel.creata_0", dateIt(t.creationDate, true)),
+        t.modifiedDate ? (t.modifiedAuthor ? tr("bcfpanel.modificata_0_1", dateIt(t.modifiedDate, true), t.modifiedAuthor) : tr("bcfpanel.modificata_0", dateIt(t.modifiedDate, true))) : ""].filter(Boolean).join(" · ")),
       renderViewpoints(t), renderComments(t),
-      el("div", { class: "bcf-foot" }, el("button", { class: "btn danger", onclick: () => removeTopic(t) }, "Elimina segnalazione")));
+      el("div", { class: "bcf-foot" }, el("button", { class: "btn danger", onclick: () => removeTopic(t) }, tr("bcfpanel.elimina_segnalazione"))));
     if (!t.title) setTimeout(() => title.focus(), 0);
   }
 
   function renderViewpoints(t) {
-    const box = el("div", { class: "bcf-sec" }, el("div", { class: "bcf-sech" }, el("b", {}, `Punti di vista (${t.viewpoints.length})`), el("span", { style: { flex: 1 } }),
-      br ? el("button", { class: "btn", title: "Sostituisce il punto di vista mostrato con la vista attuale", disabled: !t.viewpoints.length, onclick: () => updateViewpoint(t) }, "Aggiorna") : null,
-      br ? el("button", { class: "btn", title: "Aggiunge la vista attuale come nuovo punto di vista", html: ICON.cam + "Aggiungi", onclick: () => addViewpoint(t) }) : null));
+    const box = el("div", { class: "bcf-sec" }, el("div", { class: "bcf-sech" }, el("b", {}, tr("bcfpanel.punti_vista_0", t.viewpoints.length)), el("span", { style: { flex: 1 } }),
+      br ? el("button", { class: "btn", title: tr("bcfpanel.sostituisce_punto_vista_mostrato_vista"), disabled: !t.viewpoints.length, onclick: () => updateViewpoint(t) }, tr("bcfpanel.aggiorna")) : null,
+      br ? el("button", { class: "btn", title: tr("bcfpanel.aggiunge_vista_attuale_come_nuovo"), html: ICON.cam + tr("common.aggiungi"), onclick: () => addViewpoint(t) }) : null));
     const strip = el("div", { class: "bcf-vps" });
     t.viewpoints.forEach((v, k) => {
       const sel = v.vi?.selection?.length || 0;
-      const item = el("div", { class: "bcf-vp" + (k === S.vpIndex ? " sel" : ""), title: "Mostra questo punto di vista" + (sel ? ` · ${sel} elementi selezionati` : "") + (v.vi?.planes?.length ? " · con sezione" : "") },
+      const item = el("div", { class: "bcf-vp" + (k === S.vpIndex ? " sel" : ""), title: [tr("bcfpanel.mostra_questo_punto_vista"), sel ? tr("bcfpanel.0_elementi_selezionati", sel) : "", v.vi?.planes?.length ? tr("bcfpanel.sezione") : ""].filter(Boolean).join(" · ") },
         v.snapshot ? el("img", { src: urlOf(v.snapshot), alt: "" }) : el("span", {}, "vista " + (k + 1)),
-        el("button", { class: "bcf-vpdel", title: "Elimina questo punto di vista", html: ICON.close, onclick: async e => {
+        el("button", { class: "bcf-vpdel", title: tr("bcfpanel.elimina_questo_punto_vista"), html: ICON.close, onclick: async e => {
           e.stopPropagation();
-          if (!(await confirmBox("Elimina punto di vista", "Eliminare il punto di vista e la sua istantanea?", "Elimina", true))) return;
+          if (!(await confirmBox(tr("bcfpanel.elimina_punto_vista"), tr("bcfpanel.eliminare_punto_vista_sua_istantanea"), tr("common.elimina"), true))) return;
           t.viewpoints.splice(k, 1);
           t.comments.forEach(c => { if (c.viewpoint === v.guid) c.viewpoint = ""; });
           S.vpIndex = 0;
@@ -220,7 +221,7 @@ export function createPanel(opt) {
       item.addEventListener("click", () => { S.vpIndex = k; strip.querySelectorAll(".bcf-vp").forEach((x, j) => x.classList.toggle("sel", j === k)); showViewpoint(v); });
       strip.append(item);
     });
-    if (!t.viewpoints.length) strip.append(el("p", { class: "note" }, br ? "Nessun punto di vista: usa Aggiungi per salvare la vista attuale." : "Nessun punto di vista."));
+    if (!t.viewpoints.length) strip.append(el("p", { class: "note" }, br ? tr("bcfpanel.nessun_punto_vista_usa_aggiungi") : tr("bcfpanel.nessun_punto_vista")));
     box.append(strip);
     return box;
   }
@@ -243,15 +244,15 @@ export function createPanel(opt) {
     old.snapshot = nv.snapshot;
     touch(t);
     renderTopic();
-    toast("Punto di vista aggiornato");
+    toast(tr("bcfpanel.punto_vista_aggiornato"));
   }
 
   function renderComments(t) {
-    const box = el("div", { class: "bcf-sec" }, el("div", { class: "bcf-sech" }, el("b", {}, `Commenti (${t.comments.length})`)));
+    const box = el("div", { class: "bcf-sec" }, el("div", { class: "bcf-sech" }, el("b", {}, tr("bcfpanel.commenti_0", t.comments.length))));
     for (const c of t.comments) {
       const vk = c.viewpoint ? t.viewpoints.findIndex(v => v.guid === c.viewpoint) : -1;
-      const edit = el("button", { class: "bcf-link", title: "Modifica il testo", onclick: async () => {
-        const v = await modalText("Modifica commento", c.text);
+      const edit = el("button", { class: "bcf-link", title: tr("bcfpanel.modifica_testo"), onclick: async () => {
+        const v = await modalText(tr("bcfpanel.modifica_commento"), c.text);
         if (v === null) return;
         c.text = v;
         c.modifiedDate = nowIso();
@@ -260,20 +261,20 @@ export function createPanel(opt) {
         renderTopic();
       } }, "modifica");
       const del = el("button", { class: "bcf-link", onclick: async () => {
-        if (!(await confirmBox("Elimina commento", "Eliminare il commento?", "Elimina", true))) return;
+        if (!(await confirmBox(tr("bcfpanel.elimina_commento"), tr("bcfpanel.eliminare_commento"), tr("common.elimina"), true))) return;
         t.comments.splice(t.comments.indexOf(c), 1);
         touch(t);
         renderTopic();
       } }, "elimina");
       box.append(el("div", { class: "bcf-comment" },
-        el("div", { class: "bcf-chead" }, el("b", {}, c.author || "—"), el("span", { class: "note" }, dateIt(c.date, true) + (c.modifiedDate ? " (modificato)" : "")),
-          el("span", { style: { flex: 1 } }), vk >= 0 ? el("button", { class: "bcf-link", html: ICON.cam + "vista", title: "Mostra il punto di vista del commento", onclick: () => { S.vpIndex = vk; renderTopic(); showViewpoint(t.viewpoints[vk]); } }) : null, edit, del),
+        el("div", { class: "bcf-chead" }, el("b", {}, c.author || "—"), el("span", { class: "note" }, dateIt(c.date, true) + (c.modifiedDate ? tr("bcfpanel.modificato") : "")),
+          el("span", { style: { flex: 1 } }), vk >= 0 ? el("button", { class: "bcf-link", html: ICON.cam + "vista", title: tr("bcfpanel.mostra_punto_vista_commento"), onclick: () => { S.vpIndex = vk; renderTopic(); showViewpoint(t.viewpoints[vk]); } }) : null, edit, del),
         el("div", { class: "bcf-ctext" }, c.text)));
     }
-    const ta = el("textarea", { rows: 2, placeholder: "Scrivi un commento..." });
+    const ta = el("textarea", { rows: 2, placeholder: tr("bcfpanel.scrivi_commento") });
     const withVp = el("input", { type: "checkbox" });
     box.append(el("div", { class: "bcf-addc" }, ta, el("div", { class: "bcf-frow" },
-      br ? el("label", { class: "bcf-chk", title: "Salva la vista attuale come nuovo punto di vista collegato al commento" }, withVp, "Allega la vista attuale") : null,
+      br ? el("label", { class: "bcf-chk", title: tr("bcfpanel.salva_vista_attuale_come_nuovo") }, withVp, tr("bcfpanel.allega_vista_attuale")) : null,
       el("span", { style: { flex: 1 } }),
       el("button", { class: "btn primary", onclick: async () => {
         const text = ta.value.trim();
@@ -283,12 +284,12 @@ export function createPanel(opt) {
         t.comments.push(c);
         touch(t);
         renderTopic();
-      } }, "Aggiungi commento"))));
+      } }, tr("bcfpanel.aggiungi_commento")))));
     return box;
   }
   async function modalText(title, value) {
     const ta = el("textarea", { rows: 6, style: { width: "min(520px, 80vw)" } }, value);
-    return modal(title, ta, [{ label: "Annulla", value: null }, { label: "OK", primary: true, value: () => ta.value }]);
+    return modal(title, ta, [{ label: tr("common.annulla"), value: null }, { label: "OK", primary: true, value: () => ta.value }]);
   }
 
   // ---------------------------------------------------------------- azioni
@@ -306,7 +307,7 @@ export function createPanel(opt) {
     renderTopic();
   }
   async function removeTopic(t) {
-    if (!(await confirmBox("Elimina segnalazione", `Eliminare "${t.title || "Senza titolo"}" con i suoi commenti e punti di vista?`, "Elimina", true))) return;
+    if (!(await confirmBox(tr("bcfpanel.elimina_segnalazione"), tr("bcfpanel.eliminare_0_i_suoi_commenti", t.title || tr("bcfpanel.senza_titolo")), tr("common.elimina"), true))) return;
     S.store.topics.splice(S.store.topics.indexOf(t), 1);
     S.current = null;
     setDirty();
@@ -321,38 +322,38 @@ export function createPanel(opt) {
     let store;
     try { store = await readBcf(await readBytes(p)); } catch (e) { return toast(baseName(p) + ": " + e.message, true, 6000); }
     if (S.store.topics.length) {
-      const how = await modal("Apri BCF", el("p", {}, `Ci sono gia' ${S.store.topics.length} segnalazioni. Le ${store.topics.length} segnalazioni di "${baseName(p)}" si aggiungono a queste o le sostituiscono?`),
-        [{ label: "Annulla", value: null }, { label: "Sostituisci", value: "replace" }, { label: "Aggiungi", value: "add", primary: true }]);
+      const how = await modal(tr("bcfpanel.apri_bcf"), el("p", {}, tr("bcfpanel.ci_sono_gia_0_segnalazioni", S.store.topics.length, store.topics.length, baseName(p))),
+        [{ label: tr("common.annulla"), value: null }, { label: tr("bcfpanel.sostituisci"), value: "replace" }, { label: tr("common.aggiungi"), value: "add", primary: true }]);
       if (!how) return;
       if (how === "add") {
         const have = new Set(S.store.topics.map(t => t.guid));
         let n = 0;
         for (const t of store.topics) { if (have.has(t.guid)) continue; S.store.topics.push(t); n++; }
         setDirty();
-        toast(`Aggiunte ${n} segnalazioni` + (n < store.topics.length ? ` (${store.topics.length - n} erano gia' presenti)` : ""));
+        toast(n < store.topics.length ? tr("bcfpanel.aggiunte_0_segnalazioni_1_erano", n, store.topics.length - n) : tr("bcfpanel.aggiunte_0_segnalazioni", n));
         return refresh();
       }
     }
     setStore(store, p);
     checkModel();
-    toast(`${store.topics.length} segnalazioni da ${baseName(p)} (BCF ${store.version})`);
+    toast(tr("bcfpanel.0_segnalazioni_1_bcf_2", store.topics.length, baseName(p), store.version));
   }
   // le segnalazioni fanno riferimento a un altro modello? (si confronta il GUID del progetto IFC)
   function checkModel() {
     if (!br?.isIfc()) return;
     const mine = new Set(br.modelFiles().map(f => f.ifcProject).filter(Boolean));
     const theirs = new Set(S.store.topics.flatMap(t => t.files.map(f => f.ifcProject)).filter(Boolean));
-    if (mine.size && theirs.size && ![...theirs].some(g => mine.has(g))) toast("Attenzione: le segnalazioni sono state create su un altro progetto IFC (GUID del progetto diverso); camera e sezioni restano valide se le coordinate coincidono", true, 7000);
+    if (mine.size && theirs.size && ![...theirs].some(g => mine.has(g))) toast(tr("bcfpanel.attenzione_segnalazioni_sono_state_create"), true, 7000);
   }
 
   async function save(asNew) {
     const st = S.store;
     let target = S.path, version = st.version?.startsWith("3") ? "3.0" : "2.1";
     if (asNew || !target) {
-      const v = await modal("Salva segnalazioni BCF", el("div", {},
-        el("p", {}, "Versione del formato BCF:"),
-        el("p", { class: "note" }, "2.1 e' letta da tutti i programmi (Revit BCF Manager, Navisworks, Solibri, BIMcollab, Archicad, Tekla). 3.0 e' la versione piu' recente: usala se chi la riceve la supporta.")),
-        [{ label: "Annulla", value: null }, { label: "BCF 3.0", value: "3.0" }, { label: "BCF 2.1", value: "2.1", primary: true }]);
+      const v = await modal(tr("bcfpanel.salva_segnalazioni_bcf"), el("div", {},
+        el("p", {}, tr("bcfpanel.versione_formato_bcf")),
+        el("p", { class: "note" }, tr("bcfpanel.2_1_letta_tutti_i"))),
+        [{ label: tr("common.annulla"), value: null }, { label: "BCF 3.0", value: "3.0" }, { label: "BCF 2.1", value: "2.1", primary: true }]);
       if (!v) return;
       version = v;
       const base = (opt.baseName || "segnalazioni").replace(/\.[^.]+$/, "");
@@ -364,26 +365,26 @@ export function createPanel(opt) {
       await saveBytes(target, new Uint8Array(await blob.arrayBuffer()));
       st.version = version;
       if (!target.startsWith("download://")) S.path = target;
-      toast("Segnalazioni salvate: " + baseName(target));
+      toast(tr("bcfpanel.segnalazioni_salvate_0", baseName(target)));
       setDirty(false);
       if (opt.recoveryKey) recovery.del(opt.recoveryKey);
       opt.onSaved?.(target);
-    } catch (e) { toast("Salvataggio non riuscito: " + e.message, true, 6000); }
+    } catch (e) { toast(tr("bcfpanel.salvataggio_non_riuscito_0", e.message), true, 6000); }
   }
 
   async function doReport(kind) {
     const list = visible();
-    if (!list.length) return toast("Nessuna segnalazione da mettere nel report", true);
+    if (!list.length) return toast(tr("bcfpanel.nessuna_segnalazione_mettere_report"), true);
     const sub = { ...S.store, topics: list };
     const model = opt.modelName || "";
     const name = (S.path ? baseName(S.path) : opt.baseName || "segnalazioni").replace(/\.[^.]+$/, "") + " - report";
     try {
-      toast("Preparazione del report...", false, 30000);
+      toast(tr("bcfpanel.preparazione_report"), false, 30000);
       const R = await import("./bcfreport.js");
-      const blob = kind === "pdf" ? await R.pdfReport(sub, { title: "Report segnalazioni BCF", model }) : await R.excelReport(sub, "Segnalazioni BCF");
-      toast("Report pronto", false, 1200);
+      const blob = kind === "pdf" ? await R.pdfReport(sub, { title: tr("bcfpanel.report_segnalazioni_bcf"), model }) : await R.excelReport(sub, tr("bcfpanel.segnalazioni_bcf"));
+      toast(tr("bcfpanel.report_pronto"), false, 1200);
       await saveBlobAs(`${name}.${kind}`, blob, S.path ? dirName(S.path) : opt.dir || "");
-    } catch (e) { console.error(e); toast("Report non riuscito: " + e.message, true, 6000); }
+    } catch (e) { console.error(e); toast(tr("bcfpanel.report_non_riuscito_0", e.message), true, 6000); }
   }
 
   // ---------------------------------------------------------------- stato
@@ -423,7 +424,7 @@ export function attach3d(h, onToggle) {
     pending = null;
     const r = p && (await p);
     if (!r?.store?.topics?.length || panel.store.topics.length) return;
-    const ok = await confirmBox("Segnalazioni non salvate", `L'ultima volta su questo modello sono rimaste ${r.store.topics.length} segnalazioni non salvate in un file BCF (${new Date(r.date).toLocaleString("it-IT")}). Recuperarle?`, "Recupera");
+    const ok = await confirmBox(tr("bcfpanel.segnalazioni_non_salvate"), tr("bcfpanel.l_ultima_volta_questo_modello", r.store.topics.length, new Date(r.date).toLocaleString(LOCALE)), tr("bcfpanel.recupera"));
     if (ok) panel.setStore(r.store, null, true);
     else recovery.del(key);
   }

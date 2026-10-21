@@ -383,7 +383,8 @@ Formato BCF (buildingSMART) 2.0/2.1/3.0, estensioni `.bcfzip`/`.bcf` (categoria 
 - `ui/js/bcf.js` lettura/scrittura (modello unico per tutte le versioni, schema in testa al file; file non interpretati come
   documents.xml/Documents/ e allegati delle segnalazioni conservati tali e quali). In scrittura: GUID minuscoli (3.0) e quelli
   malformati sostituiti, colori in maiuscolo, FieldOfView 45-60 in 2.1 (limiti dello schema), ServerAssignedId solo in 3.0.
-  Valori standard in inglese nei file (Open, Clash, High...) e nomi italiani nell'interfaccia (`IT`).
+  Valori standard in inglese nei file (Open, Clash, High...), nomi tradotti con le chiavi `bcf.status|type|priority.<valore>`
+  (`lbl`); testi del pannello/report/visualizzatore in `bcfpanel.*`, `bcfreport.*`, `v_bcf.*` (5 lingue).
 - `ui/js/bcfview.js` ponte con la scena 3D: coordinate BCF (metri, Z in alto) -> scena = C*N*mondo per IFC (C = matrice di
   coordinamento di web-ifc, verificata con un IFC georeferenziato) e N*S(1/m)*mondo per gli altri modelli (m = metri per unita').
   Elementi per GlobalId (`GetGuidFromExpressId`), elementi composti (facciate continue...) tramite IfcRelAggregates/IfcRelNests;

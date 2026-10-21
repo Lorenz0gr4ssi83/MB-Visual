@@ -11,23 +11,21 @@
 //             lines[{a, b}], planes[{loc, dir}] }   comp = { ifcGuid, system, toolId }
 // Coordinate in metri nel sistema del progetto (Z verso l'alto), come da specifica.
 import { loadScript } from "./core.js";
+import { t as tr, has as trHas, LOCALE } from "./i18n.js";
 
 export const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => { const r = (Math.random() * 16) | 0; return (c === "x" ? r : (r & 3) | 8).toString(16); }));
 export const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
-// valori standard (in inglese nei file, come li scrivono Revit, Navisworks, Solibri, BIMcollab) e nomi italiani mostrati
-export const IT = {
-  status: { Open: "Aperta", "In Progress": "In corso", InProgress: "In corso", Active: "Attiva", Resolved: "Risolta", Closed: "Chiusa", ReOpened: "Riaperta", Reopened: "Riaperta", Assigned: "Assegnata" },
-  type: { Issue: "Problema", Clash: "Interferenza", Request: "Richiesta", Comment: "Commento", Error: "Errore", Warning: "Avviso", Info: "Informazione", Information: "Informazione",
-    Fault: "Difetto", Inquiry: "Domanda", Remark: "Osservazione", Solution: "Soluzione", Undefined: "Non definito", Unknown: "Non definito" },
-  priority: { Critical: "Critica", High: "Alta", Major: "Alta", Medium: "Media", Normal: "Normale", Low: "Bassa", Minor: "Bassa", "On hold": "In attesa" },
-};
+// valori standard (in inglese nei file, come li scrivono Revit, Navisworks, Solibri, BIMcollab) e nomi tradotti mostrati:
+// chiavi bcf.status.* / bcf.type.* / bcf.priority.* (valore in minuscolo, spazi -> _); valori non previsti restano come sono
+const lblKey = (kind, v) => `bcf.${kind}.${String(v).toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+export const hasLbl = (kind, v) => !!v && trHas(lblKey(kind, v));
 export const DEFAULTS = {
   statuses: ["Open", "In Progress", "Resolved", "Closed", "ReOpened"],
   types: ["Issue", "Clash", "Request", "Comment", "Error", "Fault", "Inquiry", "Remark", "Undefined"],
   priorities: ["Critical", "High", "Normal", "Low"],
 };
-export const tr = (kind, v) => (v ? IT[kind][v] || v : "");
+export const lbl = (kind, v) => (v ? (hasLbl(kind, v) ? tr(lblKey(kind, v)) : v) : "");
 // colore indicativo dello stato (aperta = rosso, in corso = arancio, risolta/chiusa = verde)
 export function statusTone(s) {
   const k = (s || "").toLowerCase().replace(/\s/g, "");
@@ -88,13 +86,13 @@ const dec = b => new TextDecoder().decode(b);
 export async function readBcf(bytes) {
   const Z = await jszip();
   let zip;
-  try { zip = await Z.loadAsync(bytes); } catch { throw new Error("Il file non e' un archivio BCF (zip) valido"); }
+  try { zip = await Z.loadAsync(bytes); } catch { throw new Error(tr("bcf.err_zip")); }
   const all = {};
   zip.forEach((p, f) => { if (!f.dir) all[p.replace(/\\/g, "/")] = f; });
   // alcuni programmi mettono tutto in una cartella: la radice e' quella che contiene bcf.version o le cartelle con markup.bcf
   const verPath = Object.keys(all).find(p => /(^|\/)bcf\.version$/i.test(p));
   const markups = Object.keys(all).filter(p => /(^|\/)markup\.bcf$/i.test(p));
-  if (!verPath && !markups.length) throw new Error("Nell'archivio non ci sono segnalazioni BCF (manca markup.bcf)");
+  if (!verPath && !markups.length) throw new Error(tr("bcf.err_no_markup"));
   const prefix = verPath ? verPath.replace(/bcf\.version$/i, "") : markups[0].replace(/[^/]+\/markup\.bcf$/i, "");
   const files = {};
   for (const [p, f] of Object.entries(all)) if (p.startsWith(prefix)) files[p.slice(prefix.length)] = f;
@@ -338,9 +336,9 @@ export function dayOf(iso) {
 export function dateIt(iso, withTime = false) {
   if (!iso) return "";
   const day = dayOf(iso);
-  if (day) return day.toLocaleDateString("it-IT");
+  if (day) return day.toLocaleDateString(LOCALE);
   const d = new Date(iso);
   if (isNaN(d)) return iso;
-  return withTime ? d.toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" }) : d.toLocaleDateString("it-IT");
+  return withTime ? d.toLocaleString(LOCALE, { dateStyle: "short", timeStyle: "short" }) : d.toLocaleDateString(LOCALE);
 }
 export const isOverdue = t => !!t.dueDate && statusTone(t.status) !== "ok" && (dayOf(t.dueDate) || new Date(t.dueDate)) < new Date(new Date().toDateString());

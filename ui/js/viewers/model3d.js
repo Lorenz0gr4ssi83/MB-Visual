@@ -691,7 +691,7 @@ export async function mount(ctx) {
     renderer.clippingPlanes = planes;
     clipPlane = planes[0] || null;
     let o = axisSel.querySelector('option[value="bcf"]');
-    if (planes.length) { if (!o) axisSel.append(o = el("option", { value: "bcf" }, "Sezione del punto di vista")); axisSel.value = "bcf"; }
+    if (planes.length) { if (!o) axisSel.append(o = el("option", { value: "bcf" }, tr("v_model3d.sezione_punto_vista"))); axisSel.value = "bcf"; }
     else { o?.remove(); axisSel.value = ""; }
   }
 
@@ -774,8 +774,8 @@ export async function mount(ctx) {
     get selection() { return selection; }, render: () => renderer.render(scene, camera), partNames: () => parts.map(p => p.name) };
   let bcfUi = null;
   const bcfGet = async () => (bcfUi ??= (await import("../bcfpanel.js")).attach3d(bcfHost, v => bcfBtn.classList.toggle("on", v)));
-  const bcfBtn = button("Segnalazioni", '<svg viewBox="0 0 16 16" width="16" height="16"><path d="M3.5 14V2.5h8l-1.6 3 1.6 3h-8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
-    async () => (await bcfGet()).toggle(), { title: "Segnalazioni BCF: crea, apri e salva segnalazioni con punto di vista (Revit, Navisworks, Solibri, BIMcollab)" });
+  const bcfBtn = button(tr("v_model3d.segnalazioni"), '<svg viewBox="0 0 16 16" width="16" height="16"><path d="M3.5 14V2.5h8l-1.6 3 1.6 3h-8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+    async () => (await bcfGet()).toggle(), { title: tr("v_model3d.segnalazioni_titolo") });
   exp.after(bcfBtn);
 
   async function doExport(kind) {
