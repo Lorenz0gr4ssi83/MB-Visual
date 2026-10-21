@@ -211,8 +211,17 @@ def depth_map(img):
     return Image.fromarray((d * 255).astype(np.uint8)).resize((W, H), Image.BICUBIC).convert("RGB")
 
 
+def free(*keys):
+    """Libera i modelli grandi non necessari: con 16 GB generazione + riempimento + guida insieme esaurivano la memoria."""
+    import gc
+    hit = [k for k in keys if MODELS.pop(k, None) is not None]
+    if hit:
+        gc.collect()
+
+
 def model_inpaint():
     if "inp" not in MODELS:
+        free("gen")
         torch, dev, dt = torch_setup()
         from diffusers import StableDiffusionInpaintPipeline
         p = StableDiffusionInpaintPipeline.from_single_file(mpath("Realistic_Vision_V6.0_B1_noVAE", "Realistic_Vision_V6.0_NV_B1_inpainting_fp16.safetensors"),
@@ -223,6 +232,7 @@ def model_inpaint():
 
 def model_txt2img():
     if "gen" not in MODELS:
+        free("cninp", "inp")
         torch, dev, dt = torch_setup()
         from diffusers import StableDiffusionPipeline
         p = StableDiffusionPipeline.from_single_file(mpath("Realistic_Vision_V6.0_B1_noVAE", "Realistic_Vision_V6.0_NV_B1_fp16.safetensors"),
@@ -328,9 +338,21 @@ def progress(p, msg=None):
         PROGRESS["msg"] = msg
 
 
-def steps_cb(total, lo=0.15, hi=0.9, msg="Generazione"):
+def steps_cb(total, lo=0.15, hi=0.9, msg="Generazione", check=None):
+    """Avanzamento dei passi. check = descrizione per il controllo dell'eta' ANTICIPATO: a meta' generazione si decodifica
+    un'anteprima e la si controlla (stesso controllo del risultato finale), cosi' un blocco arriva subito e non a fine lavoro."""
+    at = max(0, total // 2 - 1) if check and total > 2 else -1
+
     def cb(pipe, i, t, kw):
         progress(lo + (hi - lo) * (i + 1) / max(1, total), f"{msg}: passo {i + 1} di {total}")
+        if i == at and kw.get("latents") is not None:
+            import torch
+            progress(lo + (hi - lo) * (i + 1) / max(1, total), "Controllo dell'anteprima")
+            with torch.no_grad():
+                lat = kw["latents"][:1].to(pipe.vae.dtype) / pipe.vae.config.scaling_factor
+                x = pipe.vae.decode(lat).sample[0]
+            arr = ((x.float().clamp(-1, 1) + 1) * 127.5).permute(1, 2, 0).cpu().numpy().astype(np.uint8)
+            check_minors(Image.fromarray(arr), check)
         return kw
     return cb
 
@@ -558,7 +580,7 @@ def op_fill(a):
     out = pipe(realism(prompt) if not a.get("_erase") else prompt, image=src.resize((w, h), Image.LANCZOS),
                mask_image=cm.resize((w, h), Image.LANCZOS), negative_prompt=None if lcm else (a.get("negative") or NEG),
                width=w, height=h, num_inference_steps=steps, guidance_scale=1.5 if lcm else float(a.get("guidance") or 5.0),
-               strength=strength, generator=g, callback_on_step_end=steps_cb(max(1, int(steps * strength))), **kw).images[0]
+               strength=strength, generator=g, callback_on_step_end=steps_cb(max(1, int(steps * strength)), check=None if a.get("_erase") else "il risultato"), **kw).images[0]
     out = out.resize(ci.size, Image.LANCZOS)
     if not a.get("_erase"):
         check_minors(out, "il risultato")
@@ -591,7 +613,7 @@ def op_generate(a):
     g = torch.Generator().manual_seed(int(a.get("seed") or int(time.time()) % 100000))
     img = pipe(realism(a.get("prompt")), negative_prompt=None if lcm else (a.get("negative") or NEG), width=w, height=h,
                num_inference_steps=steps, guidance_scale=1.5 if lcm else float(a.get("guidance") or 5.0), generator=g,
-               callback_on_step_end=steps_cb(steps)).images[0]
+               callback_on_step_end=steps_cb(steps, check="il risultato")).images[0]
     check_minors(img, "il risultato")
     if (w, h) != (W, H):
         img = img.resize((W, H), Image.LANCZOS)
@@ -704,7 +726,13 @@ class H(BaseHTTPRequestHandler):
                 self._json({"ok": False, "errore": str(e)}, 422)
             except Exception as e:  # noqa: BLE001
                 traceback.print_exc()
-                self._json({"ok": False, "errore": f"{type(e).__name__}: {e}"}, 500)
+                low = isinstance(e, MemoryError) or "memory" in str(e).lower() or "alloc" in str(e).lower()
+                if low:  # memoria esaurita: si libera tutto, la prossima richiesta ricarica solo cio' che serve
+                    free(*list(MODELS))
+                    self._json({"ok": False, "errore": "Memoria del PC esaurita: ho liberato i modelli IA. Chiudi i programmi pesanti "
+                                "che non usi (o i file grandi aperti) e riprova; la prossima elaborazione ricarica i modelli."}, 507)
+                else:
+                    self._json({"ok": False, "errore": f"{type(e).__name__}: {e}"}, 500)
             finally:
                 CANCELLED.discard(rid)
                 CURRENT["id"] = None
