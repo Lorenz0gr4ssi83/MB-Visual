@@ -15,10 +15,18 @@ if sys.stdout is None or sys.stderr is None:
     sys.stdout = sys.stdout or _log
     sys.stderr = sys.stderr or _log
 
+VERSION = "1.4.10"
+
+# integrazione con Esplora risorse (mbvisual/shellint.py, mbvisual/miniature.py): nessuna finestra, prima degli import pesanti
+if __name__ == "__main__" and "--miniatura" in sys.argv:
+    from mbvisual import miniature
+    sys.exit(miniature.cli(sys.argv))
+if __name__ == "__main__" and "--integrazione" in sys.argv:
+    from mbvisual import shellint
+    sys.exit(shellint.cli(sys.argv))
+
 from mbvisual.paths import RES_DIR
 from mbvisual.server import TOKEN, start_server
-
-VERSION = "1.4.10"
 
 
 class Api:
@@ -63,8 +71,19 @@ class Api:
         return VERSION
 
 
+def _refresh_shell():
+    # integrazione con Esplora attiva ma registrata da un'altra versione o un altro exe: si riscrive (DLL nuova, percorsi)
+    try:
+        from mbvisual import shellint
+        shellint.refresh_if_needed()
+    except Exception as e:  # noqa: BLE001
+        print("integrazione con Esplora non aggiornata:", e)
+
+
 def main():
     srv, port = start_server()
+    import threading
+    threading.Thread(target=_refresh_shell, daemon=True).start()
     url = f"http://127.0.0.1:{port}/?t={TOKEN}"
     files = [os.path.abspath(a) for a in sys.argv[1:] if not a.startswith("--") and os.path.exists(a)]
 

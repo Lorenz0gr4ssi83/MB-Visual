@@ -378,7 +378,7 @@ def apply(update=None) -> dict:
     return {"ok": True, "versione": r["disponibile"]}
 
 
-def install(update=None) -> dict:
+def install(update=None, integrazione=False) -> dict:
     """Installa l'app su questo PC (%LOCALAPPDATA%/Programs/MB Visual + collegamenti su Desktop e menu Start),
     con avanzamento visibile, e la riavvia da li'."""
     if not FROZEN:
@@ -401,6 +401,13 @@ def install(update=None) -> dict:
             _shortcuts(exe)
         except Exception as e:  # noqa: BLE001
             _log(f"collegamenti non creati: {e}")
+        if integrazione:  # miniature, anteprime e "Apri con" in Esplora (mbvisual/shellint.py) con l'exe installato
+            if update:
+                update(0.99, "Integrazione con Esplora risorse")
+            try:
+                subprocess.run([str(exe), "--integrazione", "attiva"], timeout=300, creationflags=0x08000000)
+            except Exception as e:  # noqa: BLE001
+                _log(f"integrazione con Esplora non attivata: {e}")
         _restart(exe)
     except Exception as e:
         _log(f"installazione non riuscita: {e}")

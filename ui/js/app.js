@@ -248,6 +248,7 @@ function fileMenu(anchor) {
     m.append(item('<svg viewBox="0 0 24 24"><path d="M4 4h10v10H4zM10 10h10v10H10M17 6l3 3-3 3"/></svg>', tr("app.conversione_lotti"), "",
       () => import("./batch.js").then(b => b.openBatch({ paths: exDir && !$("explorer").hidden ? [exDir] : [] }))));
     m.append(el("hr"), item(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount), item(ICON_UPD, tr("app.verifica_aggiornamenti"), "", () => checkUpdates(true)));
+    m.append(item('<svg viewBox="0 0 24 24"><path d="M3 5h8v6H3zM13 5h8v6h-8zM3 13h8v6H3zM13 13h8v6h-8z"/></svg>', tr("app.integrazione_windows"), "", () => import("./shellint.js").then(x => x.showShellIntegration())));
     if (updInfo?.installabile && !updInfo.installata) m.append(item("", tr("app.installa_questo_pc"), "", askInstall));
   }
   placeMenu(m, anchor);
@@ -317,15 +318,17 @@ async function checkUpdates(manual = false) {
   toast(tr("app.hai_gia_l_ultima_versione", fmtVer(r.attuale)));
 }
 async function askInstall() {
+  const integ = el("input", { type: "checkbox", checked: true });
   const ok = await modal(tr("app.installa_mb_visual_questo_pc"), el("div", {},
     el("p", {}, tr("app.stai_usando_l_app_direttamente")),
-    el("p", {}, tr("app.installandola_questo_pc_senza_diritti"))),
+    el("p", {}, tr("app.installandola_questo_pc_senza_diritti")),
+    el("label", { style: { display: "flex", gap: "8px" } }, integ, tr("app.integra_esplora_installa"))),
     [{ label: tr("app.non_ora"), value: false }, { label: tr("app.installa"), value: true, primary: true }]);
   if (!ok) return;
-  await runUpdateJob("update_install", tr("app.installazione_mb_visual"), tr("app.installata_mb_visual_si_riapre"));
+  await runUpdateJob("update_install", tr("app.installazione_mb_visual"), tr("app.installata_mb_visual_si_riapre"), { integrazione: integ.checked ? 1 : 0 });
 }
 // installazione / aggiornamento con finestra di avanzamento (la copia scarica da OneDrive i file "solo online": puo' richiedere minuti)
-async function runUpdateJob(route, title, doneText) {
+async function runUpdateJob(route, title, doneText, params = {}) {
   const bar = el("div", { class: "progress" }, el("span"));
   const msg = el("p", {}, tr("app.avvio"));
   const back = $("modal"), body = $("modal-body");
@@ -333,7 +336,7 @@ async function runUpdateJob(route, title, doneText) {
   body.append(el("h3", {}, title), msg, bar, el("p", { class: "note" }, tr("app.non_chiudere_mb_visual_fine")));
   back.hidden = false;
   try {
-    const { job } = await api(route);
+    const { job } = await api(route, params);
     await waitJob(job, (p, m) => { bar.firstChild.style.width = Math.round(p * 100) + "%"; if (m) msg.textContent = m; });
     bar.firstChild.style.width = "100%";
     msg.textContent = doneText;

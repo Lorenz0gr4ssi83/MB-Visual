@@ -576,3 +576,30 @@ agli originali o in una cartella con la struttura replicata; mai sopra l'origina
   libredwg-web NON legge i DXF: i fogli DWG si provano con un database sintetico (struttura di libredwg) -> doc_from_db.
 - Prove nel browser con piu' sessioni: il cookie `mbv` e' per host (non per porta), le app di prova delle altre sessioni lo
   sovrascrivono -> aprire l'app con un nome unico, es. http://mbvlotti.localhost:PORTA/?t=TOKEN.
+
+## Integrazione con Esplora risorse (22/10/2026)
+Miniature, riquadro di anteprima, "Apri con", icone dei tipi e "Apri con MB Visual" nel tasto destro, SOLO per l'utente (HKCU).
+- `tools/mbvshell/` DLL COM in C++ (MSVC, `build.cmd` -> `bin/shell/mbvshell-arm64.dll` e `-x64.dll`, si caricano quella
+  dell'architettura del PC: Esplora su ARM64 vuole ARM64). IThumbnailProvider (IInitializeWithStream, processo isolato) e
+  IPreviewHandler (prevhost, DisableLowILProcessIsolation=1, pulsante "Apri in MB Visual"). Prima le immagini incorporate
+  (anteprima DWG all'offset 0x0D, proprieta' Thumbnail e flussi "Preview" dei file OLE, PNG degli SketchUp), poi
+  `MBVisual.exe --miniatura <file> <png> <lato>` con cache in %LOCALAPPDATA%\MBVisual\miniature\cache (le miniature
+  ricevono un flusso: la DLL ne fa una copia in miniature\sorgenti). Prova senza registro: `obj-arm64\prova.exe <dll> <file>
+  <png>` con MBVSHELL_Comando nell'ambiente (ogni valore di HKCU\Software\MB Visual\Integrazione si puo' dare cosi').
+- `mbvisual/miniature.py`: il primo processo diventa "servizio" (finestra WebView2 fuori schermo, porta/token in
+  miniature\servizio.json, si chiude dopo 90 s senza richieste), gli altri gli passano le richieste. `ui/js/thumbmode.js`
+  apre il file col visualizzatore normale: 3D = disegno dedicato su sfondo trasparente (tab.three), 2D = canvas ritagliato
+  sul contenuto. NON avviare la finestra con SW_HIDE (WebView2 nascosto carica in 75 s invece di 3) e non toccare
+  window.native da altri thread (blocca tutto): la finestra si toglie dalla barra con Win32 (WS_EX_TOOLWINDOW).
+  Tempi su questo PC: avvio a freddo ~3-8 s, poi DXF/DWG/STEP/IFC 2-15 s; DWG con anteprima incorporata 0,1-1 s.
+- `mbvisual/shellint.py`: ProgID MBVisual.<ext> per tutte le estensioni di formats.json (tranne programmi/collegamenti),
+  icone generate con Pillow in %LOCALAPPDATA%\MBVisual\icone, OpenWithProgids, Capabilities + RegisteredApplications,
+  gestori sotto SystemFileAssociations (se AutoCAD & co. hanno un gestore loro, resta il loro: elencati in AltriGestori),
+  predefinito solo per le estensioni SENZA programma (opzione "libere"). DLL copiata in %LOCALAPPDATA%\MBVisual\shell con
+  nome per versione (Esplora la tiene aperta). `--integrazione attiva|rimuovi|stato`; all'avvio dell'app
+  `refresh_if_needed` riscrive se cambiano exe o versione. Interfaccia: File > Integrazione con Windows (`ui/js/shellint.js`),
+  casella in "Installa su questo PC" (update.install integrazione=True), attivita' "integrazione" dell'installer Inno Setup
+  (disinstallazione = rimuovi).
+- DA PROVARE con l'utente: registrazione reale su questo PC (la scrittura nel registro era bloccata dai permessi della sessione),
+  miniature in Esplora, riquadro di anteprima, PC x64. Windows 11: la voce del tasto destro sta in "Mostra altre opzioni"
+  (il menu nuovo richiede un pacchetto MSIX firmato).

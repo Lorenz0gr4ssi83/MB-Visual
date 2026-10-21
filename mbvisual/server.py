@@ -247,7 +247,21 @@ class Handler(BaseHTTPRequestHandler):
 
     def api_update_install(self, qs):
         from . import update
-        self._json({"ok": True, "job": jobs.start(update.install)})
+        self._json({"ok": True, "job": jobs.start(update.install, integrazione=_q(qs, "integrazione") == "1")})
+
+    # ------------------------------------------------------------ API: integrazione con Esplora risorse (mbvisual/shellint.py)
+    def api_shell_status(self, qs):
+        from . import shellint
+        self._json(shellint.status())
+
+    def api_shell_set(self, qs):
+        from . import shellint
+        b = self._body_json()
+        if b.get("pulisci_cache"):
+            return self._json(shellint.clear_cache())
+        if not b.get("attiva"):
+            return self._json({"ok": True, "job": jobs.start(lambda update: shellint.disable())})
+        self._json({"ok": True, "job": jobs.start(lambda update: shellint.enable(anteprime=b.get("anteprime", True), libere=b.get("libere", True), update=update))})
 
     def api_update_source(self, qs):
         from . import update

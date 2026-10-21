@@ -102,6 +102,8 @@
  "app.installa": "Installer",
  "app.installa_mb_visual_questo_pc": "Installer MB Visual sur ce PC",
  "app.installa_questo_pc": "Installer sur ce PC...",
+ "app.integrazione_windows": "Intégration à Windows...",
+ "app.integra_esplora_installa": "Intégrer à l'Explorateur de fichiers : miniatures et aperçus des dessins et modèles, « Ouvrir avec » et icônes (modifiable dans Fichier > Intégration à Windows)",
  "app.installandola_questo_pc_senza_diritti": "En l'installant sur ce PC (sans droits d'administrateur, dans votre dossier utilisateur), vous aurez des raccourcis sur le Bureau et dans le menu Démarrer, et chaque nouvelle version vous sera proposée au démarrage.",
  "app.installata_mb_visual_si_riapre": "Installée : MB Visual se rouvre depuis le Bureau / menu Démarrer",
  "app.installazione_mb_visual": "Installation de MB Visual",

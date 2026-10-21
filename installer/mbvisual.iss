@@ -45,6 +45,8 @@ Name: "it"; MessagesFile: "compiler:Languages\Italian.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Crea un collegamento sul Desktop"; GroupDescription: "Collegamenti:"
+; miniature/anteprime in Esplora, "Apri con", icone e menu del tasto destro (mbvisual/shellint.py, solo per l'utente)
+Name: "integrazione"; Description: "Integra con Esplora risorse (miniature e anteprime di DWG, IFC, STEP..., ""Apri con"", icone)"; GroupDescription: "Esplora risorse:"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -58,7 +60,12 @@ Name: "{autoprograms}\MB Visual"; Filename: "{app}\MBVisual.exe"; IconFilename: 
 Name: "{autodesktop}\MB Visual"; Filename: "{app}\MBVisual.exe"; IconFilename: "{app}\_internal\app.ico"; Tasks: desktopicon
 
 [Run]
+Filename: "{app}\MBVisual.exe"; Parameters: "--integrazione attiva"; StatusMsg: "Integrazione con Esplora risorse..."; Flags: runhidden waituntilterminated; Tasks: integrazione
 Filename: "{app}\MBVisual.exe"; Description: "Avvia MB Visual"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+; toglie tutte le voci di Esplora (registro dell'utente, icone, cache delle miniature)
+Filename: "{app}\MBVisual.exe"; Parameters: "--integrazione rimuovi"; Flags: runhidden waituntilterminated; RunOnceId: "MBVisualIntegrazione"
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\_internal"
