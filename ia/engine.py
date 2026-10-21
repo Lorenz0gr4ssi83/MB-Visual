@@ -580,7 +580,7 @@ def op_fill(a):
     out = pipe(realism(prompt) if not a.get("_erase") else prompt, image=src.resize((w, h), Image.LANCZOS),
                mask_image=cm.resize((w, h), Image.LANCZOS), negative_prompt=None if lcm else (a.get("negative") or NEG),
                width=w, height=h, num_inference_steps=steps, guidance_scale=1.5 if lcm else float(a.get("guidance") or 5.0),
-               strength=strength, generator=g, callback_on_step_end=steps_cb(max(1, int(steps * strength)), check=None if a.get("_erase") else "il risultato"), **kw).images[0]
+               strength=strength, generator=g, callback_on_step_end=steps_cb(max(1, int(steps * strength))), **kw).images[0]
     out = out.resize(ci.size, Image.LANCZOS)
     if not a.get("_erase"):
         check_minors(out, "il risultato")
@@ -613,7 +613,7 @@ def op_generate(a):
     g = torch.Generator().manual_seed(int(a.get("seed") or int(time.time()) % 100000))
     img = pipe(realism(a.get("prompt")), negative_prompt=None if lcm else (a.get("negative") or NEG), width=w, height=h,
                num_inference_steps=steps, guidance_scale=1.5 if lcm else float(a.get("guidance") or 5.0), generator=g,
-               callback_on_step_end=steps_cb(steps, check="il risultato")).images[0]
+               callback_on_step_end=steps_cb(steps)).images[0]
     check_minors(img, "il risultato")
     if (w, h) != (W, H):
         img = img.resize((W, H), Image.LANCZOS)
