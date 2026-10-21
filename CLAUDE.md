@@ -118,9 +118,15 @@ l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.m
   in un altro) e ridisegno dei tracciati estranei; immagini tolte con redazione solo in quel punto (`_take_image`,
   mai delete_image: cambierebbe l'immagine condivisa su tutte le pagine); `image_edit` (colori trasparenti multipli
   con tolleranza, opacita', rotazione, specchio, b/n); annotazioni `annot_add/update/delete`.
-  DA FARE: interfaccia nuova (barra unica sempre visibile, strumenti di pdf.js pilotati da noi senza le loro tendine,
-  un pulsante per ogni tipo di campo modulo, pannello immagine con contagocce e anteprima della trasparenza,
-  selezione multipla e filtro dei selezionabili).
+  Interfaccia (1.3.2, ui/js/pdfeditor.js) - FATTO: barra unica sempre visibile (gruppi Annota / Modifica / Moduli /
+  Altro), pulsante acceso finche' si e' in modifica, opzioni nel pannello a destra; evidenzia, testo libero e penna
+  sono gli editor di pdf.js comandati con gli eventi switchannotationeditormode / switchannotationeditorparams
+  (i loro pulsanti sono nascosti con PDFJS_HIDE); un pulsante per tipo di campo (nome automatico, voci nel pannello,
+  strumento che resta attivo); Seleziona con selezione multipla e a riquadro, filtro, ingresso nei gruppi (doppio clic),
+  contagocce e anteprima a scacchi della trasparenza. Ogni modifica scrive un file NUOVO (mai sostituire quello
+  aperto da pdf.js). apply_ops lavora in `_apply_ops` + gc + nuovi tentativi: i campi di PyMuPDF tengono aperto il file.
+  `_page_draws` esclude dai disegni l'aspetto di campi e annotazioni (get_drawings li riporta).
+- Utente non vuole per ora Inventor/Creo (21/10/2026).
 - Migliorie rimandate dall'utente (21/10/2026): pulsanti "Modifica in AutoCAD/BricsCAD/Inventor"; funzioni Navisworks Manage
   (interferenze, viste salvate, annotazioni, computo); motore ODA (a pagamento).
 - Editor CAD professionale (21/10/2026) - FATTO. `ui/js/cadgeom.js` = geometria condivisa (matrici, impaginazione esatta dei
