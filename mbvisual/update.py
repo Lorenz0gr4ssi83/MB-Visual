@@ -97,6 +97,13 @@ def _manifest_ok(src: Path, man: dict) -> bool:
     return n == man.get("file") and size == man.get("byte") and (src / "MBVisual.exe").is_file()
 
 
+def _safe(fn):
+    try:
+        return fn()
+    except Exception as e:  # noqa: BLE001
+        _log(f"{getattr(fn, '__name__', fn)}: {e}")
+
+
 def _same(a: Path, b: Path) -> bool:
     try:
         return a.resolve() == b.resolve()
@@ -110,6 +117,8 @@ def check() -> dict:
     if not FROZEN:
         res["stato"] = "sviluppo"
         return res
+    if _same(APP_DIR, INSTALL_DIR):  # copia installata: collegamenti sistemati in sottofondo
+        threading.Thread(target=lambda: _safe(repair_shortcuts), daemon=True).start()
     # app avviata direttamente dalla cartella pubblicata su OneDrive
     own = _read_json(APP_DIR / "versione.json")
     if own:
@@ -210,7 +219,54 @@ def _shortcuts(exe: Path) -> None:
             lnk.Description = "MB Visual"
             lnk.Save()
     finally:
+        sh = lnk = None  # oggetti COM rilasciati prima di chiudere COM (altrimenti avvisi Win32 all'uscita)
         pythoncom.CoUninitialize()
+
+
+def repair_shortcuts() -> dict:
+    """Copia installata: ripara i collegamenti "MB Visual" di Desktop e menu Start se mancano, puntano altrove o non
+    hanno un'icona propria. Trascinando la voce del menu Start sul Desktop, Windows crea un collegamento a un
+    collegamento senza icona: trascinato poi sulla barra delle applicazioni mostra un quadrato grigio."""
+    exe = INSTALL_DIR / "MBVisual.exe"
+    if not (FROZEN and _same(APP_DIR, INSTALL_DIR) and exe.is_file()):
+        return {"riparati": 0}
+    import pythoncom
+    import win32com.client
+    pythoncom.CoInitialize()
+    fixed = 0
+    try:
+        sh = win32com.client.Dispatch("WScript.Shell")
+        ico = INSTALL_DIR / "_internal" / "app.ico"
+        want_icon = f"{ico},0" if ico.is_file() else f"{exe},0"
+        for folder in (sh.SpecialFolders("Desktop"), sh.SpecialFolders("Programs")):
+            path = Path(folder) / "MB Visual.lnk"
+            ok = False
+            if path.is_file():
+                try:
+                    lnk = sh.CreateShortcut(str(path))
+                    ok = _same(Path(lnk.TargetPath or "."), exe) and (lnk.IconLocation or "").lower() == want_icon.lower()
+                except Exception:  # noqa: BLE001
+                    ok = False
+            if ok:
+                continue
+            lnk = sh.CreateShortcut(str(path))
+            lnk.TargetPath = str(exe)
+            lnk.WorkingDirectory = str(INSTALL_DIR)
+            lnk.IconLocation = want_icon
+            lnk.Description = "MB Visual"
+            lnk.Save()
+            fixed += 1
+    finally:
+        sh = lnk = None  # oggetti COM rilasciati prima di chiudere COM (altrimenti avvisi Win32 all'uscita)
+        pythoncom.CoUninitialize()
+    if fixed:
+        _log(f"collegamenti riparati: {fixed}")
+        try:  # aggiorna la cache delle icone di Windows (solo per l'utente)
+            subprocess.run([os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "ie4uinit.exe"), "-show"],
+                           timeout=20, creationflags=0x08000000, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:  # noqa: BLE001
+            pass
+    return {"riparati": fixed}
 
 
 def _restart(exe: Path) -> None:
