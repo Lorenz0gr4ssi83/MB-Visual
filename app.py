@@ -18,7 +18,7 @@ if sys.stdout is None or sys.stderr is None:
 from mbvisual.paths import RES_DIR
 from mbvisual.server import TOKEN, start_server
 
-VERSION = "1.4.9"
+VERSION = "1.4.10"
 
 
 class Api:
