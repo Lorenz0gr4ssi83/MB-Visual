@@ -277,6 +277,21 @@ iframe.fill, canvas.fill, video.fill { width: 100%; height: 100%; border: 0; dis
   .modal { width: 96vw; padding: 16px; }
 }
 
+/* Editor CAD: barra a gruppi, riga di comando, menu degli agganci */
+.cad-bar { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 4px 8px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--panel); }
+.cad-grp { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding-right: 10px; border-right: 1px solid var(--line); }
+.cad-grp:last-child { border-right: 0; }
+.cad-grp-t { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted, #8a8f98); margin-right: 4px; }
+.cad-grp .btn { height: 26px; padding: 0 7px; font-size: 12px; }
+.cad-grp .field { height: 26px; font-size: 12px; max-width: 150px; }
+.cad-snapwrap { position: relative; display: inline-flex; }
+.cad-snapmenu { position: absolute; top: 28px; left: 0; z-index: 20; display: grid; gap: 4px; padding: 8px 10px; min-width: 160px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow); font-size: 12.5px; }
+.cad-snapmenu[hidden] { display: none; }
+.cad-cmdline { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-top: 1px solid var(--line); font: 12.5px Consolas, "Cascadia Mono", monospace; background: var(--panel); }
+.cad-prompt { white-space: nowrap; color: var(--accent); max-width: 60%; overflow: hidden; text-overflow: ellipsis; }
+.cad-input { flex: 1; min-width: 120px; height: 24px; border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; background: var(--panel-2); color: var(--fg); font: inherit; }
+.cad-coord { white-space: nowrap; color: var(--muted, #8a8f98); }
+
 /* Richiesta dell'utente: il puntatore e' sempre la freccia, ovunque (anche su testi, pulsanti, disegni e modelli).
    La regola !important prevale anche sui cursori impostati dagli script e dalle librerie (Monaco, pdf.js, three.js). */
 *, *::before, *::after, html, body { cursor: default !important; }

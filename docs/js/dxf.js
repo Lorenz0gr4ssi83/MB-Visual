@@ -9,7 +9,7 @@ export function parseDxf(text) {
     if (isNaN(code)) { i--; continue; }
     pairs.push([code, lines[i + 1]]);
   }
-  const layers = [], blocks = [], entities = [];
+  const layers = [], blocks = [], entities = [], ltypes = [], header = {};
   let i = 0;
   const next = () => pairs[i++];
   const peek = () => pairs[i];
@@ -57,7 +57,17 @@ export function parseDxf(text) {
     if (c !== 0 || v.trim() !== "SECTION") continue;
     const [, name] = next();
     const sec = name.trim();
-    if (sec === "ENTITIES") {
+    if (sec === "HEADER") {
+      // variabili utili: scala tipi linea e stile delle quote
+      while (i < pairs.length) {
+        const [hc, hv] = next();
+        if (hc === 0 && hv.trim() === "ENDSEC") break;
+        if (hc === 9) {
+          const name = hv.trim().slice(1);
+          if (i < pairs.length && pairs[i][0] !== 9 && pairs[i][0] !== 0) { const [vc, vv] = next(); header[name] = vc === 2 || vc === 1 || vc === 7 ? vv.trim() : parseFloat(vv); }
+        }
+      }
+    } else if (sec === "ENTITIES") {
       readEntities(entities, "ENDSEC");
     } else if (sec === "BLOCKS") {
       while (i < pairs.length) {
@@ -84,12 +94,17 @@ export function parseDxf(text) {
           const ci = num(g, 62, 7);
           const flags = num(g, 70, 0);
           const tc420 = val(g, 420);
-          layers.push({ name, colorIndex: Math.abs(ci), color: tc420 !== undefined ? parseInt(tc420, 10) : undefined, off: ci < 0, frozen: !!(flags & 1) });
+          layers.push({ name, colorIndex: Math.abs(ci), color: tc420 !== undefined ? parseInt(tc420, 10) : undefined, off: ci < 0, frozen: !!(flags & 1), lineType: val(g, 6) || "", lineweight: num(g, 370, -3) });
+        } else if (tc === 0 && tv.trim() === "LTYPE") {
+          const g = [];
+          while (i < pairs.length && pairs[i][0] !== 0) g.push(next());
+          const name = val(g, 2);
+          if (name !== undefined) ltypes.push({ name, pattern: all(g, 49).map(v => ({ elementLength: v })) });
         }
       }
     }
   }
-  return { entities, tables: { LAYER: { entries: layers }, BLOCK_RECORD: { entries: blocks } } };
+  return { header, entities, tables: { LAYER: { entries: layers }, BLOCK_RECORD: { entries: blocks }, LTYPE: { entries: ltypes } } };
 }
 
 function val(g, code) { const p = g.find(x => x[0] === code); return p ? p[1].trim() : undefined; }
@@ -103,6 +118,10 @@ function toEntity(type, g) {
   if (val(g, 420) !== undefined) { e.color = parseInt(val(g, 420), 10); e.colorIndex = undefined; }
   if (num(g, 67) === 1) e.isInPaperSpace = true;
   if (num(g, 60) === 1) e.isVisible = false;
+  if (val(g, 6) !== undefined) e.lineType = val(g, 6);
+  if (val(g, 370) !== undefined) e.lineweight = num(g, 370);
+  if (val(g, 48) !== undefined) e.lineTypeScale = num(g, 48, 1);
+  if (val(g, 230) !== undefined) e.extrusionDirection = { x: num(g, 210), y: num(g, 220), z: num(g, 230, 1) };
   switch (type) {
     case "LINE": e.startPoint = pt(g, 10); e.endPoint = pt(g, 11); break;
     case "XLINE": case "RAY": e.firstPoint = pt(g, 10); e.unitDirection = pt(g, 11); break;
@@ -132,7 +151,7 @@ function toEntity(type, g) {
     case "MTEXT":
       e.text = g.filter(x => x[0] === 3).map(x => x[1]).join("") + (val(g, 1) || "");
       e.insertionPoint = pt(g, 10); e.textHeight = num(g, 40, 1); e.rectWidth = num(g, 41); e.attachmentPoint = num(g, 71, 1);
-      e.rotation = num(g, 50) * D2R;
+      e.rotation = num(g, 50) * D2R; e.lineSpacing = num(g, 44, 1);
       if (val(g, 11) !== undefined) e.direction = pt(g, 11);
       break;
     case "INSERT":
@@ -140,7 +159,10 @@ function toEntity(type, g) {
       e.rotation = num(g, 50) * D2R; e.columnCount = num(g, 70, 1); e.rowCount = num(g, 71, 1);
       e.columnSpacing = num(g, 44); e.rowSpacing = num(g, 45); e._attribsFollow = num(g, 66) === 1;
       break;
-    case "DIMENSION": e.name = val(g, 2); e.text = val(g, 1); e.textPoint = pt(g, 11); e.measurement = num(g, 42); break;
+    case "DIMENSION":
+      e.name = val(g, 2); e.text = val(g, 1); e.textPoint = pt(g, 11); e.measurement = num(g, 42); e.styleName = val(g, 3);
+      e.definitionPoint = pt(g, 10); e.subDefinitionPoint1 = pt(g, 13); e.subDefinitionPoint2 = pt(g, 14); e.dimensionType = num(g, 70); e.rotationAngle = num(g, 50) * D2R;
+      break;
     case "SOLID": case "TRACE": case "3DFACE":
       e.corner1 = pt(g, 10); e.corner2 = pt(g, 11); e.corner3 = pt(g, 12); e.corner4 = pt(g, 13); break;
     case "SPLINE": {
@@ -152,7 +174,26 @@ function toEntity(type, g) {
       break;
     }
     case "LEADER": { const xs = all(g, 10), ys = all(g, 20); e.vertices = xs.map((x, k) => ({ x, y: ys[k] || 0, z: 0 })); break; }
-    case "HATCH": e.solidFill = num(g, 70); e.boundaryPaths = parseHatchPaths(g); break;
+    case "HATCH": {
+      e.solidFill = num(g, 70); e.patternName = val(g, 2); e.boundaryPaths = parseHatchPaths(g);
+      e.patternAngle = num(g, 52) * D2R; e.patternScale = num(g, 41, 1);
+      // righe del motivo (dopo i contorni): 53 angolo, 43/44 base, 45/46 offset, 79 numero trattini, 49 trattini
+      const k78 = g.findIndex(x => x[0] === 78);
+      if (k78 >= 0) {
+        const defs = [];
+        let k = k78 + 1;
+        const at = c => (g[k] && g[k][0] === c ? parseFloat(g[k++][1]) : undefined);
+        for (let n = parseInt(g[k78][1], 10); n > 0 && k < g.length; n--) {
+          const a = at(53); if (a === undefined) break;
+          const d = { angle: a * D2R, base: { x: at(43) || 0, y: at(44) || 0 }, offset: { x: at(45) || 0, y: at(46) || 0 }, dashLengths: [] };
+          const nd = at(79) || 0;
+          for (let q = 0; q < nd; q++) d.dashLengths.push(at(49) || 0);
+          defs.push(d);
+        }
+        if (defs.length) e.definitionLines = defs;
+      }
+      break;
+    }
     default: break;
   }
   return e;

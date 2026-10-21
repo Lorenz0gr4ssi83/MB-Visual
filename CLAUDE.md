@@ -122,4 +122,16 @@ l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.m
   un pulsante per ogni tipo di campo modulo, pannello immagine con contagocce e anteprima della trasparenza,
   selezione multipla e filtro dei selezionabili).
 - Migliorie rimandate dall'utente (21/10/2026): pulsanti "Modifica in AutoCAD/BricsCAD/Inventor"; funzioni Navisworks Manage
-  (interferenze, viste salvate, annotazioni, computo); editor CAD piu' completo; motore ODA (a pagamento).
+  (interferenze, viste salvate, annotazioni, computo); motore ODA (a pagamento).
+- Editor CAD professionale (21/10/2026) - FATTO. `ui/js/cadgeom.js` = geometria condivisa (matrici, impaginazione esatta dei
+  testi usata sia per disegnare sia per selezionare, curve analitiche/intersezioni, osnap, retini, quote nuove).
+  Causa del "riquadro fuori dall'oggetto": riquadri dei testi senza allineamento/rotazione/trasformazione del blocco; inoltre
+  spazio carta mescolato al modello nei DWG, attributi DWG non letti (libredwg li mette fuori dall'INSERT con il testo in un
+  sotto-oggetto: `normalize` in cad2d.js), estrusione OCS -Z ignorata. `build` produce elementi (L/A/P/Q/F/N) con entita' (o)
+  e percorso nei blocchi (s) + indice a griglia (`model.query`). `ui/js/cadedit.js`: comandi asincroni con riga di comando e
+  alias AutoCAD (L, PL, C, A, EL, REC, T, MT, H, DLI, DAL, DAN, DRA, DDI, DOR, DCO, DBA, M, CO, RO, SC, MI, AR, O, TR, EX, F,
+  CHA, X, E, DI, AREA; ? = elenco), selezione a clic/finestra/intersezione, Maiusc toglie, Ctrl dentro i blocchi, ciclo
+  sugli oggetti sovrapposti, grip, aggancio F3, orto F8. `mbvisual/cadedit.py`: quote nuove -> vere DIMENSION (ezdxf
+  render, stile MBVISUAL); quote dei DWG -> DIMENSION col blocco originale; per i DXF le entita' semplici si riscrivono e le
+  altre si trasformano con `_xf` (prima le linee spostate venivano spostate due volte). Collaudo dalla console:
+  `tests/cad_harness.js` (clic simulati in coordinate del disegno).

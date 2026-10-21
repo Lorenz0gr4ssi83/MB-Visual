@@ -80,9 +80,13 @@ async function loadIfc(ctx, bytes, ld, info) {
     info.WEBIFC = WEBIFC;
     ifc = new WEBIFC.IfcAPI();
     ifc.SetWasmPath(window.MBV_ROOT + "vendor/web-ifc/", true);
-    await ifc.Init();
+    // thread singolo: la pagina e' isolata (COOP/COEP per ONLYOFFICE) e web-ifc sceglierebbe la versione multi-thread,
+    // i cui worker non partono dal pacchetto unico: Init() restava in attesa per sempre e nessun IFC si apriva
+    await ifc.Init(undefined, true);
   }
   let modelID, shift = null;
+  ld.set(0.2, `Lettura della struttura BIM (${(bytes.length / 1048576).toFixed(0)} MB)`);
+  await new Promise(r => setTimeout(r, 30)); // lascia disegnare il messaggio prima del lavoro lungo
   if (info.coordMatrix) {
     // modelli federati: stesso spostamento verso l'origine del primo modello, cosi' restano allineati
     modelID = ifc.OpenModel(bytes, { COORDINATE_TO_ORIGIN: false });
@@ -99,7 +103,12 @@ async function loadIfc(ctx, bytes, ld, info) {
     return mats.get(k);
   };
   let count = 0;
-  ifc.StreamAllMeshes(modelID, fm => {
+  // modelli grandi: geometria disegnata unita per colore (poche chiamate di disegno, fluida con milioni di triangoli);
+  // ogni elemento ha una copia invisibile che condivide i vertici del blocco (per evidenziarlo, inquadrarlo, misurarlo)
+  const MERGE = bytes.length > 15 * 1048576;
+  const batches = new Map();
+  const tmpN = new THREE.Matrix3(), tmpM = new THREE.Matrix4();
+  const onMesh = fm => {
     const id = fm.expressID;
     const grp = new THREE.Group();
     grp.userData.expressID = id;
@@ -110,17 +119,38 @@ async function loadIfc(ctx, bytes, ld, info) {
       const geom = ifc.GetGeometry(modelID, pg.geometryExpressID);
       const v = ifc.GetVertexArray(geom.GetVertexData(), geom.GetVertexDataSize());
       const idx = ifc.GetIndexArray(geom.GetIndexData(), geom.GetIndexDataSize());
-      const g = new THREE.BufferGeometry();
-      const inter = new THREE.InterleavedBuffer(new Float32Array(v), 6);
-      g.setAttribute("position", new THREE.InterleavedBufferAttribute(inter, 3, 0));
-      g.setAttribute("normal", new THREE.InterleavedBufferAttribute(inter, 3, 3));
-      g.setIndex(new THREE.BufferAttribute(new Uint32Array(idx), 1));
-      const mesh = new THREE.Mesh(g, matFor(pg.color));
-      mesh.matrix.fromArray(pg.flatTransformation);
-      if (shift) mesh.matrix.premultiply(shift);
-      mesh.matrixAutoUpdate = false;
-      mesh.userData.expressID = id;
-      grp.add(mesh);
+      const mat = matFor(pg.color);
+      tmpM.fromArray(pg.flatTransformation);
+      if (shift) tmpM.premultiply(shift);
+      if (MERGE) {
+        // dati gia' nella posizione finale, nel blocco del suo colore; la copia per la selezione li condivide
+        const e = tmpM.elements, nm = tmpN.getNormalMatrix(tmpM).elements;
+        const n = v.length / 6, pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3);
+        const box = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+        for (let q = 0, a = 0, b = 0; q < n; q++, a += 6, b += 3) {
+          const x = v[a], y = v[a + 1], z = v[a + 2], nx = v[a + 3], ny = v[a + 4], nz = v[a + 5];
+          const X = e[0] * x + e[4] * y + e[8] * z + e[12], Y = e[1] * x + e[5] * y + e[9] * z + e[13], Z = e[2] * x + e[6] * y + e[10] * z + e[14];
+          pos[b] = X; pos[b + 1] = Y; pos[b + 2] = Z;
+          if (X < box[0]) box[0] = X; if (Y < box[1]) box[1] = Y; if (Z < box[2]) box[2] = Z;
+          if (X > box[3]) box[3] = X; if (Y > box[4]) box[4] = Y; if (Z > box[5]) box[5] = Z;
+          nrm[b] = nm[0] * nx + nm[3] * ny + nm[6] * nz;
+          nrm[b + 1] = nm[1] * nx + nm[4] * ny + nm[7] * nz;
+          nrm[b + 2] = nm[2] * nx + nm[5] * ny + nm[8] * nz;
+        }
+        if (!batches.has(mat)) batches.set(mat, { kind: "t", parts: [] });
+        batches.get(mat).parts.push({ pos, nrm, idx: new Uint32Array(idx), owner: grp, box, mat, shared: true });
+      } else {
+        const g = new THREE.BufferGeometry();
+        const inter = new THREE.InterleavedBuffer(new Float32Array(v), 6);
+        g.setAttribute("position", new THREE.InterleavedBufferAttribute(inter, 3, 0));
+        g.setAttribute("normal", new THREE.InterleavedBufferAttribute(inter, 3, 3));
+        g.setIndex(new THREE.BufferAttribute(new Uint32Array(idx), 1));
+        const mesh = new THREE.Mesh(g, mat);
+        mesh.matrix.copy(tmpM);
+        mesh.matrixAutoUpdate = false;
+        mesh.userData.expressID = id;
+        grp.add(mesh);
+      }
       geom.delete?.();
     }
     let tname = "Elemento";
@@ -130,7 +160,31 @@ async function loadIfc(ctx, bytes, ld, info) {
     byType.get(tname).push(grp);
     root.add(grp);
     count++;
-  });
+  };
+  // elementi letti a blocchi: avanzamento reale e interfaccia che resta viva anche con modelli da centinaia di MB
+  let ids = null;
+  try {
+    const W = info.WEBIFC;
+    const skip = new Set([W.IFCOPENINGELEMENT, W.IFCSPACE, W.IFCOPENINGSTANDARDCASE].filter(Boolean));
+    const all = ifc.GetLineIDsWithType(modelID, W.IFCPRODUCT, true);
+    ids = [];
+    for (let k = 0; k < all.size(); k++) { const id = all.get(k); if (!skip.has(ifc.GetLineType(modelID, id))) ids.push(id); }
+  } catch (e) { console.warn("IFC: elenco elementi non disponibile, lettura in un passo", e); ids = null; }
+  if (ids && ids.length) {
+    const STEP = 1500;
+    for (let s = 0; s < ids.length; s += STEP) {
+      ifc.StreamMeshes(modelID, ids.slice(s, s + STEP), onMesh);
+      ld.set(0.3 + 0.55 * Math.min(1, (s + STEP) / ids.length), `Geometria: ${Math.min(ids.length, s + STEP).toLocaleString("it-IT")} di ${ids.length.toLocaleString("it-IT")} elementi`);
+      await new Promise(r => setTimeout(r, 0));
+    }
+  } else ifc.StreamAllMeshes(modelID, onMesh);
+  if (MERGE && batches.size) {
+    ld.set(0.9, "Preparazione della vista");
+    await new Promise(r => setTimeout(r, 0));
+    const { buildBatches, sharedProxy } = await import("../navis.js");
+    buildBatches(root, batches);
+    for (const b of batches.values()) for (const p of b.parts) { const m = sharedProxy(p, p.mat); m.userData.expressID = p.owner.userData.expressID; p.owner.add(m); }
+  }
   // la matrice di coordinamento e' nota solo dopo aver letto la geometria del primo modello
   if (!info.coordMatrix) { try { info.coordMatrix = Array.from(ifc.GetCoordinationMatrix(modelID)); } catch { /* */ } }
   // nomi leggibili degli elementi: letti solo quando la voce dell'albero viene mostrata
