@@ -213,6 +213,8 @@ Autodesk Construction Cloud/BIM 360 (APS Data Management), senza sincronizzare l
   Documenti nativi Google: esportati in docx/xlsx/pptx, al salvataggio si propone un file nuovo. File -> "Salva nel cloud..."
   (anche in un altro formato via api convert). app.js: solo import all'avvio e la voce di menu.
 - Guida per l'utente (registrazioni Entra, Google Cloud, Dropbox, APS + integrazione personalizzata ACC): `ui/guide/archivi-cloud.md`.
+- Testi tradotti: chiavi `cloud.*` (cloud.js, import `t as tr`: `t` e' la scheda attiva) e `srv_cloud.*` (cloud.py; la variabile
+  dei token si chiama `toks`, non `t`). La guida e' solo in italiano.
 - Collaudo SENZA account: `python tests/test_cloud.py` (finto fornitore OAuth + finte API Dropbox e Graph, 52 prove);
   interfaccia: `python tests/cloud_demo.py` (stampa l'indirizzo; accesso simulato). Nel riquadro browser di Claude i cookie
   `mbv` di 127.0.0.1/localhost vengono sovrascritti da altre sessioni: le API rispondono 403 dopo un po' (ricaricare con ?t=).

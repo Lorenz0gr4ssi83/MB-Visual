@@ -30,6 +30,7 @@ from urllib.request import Request, build_opener
 
 from . import jobs
 from .paths import TEMP_DIR, UI_DIR
+from .i18n import t
 
 DATA_DIR = Path(os.environ.get("MBV_CLOUD_DIR") or (Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "MBVisual"))
 CONFIG_FILE = DATA_DIR / "cloud.json"
@@ -163,7 +164,7 @@ def set_config(body: dict) -> dict:
         if body.get("porta"):
             p = int(body["porta"])
             if not 1024 <= p <= 65535:
-                raise CloudError("Porta non valida (1024-65535)")
+                raise CloudError(t("srv_cloud.porta_non_valida_1024_65535"))
             user["porta"] = p
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         CONFIG_FILE.write_text(json.dumps(user, indent=2), "utf-8")
@@ -185,7 +186,7 @@ def _http(method, url, headers=None, data=None, timeout=90, out=None, update=Non
         return e.code, e.headers, body
     except (URLError, TimeoutError, ConnectionError, OSError) as e:
         reason = getattr(e, "reason", e)
-        raise CloudError(f"Connessione non riuscita ({reason}): controlla la rete o il proxy") from e
+        raise CloudError(t("srv_cloud.connessione_non_riuscita_0_controlla", reason)) from e
     with resp:
         if out is not None:
             total = total or int(resp.headers.get("Content-Length") or 0)
@@ -229,14 +230,14 @@ def _err_text(body: bytes) -> str:
 def _status_error(nome: str, st: int, body: bytes) -> CloudError:
     det = _err_text(body)
     if st == 401:
-        return CloudError(f"{nome}: accesso scaduto o revocato, accedi di nuovo", login=True)
+        return CloudError(t("srv_cloud.0_accesso_scaduto_revocato_accedi", nome), login=True)
     if st == 403:
-        return CloudError(f"{nome}: permesso negato" + (f" ({det})" if det else ""))
+        return CloudError(t("srv_cloud.0_permesso_negato", nome) + (f" ({det})" if det else ""))
     if st == 404:
-        return CloudError(f"{nome}: elemento non trovato (spostato, eliminato o non piu' condiviso)")
+        return CloudError(t("srv_cloud.0_elemento_non_trovato_spostato", nome))
     if st == 429:
-        return CloudError(f"{nome}: troppe richieste, riprova tra poco")
-    return CloudError(f"{nome}: errore {st}" + (f" - {det}" if det else ""))
+        return CloudError(t("srv_cloud.0_troppe_richieste_riprova_tra", nome))
+    return CloudError(t("srv_cloud.0_errore_1", nome, st) + (f" - {det}" if det else ""))
 
 
 def _ts(s) -> float:
@@ -265,7 +266,7 @@ class Session:
         self.cfg = config()
         tok = _tokens().get(svc)
         if not tok:
-            raise CloudError(f"{self.prov.nome}: non sei collegato", login=True)
+            raise CloudError(t("srv_cloud.0_non_sei_collegato", self.prov.nome), login=True)
         self.tok = tok
 
     def access_token(self) -> str:
@@ -276,7 +277,7 @@ class Session:
     def refresh(self):
         rt = self.tok.get("refresh_token")
         if not rt:
-            raise CloudError(f"{self.prov.nome}: accesso scaduto, accedi di nuovo", login=True)
+            raise CloudError(t("srv_cloud.0_accesso_scaduto_accedi_nuovo", self.prov.nome), login=True)
         c = self.cfg[self.svc]
         form = {"grant_type": "refresh_token", "refresh_token": rt, "client_id": c["client_id"], **self.prov.token_extra(c)}
         st, _, body = _http("POST", self.prov.token_url(c), {"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"},
@@ -284,10 +285,10 @@ class Session:
         if st != 200:
             if st in (400, 401):  # refresh token scaduto o revocato: si esce dal servizio
                 with _LOCK:
-                    t = _tokens()
-                    t.pop(self.svc, None)
-                    _save_tokens(t)
-                raise CloudError(f"{self.prov.nome}: accesso scaduto o revocato, accedi di nuovo", login=True)
+                    toks = _tokens()
+                    toks.pop(self.svc, None)
+                    _save_tokens(toks)
+                raise CloudError(t("srv_cloud.0_accesso_scaduto_revocato_accedi", self.prov.nome), login=True)
             raise _status_error(self.prov.nome, st, body)
         j = _jsonb(body)
         self.tok["access_token"] = j["access_token"]
@@ -295,9 +296,9 @@ class Session:
         if j.get("refresh_token"):  # Microsoft e Autodesk ruotano il refresh token
             self.tok["refresh_token"] = j["refresh_token"]
         with _LOCK:
-            t = _tokens()
-            t[self.svc] = self.tok
-            _save_tokens(t)
+            toks = _tokens()
+            toks[self.svc] = self.tok
+            _save_tokens(toks)
 
     def call(self, method, url, *, params=None, headers=None, data=None, js=None, auth=True, ok=(200, 201, 204),
              out=None, update=None, raw=False, ctype="application/json", total=0):
@@ -348,7 +349,7 @@ def _put_file(sess, url, src: Path, start, length, headers, update=None, total=N
     if st not in ok:
         return st, hd, body
     if update and total:
-        update(min(0.99, (done + len(data)) / total), f"Caricamento {(done + len(data)) * 100 // total}%")
+        update(min(0.99, (done + len(data)) / total), t("srv_cloud.caricamento_0", (done + len(data)) * 100 // total))
     return st, hd, body
 
 
@@ -404,7 +405,7 @@ class Graph(Provider):
     def _ids(self, iid):
         p = iid.split("|", 2)
         if len(p) != 3 or p[0] != "d":
-            raise CloudError("Scegli una cartella di OneDrive o di una raccolta documenti SharePoint")
+            raise CloudError(t("srv_cloud.scegli_cartella_onedrive_raccolta_documenti"))
         return p[1], p[2]
 
     def _map(self, x):
@@ -425,9 +426,9 @@ class Graph(Provider):
 
     def roots(self, s):
         d = s.call("GET", self.API + "/me/drive", params={"$select": "id,driveType"})
-        return [_item(f"d|{d['id']}|root", "Il mio OneDrive", True, kind="drive"),
-                _item("shared", "Condivisi con me", True, kind="shared"),
-                _item("sites", "Siti SharePoint", True, kind="sites")]
+        return [_item(f"d|{d['id']}|root", t("srv_cloud.mio_onedrive"), True, kind="drive"),
+                _item("shared", t("srv_cloud.condivisi_me"), True, kind="shared"),
+                _item("sites", t("srv_cloud.siti_sharepoint"), True, kind="sites")]
 
     def list(self, s, fid):
         if fid == "shared":
@@ -445,7 +446,7 @@ class Graph(Provider):
                     continue  # account personale: niente SharePoint
             return sorted(out, key=lambda i: i["name"].lower())
         if fid.startswith("site|"):
-            return [_item(f"d|{x['id']}|root", x.get("name", "Documenti"), True, kind="drive", modified=_ts(x.get("lastModifiedDateTime")))
+            return [_item(f"d|{x['id']}|root", x.get("name", t("srv_cloud.documenti")), True, kind="drive", modified=_ts(x.get("lastModifiedDateTime")))
                     for x in self._pages(s, f"{self.API}/sites/{fid[5:]}/drives")]
         d, i = self._ids(fid)
         return self._pages(s, f"{self.API}/drives/{d}/items/{i}/children", {"$top": "999"}, self._map)
@@ -471,7 +472,7 @@ class Graph(Provider):
     def download(self, s, iid, f, update):
         m = self.meta(s, iid)
         if not m.get("download"):
-            raise CloudError("OneDrive non fornisce il contenuto di questo elemento")
+            raise CloudError(t("srv_cloud.onedrive_non_fornisce_contenuto_questo"))
         s.call("GET", m["download"], auth=False, out=f, update=update, total=m["size"])
         return m
 
@@ -600,8 +601,8 @@ class GDrive(Provider):
         return sorted(out, key=lambda i: (not i["dir"], i["name"].lower()))
 
     def roots(self, s):
-        return [_item("root", "Il mio Drive", True, kind="drive"), _item("shared", "Condivisi con me", True, kind="shared"),
-                _item("drives", "Drive condivisi", True, kind="sites")]
+        return [_item("root", t("srv_cloud.mio_drive"), True, kind="drive"), _item("shared", t("srv_cloud.condivisi_me"), True, kind="shared"),
+                _item("drives", t("srv_cloud.drive_condivisi"), True, kind="sites")]
 
     @staticmethod
     def _esc(v):
@@ -661,7 +662,7 @@ class GDrive(Provider):
     def upload_version(self, s, iid, src, version, force, update):
         m = self.meta(s, iid)
         if m.get("native"):
-            raise CloudError("I documenti Google non si sovrascrivono con un file Office: salvane una copia")
+            raise CloudError(t("srv_cloud.i_documenti_google_non_si"))
         if not force and version and m["version"] != version:
             raise Conflict(m)
         self._resumable(s, "PATCH", f"{self.UPL}/files/{iid}?uploadType=resumable&supportsAllDrives=true", {}, src, update)
@@ -669,7 +670,7 @@ class GDrive(Provider):
 
     def upload_new(self, s, fid, name, src, replace, update):
         if fid in ("shared", "drives"):
-            raise CloudError("Scegli una cartella di destinazione")
+            raise CloudError(t("srv_cloud.scegli_cartella_destinazione"))
         same = [x for x in self._files(s, f"name = '{self._esc(name)}' and '{self._esc(fid)}' in parents and trashed = false", 10)
                 if not x["dir"] and not x.get("native")]
         if same:
@@ -854,11 +855,11 @@ class Autodesk(Provider):
                     size, mod, by = self._ver(tip)
                     out.append(_item(f"item|{proj}|{x['id']}", a.get("displayName", ""), False, size, mod or _ts(a.get("lastModifiedTime")), by=by))
             return sorted(out, key=lambda i: (not i["dir"], i["name"].lower()))
-        raise CloudError("Elemento Autodesk non valido")
+        raise CloudError(t("srv_cloud.elemento_autodesk_non_valido"))
 
     def search(self, s, q, fid):
         if not fid or not fid.startswith("fold|"):
-            raise CloudError("Apri un progetto e una sua cartella per cercare nei file Autodesk")
+            raise CloudError(t("srv_cloud.apri_progetto_sua_cartella_cercare"))
         proj, folder = fid[5:].split("|", 1)
         url = (f"{self.BASE}/data/v1/projects/{quote(proj, safe='')}/folders/{quote(folder, safe='')}/search?"
                + urlencode({"filter[attributes.displayName]-contains": q}))
@@ -899,12 +900,12 @@ class Autodesk(Provider):
     def download(self, s, iid, f, update):
         m = self.meta(s, iid)
         if not m.get("storage"):
-            raise CloudError("Questo elemento Autodesk non ha un file scaricabile")
+            raise CloudError(t("srv_cloud.questo_elemento_autodesk_non_ha"))
         b, k = self._obj(m["storage"])
         j = s.call("GET", f"{self.BASE}/oss/v2/buckets/{b}/objects/{k}/signeds3download")
         url = j.get("url") or (j.get("urls") or [None])[0]
         if not url:
-            raise CloudError("Autodesk non ha fornito l'indirizzo di download")
+            raise CloudError(t("srv_cloud.autodesk_non_ha_fornito_l"))
         s.call("GET", url, auth=False, out=f, update=update, total=m["size"])
         return m
 
@@ -954,7 +955,7 @@ class Autodesk(Provider):
 
     def upload_new(self, s, fid, name, src, replace, update):
         if not fid.startswith("fold|"):
-            raise CloudError("Scegli una cartella di un progetto Autodesk")
+            raise CloudError(t("srv_cloud.scegli_cartella_progetto_autodesk"))
         same = [x for x in self.list(s, fid) if not x["dir"] and x["name"].lower() == name.lower()]
         if same:
             if not replace:
@@ -995,7 +996,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
         login = _PENDING.get(q.get("state", ""))
         if not login:
-            ok, title, text = False, "Richiesta non riconosciuta", "Questa pagina di accesso e' scaduta o non e' stata avviata da MB Visual. Riprova dall'app."
+            ok, title, text = False, t("srv_cloud.richiesta_non_riconosciuta"), t("srv_cloud.questa_pagina_accesso_scaduta_non")
             if u.path in ("/favicon.ico",):
                 self.send_response(404)
                 self.end_headers()
@@ -1003,14 +1004,14 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         elif q.get("error"):
             login["error"] = q.get("error_description") or q["error"]
             login["denied"] = q["error"] == "access_denied"
-            ok, title, text = False, "Accesso non completato", ("Hai negato l'autorizzazione." if login["denied"] else login["error"]) + " Puoi chiudere questa scheda."
+            ok, title, text = False, t("srv_cloud.accesso_non_completato"), (t("srv_cloud.hai_negato_l_autorizzazione") if login["denied"] else login["error"]) + t("srv_cloud.puoi_chiudere_questa_scheda")
             login["event"].set()
         elif q.get("code"):
             login["code"] = q["code"]
-            ok, title, text = True, "Accesso completato", "Puoi chiudere questa scheda e tornare a MB Visual."
+            ok, title, text = True, t("srv_cloud.accesso_completato"), t("srv_cloud.puoi_chiudere_questa_scheda_tornare")
             login["event"].set()
         else:
-            ok, title, text = False, "Risposta incompleta", "Il servizio non ha restituito il codice di accesso. Riprova da MB Visual."
+            ok, title, text = False, t("srv_cloud.risposta_incompleta"), t("srv_cloud.servizio_non_ha_restituito_codice")
         body = (_PAGE % ("#047857" if ok else "#b91c1c", title, text)).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -1040,8 +1041,7 @@ def _start_listener(port: int):
         try:
             servers.append(_Server(("127.0.0.1", port), _CallbackHandler))
         except OSError as e:
-            raise CloudError(f"La porta {port} per il ritorno dall'accesso e' occupata da un altro programma "
-                             "(Archivi cloud -> Configura: cambia la porta anche nella registrazione dell'app)") from e
+            raise CloudError(t("srv_cloud.porta_occupata", port)) from e
         try:  # "localhost" nel browser puo' risolversi in ::1
             servers.append(_V6Server(("::1", port), _CallbackHandler))
         except OSError:
@@ -1063,10 +1063,10 @@ def _stop_listener():
 
 def login_start(svc: str, open_browser=True) -> dict:
     if svc not in PROVIDERS:
-        raise CloudError("Servizio sconosciuto")
+        raise CloudError(t("srv_cloud.servizio_sconosciuto"))
     cfg = config()
     if not configured(svc, cfg):
-        raise CloudError(f"{PROVIDERS[svc].nome} non e' configurato: inserisci l'ID applicazione in Archivi cloud -> Configura")
+        raise CloudError(t("srv_cloud.0_non_configurato_inserisci_l", PROVIDERS[svc].nome))
     for st_, l in list(_PENDING.items()):  # un solo accesso alla volta per servizio
         if l["svc"] == svc:
             l["cancel"] = True
@@ -1093,38 +1093,37 @@ def _login_wait(state, update):
     svc = login["svc"]
     prov = PROVIDERS[svc]
     try:
-        update(0.1, "In attesa dell'accesso nel browser...")
+        update(0.1, t("srv_cloud.attesa_dell_accesso_browser"))
         if not login["event"].wait(LOGIN_TIMEOUT):
-            raise CloudError("Tempo scaduto: l'accesso nel browser non e' stato completato")
+            raise CloudError(t("srv_cloud.tempo_scaduto_l_accesso_browser"))
         if login["cancel"]:
-            raise CloudError("Accesso annullato")
+            raise CloudError(t("srv_cloud.accesso_annullato"))
         if login.get("error"):
-            raise CloudError("Accesso negato" if login.get("denied") else f"Accesso non riuscito: {login['error']}")
-        update(0.6, "Verifica dell'accesso...")
+            raise CloudError(t("srv_cloud.accesso_negato") if login.get("denied") else t("srv_cloud.accesso_non_riuscito_0", login['error']))
+        update(0.6, t("srv_cloud.verifica_dell_accesso"))
         c = config()[svc]
         form = {"grant_type": "authorization_code", "code": login["code"], "redirect_uri": login["redirect"],
                 "client_id": c["client_id"], "code_verifier": login["verifier"], **prov.token_extra(c)}
         st, _, body = _http("POST", prov.token_url(c), {"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"},
                             urlencode(form).encode())
         if st != 200:
-            raise CloudError(f"{prov.nome}: il servizio ha rifiutato l'accesso ({_err_text(body) or st}). "
-                             "Controlla ID applicazione e indirizzo di ritorno nella registrazione")
+            raise CloudError(t("srv_cloud.accesso_rifiutato", prov.nome, _err_text(body) or st))
         j = _jsonb(body)
         tok = {"access_token": j["access_token"], "refresh_token": j.get("refresh_token"),
                "expires_at": time.time() + int(j.get("expires_in") or 3600)}
         with _LOCK:
-            t = _tokens()
-            t[svc] = tok
-            _save_tokens(t)
+            toks = _tokens()
+            toks[svc] = tok
+            _save_tokens(toks)
         try:
             acc = prov.account(Session(svc))
         except CloudError:
             acc = {"nome": "", "email": ""}
         with _LOCK:
-            t = _tokens()
-            if svc in t:
-                t[svc]["account"] = acc
-                _save_tokens(t)
+            toks = _tokens()
+            if svc in toks:
+                toks[svc]["account"] = acc
+                _save_tokens(toks)
         return {"servizio": svc, "account": acc}
     finally:
         _PENDING.pop(state, None)
@@ -1141,9 +1140,9 @@ def login_cancel(svc: str):
 
 def logout(svc: str):
     with _LOCK:
-        t = _tokens()
-        tok = t.pop(svc, None)
-        _save_tokens(t)
+        toks = _tokens()
+        tok = toks.pop(svc, None)
+        _save_tokens(toks)
     if tok:
         try:
             PROVIDERS[svc].revoke(config().get(svc, {}), tok)
@@ -1153,11 +1152,11 @@ def logout(svc: str):
 
 
 def status() -> dict:
-    cfg, t = config(), _tokens()
+    cfg, toks = config(), _tokens()
     out = []
     for k, p in PROVIDERS.items():
-        out.append({"id": k, "nome": p.nome, "configurato": configured(k, cfg), "connesso": k in t,
-                    "account": (t.get(k) or {}).get("account"), "cerca_radice": p.can_search_root})
+        out.append({"id": k, "nome": p.nome, "configurato": configured(k, cfg), "connesso": k in toks,
+                    "account": (toks.get(k) or {}).get("account"), "cerca_radice": p.can_search_root})
     return {"ok": True, "servizi": out, "porta": cfg["_port"], "guida": str(GUIDE)}
 
 
@@ -1233,7 +1232,7 @@ def _entry(path) -> dict:
     _load_entries()
     e = _ENTRIES.get(os.path.abspath(path))
     if not e:
-        raise CloudError("Questo file non e' stato aperto da un archivio cloud")
+        raise CloudError(t("srv_cloud.questo_file_non_stato_aperto"))
     return e
 
 
@@ -1246,17 +1245,17 @@ def _download_to(sess, prov, iid, dest: Path, update):
         os.replace(part, dest)
     except PermissionError:
         part.unlink(missing_ok=True)
-        raise CloudError(f'"{dest.name}" e\' aperto in un altro programma: chiudilo e riprova') from None
+        raise CloudError(t("srv_cloud.0_aperto_altro_programma_chiudilo", dest.name)) from None
     return m
 
 
 def open_item(svc, iid, update):
     _load_entries()
     prov, sess = PROVIDERS[svc], Session(svc)
-    update(0.02, "Lettura delle informazioni...")
+    update(0.02, t("srv_cloud.lettura_informazioni"))
     m = prov.meta(sess, iid)
     if m.get("dir"):
-        raise CloudError("E' una cartella")
+        raise CloudError(t("srv_cloud.cartella"))
     key = hashlib.sha1(f"{svc}|{iid}".encode()).hexdigest()[:16]
     path = CACHE / svc / key / _safe(m["name"])
     sp = str(path)
@@ -1306,14 +1305,14 @@ def opened() -> dict:
 def upload(path, force, update):
     e = _entry(path)
     if e.get("uploading"):
-        raise CloudError("Caricamento gia' in corso")
+        raise CloudError(t("srv_cloud.caricamento_gia_corso"))
     if e.get("native"):
         return {"nativo": True}
     prov, sess = PROVIDERS[e["svc"]], Session(e["svc"])
     e["uploading"] = True
     st0 = os.stat(path)
     try:
-        update(0.02, "Controllo della versione sul cloud...")
+        update(0.02, t("srv_cloud.controllo_versione_cloud"))
         try:
             m = prov.upload_version(sess, e["id"], Path(path), None if force else e.get("version"), force, update)
         except Conflict as c:
@@ -1333,7 +1332,8 @@ def _copy_name(name: str) -> str:
     if not dot:
         stem, ext = name, ""
     who = os.environ.get("USERNAME", "")
-    tag = f" (copia{' di ' + who if who else ''} {datetime.now():%Y-%m-%d %H.%M})"
+    when = f"{datetime.now():%Y-%m-%d %H.%M}"
+    tag = t("srv_cloud.copia_di", who, when) if who else t("srv_cloud.copia", when)
     return stem + tag + ("." + ext if ext else "")
 
 
@@ -1342,7 +1342,7 @@ def upload_copy(path, update):
     e = _entry(path)
     prov, sess = PROVIDERS[e["svc"]], Session(e["svc"])
     if e.get("parent") is None:  # la radice di Dropbox e' ""
-        raise CloudError("Cartella di origine sconosciuta: usa Salva nel cloud")
+        raise CloudError(t("srv_cloud.cartella_origine_sconosciuta_usa_salva"))
     name = _copy_name(e["nome"])
     m = prov.upload_new(sess, e["parent"], name, Path(path), False, update)
     e.update(id=m["id"], nome=m["name"], version=m.get("version"), native=False, web=m.get("web"))
@@ -1381,7 +1381,7 @@ def save_new(src, svc, folder, name, replace, update):
     """Salva con nome verso il cloud: carica `src` come file `name` nella cartella `folder`."""
     srcp = Path(src)
     if not srcp.is_file():
-        raise CloudError("File da caricare non trovato")
+        raise CloudError(t("srv_cloud.file_caricare_non_trovato"))
     name = _safe(name)
     try:
         m = PROVIDERS[svc].upload_new(Session(svc), folder, name, srcp, replace, update)
@@ -1400,7 +1400,7 @@ def _list(svc, fid):
 def handle(op: str, q: dict, body: dict) -> dict:
     svc = q.get("svc") or body.get("svc") or ""
     if svc and svc not in PROVIDERS:
-        raise CloudError("Servizio sconosciuto")
+        raise CloudError(t("srv_cloud.servizio_sconosciuto"))
     try:
         if op == "stato":
             return status()
@@ -1443,4 +1443,4 @@ def handle(op: str, q: dict, body: dict) -> dict:
             return {"ok": True, "job": jobs.start(save_new, body["src"], svc, body["folder"], body["name"], bool(body.get("replace")))}
     except CloudError as e:
         return {"ok": False, "errore": str(e), "login": e.login}
-    raise CloudError("Operazione sconosciuta")
+    raise CloudError(t("srv_cloud.operazione_sconosciuta"))
