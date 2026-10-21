@@ -8,8 +8,11 @@ export async function mount(ctx) {
   const src = "/vendor/pdfjs/web/viewer.html?file=" + encodeURIComponent(fileUrl(ctx.path)) + (innerWidth < 760 ? "#pagemode=none&zoom=page-width" : "#pagemode=thumbs");
   const frame = el("iframe", { src, title: ctx.name, style: { width: "100%", height: "100%", border: 0, display: "block", minWidth: 0 } });
   // area: [barra dell'editor] sopra, [documento | pannello proprieta'] sotto
-  const area = el("div", { style: { display: "grid", gridTemplateColumns: "1fr auto", gridTemplateRows: "1fr", height: "100%", minHeight: 0 } }, frame);
-  const wrap = el("div", { class: "fill", style: { display: "flex", flexDirection: "column" } }, el("div", { style: { flex: "1", minHeight: 0 } }, area));
+  // altezze esplicite: il documento occupa sempre tutto lo spazio sotto la barra (prima restava alto 150 px)
+  const area = el("div", { style: { position: "absolute", inset: "0", display: "flex" } }, el("div", { style: { flex: "1", minWidth: 0, position: "relative" } }, frame));
+  frame.style.position = "absolute";
+  frame.style.inset = "0";
+  const wrap = el("div", { style: { display: "flex", flexDirection: "column", width: "100%", height: "100%" } }, el("div", { style: { flex: "1", minHeight: 0, position: "relative" } }, area));
   ctx.el.append(wrap);
   const app = () => frame.contentWindow?.PDFViewerApplication;
 
