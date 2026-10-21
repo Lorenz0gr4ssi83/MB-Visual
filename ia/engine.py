@@ -34,6 +34,12 @@ from PIL import Image, ImageFilter
 ARGS = None
 LOCK = threading.Lock()
 PROGRESS = {"p": 0.0, "msg": "", "busy": False}
+CANCELLED = set()  # id delle richieste da interrompere (GET /cancel?id=...)
+CURRENT = {"id": None}
+
+
+class Cancelled(Exception):
+    pass
 MODELS = {}
 
 # ---------------------------------------------------------------- controlli di sicurezza
@@ -314,6 +320,9 @@ def save(img, suffix="png"):
 
 
 def progress(p, msg=None):
+    """Aggiorna l'avanzamento; se la richiesta in corso e' stata interrotta, si ferma qui (anche dentro i passi di diffusers)."""
+    if CURRENT["id"] and CURRENT["id"] in CANCELLED:
+        raise Cancelled()
     PROGRESS["p"] = max(0.0, min(1.0, p))
     if msg is not None:
         PROGRESS["msg"] = msg
@@ -659,6 +668,12 @@ class H(BaseHTTPRequestHandler):
             return self._json(status())
         if self.path.startswith("/progress"):
             return self._json({"ok": True, **PROGRESS})
+        if self.path.startswith("/cancel"):
+            from urllib.parse import parse_qs, urlparse
+            rid = (parse_qs(urlparse(self.path).query).get("id") or [""])[0]
+            if rid:
+                CANCELLED.add(rid)
+            return self._json({"ok": True})
         if self.path.startswith("/quit"):
             self._json({"ok": True})
             threading.Timer(0.2, lambda: os._exit(0)).start()
@@ -672,18 +687,27 @@ class H(BaseHTTPRequestHandler):
         fn = OPS.get(a.get("op"))
         if not fn:
             return self._json({"ok": False, "errore": "operazione sconosciuta"}, 400)
+        rid = a.get("_id")
         with LOCK:  # una operazione alla volta (memoria e processore)
+            CURRENT["id"] = rid
             PROGRESS.update(p=0.02, msg="Caricamento del modello", busy=True)
             t = time.time()
             try:
+                if rid and rid in CANCELLED:  # interrotta mentre era in coda
+                    raise Cancelled()
                 res = fn(a)
+                progress(1.0)  # interruzione arrivata durante l'ultimo calcolo: il risultato si scarta
                 self._json({"ok": True, "secondi": round(time.time() - t, 1), **res})
+            except Cancelled:
+                self._json({"ok": False, "errore": "Interrotto", "interrotto": True}, 409)
             except ValueError as e:
                 self._json({"ok": False, "errore": str(e)}, 422)
             except Exception as e:  # noqa: BLE001
                 traceback.print_exc()
                 self._json({"ok": False, "errore": f"{type(e).__name__}: {e}"}, 500)
             finally:
+                CANCELLED.discard(rid)
+                CURRENT["id"] = None
                 PROGRESS.update(p=1.0, busy=False)
 
 

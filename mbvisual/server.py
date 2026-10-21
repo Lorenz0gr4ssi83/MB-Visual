@@ -210,6 +210,11 @@ class Handler(BaseHTTPRequestHandler):
         from . import ia
         self._json({"ok": True, "path": ia.put(self._body())})
 
+    def api_ia_cancel(self, qs):
+        from . import ia
+        ia.cancel(_q(qs, "id", ""))
+        self._json({"ok": True})
+
     def api_ia_run(self, qs):
         from . import ia
         b = self._body_json()

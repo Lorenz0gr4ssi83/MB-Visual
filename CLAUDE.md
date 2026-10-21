@@ -251,4 +251,8 @@ costumi (anche "meno vestiti"), pose audaci: permessi. safety_checker di diffuse
   `match_grain` (rumore stimato con la mediana degli scarti, max 5). Qualita': veloce 512 LCM / alta 768 LCM (predefinita) /
   massima 768 DPM++ 28 passi; LCM-LoRA NON fusa (set_mode la accende/spegne). Alta con forme: ~7-9 min su questo PC.
 - Tempi su questo PC (CPU): genera 512x768 ~5 min, cambio abito 2,5-3,5 min, soggetto 30-60 s, parti 10-30 s.
+- Elaborazioni NON bloccanti: riquadro in basso a destra (aiedit.js `run`), si lavora negli altri file; risultato nella
+  scheda di partenza, "Vai all'immagine" (window.MB.activate/active). Interrompi = effetto immediato nell'app + `ia_cancel`
+  (`_id` della richiesta): il motore si ferma al passo successivo (progress() solleva Cancelled; un calcolo ONNX o il
+  caricamento di un modello non si spezzano).
 - Altri PC: `python tools/ia_setup.py` (Python 3.13 ARM64 o x64; CUDA se c'e' nvidia-smi) in %LOCALAPPDATA%\MBVisual\ia.

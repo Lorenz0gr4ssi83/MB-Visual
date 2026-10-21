@@ -35,26 +35,72 @@ function alphaToMask(sel) {
   return c;
 }
 
-// esecuzione con finestra di avanzamento (le operazioni generative sul processore richiedono minuti)
+// Elaborazioni in un riquadro in basso a destra, NON bloccante: mentre il motore calcola (minuti sul processore) si puo'
+// lavorare negli altri file; a fine lavoro il risultato entra comunque nell'immagine da cui e' partito.
+const CSS = `.ia-jobs{position:fixed;right:14px;bottom:34px;z-index:90;display:flex;flex-direction:column;gap:8px;width:330px;max-width:calc(100vw - 28px)}
+.ia-job{background:var(--panel,#fff);color:var(--fg,#222);border:1px solid var(--line,#ccc);border-radius:8px;box-shadow:var(--shadow);padding:9px 11px;font-size:12.5px}
+.ia-job-h{display:flex;gap:6px;align-items:center}.ia-job-h .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.75}
+.ia-job .progress{margin-top:6px}.ia-job .msg{margin-top:4px;opacity:.85}.ia-job.bad{border-color:var(--bad,#c33)}
+.ia-job .acts{display:flex;gap:6px;justify-content:flex-end;margin-top:6px}.ia-job .x{border:0;background:none;color:inherit;font-size:15px;padding:0 3px}`;
+function jobsPanel() {
+  let p = document.getElementById("ia-jobs");
+  if (!p) {
+    document.head.append(el("style", {}, CSS));
+    p = el("div", { id: "ia-jobs", class: "ia-jobs" });
+    document.body.append(p);
+  }
+  return p;
+}
+
 async function run(host, title, params) {
   const s = await engine();
   if (!s?.installato) { await modal("Motore IA non installato", el("p", {}, "Il motore IA non e' installato su questo PC. Vedi il menu IA > Motore IA.")); return null; }
+  const tab = host.ctx.tab, name = host.ctx.name || "Immagine";
   const bar = el("div", { class: "progress" }, el("span"));
-  const msg = el("p", { class: "note" }, "Avvio del motore IA...");
-  const back = document.getElementById("modal"), body = document.getElementById("modal-body");
-  body.innerHTML = "";
-  body.append(el("h3", {}, title), msg, bar, el("p", { class: "note" }, "Elaborazione sul tuo PC: la prima volta il modello si carica in memoria (piu' lento), poi resta pronto."));
-  back.hidden = false;
-  const t0 = Date.now();
+  const msg = el("div", { class: "msg" }, "Avvio del motore IA (la prima volta carica i modelli)...");
+  const rid = Math.random().toString(36).slice(2) + Date.now().toString(36);  // id per l'interruzione
+  // Interrompi: effetto immediato nell'app (il risultato, se arriva, si scarta); il motore si ferma al primo passo utile
+  let stopped = false, onStop;
+  const stopP = new Promise(r => (onStop = r));
+  const stopBtn = el("button", { class: "btn small", onclick: () => {
+    stopped = true;
+    api("ia_cancel", { id: rid }, { allowFail: true });
+    onStop();
+  } }, "Interrompi");
+  const acts = el("div", { class: "acts" }, stopBtn);
+  const item = el("div", { class: "ia-job" },
+    el("div", { class: "ia-job-h" }, el("b", {}, title), el("span", { class: "nm", title: name }, "· " + name),
+      el("button", { class: "x", title: "Nascondi (il lavoro continua)", onclick: () => item.remove() }, "×")), msg, bar, acts);
+  jobsPanel().append(item);
+  const t0 = Date.now(), sec = () => Math.round((Date.now() - t0) / 1000);
+  const MB = window.MB;
+  const isActive = () => !MB?.active || MB.active === tab;
+  const goTo = () => { if (MB?.activate && MB.tabs.includes(tab)) MB.activate(tab); item.remove(); };
   try {
-    const { job } = await api("ia_run", {}, { json: params });
-    const r = await waitJob(job, (p, m) => { bar.firstChild.style.width = Math.round((p || 0) * 100) + "%"; msg.textContent = (m || "Elaborazione") + ` · ${Math.round((Date.now() - t0) / 1000)} s`; });
-    back.hidden = true;
-    host.ctx.status(`${title}: ${Math.round((Date.now() - t0) / 1000)} s`);
+    const { job } = await api("ia_run", {}, { json: { ...params, _id: rid } });
+    const r = await Promise.race([stopP.then(() => { throw new Error("Interrotto"); }), waitJob(job, (p, m) => { if (stopped) return; bar.firstChild.style.width = Math.round((p || 0) * 100) + "%"; msg.textContent = (m || "Elaborazione") + ` · ${sec()} s`; })]);
+    bar.remove();
+    stopBtn.remove();
+    if (MB && !MB.tabs.includes(tab)) { msg.textContent = `Completato in ${sec()} s, ma la scheda e' stata chiusa`; return null; }
+    msg.textContent = `Completato in ${sec()} s`;
+    host.ctx.status(`${title}: ${sec()} s`);
+    if (isActive()) setTimeout(() => item.remove(), 5000);
+    else {
+      acts.append(el("button", { class: "btn small primary", onclick: goTo }, "Vai all'immagine"));
+      toast(`${title} completato: ${name}`);
+    }
     return r;
   } catch (e) {
-    back.hidden = true;
-    await modal(title, el("p", {}, e.message));
+    bar.remove();
+    stopBtn.remove();
+    if (stopped || /Interrotto/.test(e.message)) {  // fermato da chi lavora: nessun errore, l'immagine resta com'era
+      msg.textContent = `Interrotto dopo ${sec()} s: l'immagine non e' stata modificata`;
+      setTimeout(() => item.remove(), 4000);
+      return null;
+    }
+    item.classList.add("bad");
+    msg.textContent = e.message;
+    if (!isActive()) acts.append(el("button", { class: "btn small", onclick: goTo }, "Vai all'immagine"));
     return null;
   }
 }

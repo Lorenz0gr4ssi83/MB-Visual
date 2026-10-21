@@ -11,6 +11,7 @@ import secrets
 import subprocess
 import threading
 import time
+import urllib.parse
 import urllib.request
 import uuid
 from pathlib import Path
@@ -115,6 +116,12 @@ def run(params: dict, update=None) -> dict:
     if not res.get("ok"):
         raise ValueError(res.get("errore") or "Operazione IA non riuscita")
     return res
+
+
+def cancel(rid: str) -> None:
+    """Interrompe la richiesta con id rid (in corso o in coda): il motore si ferma al passo successivo."""
+    if _proc and _proc.poll() is None and _port:
+        _call("GET", "/cancel?id=" + urllib.parse.quote(rid), timeout=5)
 
 
 def stop():

@@ -856,5 +856,5 @@ async function boot() {
   renderTabs();
 }
 
-window.MB = { openPaths, openFile, resolveCategory, get tabs() { return tabs; }, modal, askQuit };
+window.MB = { openPaths, openFile, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, activate, modal, askQuit };
 const READY = boot();
