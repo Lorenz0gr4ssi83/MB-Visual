@@ -133,7 +133,12 @@ def check() -> dict:
         if man and man.get("build") and (best is None or man["build"] > best[1]["build"]):
             best = (c, man)
     if not best:
-        res["stato"] = "nessuna_fonte"
+        # niente cartella OneDrive (clienti esterni): ultima release pubblicata su GitHub
+        rel = _github_latest()
+        if rel and _vtuple(rel["versione"]) > _vtuple(cur.get("versione", "0")):
+            res.update(stato="nuova", fonte="github", github=rel, disponibile={"versione": rel["versione"], "build": rel["data"]})
+        elif not rel:
+            res["stato"] = "nessuna_fonte"
         return res
     src, man = best
     res["fonte"] = str(src)
@@ -275,6 +280,66 @@ def _restart(exe: Path) -> None:
     threading.Timer(1.5, lambda: os._exit(0)).start()
 
 
+# ---------------------------------------------------------------- aggiornamenti via internet (release su GitHub)
+RELEASES_REPO = "Lorenz0gr4ssi83/MB-Visual-Rilasci"  # repository pubblico con i soli setup (senza licenza non funzionano)
+
+
+def _vtuple(v: str) -> tuple:
+    return tuple(int(x) for x in re.findall(r"\d+", str(v))[:4]) or (0,)
+
+
+def _github_latest():
+    import urllib.request
+    try:
+        req = urllib.request.Request(f"https://api.github.com/repos/{RELEASES_REPO}/releases/latest",
+                                     headers={"accept": "application/vnd.github+json", "user-agent": "MBVisual"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            rel = json.loads(r.read())
+    except Exception:  # noqa: BLE001
+        return None
+    asset = next((a for a in rel.get("assets", []) if re.match(r"MBVisual-Setup-.*\.exe$", a.get("name", ""))), None)
+    if not asset:
+        return None
+    return {"versione": rel.get("tag_name", "").lstrip("v"), "data": (rel.get("published_at") or "")[:19].replace("T", " "),
+            "url": asset["browser_download_url"], "byte": asset.get("size", 0), "note": rel.get("body", "")}
+
+
+def _apply_github(rel: dict, update=None) -> dict:
+    """Scarica il setup (con avanzamento) e lo esegue in silenzio quando l'app si e' chiusa, poi la riavvia."""
+    import urllib.request
+    STAGING.mkdir(parents=True, exist_ok=True)
+    setup = STAGING / f"MBVisual-Setup-{rel['versione']}.exe"
+    total = rel.get("byte") or 1
+    with urllib.request.urlopen(urllib.request.Request(rel["url"], headers={"user-agent": "MBVisual"}), timeout=60) as r, open(setup, "wb") as f:
+        done = 0
+        while True:
+            chunk = r.read(1 << 20)
+            if not chunk:
+                break
+            f.write(chunk)
+            done += len(chunk)
+            if update:
+                update(0.95 * done / total, f"Scaricamento: {done / 1048576:.0f} di {total / 1048576:.0f} MB")
+    if rel.get("byte") and setup.stat().st_size != rel["byte"]:
+        raise ValueError("Scaricamento incompleto: riprova")
+    if update:
+        update(0.97, "Installazione della nuova versione")
+    exe = INSTALL_DIR / "MBVisual.exe"
+    cmd = Path(tempfile.gettempdir()) / "MBVisual-aggiorna.cmd"
+    pid = os.getpid()
+    cmd.write_text("\r\n".join([
+        "@echo off", "chcp 65001 >nul",
+        ":attesa",
+        rf'"%SystemRoot%\System32\tasklist.exe" /FI "PID eq {pid}" 2>nul | "%SystemRoot%\System32\find.exe" "{pid}" >nul && ("%SystemRoot%\System32\ping.exe" -n 2 127.0.0.1 >nul & goto attesa)',
+        f'"{setup}" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /LOG="{LOG}"',
+        f'start "" "{exe}"',
+    ]) + "\r\n", encoding="utf-8", newline="")
+    subprocess.Popen(["cmd", "/c", str(cmd)], creationflags=0x00000200 | 0x08000000, close_fds=True,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    threading.Timer(1.0, lambda: os._exit(0)).start()
+    return {"ok": True, "versione": rel["versione"]}
+
+
 def apply(update=None) -> dict:
     """Prepara la nuova versione in una cartella locale (con avanzamento), poi uno script di Windows la copia
     nella cartella dell'app appena questa si chiude e la riavvia."""
@@ -282,6 +347,9 @@ def apply(update=None) -> dict:
     if r["stato"] != "nuova":
         raise ValueError({"sincronizzazione": "OneDrive sta ancora scaricando la nuova versione: riprova tra qualche minuto",
                           "aggiornato": "Hai gia' l'ultima versione"}.get(r["stato"], "Nessun aggiornamento disponibile"))
+    if r.get("github"):
+        _log(f"aggiornamento da GitHub {r['attuale']} -> {r['github']['versione']}")
+        return _apply_github(r["github"], update)
     src = Path(r["fonte"])
     if _same(src, APP_DIR):
         raise ValueError("L'app e' avviata dalla cartella di OneDrive: si aggiorna con la sincronizzazione")
