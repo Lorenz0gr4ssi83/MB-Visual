@@ -472,11 +472,11 @@ async function chooseFormat(t, a) {
   const src = extOf(t.path);
   const own = [...new Set([...(a.save && (!a.saveFormats || a.saveFormats.includes(src)) ? [src] : []), ...(a.saveFormats || [])])];
   let conv = [];
-  try { conv = (await api("convert_targets", { path: t.path })).targets || []; } catch { /* */ }
+  try { const r = await api("convert_targets", { path: t.path }); conv = r.targets || []; conv.family = r.family; } catch { /* */ }
   const list = el("select", { size: 14, id: "fmt-choice", class: "field", style: { width: "100%", minWidth: "340px" } });
   if (own.length) {
     const g = el("optgroup", { label: "Formati dell'editor" });
-    own.forEach(e => g.append(el("option", { value: e }, e.toUpperCase() + (e === src ? "  (formato attuale)" : ""))));
+    own.forEach(e => g.append(el("option", { value: e }, e.toUpperCase() + (a.saveLabels?.[e] ? " - " + a.saveLabels[e] : "") + (e === src ? "  (formato attuale)" : ""))));
     list.append(g);
   }
   const extra = conv.filter(c => !own.includes(c.ext));
@@ -489,7 +489,7 @@ async function chooseFormat(t, a) {
   list.selectedIndex = 0;
   list.addEventListener("dblclick", () => document.querySelector("#modal .btn.primary")?.click());
   const ok = await modal("Salva con nome: scegli il formato", el("div", { style: { display: "grid", gap: "8px" } }, list,
-    el("p", { class: "note", style: { margin: 0, color: "var(--muted)" } }, TOOLS.word || TOOLS.excel ? "I documenti Office vengono convertiti con Word, Excel e PowerPoint installati su questo PC." : "")),
+    el("p", { class: "note", style: { margin: 0, color: "var(--muted)" } }, a.saveNote || ((TOOLS.word || TOOLS.excel) && /^(word|sheet|slides)$/.test(conv.family || "") ? "I documenti Office vengono convertiti con Word, Excel e PowerPoint installati su questo PC." : ""))),
   [{ label: "Annulla", value: false }, { label: "Avanti", value: true, primary: true }]);
   return ok ? list.value : null;
 }

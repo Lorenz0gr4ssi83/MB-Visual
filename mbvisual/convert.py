@@ -37,7 +37,7 @@ FAMILIES = {
     "font": "ttf otf woff woff2".split(),
     "database": "sqlite sqlite3 db db3 s3db sl3".split(),
     "text": "txt text log ini cfg conf json xml yaml yml toml csv tsv sql py js ts css c h cpp cs java bat ps1 sh".split(),
-    "email": ["eml"],
+    "email": ["eml", "msg"],
 }
 FAMILY_OF = {}
 for fam, exts in FAMILIES.items():
@@ -360,8 +360,29 @@ def _text(src, out, ext, to, update):
 
 
 def _email(src, out, ext, to, update):
-    if to == "eml":
+    if to == "eml" and ext == "eml":
         shutil.copyfile(src, out)
+        return
+    if to == "eml":  # Outlook .msg -> .eml standard (testo, HTML e allegati)
+        import mimetypes
+        from email.message import EmailMessage
+        from email.policy import SMTP
+        m = (misc.read_email(src).get("messaggi") or [{}])[0]
+        msg = EmailMessage()
+        for k, h in (("da", "From"), ("a", "To"), ("cc", "Cc"), ("data", "Date"), ("oggetto", "Subject")):
+            if m.get(k):
+                msg[h] = " ".join(str(m[k]).split())  # intestazioni su una riga
+        msg.set_content(m.get("testo") or "")
+        if m.get("html"):
+            msg.add_alternative(m["html"], subtype="html")
+        for a in m.get("allegati") or []:
+            try:
+                data = Path(a["path"]).read_bytes()
+            except OSError:
+                continue
+            mt = (a.get("tipo") or mimetypes.guess_type(a["nome"])[0] or "application/octet-stream").split("/", 1)
+            msg.add_attachment(data, maintype=mt[0], subtype=mt[1] if len(mt) > 1 else "octet-stream", filename=a["nome"])
+        Path(out).write_bytes(msg.as_bytes(policy=SMTP))
         return
     parts = []
     for m in misc.read_email(src).get("messaggi", []):
