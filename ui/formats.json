@@ -655,6 +655,16 @@
    ]
   },
   {
+   "id": "videoproject",
+   "name": "Progetti di montaggio video",
+   "viewer": "video",
+   "view": "Montaggio in stile Premiere Pro: monitor sorgente e programma, timeline multitraccia con miniature e forme d'onda, anteprima in tempo reale",
+   "edit": "Taglio, rasoio, ripple, rullo, slittamento, velocita', tracce video e audio sovrapposte, effetti colore/sfocatura/chiave colore/LUT, movimento e opacita' con fotogrammi chiave, metodi di fusione, titoli, transizioni, volume con fotogrammi chiave, normalizzazione, stabilizzazione; esportazione MP4 H.264/H.265, WebM, MOV ProRes, MP3/WAV con FFmpeg",
+   "exts": [
+    "mbvid"
+   ]
+  },
+  {
    "id": "media",
    "name": "Video",
    "viewer": "media",

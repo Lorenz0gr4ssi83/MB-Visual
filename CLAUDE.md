@@ -211,3 +211,21 @@ tolto da office-lo), voce "Pubblicazione" in Crea nuovo (un file vuoto; i modell
 - `.pub`: API pub_import (job). Con Publisher installato tutto via COM (pagine, caselle collegate, forme, tabelle, WordArt;
   il resto con SaveAsPicture); senza Publisher solo testo (Quill/QuillSub/CONTENTS) e immagini. Colori COM = BGR.
 - Prove dalla console: `MB.tabs[i].api._pb` (interfaccia E) e `E._pb` (stato, toPage/toScreen, canvas per eventi simulati).
+
+## Montaggio video e audio in stile Premiere Pro (21/10/2026) - FATTO
+Formato proprio `.mbvid` (JSON: settings, media con percorso assoluto + `rel`, tracce V/A, clip, transizioni, marcatori; schema
+in testa a `ui/js/vidmodel.js`), categoria `videoproject` -> visualizzatore `ui/js/viewers/video.js`. Voce "Progetto video" in
+Crea nuovo; nel lettore audio/video pulsante "Apri nel montaggio" (progetto temporaneo con il file gia' in timeline).
+- `ui/js/videdit.js` interfaccia (area di lavoro Montaggio: Sorgente/Controlli effetti/Mixer, Programma, Progetto/Effetti,
+  strumenti V A B N R C Y U P H Z T, timeline su canvas con miniature e forme d'onda, menu, tasti Premiere in keymap),
+  `vidplay.js` riproduzione (un video/audio per clip vicino alla testina, Web Audio per guadagni/fade/mute/solo/misuratori),
+  `vidgl.js` compositore WebGL2, `vidicons.js`, `ui/css/videdit.css` (sempre scuro).
+- Esportazione `mbvisual/video.py` (API video_*): UN grafo FFmpeg con le STESSE formule dello shader (lutrgb+colorchannelmixer,
+  gblur, convolution, colorkey, lut3d, crop+pad, xfade, blend con alfa, overlay). Movimento animato = filtro perspective con
+  espressioni nel numero di fotogramma (`in`); opacita' animata = sendcmd; volume animato = volume eval=frame. Le transizioni
+  tra due clip le allungano di meta' durata oltre il taglio (fotogramma fermo con tpad se manca materiale). I titoli li disegna
+  il browser (renderTitle) e passano come PNG; i titoli NON si adattano alla sequenza (1 px = 1 px).
+  FFmpeg lavora in una cartella temporanea con cwd = quella cartella (niente percorsi Windows nel grafo); se fallisce, grafo e
+  comando restano in %TEMP%\MBVisual\video\ultima_esportazione.
+- Stabilizza = vidstab in due passate su una copia; Normalizza = volumedetect -> guadagno clip; loudnorm opzionale sul mix.
+- Prove dalla console: `MB.tabs[i].api._ve` (P, player, importPaths, placeMedia, addTransition, goto, sel...).

@@ -417,6 +417,34 @@ class Handler(BaseHTTPRequestHandler):
     def api_media_waveform(self, qs):
         self._json({"ok": True, "peaks": media.waveform(self._path(qs))})
 
+    # ------------------------------------------------------------ montaggio video (mbvisual/video.py, ui/js/videdit.js)
+    def api_video_info(self, qs):
+        from . import video
+        self._json({"ok": True, **video.info(self._path(qs))})
+
+    def api_video_waveform(self, qs):
+        from . import video
+        self._json({"ok": True, **video.waveform(self._path(qs), int(_q(qs, "rate", "100")))})
+
+    def api_video_thumbs(self, qs):
+        from . import video
+        self._json({"ok": True, "job": jobs.start(video.thumbs, self._path(qs), int(_q(qs, "h", "54")))})
+
+    def api_video_peak(self, qs):
+        from . import video
+        b = self._body_json()
+        self._json({"ok": True, **video.peak(self._path(qs), float(b.get("start") or 0), b.get("dur"))})
+
+    def api_video_stabilize(self, qs):
+        from . import video
+        b = self._body_json()
+        self._json({"ok": True, "job": jobs.start(video.stabilize, self._path(qs), b["out"], int(b.get("smooth", 15)))})
+
+    def api_video_export(self, qs):
+        from . import video
+        b = self._body_json()
+        self._json({"ok": True, "job": jobs.start(video.export, b["project"], b["out"], b.get("opts") or {})})
+
     # ------------------------------------------------------------ firme
     def api_signed(self, qs):
         self._json(signed.open_signed(self._path(qs)))
