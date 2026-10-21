@@ -38,6 +38,13 @@ WEB_LIBS = [
     ("utif", "https://registry.npmjs.org/utif/-/utif-3.1.0.tgz", {"package/UTIF.js": "UTIF.js"}),
     ("heic2any", "https://registry.npmjs.org/heic2any/-/heic2any-0.0.4.tgz", {"package/dist/heic2any.min.js": "heic2any.min.js"}),
     ("html-docx", "https://registry.npmjs.org/html-docx-js/-/html-docx-js-0.3.1.tgz", {"package/dist/html-docx.js": "html-docx.js"}),
+    # scansione documenti (ui/js/scanner.js): OpenCV.js Apache 2.0, Tesseract.js Apache 2.0, dati "ita" di tessdata Apache 2.0
+    ("opencv", "https://registry.npmjs.org/@techstark/opencv-js/-/opencv-js-4.10.0-release.1.tgz", {"package/dist/opencv.js": "opencv.js", "package/LICENSE": "LICENSE"}),
+    ("tesseract", "https://registry.npmjs.org/tesseract.js/-/tesseract.js-6.0.1.tgz",
+     {"package/dist/tesseract.min.js": "tesseract.min.js", "package/dist/worker.min.js": "worker.min.js", "package/LICENSE.md": "LICENSE.md"}),
+    ("tesseract", "https://registry.npmjs.org/tesseract.js-core/-/tesseract.js-core-6.0.0.tgz",
+     {"package/tesseract-core-lstm.wasm.js": "tesseract-core-lstm.wasm.js", "package/tesseract-core-simd-lstm.wasm.js": "tesseract-core-simd-lstm.wasm.js"}),
+    ("tesseract", "https://registry.npmjs.org/@tesseract.js-data/ita/-/ita-1.0.0.tgz", {"package/4.0.0_best_int/ita.traineddata.gz": "ita.traineddata.gz"}),
 ]
 
 # estensioni che la web app apre davvero (per categoria del registro); le categorie assenti non sono disponibili

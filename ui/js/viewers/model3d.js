@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { api, button, dirName, el, fileUrl, loading, pickFiles, readBytes, saveBlobAs, toast, withExt } from "../core.js";
 import { isDark } from "../monaco.js";
+import { t as tr } from "../i18n.js";
 
 const LOADERS = {
   stl: ["STLLoader", "STLLoader"], obj: ["OBJLoader", "OBJLoader"], ply: ["PLYLoader", "PLYLoader"], gltf: ["GLTFLoader", "GLTFLoader"],
@@ -751,6 +752,10 @@ export async function mount(ctx) {
 
   ctx.tb.append(seg, el("span", { class: "sep" }), addBtn, button("Adatta", "fit", () => fit()), views, el("span", { class: "sep" }), wireBtn, mBtn, axisSel, slider, flipBtn,
     el("span", { class: "sep" }), exp, el("span", { class: "grow" }), el("span", { class: "note" }, "Maiusc: cambia modalita' · destro: sposta · rotella: zoom · clic: seleziona · Ctrl+clic: aggiungi · Esc: deseleziona"));
+  // app per telefono: realta' aumentata (WebXR su Android, Quick Look su iPhone) - ui/js/ar.js
+  if (window.MBV_WEB) ctx.tb.prepend(button(tr("ar.vedi"), '<svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>', async () => {
+    try { (await import("../ar.js")).openAR({ model, ext: ctx.ext, name: ctx.name }); } catch (e) { toast(tr("ar.errore", e.message), true); }
+  }, { title: tr("ar.vedi_titolo") }));
 
   async function doExport(kind) {
     const base = dirName(ctx.path);

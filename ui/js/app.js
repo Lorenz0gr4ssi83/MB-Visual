@@ -196,6 +196,7 @@ function openMenu(anchor) {
   const item = (icon, text, hint, fn) => { const b = el("button", { onclick: () => { m.hidden = true; fn(); } }); b.insertAdjacentHTML("beforeend", icon); b.append(el("span", {}, text)); if (hint) b.append(el("span", { class: "hint" }, hint)); return b; };
   m.append(item(ICON_FILE, tr("app.apri_file"), "Ctrl+O", doOpen));
   if (!WEB) m.append(item(ICON_FOLDER, tr("app.cartella_progetto"), "", chooseExplorerFolder));
+  if (WEB) m.append(item(ICON_SCAN, tr("scanner.menu"), "", doScan));
   m.append(el("hr"), el("div", { class: "sec label" }, tr("app.recenti")));
   // nella web app i file non restano disponibili dopo la chiusura: i recenti non si possono riaprire
   const list = WEB ? [] : recentList();
@@ -327,6 +328,13 @@ async function runUpdateJob(route, title, doneText) {
 async function doNew() {
   const { createNew } = await import("./newfile.js");
   await createNew({ dir: exDir || "", openFile: (p, v, x) => openFile(p, v, x) });
+}
+
+// app per telefono: scansione di documenti con la fotocamera -> PDF (ui/js/scanner.js)
+const ICON_SCAN = '<svg viewBox="0 0 24 24"><path d="M3 8V4h4M17 4h4v4M21 16v4h-4M7 20H3v-4M7 9h10M7 12h10M7 15h6"/></svg>';
+async function doScan() {
+  const { openScanner } = await import("./scanner.js");
+  openScanner({ openPdf: f => openFile(window.MBV_API.register(f, f.name)) });
 }
 
 async function doOpen() { const ps = await pickFiles(); if (ps?.length) openPaths(ps); }
@@ -736,6 +744,7 @@ function toggleFormats() {
 // L'app tiene sempre una voce di cronologia in piu': il tasto indietro la consuma, l'app torna alla schermata
 // precedente e la rimette. Nella schermata iniziale non succede nulla: l'app non si chiude mai.
 function goBack() {
+  if (window.MBV_BACK?.()) return; // schermate a tutto schermo (scanner, realta' aumentata) gestiscono da sole il tasto indietro
   if (!$("modal").hidden) return document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
   if (!$("menu-open").hidden || !$("menu-as").hidden || !$("menu-file").hidden) return closeMenus();
   if (!$("dragover").hidden) { $("dragover").hidden = true; return; }
@@ -869,6 +878,7 @@ async function boot() {
   $("btn-open").addEventListener("click", e => openMenu(e.currentTarget));
   $("home-open").addEventListener("click", doOpen);
   $("home-new").addEventListener("click", doNew);
+  if (WEB) $("home-new").after(el("button", { class: "btn", id: "home-scan", html: ICON_SCAN + tr("scanner.home"), onclick: doScan }));
   $("home-folder").addEventListener("click", chooseExplorerFolder);
   $("btn-explorer").addEventListener("click", toggleExplorer);
   $("btn-info").addEventListener("click", showProperties);

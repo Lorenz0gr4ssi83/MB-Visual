@@ -289,3 +289,28 @@ se possibile; chi manca ricade sull'inglese). Niente stringhe italiane scritte d
   `python tools/i18n_check.py` controlla chiavi mancanti e segnaposto; `--merge file.json` unisce traduzioni
   (`{"chiave": ["it", "en", "es", "fr", "de"]}`). Il registro formati si traduce con le chiavi `fmt.<id>.name/view/edit`.
 - Lingua: automatica da Windows (api/lang) o scelta in File > Impostazioni > Lingua (localStorage "mbv-lang", si applica ricaricando).
+
+## App per telefono: scansione documenti e realta' aumentata (22/10/2026) - FATTO
+Solo nella web app (window.MBV_WEB), tutto nel dispositivo, senza l'app per PC.
+- Scansione: `ui/js/scanner.js` + `ui/css/scanner.css`; voce "Scansiona documento..." nel menu Apri e pulsante nella home (testi: chiavi scanner.* e ar.* in ui/i18n)
+  (app.js `doScan`). Fotocamera (getUserMedia, posteriore) con bordi del foglio rilevati ~7 volte/s su copia a 480 px
+  (`detectQuad`: Canny + Otsu, quadrilatero convesso piu' grande), scatto automatico quando il foglio e' fermo (poi
+  aspetta che cambi), scatto manuale -> ritaglio con 4 angoli e lente, raddrizzamento (`warp`, rifilo 0,6%), filtri
+  (colore migliorato/grigi = divisione per lo sfondo stimato; B/N = soglia adattiva; originale), pagine con ordine
+  (frecce o tieni premuto e trascina), rotazione, eliminazione, importazione da galleria; PDF con pdf-lib (A4, Lettera
+  o come il foglio) e testo invisibile da OCR (Tesseract.js, lingua ita, render mode 3) -> Condividi / Salva / Apri in
+  MB Visual / Copia testo. Librerie in tools/build_web.py WEB_LIBS: OpenCV.js 4.10 (@techstark, Apache 2.0, 10 MB),
+  tesseract.js 6.0.1 + core 6.0.0 (Apache 2.0), ita.traineddata best_int (Apache 2.0). Caricate solo al primo uso.
+  ATTENZIONE: il modulo OpenCV e' "thenable" (then risolve con se stesso): mai `await cv` ne' restituirlo da una
+  funzione async senza `delete cv.then` (blocca la pagina per sempre). Prove: `window.MB_SCAN` (pages, importFiles);
+  foto di prova `tests/samples/scansione_foglio1/2.jpg`; fotocamera simulata sostituendo getUserMedia con
+  canvas.captureStream() (con riquadro del browser nascosto sostituire anche requestAnimationFrame).
+- Realta' aumentata: `ui/js/ar.js` + `ui/css/ar.css`, pulsante "Vedi in AR" in testa alla barra del visualizzatore 3D.
+  Finestra con unita' del file (mm per CAD/mesh, m per IFC/glTF/Navisworks) e scala (1:1 ... 1:1000, proposta
+  automatica se il modello supera 30 m). Android: WebXR immersive-ar + hit-test + dom-overlay (tocco = appoggia,
+  un dito ruota, due dita scala, Sposta, Ruota 90, 100%). Scene Viewer NON usabile: vuole un URL pubblico del modello.
+  iPhone: USDZExporter (quickLookCompatible, ancoraggio a piano orizzontale) + <a rel="ar"> con <img> dentro.
+  `prepareModel`: solo mesh visibili, niente copie di selezione (userData.proxy), MeshStandardMaterial, multi-materiale
+  diviso, istanze espanse, specchiature applicate ai vertici. Salva GLB/USDZ (condivisione) se l'AR non c'e'.
+  Tasto indietro: `window.MBV_BACK` (app.js goBack lo chiama per primo).
+- NON provati su telefono veri: fotocamera reale, sessione WebXR e Quick Look (vanno provati dall'utente).

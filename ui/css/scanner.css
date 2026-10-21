@@ -1,0 +1,94 @@
+/* Scansione documenti (ui/js/scanner.js): schermate a tutto schermo, sempre scure come le app fotocamera */
+html.scn-open, html.scn-open body { overflow: hidden; }
+.scn-root { position: fixed; inset: 0; z-index: 150; background: #101214; color: #eef0ed; font-family: var(--ui); display: flex; flex-direction: column;
+  user-select: none; -webkit-user-select: none; }
+.scn-screen { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+.scn-root .grow { flex: 1; }
+.scn-root svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+.scn-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border: 1px solid rgba(255, 255, 255, .18); border-radius: 22px;
+  background: rgba(255, 255, 255, .08); color: inherit; font: 500 14px var(--ui); white-space: nowrap; }
+.scn-btn.primary { background: #2c6797; border-color: #2c6797; color: #fff; }
+.scn-btn:disabled { opacity: .45; }
+.scn-btn.round { width: 42px; height: 42px; padding: 0; justify-content: center; border-radius: 50%; background: rgba(0, 0, 0, .45); }
+.scn-btn.chip { padding: 7px 13px; font-size: 13px; }
+.scn-btn.on { background: #eef0ed; color: #15181a; border-color: #eef0ed; }
+.scn-btn.danger { color: #ff8a80; }
+.scn-btn[hidden] { display: none; }
+
+.scn-top { display: flex; align-items: center; gap: 8px; padding: calc(10px + env(safe-area-inset-top)) 12px 10px; z-index: 2; }
+.scn-camera .scn-top { position: absolute; left: 0; right: 0; top: 0; }
+.scn-top.dark { background: #181b1e; border-bottom: 1px solid #272b2f; }
+.scn-title { font: 600 16px var(--display); }
+.scn-bar { display: flex; align-items: center; gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); background: #181b1e; border-top: 1px solid #272b2f; flex-wrap: wrap; }
+
+/* fotocamera */
+.scn-camera { background: #000; }
+.scn-view { position: absolute; inset: 0; }
+.scn-view video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.scn-live { position: absolute; inset: 0; width: 100% !important; height: 100% !important; pointer-events: none; }
+.scn-live polygon { fill: rgba(44, 155, 240, .18); stroke: #2c9bf0; stroke-width: 3; stroke-linejoin: round; transition: fill .2s; }
+.scn-live.ok polygon { fill: rgba(70, 200, 120, .25); stroke: #46c878; }
+.scn-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.scn-flash.go { animation: scn-flash .35s ease-out; }
+@keyframes scn-flash { from { opacity: .8; } to { opacity: 0; } }
+.scn-hint { position: absolute; left: 50%; bottom: calc(120px + env(safe-area-inset-bottom)); transform: translateX(-50%); max-width: 90vw; padding: 7px 14px; border-radius: 16px;
+  background: rgba(0, 0, 0, .6); font-size: 14px; text-align: center; z-index: 2; }
+.scn-bottom { position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+  padding: 16px 18px calc(18px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0, 0, 0, .65)); z-index: 2; }
+.scn-bottom .side { justify-self: start; background: rgba(0, 0, 0, .45); }
+.scn-shutter { width: 74px; height: 74px; border-radius: 50%; border: 5px solid #fff; background: rgba(255, 255, 255, .25); padding: 0; }
+.scn-shutter:active { background: #fff; }
+.scn-shutter:disabled { opacity: .35; }
+.scn-thumb { justify-self: end; width: 54px; height: 70px; border-radius: 6px; border: 2px solid rgba(255, 255, 255, .6); background: rgba(0, 0, 0, .4) center/cover no-repeat;
+  position: relative; padding: 0; visibility: hidden; }
+.scn-thumb.has { visibility: visible; }
+.scn-count { position: absolute; right: -8px; top: -8px; min-width: 22px; height: 22px; border-radius: 11px; background: #2c6797; color: #fff; font: 600 12px/22px var(--ui); text-align: center; }
+
+/* ritaglio */
+.scn-cropbox { flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; touch-action: none; }
+.scn-cropstage { position: relative; }
+.scn-cropimg { width: 100%; height: 100%; display: block; }
+.scn-cropstage > svg { position: absolute; inset: 0; width: 100% !important; height: 100% !important; overflow: visible; }
+.scn-cropstage .shade { fill: rgba(0, 0, 0, .5); stroke: none; }
+.scn-cropstage polygon { fill: none; stroke: #2c9bf0; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.scn-cropstage polygon.bad { stroke: #ff6b5e; }
+.scn-handle { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; touch-action: none; }
+.scn-handle::after { content: ""; position: absolute; inset: 11px; border-radius: 50%; border: 3px solid #2c9bf0; background: rgba(255, 255, 255, .85); box-shadow: 0 1px 6px rgba(0, 0, 0, .5); }
+.scn-loupe { position: absolute; width: 140px; height: 140px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 4px 16px rgba(0, 0, 0, .6); pointer-events: none; }
+
+/* filtri */
+.scn-previewbox { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; overflow: hidden; }
+.scn-preview { max-width: 100%; max-height: 100%; min-width: 0; min-height: 0; object-fit: contain; box-shadow: 0 4px 20px rgba(0, 0, 0, .6); background: #fff; }
+.scn-chips { display: flex; gap: 8px; padding: 8px 12px; overflow-x: auto; background: #181b1e; }
+
+/* pagine */
+.scn-note { margin: 10px 14px 0; font-size: 13px; color: #a5aaa4; }
+.scn-grid { flex: 1; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; padding: 14px; align-content: start; }
+.scn-card { position: relative; background: #1d2023; border-radius: 8px; padding: 8px; display: grid; gap: 6px; touch-action: pan-y; }
+.scn-card img { width: 100%; aspect-ratio: 3 / 4; object-fit: contain; background: #2a2e32; border-radius: 4px; display: block; -webkit-touch-callout: none; }
+.scn-card.drag { z-index: 5; box-shadow: 0 8px 26px rgba(0, 0, 0, .6); opacity: .92; }
+.scn-card.over { outline: 2px dashed #2c9bf0; }
+.scn-num { position: absolute; left: 12px; top: 12px; min-width: 24px; height: 24px; border-radius: 12px; background: rgba(0, 0, 0, .7); font: 600 12px/24px var(--ui); text-align: center; }
+.scn-tools { display: flex; justify-content: space-between; }
+.scn-btn.mini { padding: 6px; border-radius: 8px; }
+
+/* finestra PDF e attesa */
+.scn-sheetback { position: absolute; inset: 0; z-index: 5; background: rgba(0, 0, 0, .55); display: flex; align-items: flex-end; justify-content: center; }
+.scn-sheet { width: min(520px, 100%); background: #1d2023; border-radius: 14px 14px 0 0; padding: 18px 16px 0; display: grid; gap: 12px; }
+.scn-sheet h3 { margin: 0; font: 600 17px var(--display); }
+.scn-sheet label { display: grid; gap: 5px; font-size: 13px; color: #a5aaa4; }
+.scn-sheet label.chk { display: flex; align-items: flex-start; gap: 10px; color: #eef0ed; font-size: 14px; }
+.scn-sheet input[type="checkbox"] { width: 20px; height: 20px; margin: 0; flex: none; }
+.scn-sheet input[type="text"], .scn-sheet select { padding: 10px; border-radius: 8px; border: 1px solid #3a3f44; background: #121416; color: #eef0ed; font: 15px var(--ui); }
+.scn-sheet .scn-bar { margin: 0 -16px; }
+.scn-busy { position: absolute; inset: 0; z-index: 10; background: rgba(10, 12, 14, .82); display: grid; place-content: center; justify-items: center; gap: 14px; padding: 24px; text-align: center; }
+.scn-busy .progress { width: min(320px, 80vw); }
+
+/* risultato */
+.scn-done { flex: 1; overflow: auto; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 24px 16px; text-align: center; }
+.scn-done img { width: 150px; box-shadow: 0 4px 20px rgba(0, 0, 0, .6); background: #fff; }
+.scn-done h3 { margin: 6px 0 0; font: 600 17px var(--display); word-break: break-word; }
+.scn-done p { margin: 0; color: #a5aaa4; font-size: 13px; }
+.scn-actions { display: grid; gap: 10px; width: min(360px, 100%); margin-top: 10px; }
+.scn-actions .scn-btn { justify-content: center; padding: 12px; }
