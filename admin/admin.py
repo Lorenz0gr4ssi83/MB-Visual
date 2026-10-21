@@ -69,7 +69,7 @@ class Api:
     """Chiamate dalla finestra (window.pywebview.api.*)."""
 
     def __init__(self):
-        self.window = None
+        self._window = None  # privato: pywebview esporrebbe alla pagina tutta la finestra di Windows e si blocca
 
     def call(self, method, path, body=None):
         return call(method, path, body)
@@ -146,9 +146,9 @@ class Notifier:
                         self.notify(TITLES.get(ev["kind"], "MB Visual"), ev["text"])
                 else:
                     self.notify("MB Visual Admin", f"{len(new)} nuovi avvisi dall'ultima apertura")
-                if self.api.window:
+                if self.api._window:
                     try:
-                        self.api.window.evaluate_js("window.adminRefresh && adminRefresh()")
+                        self.api._window.run_js("window.adminRefresh && setTimeout(adminRefresh, 0)")  # senza attendere risposta
                     except Exception:  # noqa: BLE001
                         pass
             first = False
@@ -161,7 +161,7 @@ def main():
     hidden = "--nascosta" in sys.argv
     win = webview.create_window("MB Visual Admin", str(HERE / "ui" / "index.html"), js_api=api, width=1200, height=800,
                                 min_size=(900, 560), hidden=hidden, background_color="#1f2120")
-    api.window = win
+    api._window = win
     quitting = {"v": False}
 
     def on_closing():
