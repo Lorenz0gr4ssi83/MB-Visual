@@ -359,6 +359,7 @@ Avvio: File -> "Confronta con..." (file PDF/DWG/DXF/IFC aperto, si sceglie il se
 dello stesso tipo (domanda "Confronta / Apri separatamente"). Visualizzatore `compare` (`ui/js/viewers/compare.js`, scheda
 con `compareWith`; vecchia = il file salvato prima, pulsante Inverti); moduli in `ui/js/compare/`, stile `ui/css/compare.css`.
 Salva / Salva con nome = report (pdf, xlsx, csv; `noConvert` in app.js). Tutto nel browser: funziona anche nella web app.
+Testi: chiavi `cmp.*`, `pdfcmp.*`, `cadcmp.*`, `ifccmp.*`, `v_compare.*`, `app.confront*` (it/en/es/fr/de complete).
 - `common.js`: differenze tra sequenze (Myers con limite, `diffHunks`), PDF minimo scritto a mano (JPEG + testo Helvetica
   WinAnsi, ricercabile), tabelle del report, Excel con SheetJS (`ui/vendor/xlsx`), CSV con ";" e BOM, elenco virtuale.
 - `pdfcmp.js`: pdf.js diretto (`/vendor/pdfjs/build/pdf.mjs`, render con intent "print": con "display" pdf.js aspetta

@@ -5,20 +5,22 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { button, el, readBytes, toast } from "../core.js";
 import { COL, KIND_IT, canvasJpeg, chipBox, csvBlob, diffList, footerNumbers, legend, pdfDoc, reportHeader, reportTable, saveXlsx } from "./common.js";
+import { t as tr, LOCALE } from "../i18n.js";
 
 const KINDS = ["add", "del", "geo", "prop"];
-const KIND_LABEL = { add: "Aggiunto", del: "Eliminato", geo: "Geometria modificata", prop: "Proprietà modificate", same: "Uguale" };
+const KIND_LABEL = { add: tr("ifccmp.aggiunto"), del: tr("ifccmp.eliminato"), geo: tr("ifccmp.geometria_modificata"), prop: tr("ifccmp.proprieta_modificate"), same: tr("ifccmp.uguale") };
+const G_ATTR = tr("ifccmp.g_attributi");
 const KCOL = { add: COL.add, del: COL.del, geo: COL.mod, prop: COL.prop, same: COL.same };
 
 export async function mountCompare(env) {
   const { ctx, oldPath, newPath, body, tools, progress, info } = env;
-  progress(0.03, "Avvio del motore IFC");
+  progress(0.03, tr("ifccmp.avvio_motore_ifc"));
   const W = await import("/vendor/web-ifc/web-ifc-api.js");
   const ifc = new W.IfcAPI();
   ifc.SetWasmPath("/vendor/web-ifc/", true);
   await ifc.Init(undefined, true); // thread singolo (pagina isolata, vedi model3d.js)
   const [bytesA, bytesB] = [await readBytes(oldPath), await readBytes(newPath)];
-  progress(0.08, "Apertura dei modelli");
+  progress(0.08, tr("ifccmp.apertura_modelli"));
   await tick();
   const mA = ifc.OpenModel(bytesA, { COORDINATE_TO_ORIGIN: true });
   const get = (m, id, flat = false) => { try { return ifc.GetLine(m, id, flat); } catch { return null; } };
@@ -32,9 +34,9 @@ export async function mountCompare(env) {
     if (v === null || v === undefined) return "";
     if (Array.isArray(v)) return v.map(fmtV).join(", ");
     if (typeof v === "number") return String(+v.toPrecision(10));
-    if (v === "T" || v === true) return "Vero";
-    if (v === "F" || v === false) return "Falso";
-    if (v === "U") return "Sconosciuto";
+    if (v === "T" || v === true) return tr("ifccmp.vero");
+    if (v === "F" || v === false) return tr("ifccmp.falso");
+    if (v === "U") return tr("ifccmp.sconosciuto");
     return String(v);
   };
   const propValue = p => {
@@ -82,10 +84,10 @@ export async function mountCompare(env) {
       const l = get(m, id);
       const gid = sv(l?.GlobalId);
       if (!gid) continue;
-      const e = { id, gid, type: typeName(m, id), name: fmtV(l.Name), props: { Attributi: {} } };
-      const A = e.props.Attributi;
+      const e = { id, gid, type: typeName(m, id), name: fmtV(l.Name), props: { [G_ATTR]: {} } };
+      const A = e.props[G_ATTR];
       for (const k of ["Name", "Description", "ObjectType", "Tag", "PredefinedType", "LongName", "Elevation", "CompositionType"]) if (l[k] !== undefined && l[k] !== null) A[k] = fmtV(l[k]);
-      A["Classe IFC"] = e.type;
+      A[tr("ifccmp.classe_ifc")] = e.type;
       els.set(gid, e);
       byId.set(id, e);
     }
@@ -102,21 +104,21 @@ export async function mountCompare(env) {
       const tl = get(m, sv(r.RelatingType));
       if (!targets.length || !tl) return;
       const tmp = {};
-      for (const ps of tl.HasPropertySets || []) psetInto(m, sv(ps), tmp, "Tipo · ");
-      for (const e of targets) { e.props.Attributi.Tipo = `${typeName(m, sv(r.RelatingType))} ${fmtV(tl.Name)}`.trim(); for (const [g, ps] of Object.entries(tmp)) Object.assign((e.props[g] ||= {}), ps); }
+      for (const ps of tl.HasPropertySets || []) psetInto(m, sv(ps), tmp, tr("ifccmp.g_tipo") + " · ");
+      for (const e of targets) { e.props[G_ATTR][tr("ifccmp.p_tipo")] = `${typeName(m, sv(r.RelatingType))} ${fmtV(tl.Name)}`.trim(); for (const [g, ps] of Object.entries(tmp)) Object.assign((e.props[g] ||= {}), ps); }
     });
     rels(W.IFCRELASSOCIATESMATERIAL, r => {
       const names = [...new Set(matNames(m, sv(r.RelatingMaterial)))].join(", ");
-      for (const x of r.RelatedObjects || []) { const e = byId.get(sv(x)); if (e) (e.props.Materiali ||= {}).Materiale = names; }
+      for (const x of r.RelatedObjects || []) { const e = byId.get(sv(x)); if (e) (e.props[tr("ifccmp.g_materiali")] ||= {})[tr("ifccmp.p_materiale")] = names; }
     });
     rels(W.IFCRELCONTAINEDINSPATIALSTRUCTURE, r => {
       const s = get(m, sv(r.RelatingStructure));
       const nm = `${typeName(m, sv(r.RelatingStructure)).replace(/^IFC/, "")} ${fmtV(s?.Name)}`.trim();
-      for (const x of r.RelatedElements || []) { const e = byId.get(sv(x)); if (e) { e.props.Attributi.Contenitore = nm; e.level = fmtV(s?.Name); } }
+      for (const x of r.RelatedElements || []) { const e = byId.get(sv(x)); if (e) { e.props[G_ATTR][tr("ifccmp.p_contenitore")] = nm; e.level = fmtV(s?.Name); } }
     });
     rels(W.IFCRELAGGREGATES, r => {
       const s = get(m, sv(r.RelatingObject));
-      for (const x of r.RelatedObjects || []) { const e = byId.get(sv(x)); if (e && !e.props.Attributi.Contenitore) e.props.Attributi["Parte di"] = `${typeName(m, sv(r.RelatingObject)).replace(/^IFC/, "")} ${fmtV(s?.Name)}`.trim(); }
+      for (const x of r.RelatedObjects || []) { const e = byId.get(sv(x)); if (e && !e.props[G_ATTR][tr("ifccmp.p_contenitore")]) e.props[G_ATTR][tr("ifccmp.parte")] = `${typeName(m, sv(r.RelatingObject)).replace(/^IFC/, "")} ${fmtV(s?.Name)}`.trim(); }
     });
     return { els, byId };
   }
@@ -164,24 +166,24 @@ export async function mountCompare(env) {
     const STEP = 800;
     for (let s = 0; s < list.length; s += STEP) {
       try { ifc.StreamMeshes(m, list.slice(s, s + STEP), onMesh); } catch (err) { console.warn("IFC: geometria non letta", err); }
-      progress(p0 + (p1 - p0) * Math.min(1, (s + STEP) / list.length), `${label}: ${Math.min(list.length, s + STEP).toLocaleString("it-IT")} di ${list.length.toLocaleString("it-IT")} elementi`);
+      progress(p0 + (p1 - p0) * Math.min(1, (s + STEP) / list.length), tr("ifccmp.0_1_2_elementi", label, Math.min(list.length, s + STEP).toLocaleString(LOCALE), list.length.toLocaleString(LOCALE)));
       await tick();
     }
   }
-  progress(0.1, "Lettura della revisione vecchia");
+  progress(0.1, tr("ifccmp.lettura_revisione_vecchia"));
   await tick();
   const A = readModel(mA);
-  await readGeometry(mA, A, null, 0.12, 0.42, "Geometria vecchia");
+  await readGeometry(mA, A, null, 0.12, 0.42, tr("ifccmp.geometria_vecchia"));
   let shift = null;
   try { shift = new THREE.Matrix4().fromArray(Array.from(ifc.GetCoordinationMatrix(mA))); } catch { /* */ }
-  progress(0.44, "Lettura della revisione nuova");
+  progress(0.44, tr("ifccmp.lettura_revisione_nuova"));
   await tick();
   const mB = ifc.OpenModel(bytesB, { COORDINATE_TO_ORIGIN: false }); // stesso spostamento della vecchia: restano allineate
   const B = readModel(mB);
-  await readGeometry(mB, B, shift, 0.46, 0.8, "Geometria nuova");
+  await readGeometry(mB, B, shift, 0.46, 0.8, tr("ifccmp.geometria_nuova"));
 
   // ---- confronto per GlobalId
-  progress(0.82, "Confronto degli elementi");
+  progress(0.82, tr("ifccmp.confronto_elementi"));
   await tick();
   const flat = e => { const o = new Map(); for (const [g, ps] of Object.entries(e.props)) for (const [k, v] of Object.entries(ps)) o.set(g + "\u0000" + k, v); return o; };
   const rows = [];
@@ -211,18 +213,18 @@ export async function mountCompare(env) {
   rows.forEach(r => counts[r.kind]++);
   const nPropDiffs = rows.reduce((s, r) => s + r.diffs.length, 0);
   function geoChange(a, b) {
-    if (!a.bb || !b.bb) return a.bb ? "geometria tolta" : b.bb ? "geometria aggiunta" : "forma diversa";
+    if (!a.bb || !b.bb) return a.bb ? tr("ifccmp.geometria_tolta") : b.bb ? tr("ifccmp.geometria_aggiunta") : tr("ifccmp.forma_diversa");
     const ca = a.bb.getCenter(new THREE.Vector3()), cb = b.bb.getCenter(new THREE.Vector3());
     const sa = a.bb.getSize(new THREE.Vector3()), sb = b.bb.getSize(new THREE.Vector3());
     const parts = [];
     const d = cb.clone().sub(ca);
-    if (d.length() > 0.001) parts.push(`centro spostato di ${fmtM(d.length())} (X ${fmtM(d.x)}, Y ${fmtM(-d.z)}, Z ${fmtM(d.y)})`);
+    if (d.length() > 0.001) parts.push(tr("ifccmp.centro_spostato_0_x_1", fmtM(d.length()), fmtM(d.x), fmtM(-d.z), fmtM(d.y)));
     if (sa.distanceTo(sb) > 0.001) parts.push(`ingombro ${dims(sa)} → ${dims(sb)}`);
-    return parts.join(" · ") || "forma diversa";
+    return parts.join(" · ") || tr("ifccmp.forma_diversa");
   }
 
   // ---- scena 3D
-  progress(0.88, "Preparazione della vista 3D");
+  progress(0.88, tr("ifccmp.preparazione_vista_3d"));
   await tick();
   const side = el("div", { class: "cmp-side" }), main = el("div", { class: "cmp-main" }), detail = el("div", { class: "cmp-detail" });
   body.classList.add("with-detail");
@@ -297,26 +299,26 @@ export async function mountCompare(env) {
   }
 
   // ---- pannello sinistro
-  const sum = el("div", { class: "cmp-sum" }, ...[["add", "aggiunti"], ["del", "eliminati"], ["geo", "geometria"], ["prop", "proprietà"], ["same", "uguali"]].map(([k, t]) => el("div", {}, el("b", { style: { color: k === "same" ? "" : KCOL[k] } }, String(counts[k])), el("span", {}, t))));
+  const sum = el("div", { class: "cmp-sum" }, ...[["add", tr("ifccmp.n_aggiunti")], ["del", tr("ifccmp.n_eliminati")], ["geo", tr("ifccmp.n_geometria")], ["prop", tr("ifccmp.n_proprieta")], ["same", tr("ifccmp.n_uguali")]].map(([k, t]) => el("div", {}, el("b", { style: { color: k === "same" ? "" : KCOL[k] } }, String(counts[k])), el("span", {}, t))));
   const filt = KINDS.map(k => chipBox(KIND_LABEL[k], KCOL[k], true, v => { show[k] = v; applyVis(); refresh(); }, counts[k]));
-  const fSame = chipBox("Uguali (trasparenti)", COL.same, true, v => { show.same = v; applyVis(); refresh(); }, counts.same);
-  const fGhost = chipBox("Posizione vecchia degli elementi modificati", MATS.ghost.color.getStyle(), true, v => { show.ghost = v; applyVis(); });
+  const fSame = chipBox(tr("ifccmp.uguali_trasparenti"), COL.same, true, v => { show.same = v; applyVis(); refresh(); }, counts.same);
+  const fGhost = chipBox(tr("ifccmp.posizione_vecchia_elementi_modificati"), MATS.ghost.color.getStyle(), true, v => { show.ghost = v; applyVis(); });
   const types = [...new Set(rows.filter(r => r.kind !== "same").map(r => r.type))].sort();
-  const typeFilter = el("select", { class: "field", style: { width: "100%" } }, el("option", { value: "" }, "Tutte le classi IFC"), ...types.map(t => el("option", { value: t }, t)));
+  const typeFilter = el("select", { class: "field", style: { width: "100%" } }, el("option", { value: "" }, tr("ifccmp.tutte_classi_ifc")), ...types.map(t => el("option", { value: t }, t)));
   typeFilter.addEventListener("change", () => { applyVis(); refresh(); });
-  const search = el("input", { type: "search", class: "field cmp-search", placeholder: "Cerca per nome, GlobalId, proprietà" });
+  const search = el("input", { type: "search", class: "field cmp-search", placeholder: tr("ifccmp.cerca_nome_globalid_proprieta") });
   search.addEventListener("input", () => refresh());
   const list = diffList({ onPick: it => select(it.ref, true) });
-  side.append(el("div", { class: "cmp-sec" }, el("h4", {}, "Riepilogo per GlobalId"), sum, el("span", { class: "note", style: { color: "var(--muted)", fontSize: "11.5px" } }, `${nPropDiffs} differenze di proprietà in ${rows.filter(r => r.diffs.length).length} elementi`)),
-    el("div", { class: "cmp-sec" }, el("h4", {}, "Mostra"), ...filt, fSame, fGhost, typeFilter, search), list.el);
+  side.append(el("div", { class: "cmp-sec" }, el("h4", {}, tr("ifccmp.riepilogo_globalid")), sum, el("span", { class: "note", style: { color: "var(--muted)", fontSize: "11.5px" } }, tr("ifccmp.0_differenze_proprieta_1_elementi", nPropDiffs, rows.filter(r => r.diffs.length).length))),
+    el("div", { class: "cmp-sec" }, el("h4", {}, tr("ifccmp.mostra")), ...filt, fSame, fGhost, typeFilter, search), list.el);
   function refresh() {
     const q = search.value.trim().toLowerCase();
     const L = rows.filter(r => (r.kind === "same" ? show.same && q : show[r.kind]) && (!typeFilter.value || r.type === typeFilter.value) &&
       (!q || (r.name + " " + r.gid + " " + r.type + " " + r.diffs.map(d => d.p + " " + d.o + " " + d.n).join(" ")).toLowerCase().includes(q)));
     list.set(L.map(r => ({ ref: r, color: KCOL[r.kind], title: `${r.type}${r.name ? " · " + r.name : ""}`, where: KIND_LABEL[r.kind],
-      sub: r.kind === "geo" ? r.geoText + (r.diffs.length ? ` · ${r.diffs.length} proprietà` : "") : r.kind === "prop" ? r.diffs.slice(0, 3).map(d => `${d.p}: ${d.o ?? "—"} → ${d.n ?? "—"}`).join(" · ") : r.gid,
+      sub: r.kind === "geo" ? r.geoText + (r.diffs.length ? tr("ifccmp.0_proprieta", r.diffs.length) : "") : r.kind === "prop" ? r.diffs.slice(0, 3).map(d => `${d.p}: ${d.o ?? "—"} → ${d.n ?? "—"}`).join(" · ") : r.gid,
       tip: `${r.gid}${r.level ? " · " + r.level : ""}` })));
-    if (!L.length) list.el.querySelector(".cmp-list-in").append(el("div", { class: "cmp-empty" }, rows.some(r => r.kind !== "same") ? "Nessuna differenza con i filtri scelti" : "Nessuna differenza: i due modelli sono uguali"));
+    if (!L.length) list.el.querySelector(".cmp-list-in").append(el("div", { class: "cmp-empty" }, rows.some(r => r.kind !== "same") ? tr("ifccmp.nessuna_differenza_i_filtri_scelti") : tr("ifccmp.nessuna_differenza_i_due_modelli")));
   }
 
   // ---- dettaglio (destra)
@@ -324,15 +326,15 @@ export async function mountCompare(env) {
   function renderDetail() {
     detail.innerHTML = "";
     const r = selRow;
-    if (!r) { detail.append(el("div", { class: "cmp-empty" }, "Seleziona un elemento nel modello o nell'elenco per vedere le differenze delle sue proprietà.")); return; }
+    if (!r) { detail.append(el("div", { class: "cmp-empty" }, tr("ifccmp.seleziona_elemento_modello_nell_elenco"))); return; }
     const head = el("div", { class: "cmp-sec" },
       el("h4", {}, el("span", { class: "cmp-chip", style: { background: KCOL[r.kind] } }), KIND_LABEL[r.kind]),
       el("b", {}, `${r.type}${r.name ? " · " + r.name : ""}`),
       el("span", { class: "note", style: { color: "var(--muted)", fontSize: "11.5px", userSelect: "text" } }, `GlobalId ${r.gid}`),
-      r.geoText ? el("span", { style: { color: COL.mod } }, "Geometria: " + r.geoText) : null,
-      el("label", { class: "cmp-check" }, (() => { const c = el("input", { type: "checkbox", checked: showSameProps || undefined }); c.addEventListener("change", () => { showSameProps = c.checked; renderDetail(); }); return c; })(), "Mostra anche le proprietà uguali"));
+      r.geoText ? el("span", { style: { color: COL.mod } }, tr("ifccmp.geometria") + r.geoText) : null,
+      el("label", { class: "cmp-check" }, (() => { const c = el("input", { type: "checkbox", checked: showSameProps || undefined }); c.addEventListener("change", () => { showSameProps = c.checked; renderDetail(); }); return c; })(), tr("ifccmp.mostra_anche_proprieta_uguali")));
     detail.append(head);
-    const t = el("table", { class: "cmp-props" }, el("tr", {}, el("th", {}, "Proprietà"), el("th", {}, "Vecchia"), el("th", {}, "Nuova")));
+    const t = el("table", { class: "cmp-props" }, el("tr", {}, el("th", {}, tr("ifccmp.proprieta")), el("th", {}, tr("ifccmp.vecchia")), el("th", {}, tr("ifccmp.nuova"))));
     const groupsOf = e => (e ? e.props : {});
     const pa = groupsOf(r.a), pb = groupsOf(r.b);
     const gnames = [...new Set([...Object.keys(pa), ...Object.keys(pb)])];
@@ -348,7 +350,7 @@ export async function mountCompare(env) {
         t.append(el("tr", { class: same ? "same" : "" }, el("td", {}, x.k), el("td", { class: same ? "" : "o" }, x.o ?? "—"), el("td", { class: same ? "" : "n" }, x.n ?? "—")));
       }
     }
-    detail.append(any ? t : el("div", { class: "cmp-empty" }, "Nessuna proprietà diversa."));
+    detail.append(any ? t : el("div", { class: "cmp-empty" }, tr("ifccmp.nessuna_proprieta_diversa")));
   }
   function select(r, zoom) {
     if (selRow) { const g = groups.get(selRow); g?.main?.traverse(o => { if (o.isMesh) o.material = o.userData.mat0 || o.material; }); }
@@ -358,7 +360,7 @@ export async function mountCompare(env) {
       g.main.traverse(o => { if (o.isMesh) { o.userData.mat0 = o.material; o.material = SEL; } });
       g.main.visible = true;
       if (zoom) { const box = new THREE.Box3().setFromObject(g.main); if (g.ghost) box.union(new THREE.Box3().setFromObject(g.ghost)); frame(box); }
-    } else if (zoom) toast("Questo elemento non ha geometria");
+    } else if (zoom) toast(tr("ifccmp.questo_elemento_non_ha_geometria"));
     const k = list.items.findIndex(x => x.ref === r);
     if (k >= 0) list.select(k);
     renderDetail();
@@ -367,13 +369,13 @@ export async function mountCompare(env) {
   }
 
   // ---- barra
-  const bBg = button("Sfondo chiaro", "sun", () => { dark = !dark; bBg.lastChild.textContent = dark ? "Sfondo chiaro" : "Sfondo scuro"; setBg(); });
+  const bBg = button(tr("ifccmp.sfondo_chiaro"), "sun", () => { dark = !dark; bBg.lastChild.textContent = dark ? tr("ifccmp.sfondo_chiaro") : tr("ifccmp.sfondo_scuro"); setBg(); });
   let cur = -1;
   const step = d => { const L = list.items; if (!L.length) return; cur = (cur + d + L.length) % L.length; select(L[cur].ref, true); };
-  bar.append(button("Adatta", "fit", () => frame(all)), button("Precedente", '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>', () => step(-1)), button("Successiva", '<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>', () => step(1)),
+  bar.append(button(tr("ifccmp.adatta"), "fit", () => frame(all)), button(tr("ifccmp.precedente"), '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>', () => step(-1)), button(tr("ifccmp.successiva"), '<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>', () => step(1)),
     el("span", { class: "sep" }), bBg, el("span", { class: "grow" }),
     el("span", { class: "cmp-legend" }, ...["add", "del", "geo", "prop"].map(k => el("span", {}, el("i", { class: "cmp-chip", style: { background: KCOL[k] } }), KIND_LABEL[k].toLowerCase()))));
-  tools.append(el("span", { class: "note" }, `${A.els.size} → ${B.els.size} elementi`));
+  tools.append(el("span", { class: "note" }, tr("ifccmp.0_1_elementi", A.els.size, B.els.size)));
 
   // ---- selezione nel 3D
   const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
@@ -415,23 +417,23 @@ export async function mountCompare(env) {
   frame(all);
 
   // ---- report
-  const geomCell = r => (r.kind === "geo" ? r.geoText : r.kind === "add" ? "nuovo" : r.kind === "del" ? "tolto" : "");
+  const geomCell = r => (r.kind === "geo" ? r.geoText : r.kind === "add" ? tr("ifccmp.g_nuovo") : r.kind === "del" ? tr("ifccmp.g_tolto") : "");
   const elemRows = () => rows.filter(r => r.kind !== "same").map(r => [r.gid, r.type, r.name, KIND_LABEL[r.kind], geomCell(r), r.diffs.length, r.level]);
   const propRows = () => rows.flatMap(r => r.diffs.map(d => [r.gid, r.type, r.name, d.g, d.p, cellV(d.o), cellV(d.n)]));
   async function reportXlsx() {
     return saveXlsx(null, [
-      { name: "Riepilogo", filter: false, widths: [36, 60], rows: [["Confronto di modelli IFC (per GlobalId)", ""], ["Vecchia", info.oldName], ["Nuova", info.newName], ["Data", info.date],
-        ["Elementi vecchia", A.els.size], ["Elementi nuova", B.els.size], ["Aggiunti", counts.add], ["Eliminati", counts.del], ["Geometria modificata", counts.geo], ["Solo proprietà modificate", counts.prop],
-        ["Uguali", counts.same], ["Differenze di proprietà", nPropDiffs]] },
-      { name: "Elementi", widths: [25, 22, 34, 22, 50, 12, 20], rows: [["GlobalId", "Classe IFC", "Nome", "Stato", "Geometria", "Proprietà cambiate", "Piano"], ...elemRows()] },
-      { name: "Proprietà", widths: [25, 22, 34, 28, 30, 30, 30], rows: [["GlobalId", "Classe IFC", "Nome", "Gruppo (Pset)", "Proprietà", "Valore vecchio", "Valore nuovo"], ...propRows()] },
+      { name: tr("ifccmp.riepilogo"), filter: false, widths: [36, 60], rows: [[tr("ifccmp.confronto_modelli_ifc_globalid"), ""], [tr("ifccmp.vecchia"), info.oldName], [tr("ifccmp.nuova"), info.newName], [tr("ifccmp.data"), info.date],
+        [tr("ifccmp.elementi_vecchia"), A.els.size], [tr("ifccmp.elementi_nuova"), B.els.size], [tr("ifccmp.aggiunti"), counts.add], [tr("ifccmp.eliminati"), counts.del], [tr("ifccmp.geometria_modificata"), counts.geo], [tr("ifccmp.solo_proprieta_modificate"), counts.prop],
+        [tr("ifccmp.uguali"), counts.same], [tr("ifccmp.differenze_proprieta"), nPropDiffs]] },
+      { name: tr("ifccmp.elementi"), widths: [25, 22, 34, 22, 50, 12, 20], rows: [["GlobalId", tr("ifccmp.classe_ifc"), tr("common.nome"), tr("ifccmp.stato"), tr("ifccmp.geometria_2"), tr("ifccmp.proprieta_cambiate"), tr("ifccmp.piano")], ...elemRows()] },
+      { name: tr("ifccmp.proprieta"), widths: [25, 22, 34, 28, 30, 30, 30], rows: [["GlobalId", tr("ifccmp.classe_ifc"), tr("common.nome"), tr("ifccmp.gruppo_pset"), tr("ifccmp.proprieta"), tr("ifccmp.valore_vecchio"), tr("ifccmp.valore_nuovo")], ...propRows()] },
     ]);
   }
   async function reportCsv() {
-    const out = [["GlobalId", "Classe IFC", "Nome", "Stato", "Gruppo (Pset)", "Proprietà", "Valore vecchio", "Valore nuovo"]];
+    const out = [["GlobalId", tr("ifccmp.classe_ifc"), tr("common.nome"), tr("ifccmp.stato"), tr("ifccmp.gruppo_pset"), tr("ifccmp.proprieta"), tr("ifccmp.valore_vecchio"), tr("ifccmp.valore_nuovo")]];
     for (const r of rows) {
       if (r.kind === "same") continue;
-      if (r.kind !== "prop") out.push([r.gid, r.type, r.name, KIND_LABEL[r.kind], "Geometria", "", "", geomCell(r)]);
+      if (r.kind !== "prop") out.push([r.gid, r.type, r.name, KIND_LABEL[r.kind], tr("ifccmp.geometria_2"), "", "", geomCell(r)]);
       for (const d of r.diffs) out.push([r.gid, r.type, r.name, KIND_LABEL[r.kind], d.g, d.p, d.o ?? "", d.n ?? ""]);
     }
     return csvBlob(out);
@@ -439,11 +441,11 @@ export async function mountCompare(env) {
   async function reportPdf() {
     const doc = pdfDoc();
     const p = doc.addPage(842, 595);
-    const top = reportHeader(p, info, "Confronto di modelli IFC");
-    const lines = [`Elementi: vecchia ${A.els.size}, nuova ${B.els.size} (confronto per GlobalId)`,
-      `Aggiunti ${counts.add} · eliminati ${counts.del} · geometria modificata ${counts.geo} · solo proprietà ${counts.prop} · uguali ${counts.same}`, `Differenze di proprietà: ${nPropDiffs}`];
+    const top = reportHeader(p, info, tr("ifccmp.confronto_modelli_ifc"));
+    const lines = [tr("ifccmp.elementi_vecchia_0_nuova_1", A.els.size, B.els.size),
+      tr("ifccmp.aggiunti_0_eliminati_1_geometria", counts.add, counts.del, counts.geo, counts.prop, counts.same), tr("ifccmp.differenze_proprieta_0", nPropDiffs)];
     lines.forEach((l, i) => p.text(24, top + 8 + i * 13, l, 9.5, { bold: i === 1 }));
-    legend(p, 24, top + 54, ["add", "del", "geo", "prop"].map(k => [KCOL[k], KIND_LABEL[k]]).concat([[COL.same, "uguale"]]));
+    legend(p, 24, top + 54, ["add", "del", "geo", "prop"].map(k => [KCOL[k], KIND_LABEL[k]]).concat([[COL.same, tr("ifccmp.l_uguale")]]));
     // vista d'insieme a dimensione fissa, senza l'elemento selezionato evidenziato
     const keepSel = selRow, keepPos = camera.position.clone(), keepTgt = controls.target.clone(), keepDpr = renderer.getPixelRatio();
     if (keepSel) groups.get(keepSel)?.main?.traverse(o => { if (o.isMesh && o.userData.mat0) o.material = o.userData.mat0; });
@@ -461,12 +463,12 @@ export async function mountCompare(env) {
     if (keepSel) { selRow = null; select(keepSel, false); }
     const areaY = top + 66, f = Math.min((p.w - 48) / c.width, (p.h - areaY - 24) / c.height);
     p.image(await canvasJpeg(c, 0.9), c.width, c.height, (p.w - c.width * f) / 2, areaY, c.width * f, c.height * f);
-    let pos = reportTable(doc, info, "Elementi cambiati", [{ t: "Stato", w: 110 }, { t: "Classe IFC", w: 110 }, { t: "Nome", w: 150 }, { t: "GlobalId", w: 140 }, { t: "Geometria", w: 230 }, { t: "Prop.", w: 54 }],
+    let pos = reportTable(doc, info, tr("ifccmp.elementi_cambiati"), [{ t: tr("ifccmp.stato"), w: 110 }, { t: tr("ifccmp.classe_ifc"), w: 110 }, { t: tr("common.nome"), w: 150 }, { t: "GlobalId", w: 140 }, { t: tr("ifccmp.geometria_2"), w: 230 }, { t: tr("ifccmp.prop"), w: 54 }],
       rows.filter(r => r.kind !== "same").map(r => ({ color: KCOL[r.kind], cells: [KIND_LABEL[r.kind], r.type, r.name, r.gid, geomCell(r), r.diffs.length || ""] })));
-    if (nPropDiffs) reportTable(doc, info, "Differenze di proprietà", [{ t: "Elemento", w: 170 }, { t: "Gruppo", w: 130 }, { t: "Proprietà", w: 130 }, { t: "Valore vecchio", w: 182 }, { t: "Valore nuovo", w: 182 }],
+    if (nPropDiffs) reportTable(doc, info, tr("ifccmp.differenze_proprieta"), [{ t: tr("ifccmp.elemento"), w: 170 }, { t: tr("ifccmp.gruppo"), w: 130 }, { t: tr("ifccmp.proprieta"), w: 130 }, { t: tr("ifccmp.valore_vecchio"), w: 182 }, { t: tr("ifccmp.valore_nuovo"), w: 182 }],
       rows.flatMap(r => r.diffs.map(d => ({ color: KCOL[r.kind], cells: [`${r.type} ${r.name}`.trim(), d.g, d.p, d.o ?? "—", d.n ?? "—"] }))));
     footerNumbers(doc);
-    return new Blob([doc.build("Confronto " + info.oldName + " - " + info.newName)], { type: "application/pdf" });
+    return new Blob([doc.build(tr("ifccmp.confronto") + info.oldName + " - " + info.newName)], { type: "application/pdf" });
   }
 
   return {
@@ -483,7 +485,7 @@ export async function mountCompare(env) {
 }
 
 const tick = () => new Promise(r => setTimeout(r, 0));
-const fmtN = v => (Math.abs(v) < 5e-4 ? 0 : v).toLocaleString("it-IT", { maximumFractionDigits: 3 });
+const fmtN = v => (Math.abs(v) < 5e-4 ? 0 : v).toLocaleString(LOCALE, { maximumFractionDigits: 3 });
 const fmtM = v => `${fmtN(v)} m`;
 const dims = s => [s.x, s.z, s.y].map(fmtN).join(" × ");
 const cellV = v => (typeof v === "string" && /^-?\d+(\.\d+)?(e-?\d+)?$/i.test(v) ? +v : v ?? ""); // numeri veri in Excel

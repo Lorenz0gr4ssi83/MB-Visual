@@ -1,13 +1,14 @@
 // Confronto tra revisioni: parti comuni (famiglie di file, differenze tra sequenze, report PDF ed Excel, elenco a lato).
 import { baseName, el, loadScript, saveBlobAs, saveBytes } from "../core.js";
+import { t as tr, LOCALE } from "../i18n.js";
 
 // colori del confronto (come Bluebeam / Acrobat "Confronta"): vecchia rosso, nuova verde, uguale grigio
 export const COL = { del: "#e5484d", add: "#2f9e5b", mod: "#f08c00", prop: "#3b7dd8", same: "#8b8d98" };
-export const KIND_IT = { del: "Eliminato", add: "Aggiunto", mod: "Modificato", geo: "Geometria modificata", prop: "Proprietà modificate", same: "Uguale" };
+export const KIND_IT = { del: tr("cmp.eliminato"), add: tr("cmp.aggiunto"), mod: tr("cmp.modificato"), geo: tr("cmp.geometria_modificata"), prop: tr("cmp.proprieta_modificate"), same: tr("cmp.uguale") };
 
 const FAM = { pdf: "pdf", dwg: "cad", dxf: "cad", ifc: "ifc" };
 export const compareFamily = name => FAM[String(name).split(".").pop().toLowerCase()] || null;
-export const FAMILY_IT = { pdf: "PDF", cad: "disegni DWG/DXF", ifc: "modelli IFC" };
+export const FAMILY_IT = { pdf: "PDF", cad: tr("cmp.disegni_dwg_dxf"), ifc: tr("cmp.modelli_ifc") };
 
 // ---------------------------------------------------------------- differenze tra due sequenze (Myers)
 // Restituisce i tratti diversi come intervalli [a0, a1) della prima e [b0, b1) della seconda.
@@ -175,8 +176,8 @@ export async function canvasJpeg(canvas, q = 0.88) {
 export function reportHeader(p, info, title) {
   p.rect(0, 0, p.w, 46, { fill: "#2b2f33" });
   p.text(24, 20, title, 13, { bold: true, color: "#ffffff" });
-  p.text(24, 36, fitText(`Vecchia: ${info.oldName}   →   Nuova: ${info.newName}`, 8.5, p.w - 230), 8.5, { color: "#d0d4d8" });
-  p.text(p.w - 190, 20, "MB Visual · confronto revisioni", 8, { color: "#d0d4d8" });
+  p.text(24, 36, fitText(tr("cmp.vecchia_nuova", info.oldName, info.newName), 8.5, p.w - 230), 8.5, { color: "#d0d4d8" });
+  p.text(p.w - 190, 20, tr("cmp.mb_visual_confronto_revisioni"), 8, { color: "#d0d4d8" });
   p.text(p.w - 190, 36, info.date, 8, { color: "#d0d4d8" });
   return 62;
 }
@@ -215,7 +216,7 @@ export function reportTable(doc, info, title, columns, rows, first = null, start
 
 export function footerNumbers(doc) {
   const n = doc.pages.length;
-  doc.pages.forEach((p, i) => p.text(p.w - 80, p.h - 14, `Pagina ${i + 1} di ${n}`, 7.5, { color: "#777777" }));
+  doc.pages.forEach((p, i) => p.text(p.w - 80, p.h - 14, tr("cmp.pagina_0_1", i + 1, n), 7.5, { color: "#777777" }));
 }
 
 // ---------------------------------------------------------------- Excel e CSV
@@ -247,7 +248,7 @@ export async function saveOut(blob, suggested, dir, target = null) {
   return saveBlobAs(suggested, blob, dir);
 }
 
-export const stamp = () => new Date().toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" });
+export const stamp = () => new Date().toLocaleString(LOCALE, { dateStyle: "short", timeStyle: "short" });
 export const stem = p => baseName(p).replace(/\.[^.]+$/, "");
 
 // ---------------------------------------------------------------- elenco delle differenze (pannello a sinistra)

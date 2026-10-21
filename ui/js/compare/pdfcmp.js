@@ -2,6 +2,7 @@
 // manuale, vista affiancata con scorrimento sincronizzato, elenco delle differenze di testo e delle zone grafiche cambiate.
 import { button, el, readBytes, toast } from "../core.js";
 import { COL, canvasJpeg, csvBlob, diffHunks, diffList, footerNumbers, legend, pdfDoc, reportHeader, reportTable, saveXlsx, chipBox } from "./common.js";
+import { t as tr } from "../i18n.js";
 
 let LIB = null;
 async function pdfjs() {
@@ -22,7 +23,7 @@ const ICO = {
 export async function mountCompare(env) {
   const { ctx, oldPath, newPath, body, tools, progress, info } = env;
   const lib = await pdfjs();
-  progress(0.03, "Apertura dei due PDF");
+  progress(0.03, tr("pdfcmp.apertura_due_pdf"));
   const open = async p => lib.getDocument({ data: await readBytes(p), cMapUrl: "/vendor/pdfjs/web/cmaps/", cMapPacked: true, standardFontDataUrl: "/vendor/pdfjs/web/standard_fonts/", isEvalSupported: false }).promise;
   const [dA, dB] = await Promise.all([open(oldPath), open(newPath)]);
   const nA = dA.numPages, nB = dB.numPages, N = Math.max(nA, nB);
@@ -64,7 +65,7 @@ export async function mountCompare(env) {
         }
         if (last) last.space = /\s$/.test(str) || it.hasEOL;
       }
-      progress(p0 + (p1 - p0) * (i + 1) / n, `Lettura del testo: pagina ${i + 1} di ${n}`);
+      progress(p0 + (p1 - p0) * (i + 1) / n, tr("pdfcmp.lettura_testo_pagina_0_1", i + 1, n));
       page.cleanup();
     }
     for (const w of words) { w.k = w.s.normalize("NFKC").replace(/[’‘`´]/g, "'").replace(/[“”«»]/g, '"').replace(/[‐‑–—]/g, "-"); delete w.space; }
@@ -72,7 +73,7 @@ export async function mountCompare(env) {
   }
   const TA = await readWords(dA, nA, 0.05, 0.4), TB = await readWords(dB, nB, 0.4, 0.75);
   const WA = TA.words, WB = TB.words;
-  progress(0.8, "Confronto del testo");
+  progress(0.8, tr("pdfcmp.confronto_testo"));
   await new Promise(r => setTimeout(r, 0));
   const KA = WA.map(w => w.k), KB = WB.map(w => w.k);
   let hunks = diffHunks(KA, KB);
@@ -273,7 +274,7 @@ export async function mountCompare(env) {
   const analysis = (async () => {
     for (let i = 0; i < N && !stopped; i++) {
       if (!zonesByPage[i]) await analyzePage(i);
-      ctx.status(i + 1 < N ? `Analisi grafica: pagina ${i + 1} di ${N}` : "");
+      ctx.status(i + 1 < N ? tr("pdfcmp.analisi_grafica_pagina_0_1", i + 1, N) : "");
       if (i % 3 === 2 || i === N - 1) refreshList();
       await new Promise(r => setTimeout(r, 0));
     }
@@ -281,25 +282,25 @@ export async function mountCompare(env) {
   })();
 
   // ---------------------------------------------------------------- interfaccia
-  progress(0.9, "Preparazione della vista");
+  progress(0.9, tr("pdfcmp.preparazione_vista"));
   const side = el("div", { class: "cmp-side" }), main = el("div", { class: "cmp-main" });
   body.append(side, main);
   const sum = el("div", { class: "cmp-sum" });
-  const fText = chipBox("Differenze di testo", COL.mod, true, () => refreshList(), textChanges.length);
-  const fGraph = chipBox("Zone grafiche cambiate", COL.prop, true, () => refreshList());
-  const search = el("input", { type: "search", class: "field cmp-search", placeholder: "Cerca nelle differenze" });
+  const fText = chipBox(tr("pdfcmp.differenze_testo"), COL.mod, true, () => refreshList(), textChanges.length);
+  const fGraph = chipBox(tr("pdfcmp.zone_grafiche_cambiate"), COL.prop, true, () => refreshList());
+  const search = el("input", { type: "search", class: "field cmp-search", placeholder: tr("pdfcmp.cerca_nelle_differenze") });
   search.addEventListener("input", () => refreshList());
   const list = diffList({ onPick: pick });
-  side.append(el("div", { class: "cmp-sec" }, el("h4", {}, "Riepilogo"), sum),
-    el("div", { class: "cmp-sec" }, el("h4", {}, "Mostra nell'elenco"), fText, fGraph, search), list.el);
+  side.append(el("div", { class: "cmp-sec" }, el("h4", {}, tr("pdfcmp.riepilogo")), sum),
+    el("div", { class: "cmp-sec" }, el("h4", {}, tr("pdfcmp.mostra_nell_elenco")), fText, fGraph, search), list.el);
 
   function refreshSummary() {
     const nz = zonesByPage.reduce((s, z, p) => s + gZones(p).length, 0);
     const cnt = k => textChanges.filter(c => c.kind === k).length;
     sum.innerHTML = "";
     const box = (n, t, c) => el("div", {}, el("b", { style: { color: c || "" } }, String(n)), el("span", {}, t));
-    sum.append(box(nA === nB ? nA : `${nA}→${nB}`, "pagine"), box(cnt("mod"), "testi modificati", COL.mod), box(cnt("add"), "testi aggiunti", COL.add),
-      box(cnt("del"), "testi eliminati", COL.del), box(zonesByPage.every(Boolean) ? nz : nz + "…", "zone grafiche", COL.prop));
+    sum.append(box(nA === nB ? nA : `${nA}→${nB}`, tr("pdfcmp.n_pagine")), box(cnt("mod"), tr("pdfcmp.testi_modificati"), COL.mod), box(cnt("add"), tr("pdfcmp.testi_aggiunti"), COL.add),
+      box(cnt("del"), tr("pdfcmp.testi_eliminati"), COL.del), box(zonesByPage.every(Boolean) ? nz : nz + "…", tr("pdfcmp.zone_grafiche"), COL.prop));
   }
   const clip = (s, n = 90) => (s.length > n ? s.slice(0, n) + "…" : s);
   // zone grafiche che coincidono con una differenza di testo: restano nella sovrapposizione ma non si ripetono nell'elenco
@@ -320,60 +321,60 @@ export async function mountCompare(env) {
     return zs;
   }
   const gZones = p => (zonesByPage[p] || []).filter(z => !z.text);
-  const zoneTitle = z => z.whole ? (z.kind === "del" ? "Pagina eliminata" : "Pagina aggiunta") : z.kind === "del" ? "Grafica rimossa" : z.kind === "add" ? "Grafica aggiunta" : "Grafica modificata";
+  const zoneTitle = z => z.whole ? (z.kind === "del" ? tr("pdfcmp.pagina_eliminata") : tr("pdfcmp.pagina_aggiunta")) : z.kind === "del" ? tr("pdfcmp.grafica_rimossa") : z.kind === "add" ? tr("pdfcmp.grafica_aggiunta") : tr("pdfcmp.grafica_modificata");
   function refreshList() {
     const q = search.value.trim().toLowerCase();
     const items = [];
     if (fText.input.checked) for (const c of textChanges) {
       if (q && !(c.oldText + " " + c.newText).toLowerCase().includes(q)) continue;
       items.push({ type: "t", c, page: c.kind === "del" ? c.pA : c.pB, color: COL[c.kind],
-        title: c.kind === "mod" ? "Testo modificato" : c.kind === "add" ? "Testo aggiunto" : "Testo eliminato",
-        where: `pag. ${c.pA + 1}${c.pA !== c.pB ? " → " + (c.pB + 1) : ""}`,
+        title: c.kind === "mod" ? tr("pdfcmp.testo_modificato") : c.kind === "add" ? tr("pdfcmp.testo_aggiunto") : tr("pdfcmp.testo_eliminato"),
+        where: tr("pdfcmp.pag", c.pA + 1) + (c.pA !== c.pB ? " → " + (c.pB + 1) : ""),
         sub: c.kind === "mod" ? `«${clip(c.oldText, 40)}» → «${clip(c.newText, 40)}»` : `«${clip(c.kind === "del" ? c.oldText : c.newText)}»`,
-        tip: (c.oldText ? "Vecchio: " + clip(c.oldText, 400) : "") + (c.newText ? "\nNuovo: " + clip(c.newText, 400) : "") });
+        tip: (c.oldText ? tr("pdfcmp.vecchio") + clip(c.oldText, 400) : "") + (c.newText ? "\nNuovo: " + clip(c.newText, 400) : "") });
     }
     if (fGraph.input.checked && !q) zonesByPage.forEach((zs, p) => gZones(p).forEach((z, k) => items.push({ type: "z", z, page: p, k, color: COL[z.kind] || COL.prop,
-      title: zoneTitle(z), where: `pag. ${p + 1}`, sub: z.whole ? "" : `x ${Math.round(z.x0 * MM)} mm, y ${Math.round(z.y0 * MM)} mm · ${Math.round((z.x1 - z.x0) * MM)}×${Math.round((z.y1 - z.y0) * MM)} mm` })));
+      title: zoneTitle(z), where: tr("pdfcmp.pag", p + 1), sub: z.whole ? "" : tr("pdfcmp.zona_pos", Math.round(z.x0 * MM), Math.round(z.y0 * MM), Math.round((z.x1 - z.x0) * MM), Math.round((z.y1 - z.y0) * MM)) })));
     items.sort((a, b) => a.page - b.page || (a.type === b.type ? 0 : a.type === "z" ? 1 : -1));
     list.set(items);
-    if (!items.length) list.el.querySelector(".cmp-list-in").append(el("div", { class: "cmp-empty" }, q ? "Nessuna differenza contiene il testo cercato" : zonesByPage.every(Boolean) ? "Nessuna differenza: i due documenti sono uguali" : "Analisi in corso..."));
+    if (!items.length) list.el.querySelector(".cmp-list-in").append(el("div", { class: "cmp-empty" }, q ? tr("pdfcmp.nessuna_differenza_contiene_testo_cercato") : zonesByPage.every(Boolean) ? tr("pdfcmp.nessuna_differenza_i_due_documenti") : tr("pdfcmp.analisi_corso")));
   }
 
   // barra della vista
   let mode = "overlay", page = 0, moveMode = false;
   const bar = el("div", { class: "cmp-bar" }), stage = el("div", { class: "cmp-stage" });
   main.append(bar, stage);
-  const bOv = button("Sovrapposizione", ICO.overlay, () => setMode("overlay"), { title: "Le due revisioni una sopra l'altra: rosso = solo nella vecchia, verde = solo nella nuova, grigio = uguale" });
-  const bSp = button("Affiancati", ICO.split, () => setMode("split"), { title: "Le due revisioni affiancate con scorrimento sincronizzato" });
+  const bOv = button(tr("pdfcmp.sovrapposizione"), ICO.overlay, () => setMode("overlay"), { title: tr("pdfcmp.due_revisioni_sopra_l_altra") });
+  const bSp = button(tr("pdfcmp.affiancati"), ICO.split, () => setMode("split"), { title: tr("pdfcmp.due_revisioni_affiancate_scorrimento_sincronizzato") });
   const pgLbl = el("span", { class: "pg" });
-  const bPrev = button("", ICO.prev, () => goPage(page - 1), { iconOnly: true, title: "Pagina precedente" });
-  const bNext = button("", ICO.next, () => goPage(page + 1), { iconOnly: true, title: "Pagina successiva" });
+  const bPrev = button("", ICO.prev, () => goPage(page - 1), { iconOnly: true, title: tr("pdfcmp.pagina_precedente") });
+  const bNext = button("", ICO.next, () => goPage(page + 1), { iconOnly: true, title: tr("pdfcmp.pagina_successiva") });
   const cOld = el("input", { type: "checkbox", checked: true }), cNew = el("input", { type: "checkbox", checked: true });
   cOld.addEventListener("change", () => { opt.showOld = cOld.checked; recompose(); });
   cNew.addEventListener("change", () => { opt.showNew = cNew.checked; recompose(); });
-  const bZones = button("Zone", ICO.zones, () => { opt.zones = !opt.zones; bZones.classList.toggle("on", opt.zones); drawBoxes(); }, { title: "Riquadri attorno alle zone cambiate" });
+  const bZones = button(tr("pdfcmp.zone"), ICO.zones, () => { opt.zones = !opt.zones; bZones.classList.toggle("on", opt.zones); drawBoxes(); }, { title: tr("pdfcmp.riquadri_attorno_alle_zone_cambiate") });
   bZones.classList.add("on");
-  const bMove = button("Allinea a mano", ICO.move, () => { moveMode = !moveMode; bMove.classList.toggle("on", moveMode); hint.hidden = !moveMode; }, { title: "Trascina la revisione nuova per allinearla (frecce: 0,5 pt, Maiusc+frecce: 5 pt)" });
-  const bAuto = button("Automatico", ICO.auto, () => realign(), { title: "Allinea automaticamente la nuova revisione alla vecchia in questa pagina" });
-  const iDx = el("input", { type: "number", step: "0.1", title: "Spostamento orizzontale della nuova revisione (mm)" });
-  const iDy = el("input", { type: "number", step: "0.1", title: "Spostamento verticale della nuova revisione (mm)" });
-  const iK = el("input", { type: "number", step: "0.1", title: "Scala della nuova revisione (%)" });
+  const bMove = button(tr("pdfcmp.allinea_mano"), ICO.move, () => { moveMode = !moveMode; bMove.classList.toggle("on", moveMode); hint.hidden = !moveMode; }, { title: tr("pdfcmp.trascina_revisione_nuova_allinearla_frecce") });
+  const bAuto = button(tr("pdfcmp.automatico"), ICO.auto, () => realign(), { title: tr("pdfcmp.allinea_automaticamente_nuova_revisione_vecchia") });
+  const iDx = el("input", { type: "number", step: "0.1", title: tr("pdfcmp.spostamento_orizzontale_nuova_revisione_mm") });
+  const iDy = el("input", { type: "number", step: "0.1", title: tr("pdfcmp.spostamento_verticale_nuova_revisione_mm") });
+  const iK = el("input", { type: "number", step: "0.1", title: tr("pdfcmp.scala_nuova_revisione") });
   const onNum = () => { const a = curAlign(); a.dx = (+iDx.value || 0) / MM; a.dy = (+iDy.value || 0) / MM; a.k = (+iK.value || 100) / 100; a.auto = false; aligned(); };
   [iDx, iDy, iK].forEach(i => i.addEventListener("change", onNum));
-  const bAll = button("Tutte le pagine", "", () => { const a = curAlign(); for (let i = 0; i < N; i++) aligns[i] = { ...a }; zonesByPage.fill(null); reanalyze(); toast("Allineamento applicato a tutte le pagine"); }, { title: "Usa questo allineamento per tutte le pagine" });
-  const cAuto = el("input", { type: "checkbox", checked: true, title: "Allineamento automatico di ogni pagina" });
+  const bAll = button(tr("pdfcmp.tutte_pagine"), "", () => { const a = curAlign(); for (let i = 0; i < N; i++) aligns[i] = { ...a }; zonesByPage.fill(null); reanalyze(); toast(tr("pdfcmp.allineamento_applicato_tutte_pagine")); }, { title: tr("pdfcmp.usa_questo_allineamento_tutte_pagine") });
+  const cAuto = el("input", { type: "checkbox", checked: true, title: tr("pdfcmp.allineamento_automatico_ogni_pagina") });
   cAuto.addEventListener("change", () => { autoOn = cAuto.checked; aligns.fill(null); zonesByPage.fill(null); reanalyze(); });
-  const legendEl = el("span", { class: "cmp-legend" }, ...[[COL.del, "solo vecchia"], [COL.add, "solo nuova"], ["#8b8d98", "uguale"]].map(([c, t]) => el("span", {}, el("i", { class: "cmp-chip", style: { background: c } }), t)));
+  const legendEl = el("span", { class: "cmp-legend" }, ...[[COL.del, tr("pdfcmp.solo_vecchia")], [COL.add, tr("pdfcmp.solo_nuova")], ["#8b8d98", tr("pdfcmp.l_uguale")]].map(([c, t]) => el("span", {}, el("i", { class: "cmp-chip", style: { background: c } }), t)));
   const alignBox = el("span", { style: { display: "inline-flex", alignItems: "center", gap: "2px" } }, el("span", { class: "sep" }), bMove, bAuto,
     el("label", {}, cAuto, "auto"), el("label", {}, "X", iDx), el("label", {}, "Y", iDy), el("label", {}, "%", iK), bAll);
   bar.append(bOv, bSp, el("span", { class: "sep" }), bPrev, pgLbl, bNext, el("span", { class: "sep" }),
-    button("", "zoomOut", () => zoomBy(1 / 1.25), { iconOnly: true, title: "Riduci" }), button("Adatta", "fit", () => fitZoom(), { title: "Adatta alla larghezza" }), button("", "zoomIn", () => zoomBy(1.25), { iconOnly: true, title: "Ingrandisci" }),
-    el("span", { class: "sep" }), el("label", { title: "Mostra la revisione vecchia" }, cOld, "Vecchia"), el("label", { title: "Mostra la revisione nuova" }, cNew, "Nuova"), bZones, alignBox, el("span", { class: "grow" }), legendEl);
-  tools.append(el("span", { class: "note" }, `${nA} pagine → ${nB} pagine`));
+    button("", "zoomOut", () => zoomBy(1 / 1.25), { iconOnly: true, title: tr("pdfcmp.riduci") }), button(tr("pdfcmp.adatta"), "fit", () => fitZoom(), { title: tr("pdfcmp.adatta_larghezza") }), button("", "zoomIn", () => zoomBy(1.25), { iconOnly: true, title: tr("pdfcmp.ingrandisci") }),
+    el("span", { class: "sep" }), el("label", { title: tr("pdfcmp.mostra_revisione_vecchia") }, cOld, tr("pdfcmp.vecchia")), el("label", { title: tr("pdfcmp.mostra_revisione_nuova") }, cNew, tr("pdfcmp.nuova")), bZones, alignBox, el("span", { class: "grow" }), legendEl);
+  tools.append(el("span", { class: "note" }, tr("pdfcmp.0_pagine_1_pagine", nA, nB)));
 
   // ---- vista sovrapposta
   const ovScroll = el("div", { class: "cmp-scroll" }), sheet = el("div", { class: "cmp-sheet" }), ovCanvas = el("canvas"), boxes = el("div", { style: { position: "absolute", inset: 0 } });
-  const hint = el("div", { class: "cmp-hint", hidden: true }, "Trascina per spostare la revisione nuova · frecce per spostamenti fini · Esc per finire");
+  const hint = el("div", { class: "cmp-hint", hidden: true }, tr("pdfcmp.trascina_spostare_revisione_nuova_frecce"));
   sheet.append(ovCanvas, boxes);
   new ResizeObserver(() => { if (mode === "overlay" && !userZoom && ovScroll.clientWidth > 0) fitZoom(); }).observe(ovScroll);
   ovScroll.append(sheet);
@@ -448,7 +449,7 @@ export async function mountCompare(env) {
   async function goPage(i, keepScroll = false) {
     i = Math.max(0, Math.min(N - 1, i));
     page = i;
-    pgLbl.textContent = `Pagina ${i + 1} di ${N}`;
+    pgLbl.textContent = tr("pdfcmp.pagina_0_1", i + 1, N);
     bPrev.disabled = i === 0; bNext.disabled = i === N - 1;
     if (mode === "overlay") {
       layoutSheet();
@@ -490,12 +491,12 @@ export async function mountCompare(env) {
   let keyT = 0;
   window.addEventListener("keydown", onKey);
   async function realign() {
-    if (!cache.a || !cache.b) return toast("In questa pagina manca una delle due revisioni", true);
+    if (!cache.a || !cache.b) return toast(tr("pdfcmp.questa_pagina_manca_due_revisioni"), true);
     const b0 = baseAlign(page);
     aligns[page] = autoAlign(cache.a, cache.b, cache.s, b0.k);
     aligned();
     const a = aligns[page];
-    toast(a.dx || a.dy ? `Nuova revisione spostata di ${(a.dx * MM).toFixed(1)} mm, ${(a.dy * MM).toFixed(1)} mm` : "Le pagine erano gia' allineate");
+    toast(a.dx || a.dy ? tr("pdfcmp.nuova_revisione_spostata_0_mm", (a.dx * MM).toFixed(1), (a.dy * MM).toFixed(1)) : tr("pdfcmp.pagine_erano_gia_allineate"));
   }
   async function reanalyze() {
     stopped = false;
@@ -509,8 +510,8 @@ export async function mountCompare(env) {
   let splitZoom = 1, splitBuilt = false;
   const colA = el("div", { class: "cmp-col" }), colB = el("div", { class: "cmp-col" });
   const scA = el("div", { class: "cmp-scroll" }), scB = el("div", { class: "cmp-scroll" });
-  colA.append(el("div", { class: "hd" }, el("i", { class: "cmp-chip", style: { background: COL.del } }), "Vecchia: ", el("b", {}, info.oldName)), scA);
-  colB.append(el("div", { class: "hd" }, el("i", { class: "cmp-chip", style: { background: COL.add } }), "Nuova: ", el("b", {}, info.newName)), scB);
+  colA.append(el("div", { class: "hd" }, el("i", { class: "cmp-chip", style: { background: COL.del } }), tr("pdfcmp.vecchia_2"), el("b", {}, info.oldName)), scA);
+  colB.append(el("div", { class: "hd" }, el("i", { class: "cmp-chip", style: { background: COL.add } }), tr("pdfcmp.nuova_2"), el("b", {}, info.newName)), scB);
   const split = el("div", { class: "cmp-split" }, colA, colB);
   const sheetsA = [], sheetsB = [];
   const io = new IntersectionObserver(ents => { for (const en of ents) if (en.isIntersecting) paintSheet(en.target); }, { rootMargin: "400px" });
@@ -519,7 +520,7 @@ export async function mountCompare(env) {
     const mk = (doc, n, sizes, list, sc, side) => {
       for (let i = 0; i < N; i++) {
         const s = sizes[i] || sizeOf(i);
-        const sh = el("div", { class: "cmp-sheet", style: { background: i < n ? "#fff" : "transparent", boxShadow: i < n ? "" : "none", outline: i < n ? "" : "2px dashed rgba(255,255,255,.35)" } }, el("span", { class: "pn" }, i < n ? `Pagina ${i + 1}` : `Pagina ${i + 1} assente`));
+        const sh = el("div", { class: "cmp-sheet", style: { background: i < n ? "#fff" : "transparent", boxShadow: i < n ? "" : "none", outline: i < n ? "" : "2px dashed rgba(255,255,255,.35)" } }, el("span", { class: "pn" }, i < n ? tr("pdfcmp.pagina_0", i + 1) : tr("pdfcmp.pagina_0_assente", i + 1)));
         sh._d = { doc, n, i, s, side, done: 0 };
         list.push(sh);
         sc.append(sh);
@@ -591,7 +592,7 @@ export async function mountCompare(env) {
       if (Math.abs(dst.scrollTop - y) >= 1) { dst._expect = y; dst.scrollTop = y; }
       if (dst.scrollLeft !== src.scrollLeft) { dst.scrollLeft = src.scrollLeft; }
     }
-    page = i; pgLbl.textContent = `Pagina ${i + 1} di ${N}`; bPrev.disabled = i === 0; bNext.disabled = i === N - 1;
+    page = i; pgLbl.textContent = tr("pdfcmp.pagina_0_1", i + 1, N); bPrev.disabled = i === 0; bNext.disabled = i === N - 1;
   };
   scA.addEventListener("scroll", () => syncFrom(scA, scB, sheetsA, sheetsB));
   scB.addEventListener("scroll", () => syncFrom(scB, scA, sheetsB, sheetsA));
@@ -646,7 +647,7 @@ export async function mountCompare(env) {
   refreshList();
   bOv.classList.add("on");
   stage.append(ovWrap);
-  pgLbl.textContent = `Pagina 1 di ${N}`;
+  pgLbl.textContent = tr("pdfcmp.pagina_1_0", N);
   bPrev.disabled = true; bNext.disabled = N <= 1;
 
   // ---------------------------------------------------------------- report
@@ -654,32 +655,32 @@ export async function mountCompare(env) {
     await analysis;
     const doc = pdfDoc();
     const p = doc.addPage(842, 595);
-    let y = reportHeader(p, info, "Confronto di documenti PDF");
+    let y = reportHeader(p, info, tr("pdfcmp.confronto_documenti_pdf"));
     const nz = zonesByPage.reduce((s, z, p) => s + gZones(p).length, 0);
     const cnt = k => textChanges.filter(c => c.kind === k).length;
-    p.text(24, y + 6, "Riepilogo", 11, { bold: true });
-    const lines = [`Pagine: vecchia ${nA}, nuova ${nB}`, `Differenze di testo: ${textChanges.length} (${cnt("mod")} modificati, ${cnt("add")} aggiunti, ${cnt("del")} eliminati)`,
-      `Zone grafiche cambiate (oltre al testo): ${nz} in ${zonesByPage.filter((z, p) => gZones(p).length).length} pagine`];
+    p.text(24, y + 6, tr("pdfcmp.riepilogo"), 11, { bold: true });
+    const lines = [`Pagine: vecchia ${nA}, nuova ${nB}`, tr("pdfcmp.differenze_testo_0_1_modificati", textChanges.length, cnt("mod"), cnt("add"), cnt("del")),
+      tr("pdfcmp.zone_grafiche_cambiate_oltre_testo", nz, zonesByPage.filter((z, p) => gZones(p).length).length)];
     lines.forEach((l, i) => p.text(24, y + 22 + i * 13, l, 9.5));
-    legend(p, 24, y + 70, [[COL.del, "solo nella vecchia (eliminato)"], [COL.add, "solo nella nuova (aggiunto)"], [COL.mod, "modificato"], ["#8b8d98", "uguale"]]);
+    legend(p, 24, y + 70, [[COL.del, tr("pdfcmp.solo_vecchia_eliminato")], [COL.add, tr("pdfcmp.solo_nuova_aggiunto")], [COL.mod, tr("pdfcmp.l_modificato")], ["#8b8d98", tr("pdfcmp.l_uguale")]]);
     let pos = { page: p, y: y + 88 };
     if (textChanges.length) {
-      p.text(24, pos.y + 4, "Differenze di testo", 11, { bold: true });
-      pos = reportTable(doc, info, "Confronto di documenti PDF", [{ t: "Tipo", w: 70 }, { t: "Pag. vecchia", w: 58 }, { t: "Pag. nuova", w: 58 }, { t: "Testo nella vecchia", w: 304 }, { t: "Testo nella nuova", w: 304 }],
-        textChanges.map(c => ({ color: COL[c.kind], cells: [{ mod: "Modificato", add: "Aggiunto", del: "Eliminato" }[c.kind], c.pA + 1, c.pB + 1, c.oldText, c.newText] })), pos.page, pos.y + 10);
+      p.text(24, pos.y + 4, tr("pdfcmp.differenze_testo"), 11, { bold: true });
+      pos = reportTable(doc, info, tr("pdfcmp.confronto_documenti_pdf"), [{ t: tr("pdfcmp.tipo"), w: 70 }, { t: tr("pdfcmp.pag_vecchia"), w: 58 }, { t: tr("pdfcmp.pag_nuova"), w: 58 }, { t: tr("pdfcmp.testo_vecchia"), w: 304 }, { t: tr("pdfcmp.testo_nuova"), w: 304 }],
+        textChanges.map(c => ({ color: COL[c.kind], cells: [{ mod: tr("pdfcmp.modificato"), add: tr("pdfcmp.aggiunto"), del: tr("pdfcmp.eliminato") }[c.kind], c.pA + 1, c.pB + 1, c.oldText, c.newText] })), pos.page, pos.y + 10);
     }
     const zr = [];
     zonesByPage.forEach((zs, i) => gZones(i).forEach(z => zr.push({ color: COL[z.kind], cells: [zoneTitle(z), i + 1, z.whole ? "-" : `${Math.round(z.x0 * MM)}; ${Math.round(z.y0 * MM)}`, z.whole ? "-" : `${Math.round((z.x1 - z.x0) * MM)} × ${Math.round((z.y1 - z.y0) * MM)}`] })));
     if (zr.length) {
       if (pos.y > 480) { pos = { page: null, y: null }; }
-      else pos.page.text(24, pos.y + 22, "Zone grafiche cambiate", 11, { bold: true });
-      pos = reportTable(doc, info, "Confronto di documenti PDF", [{ t: "Tipo", w: 160 }, { t: "Pagina", w: 70 }, { t: "Posizione x; y (mm dall'angolo in alto a sinistra)", w: 260 }, { t: "Dimensioni (mm)", w: 304 }], zr, pos.page, pos.page ? pos.y + 28 : null);
+      else pos.page.text(24, pos.y + 22, tr("pdfcmp.zone_grafiche_cambiate"), 11, { bold: true });
+      pos = reportTable(doc, info, tr("pdfcmp.confronto_documenti_pdf"), [{ t: tr("pdfcmp.tipo"), w: 160 }, { t: tr("pdfcmp.pagina"), w: 70 }, { t: tr("pdfcmp.posizione_x_y_mm_dall"), w: 260 }, { t: tr("pdfcmp.dimensioni_mm"), w: 304 }], zr, pos.page, pos.page ? pos.y + 28 : null);
     }
     // pagine con differenze: sovrapposizione a colori
     const pages = [];
     for (let i = 0; i < N; i++) if (zonesByPage[i].length || textChanges.some(c => c.pA === i || c.pB === i)) pages.push(i);
     for (const [k, i] of pages.entries()) {
-      ctx.status(`Report: pagina ${k + 1} di ${pages.length}`);
+      ctx.status(tr("pdfcmp.report_pagina", k + 1, pages.length));
       const s = sizeOf(i), scale = Math.min(150 / 72, Math.sqrt(9e6 / (s.w * s.h)));
       const [a, b] = await Promise.all([renderPage(dA, nA, i, scale), renderPage(dB, nB, i, scale)]);
       const al = aligns[i] || baseAlign(i);
@@ -690,9 +691,9 @@ export async function mountCompare(env) {
       for (const z of zonesByPage[i]) { if (z.whole) continue; g.strokeStyle = COL[z.kind]; g.strokeRect(z.x0 * scale, z.y0 * scale, (z.x1 - z.x0) * scale, (z.y1 - z.y0) * scale); }
       const landscape = s.w > s.h;
       const pg = doc.addPage(landscape ? 842 : 595, landscape ? 595 : 842);
-      const top = reportHeader(pg, info, `Sovrapposizione · pagina ${i + 1}`);
-      legend(pg, 24, top + 2, [[COL.del, "solo vecchia"], [COL.add, "solo nuova"], ["#8b8d98", "uguale"]]);
-      const al2 = al.dx || al.dy || al.k !== 1 ? `Allineamento nuova: ${(al.dx * MM).toFixed(1)} mm, ${(al.dy * MM).toFixed(1)} mm, ${(al.k * 100).toFixed(1)}%` : "";
+      const top = reportHeader(pg, info, tr("pdfcmp.sovrapposizione_pagina_0", i + 1));
+      legend(pg, 24, top + 2, [[COL.del, tr("pdfcmp.solo_vecchia")], [COL.add, tr("pdfcmp.solo_nuova")], ["#8b8d98", tr("pdfcmp.l_uguale")]]);
+      const al2 = al.dx || al.dy || al.k !== 1 ? tr("pdfcmp.allineamento_nuova_0_mm_1", (al.dx * MM).toFixed(1), (al.dy * MM).toFixed(1), (al.k * 100).toFixed(1)) : "";
       if (al2) pg.text(pg.w - 24 - 230, top + 3, al2, 7.5, { color: "#666666" });
       const availW = pg.w - 48, availH = pg.h - top - 40, f = Math.min(availW / r.canvas.width, availH / r.canvas.height);
       const dw = r.canvas.width * f, dh = r.canvas.height * f;
@@ -701,24 +702,24 @@ export async function mountCompare(env) {
     }
     footerNumbers(doc);
     ctx.status("");
-    return new Blob([doc.build("Confronto " + info.oldName + " - " + info.newName)], { type: "application/pdf" });
+    return new Blob([doc.build(tr("pdfcmp.confronto") + info.oldName + " - " + info.newName)], { type: "application/pdf" });
   }
-  const rowsText = () => textChanges.map(c => [c.n, { mod: "Modificato", add: "Aggiunto", del: "Eliminato" }[c.kind], c.pA + 1, c.pB + 1, c.oldText, c.newText]);
+  const rowsText = () => textChanges.map(c => [c.n, { mod: tr("pdfcmp.modificato"), add: tr("pdfcmp.aggiunto"), del: tr("pdfcmp.eliminato") }[c.kind], c.pA + 1, c.pB + 1, c.oldText, c.newText]);
   const rowsZones = () => zonesByPage.flatMap((zs, i) => gZones(i).map(z => [zoneTitle(z), i + 1, z.whole ? "" : +(z.x0 * MM).toFixed(1), z.whole ? "" : +(z.y0 * MM).toFixed(1), z.whole ? "" : +((z.x1 - z.x0) * MM).toFixed(1), z.whole ? "" : +((z.y1 - z.y0) * MM).toFixed(1)]));
   async function reportXlsx() {
     await analysis;
     return saveXlsx(null, [
-      { name: "Riepilogo", filter: false, widths: [34, 70], rows: [["Confronto di documenti PDF", ""], ["Vecchia", info.oldName], ["Nuova", info.newName], ["Data", info.date], ["Pagine vecchia", nA], ["Pagine nuova", nB],
-        ["Differenze di testo", textChanges.length], ["Zone grafiche cambiate", rowsZones().length]] },
-      { name: "Testo", widths: [6, 12, 12, 12, 70, 70], rows: [["N.", "Tipo", "Pagina vecchia", "Pagina nuova", "Testo nella vecchia", "Testo nella nuova"], ...rowsText()] },
-      { name: "Grafica", widths: [22, 9, 12, 12, 14, 14], rows: [["Tipo", "Pagina", "X (mm)", "Y (mm)", "Larghezza (mm)", "Altezza (mm)"], ...rowsZones()] },
+      { name: tr("pdfcmp.riepilogo"), filter: false, widths: [34, 70], rows: [[tr("pdfcmp.confronto_documenti_pdf"), ""], [tr("pdfcmp.vecchia"), info.oldName], [tr("pdfcmp.nuova"), info.newName], [tr("pdfcmp.data"), info.date], [tr("pdfcmp.pagine_vecchia"), nA], [tr("pdfcmp.pagine_nuova"), nB],
+        [tr("pdfcmp.differenze_testo"), textChanges.length], [tr("pdfcmp.zone_grafiche_cambiate"), rowsZones().length]] },
+      { name: tr("pdfcmp.testo"), widths: [6, 12, 12, 12, 70, 70], rows: [[tr("cmp.n"), tr("pdfcmp.tipo"), tr("pdfcmp.pagina_vecchia"), tr("pdfcmp.pagina_nuova"), tr("pdfcmp.testo_vecchia"), tr("pdfcmp.testo_nuova")], ...rowsText()] },
+      { name: tr("pdfcmp.grafica"), widths: [22, 9, 12, 12, 14, 14], rows: [[tr("pdfcmp.tipo"), tr("pdfcmp.pagina"), "X (mm)", "Y (mm)", tr("pdfcmp.larghezza_mm"), tr("pdfcmp.altezza_mm")], ...rowsZones()] },
     ]);
   }
   async function reportCsv() {
     await analysis;
-    return csvBlob([["Categoria", "Tipo", "Pagina vecchia", "Pagina nuova", "Testo nella vecchia", "Testo nella nuova", "X (mm)", "Y (mm)", "Larghezza (mm)", "Altezza (mm)"],
-      ...rowsText().map(r => ["Testo", r[1], r[2], r[3], r[4], r[5], "", "", "", ""]),
-      ...rowsZones().map(r => ["Grafica", r[0], r[1], r[1], "", "", r[2], r[3], r[4], r[5]])]);
+    return csvBlob([[tr("pdfcmp.categoria"), tr("pdfcmp.tipo"), tr("pdfcmp.pagina_vecchia"), tr("pdfcmp.pagina_nuova"), tr("pdfcmp.testo_vecchia"), tr("pdfcmp.testo_nuova"), "X (mm)", "Y (mm)", tr("pdfcmp.larghezza_mm"), tr("pdfcmp.altezza_mm")],
+      ...rowsText().map(r => [tr("pdfcmp.testo"), r[1], r[2], r[3], r[4], r[5], "", "", "", ""]),
+      ...rowsZones().map(r => [tr("pdfcmp.grafica"), r[0], r[1], r[1], "", "", r[2], r[3], r[4], r[5]])]);
   }
 
   return {
