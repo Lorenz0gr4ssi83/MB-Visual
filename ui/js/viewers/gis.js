@@ -5,6 +5,7 @@
 import { api, baseName, button, dirName, el, extOf, loadCss, loadScript, loading, modal, pickFiles, readBytes, saveBytes, toast, WEB } from "../core.js";
 import * as io from "../gisio.js";
 import { CRS, codeFromPrj, crsChoices, crsName, registerAll, useCrs, wktFor } from "../giscrs.js";
+import { LOCALE, t as tr, tn } from "../i18n.js";
 
 const VIEW = "EPSG:3857";
 const OL_JS = "/vendor/ol/dist/ol.js";
@@ -19,7 +20,7 @@ async function libs() {
   if (!olReady) olReady = (async () => {
     // ol.js dichiara "var ol": si esegue in un ambito senza define (Monaco) e si riporta su window
     const r = await fetch(OL_JS);
-    if (!r.ok) throw new Error("Libreria OpenLayers mancante (tools/fetch_vendor.py ol)");
+    if (!r.ok) throw new Error(tr("v_gis.libreria_openlayers_mancante_tools_fetch"));
     const code = await r.text();
     new Function("define", "module", "exports", code + "\n;window.ol=ol;\n//# sourceURL=ol.js").call(window);
     await Promise.all([loadScript("/vendor/proj4/dist/proj4.js"), loadScript("/vendor/geotiff/dist-browser/geotiff.js"), loadScript("/vendor/jszip/dist/jszip.min.js")]);
@@ -37,18 +38,18 @@ async function libs() {
 // Geoportale Nazionale hanno limiti d'uso; per le ortofoto regionali con licenza aperta si usa il WMS personalizzato.
 const BASES = [
   { id: "osm", name: "OpenStreetMap", max: 19, tpl: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attr: '© <a href="https://www.openstreetmap.org/copyright" target="_blank">Collaboratori di OpenStreetMap</a>' },
-  { id: "esri", name: "Ortofoto Esri World Imagery (chiave)", key: true, max: 19, jpg: true,
+    attr: tr("v_gis.href_https_www_openstreetmap_org") },
+  { id: "esri", name: tr("v_gis.ortofoto_esri_world_imagery_chiave"), key: true, max: 19, jpg: true,
     tpl: "https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token={key}",
-    attr: "Powered by Esri · Fonti: Esri, Maxar, Earthstar Geographics e la comunita' degli utenti GIS",
-    help: "Chiave API di ArcGIS Location Platform (developers.arcgis.com), con il servizio basemap abilitato." },
-  { id: "maptiler", name: "Ortofoto MapTiler Satellite (chiave)", key: true, max: 20, jpg: true,
+    attr: tr("v_gis.powered_by_esri_fonti_esri"),
+    help: tr("v_gis.chiave_api_arcgis_location_platform") },
+  { id: "maptiler", name: tr("v_gis.ortofoto_maptiler_satellite_chiave"), key: true, max: 20, jpg: true,
     tpl: "https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key={key}",
-    attr: '© <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> · © Collaboratori di OpenStreetMap',
-    help: "Chiave di cloud.maptiler.com. Il piano gratuito di MapTiler non consente l'uso commerciale." },
-  { id: "xyz", name: "Servizio a tessere personalizzato (XYZ)", custom: true, max: 20 },
-  { id: "wms", name: "Servizio WMS personalizzato (es. ortofoto regionali)", custom: true, max: 21 },
-  { id: "none", name: "Nessuno sfondo" },
+    attr: tr("v_gis.href_https_www_maptiler_com"),
+    help: tr("v_gis.chiave_cloud_maptiler_com_piano") },
+  { id: "xyz", name: tr("v_gis.servizio_tessere_personalizzato_xyz"), custom: true, max: 20 },
+  { id: "wms", name: tr("v_gis.servizio_wms_personalizzato_es_ortofoto"), custom: true, max: 21 },
+  { id: "none", name: tr("v_gis.nessuno_sfondo") },
 ];
 const SETTINGS_KEY = "mbv-gis-sfondo";
 function loadSettings() {
@@ -61,21 +62,21 @@ function baseSource(ol, s) {
   const b = BASES.find(x => x.id === s.id) || BASES[0];
   if (b.id === "none") return null;
   const key = (s.keys || {})[b.id] || "";
-  if (b.key && !key) return { error: `Per "${b.name}" serve la chiave del fornitore: impostala con il pulsante accanto allo sfondo.` };
+  if (b.key && !key) return { error: tr("v_gis.0_serve_chiave_fornitore_impostala", b.name) };
   if (b.id === "wms") {
     const c = s.wms || {};
-    if (!c.url || !c.layers) return { error: "Indica indirizzo e livello del servizio WMS nelle impostazioni dello sfondo." };
+    if (!c.url || !c.layers) return { error: tr("v_gis.indica_indirizzo_livello_servizio_wms") };
     return new ol.source.TileWMS({
       url: WEB ? c.url : "/api/gis_tile?p=wms&base=" + encodeURIComponent(c.url),
       params: { LAYERS: c.layers, TILED: true, FORMAT: c.format || "image/png", VERSION: c.version || "1.3.0", STYLES: "" },
-      crossOrigin: "anonymous", attributions: escHtml(c.attr || "Servizio WMS"), transition: 0,
+      crossOrigin: "anonymous", attributions: escHtml(c.attr || tr("v_gis.servizio_wms")), transition: 0,
     });
   }
   let tpl = b.tpl, attr = b.attr;
   if (b.id === "xyz") {
     const c = s.xyz || {};
-    if (!c.url) return { error: "Indica l'indirizzo del servizio a tessere nelle impostazioni dello sfondo." };
-    tpl = c.url; attr = escHtml(c.attr || "Servizio personalizzato");
+    if (!c.url) return { error: tr("v_gis.indica_l_indirizzo_servizio_tessere") };
+    tpl = c.url; attr = escHtml(c.attr || tr("v_gis.servizio_personalizzato"));
   }
   const url = WEB ? tpl.replace("{key}", encodeURIComponent(key))
     : `/api/gis_tile?p=${b.id === "xyz" ? "xyz&tpl=" + encodeURIComponent(tpl) : b.id}&z={z}&x={x}&y={y}` + (key ? "&key=" + encodeURIComponent(key) : "");
@@ -84,17 +85,17 @@ function baseSource(ol, s) {
 
 async function baseSettingsDialog(s) {
   const sel = el("select", { class: "field" }, BASES.map(b => el("option", { value: b.id, selected: b.id === s.id ? "" : null }, b.name)));
-  const keyIn = el("input", { type: "password", class: "field", placeholder: "chiave del fornitore", autocomplete: "off" });
+  const keyIn = el("input", { type: "password", class: "field", placeholder: tr("v_gis.chiave_fornitore"), autocomplete: "off" });
   const help = el("p", { class: "note" });
   const xyzUrl = el("input", { type: "text", class: "field", placeholder: "https://server/{z}/{x}/{y}.png", value: s.xyz?.url || "" });
-  const xyzAttr = el("input", { type: "text", class: "field", placeholder: "Attribuzione richiesta dal fornitore", value: s.xyz?.attr || "" });
+  const xyzAttr = el("input", { type: "text", class: "field", placeholder: tr("v_gis.attribuzione_richiesta_fornitore"), value: s.xyz?.attr || "" });
   const wmsUrl = el("input", { type: "text", class: "field", placeholder: "https://server/wms?", value: s.wms?.url || "" });
-  const wmsLayers = el("input", { type: "text", class: "field", placeholder: "nome del livello (LAYERS)", value: s.wms?.layers || "" });
+  const wmsLayers = el("input", { type: "text", class: "field", placeholder: tr("v_gis.nome_livello_layers"), value: s.wms?.layers || "" });
   const wmsFmt = el("select", { class: "field" }, ["image/png", "image/jpeg"].map(f => el("option", { value: f, selected: (s.wms?.format || "image/png") === f ? "" : null }, f)));
-  const wmsAttr = el("input", { type: "text", class: "field", placeholder: "Attribuzione / licenza (es. Regione ... - CC BY 4.0)", value: s.wms?.attr || "" });
-  const rowKey = el("label", { class: "gis-form" }, "Chiave", keyIn);
-  const boxXyz = el("div", { class: "gis-form-grid" }, el("label", {}, "Indirizzo", xyzUrl), el("label", {}, "Attribuzione", xyzAttr));
-  const boxWms = el("div", { class: "gis-form-grid" }, el("label", {}, "Indirizzo", wmsUrl), el("label", {}, "Livello", wmsLayers), el("label", {}, "Formato", wmsFmt), el("label", {}, "Attribuzione", wmsAttr));
+  const wmsAttr = el("input", { type: "text", class: "field", placeholder: tr("v_gis.attribuzione_licenza_es_regione_cc"), value: s.wms?.attr || "" });
+  const rowKey = el("label", { class: "gis-form" }, tr("v_gis.chiave"), keyIn);
+  const boxXyz = el("div", { class: "gis-form-grid" }, el("label", {}, tr("v_gis.indirizzo"), xyzUrl), el("label", {}, tr("v_gis.attribuzione"), xyzAttr));
+  const boxWms = el("div", { class: "gis-form-grid" }, el("label", {}, tr("v_gis.indirizzo"), wmsUrl), el("label", {}, tr("v_gis.livello"), wmsLayers), el("label", {}, tr("v_gis.formato"), wmsFmt), el("label", {}, tr("v_gis.attribuzione"), wmsAttr));
   const keys = { ...(s.keys || {}) };
   let cur = s.id;
   const upd = () => {
@@ -103,14 +104,14 @@ async function baseSettingsDialog(s) {
     const b = BASES.find(x => x.id === cur);
     rowKey.hidden = !b.key; keyIn.value = keys[cur] || "";
     boxXyz.hidden = cur !== "xyz"; boxWms.hidden = cur !== "wms";
-    help.textContent = b.help || (cur === "osm" ? "Solo consultazione interattiva, con attribuzione sempre visibile (policy dei server di tessere di OpenStreetMap); nessuno scaricamento massivo."
-      : cur === "none" ? "La mappa mostra solo i livelli aperti: nessuna connessione a Internet." : b.custom ? "Usa solo servizi di cui hai verificato le condizioni d'uso e scrivi l'attribuzione richiesta. Le ortofoto del Geoportale Nazionale hanno limiti d'uso; molte Regioni pubblicano ortofoto WMS con licenza aperta." : "");
+    help.textContent = b.help || (cur === "osm" ? tr("v_gis.solo_consultazione_interattiva_attribuzione_sempre")
+      : cur === "none" ? tr("v_gis.mappa_mostra_solo_i_livelli") : b.custom ? tr("v_gis.usa_solo_servizi_cui_hai") : "");
   };
   sel.addEventListener("change", upd);
   upd();
-  const ok = await modal("Sfondo cartografico", el("div", { class: "gis-dialog" }, el("label", { class: "gis-form" }, "Sfondo", sel), rowKey, boxXyz, boxWms, help,
-    el("p", { class: "note" }, "Le chiavi restano solo su questo PC. Le tessere vengono chieste solo per la zona che stai guardando e tenute in cache per 7 giorni.")),
-  [{ label: "Annulla", value: false }, { label: "Applica", value: true, primary: true }]);
+  const ok = await modal(tr("v_gis.sfondo_cartografico"), el("div", { class: "gis-dialog" }, el("label", { class: "gis-form" }, tr("v_gis.sfondo"), sel), rowKey, boxXyz, boxWms, help,
+    el("p", { class: "note" }, tr("v_gis.chiavi_restano_solo_questo_pc"))),
+  [{ label: tr("common.annulla"), value: false }, { label: tr("common.applica"), value: true, primary: true }]);
   if (!ok) return null;
   keys[sel.value] = keyIn.value.trim();
   return { id: sel.value, keys, xyz: { url: xyzUrl.value.trim(), attr: xyzAttr.value.trim() },
@@ -118,7 +119,7 @@ async function baseSettingsDialog(s) {
 }
 
 // ---------------------------------------------------------------- formattazione
-const nf = (v, d = 2, min = d) => v.toLocaleString("it-IT", { minimumFractionDigits: min, maximumFractionDigits: d });
+const nf = (v, d = 2, min = d) => v.toLocaleString(LOCALE, { minimumFractionDigits: min, maximumFractionDigits: d });
 const fmtLen = m => (m < 1000 ? nf(m, 2, 0) + " m" : nf(m / 1000, 3, 0) + " km");
 const fmtArea = a => (a < 10000 ? nf(a) + " m²" : a < 1e6 ? nf(a / 10000, 4) + " ha" : nf(a / 1e6, 4) + " km²");
 function dms(v, pos, neg) {
@@ -133,11 +134,12 @@ function fmtCoord(c, code, mode) {
   }
   return `E ${nf(c[0], 2)}  N ${nf(c[1], 2)}`;
 }
+const nElem = n => tn("v_gis.elementi_n", n, { f: n.toLocaleString(LOCALE) });
 const hexToRgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
 
 // ---------------------------------------------------------------- visualizzatore
 export async function mount(ctx) {
-  const prog = loading(ctx.el, "Apertura dei dati geografici");
+  const prog = loading(ctx.el, tr("v_gis.apertura_dati_geografici"));
   await libs();
   const ol = window.ol, proj4 = window.proj4;
   ctx.el.innerHTML = "";
@@ -161,8 +163,8 @@ export async function mount(ctx) {
   const splitter = el("div", { class: "gis-split", hidden: true });
   const mapBox = el("div", { class: "gis-mapbox" }, mapEl, coordEl, msgEl);
   const right = el("div", { class: "gis-right" }, mapBox, splitter, tableWrap);
-  const left = el("div", { class: "gis-left" }, el("div", { class: "gis-left-head" }, el("span", { class: "label" }, "Livelli"),
-    button("", "plus", () => addFromPicker(), { iconOnly: true, title: "Aggiungi livelli (anche trascinando i file sulla mappa)" })), layerList);
+  const left = el("div", { class: "gis-left" }, el("div", { class: "gis-left-head" }, el("span", { class: "label" }, tr("v_gis.livelli")),
+    button("", "plus", () => addFromPicker(), { iconOnly: true, title: tr("v_gis.aggiungi_livelli_anche_trascinando_i") })), layerList);
   ctx.el.append(el("div", { class: "gis" }, left, right));
 
   // ---------- mappa
@@ -192,34 +194,34 @@ export async function mount(ctx) {
   }
 
   // ---------- barra strumenti
-  const baseSel = el("select", { title: "Sfondo cartografico" }, BASES.map(b => el("option", { value: b.id }, b.name)));
+  const baseSel = el("select", { title: tr("v_gis.sfondo_cartografico") }, BASES.map(b => el("option", { value: b.id }, b.name)));
   baseSel.addEventListener("change", () => { settings = { ...settings, id: baseSel.value }; saveSettings(settings); applyBase(); });
   const tools = {};
   const toolBtn = (id, label, icon, title) => (tools[id] = button(label, icon, () => setTool(id), { title }));
-  const dispSel = el("select", { title: "Sistema delle coordinate del cursore" },
-    el("option", { value: "EPSG:4326|dec" }, "WGS84 gradi decimali"), el("option", { value: "EPSG:4326|gms" }, "WGS84 gradi, primi, secondi"),
+  const dispSel = el("select", { title: tr("v_gis.sistema_coordinate_cursore") },
+    el("option", { value: "EPSG:4326|dec" }, tr("v_gis.wgs84_gradi_decimali")), el("option", { value: "EPSG:4326|gms" }, tr("v_gis.wgs84_gradi_primi_secondi")),
     crsChoices().filter(c => c.code !== 4326).map(c => el("option", { value: "EPSG:" + c.code + "|dec" }, `${c.name} (EPSG:${c.code})`)));
   dispSel.addEventListener("change", () => { [dispCode, dispMode] = dispSel.value.split("|"); });
-  const tableBtn = button("Tabella attributi", "table", () => showTable(tableWrap.hidden), { title: "Mostra o nasconde la tabella degli attributi del livello attivo" });
+  const tableBtn = button(tr("v_gis.tabella_attributi"), "table", () => showTable(tableWrap.hidden), { title: tr("v_gis.mostra_nasconde_tabella_attributi_livello") });
   ctx.tb.append(
-    button("Aggiungi livello", "plus", () => addFromPicker()),
+    button(tr("v_gis.aggiungi_livello"), "plus", () => addFromPicker()),
     el("span", { class: "sep" }),
-    el("label", {}, "Sfondo", baseSel),
+    el("label", {}, tr("v_gis.sfondo"), baseSel),
     button("", '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
-      async () => { const s = await baseSettingsDialog(settings); if (s) { settings = s; saveSettings(s); applyBase(); } }, { iconOnly: true, title: "Impostazioni dello sfondo (chiavi, servizi personalizzati)" }),
+      async () => { const s = await baseSettingsDialog(settings); if (s) { settings = s; saveSettings(s); applyBase(); } }, { iconOnly: true, title: tr("v_gis.impostazioni_dello_sfondo_chiavi_servizi") }),
     el("span", { class: "sep" }),
-    button("", "fit", () => fitAll(), { iconOnly: true, title: "Adatta la vista a tutti i livelli" }),
-    toolBtn("select", "Seleziona", '<svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 2-2 6z"/></svg>', "Clic = seleziona (Ctrl aggiunge o toglie) · Ctrl+trascina = selezione a riquadro"),
-    toolBtn("length", "Distanza", "ruler", "Misura una distanza: clic sui vertici, doppio clic per finire"),
-    toolBtn("area", "Area", '<svg viewBox="0 0 24 24"><path d="M4 18L8 5l11 3-2 11z"/></svg>', "Misura un'area: clic sui vertici, doppio clic per chiudere"),
-    button("", "trash", () => clearMeasures(), { iconOnly: true, title: "Cancella le misure" }),
+    button("", "fit", () => fitAll(), { iconOnly: true, title: tr("v_gis.adatta_vista_tutti_i_livelli") }),
+    toolBtn("select", tr("v_gis.seleziona"), '<svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 2-2 6z"/></svg>', tr("v_gis.clic_seleziona_ctrl_aggiunge_toglie")),
+    toolBtn("length", tr("v_gis.distanza"), "ruler", tr("v_gis.misura_distanza_clic_sui_vertici")),
+    toolBtn("area", tr("v_gis.area"), '<svg viewBox="0 0 24 24"><path d="M4 18L8 5l11 3-2 11z"/></svg>', tr("v_gis.misura_area_clic_sui_vertici")),
+    button("", "trash", () => clearMeasures(), { iconOnly: true, title: tr("v_gis.cancella_misure") }),
     el("span", { class: "sep" }),
     tableBtn,
     el("span", { class: "sep" }),
-    el("label", {}, "Coordinate", dispSel),
+    el("label", {}, tr("v_gis.coordinate"), dispSel),
     el("span", { class: "grow" }),
-    button("PNG", "camera", () => exportView("png"), { title: "Salva la vista come immagine PNG" }),
-    button("PDF", "download", () => exportView("pdf"), { title: "Salva la vista come PDF" }),
+    button("PNG", "camera", () => exportView("png"), { title: tr("v_gis.salva_vista_come_immagine_png") }),
+    button("PDF", "download", () => exportView("pdf"), { title: tr("v_gis.salva_vista_come_pdf") }),
   );
   applyBase();
 
@@ -250,12 +252,12 @@ export async function mount(ctx) {
     if (g.getType() === "Polygon") {
       const a = ol.sphere.getArea(g, { projection: VIEW });
       const ring = new ol.geom.LineString(g.getCoordinates()[0]);
-      let s = `<b>${fmtArea(a)}</b><br>perimetro ${fmtLen(ol.sphere.getLength(ring, { projection: VIEW }))}`;
-      if (planarCode) s += `<br><span>piana ${planarCode}: ${fmtArea(g.clone().transform(VIEW, planarCode).getArea())}</span>`;
+      let s = `<b>${fmtArea(a)}</b><br>${tr("v_gis.perimetro")} ${fmtLen(ol.sphere.getLength(ring, { projection: VIEW }))}`;
+      if (planarCode) s += `<br><span>${tr("v_gis.piana_0", planarCode)} ${fmtArea(g.clone().transform(VIEW, planarCode).getArea())}</span>`;
       return s;
     }
     let s = `<b>${fmtLen(ol.sphere.getLength(g, { projection: VIEW }))}</b>`;
-    if (planarCode) s += `<br><span>piana ${planarCode}: ${fmtLen(g.clone().transform(VIEW, planarCode).getLength())}</span>`;
+    if (planarCode) s += `<br><span>${tr("v_gis.piana_0", planarCode)} ${fmtLen(g.clone().transform(VIEW, planarCode).getLength())}</span>`;
     return s;
   }
   function clearMeasures() { measureSrc.clear(); tips.forEach(t => map.removeOverlay(t)); tips.length = 0; if (draw) draw.abortDrawing(); }
@@ -330,7 +332,7 @@ export async function mount(ctx) {
     if (!code && L.kind === "vector") { const g = guessCrs(L); code = g ? "EPSG:" + g : null; L.guessed = true; }
     if (!code && L.kind === "raster") { const [x0, y0, x1, y1] = L.extent; if (x0 >= -180 && x1 <= 360 && y0 >= -90 && y1 <= 90) code = "EPSG:4326"; L.guessed = true; }
     L.code = code || "EPSG:4326";
-    if (!code) L.note = [L.note, "sistema di riferimento sconosciuto: sceglilo nelle proprieta' del livello"].filter(Boolean).join(" · ");
+    if (!code) L.note = [L.note, tr("v_gis.sistema_riferimento_sconosciuto_sceglilo_nelle")].filter(Boolean).join(" · ");
     if (L.kind === "vector") {
       L.features.forEach((f, i) => {
         f.__L = L; f.__i = i;
@@ -397,19 +399,19 @@ export async function mount(ctx) {
   const openStyle = new Set();
   function renderLayers() {
     layerList.innerHTML = "";
-    if (!layers.length) layerList.append(el("p", { class: "note gis-empty" }, "Nessun livello. Trascina qui shapefile, GeoJSON, KML/KMZ, GPX, GeoPackage o GeoTIFF."));
+    if (!layers.length) layerList.append(el("p", { class: "note gis-empty" }, tr("v_gis.nessun_livello_trascina_qui_shapefile")));
     [...layers].reverse().forEach(L => {
-      const vis = el("input", { type: "checkbox", title: "Visibile" });
+      const vis = el("input", { type: "checkbox", title: tr("v_gis.visibile") });
       vis.checked = L.visible;
       vis.addEventListener("change", () => { L.visible = vis.checked; L.ol.setVisible(L.visible); });
       const idx = layers.indexOf(L);
-      const count = L.kind === "vector" ? `${L.features.length.toLocaleString("it-IT")} elementi` : `${L.srcWidth}×${L.srcHeight} px · ${L.bands} band${L.bands > 1 ? "e" : "a"}`;
+      const count = L.kind === "vector" ? nElem(L.features.length) : `${L.srcWidth}×${L.srcHeight} px · ` + tn("v_gis.bande", L.bands);
       const card = el("div", { class: "gis-layer" + (L === active ? " active" : "") },
         el("div", { class: "gis-layer-row" }, vis, swatch(L),
           el("span", { class: "gis-layer-name", title: L.name, onclick: () => { if (L.kind === "vector") setActive(L); } }, L.name),
-          button("", "search", () => fitExtent(layerExtent(L)), { iconOnly: true, title: "Zoom sul livello" }),
-          button("", '<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6"/><circle cx="18" cy="16" r="3"/></svg>', () => { openStyle.has(L) ? openStyle.delete(L) : openStyle.add(L); renderLayers(); }, { iconOnly: true, title: "Stile e proprieta' del livello", class: openStyle.has(L) ? "on" : "" })),
-        el("div", { class: "gis-layer-sub" }, el("span", { class: L.guessed ? "warn" : "" }, (L.guessed ? "ipotizzato: " : "") + crsName(L.code)), " · ", count),
+          button("", "search", () => fitExtent(layerExtent(L)), { iconOnly: true, title: tr("v_gis.zoom_livello") }),
+          button("", '<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6"/><circle cx="18" cy="16" r="3"/></svg>', () => { openStyle.has(L) ? openStyle.delete(L) : openStyle.add(L); renderLayers(); }, { iconOnly: true, title: tr("v_gis.stile_proprieta_livello"), class: openStyle.has(L) ? "on" : "" })),
+        el("div", { class: "gis-layer-sub" }, el("span", { class: L.guessed ? "warn" : "" }, (L.guessed ? tr("v_gis.ipotizzato") : "") + crsName(L.code)), " · ", count),
         L.note ? el("div", { class: "gis-layer-sub note" }, L.note) : null,
         openStyle.has(L) ? styleEditor(L, idx) : null);
       layerList.append(card);
@@ -423,13 +425,13 @@ export async function mount(ctx) {
     s.addEventListener("change", async () => {
       let code = s.value;
       if (code === "?") {
-        const ta = el("textarea", { class: "field", rows: 5, style: { width: "100%", fontFamily: "var(--mono)" }, placeholder: "Es. 3003, EPSG:6707, il contenuto di un file .prj o una stringa +proj=..." });
-        const v = await modal("Sistema di riferimento", el("div", { style: { display: "grid", gap: "6px", minWidth: "420px" } }, ta,
-          el("p", { class: "note" }, "I codici non in elenco si definiscono incollando il WKT (.prj) o la stringa proj4 (da epsg.io).")), [{ label: "Annulla", value: null }, { label: "Applica", primary: true, value: () => ta.value.trim() }]);
+        const ta = el("textarea", { class: "field", rows: 5, style: { width: "100%", fontFamily: "var(--mono)" }, placeholder: tr("v_gis.es_3003_epsg_6707_contenuto") });
+        const v = await modal(tr("v_gis.sistema_riferimento"), el("div", { style: { display: "grid", gap: "6px", minWidth: "420px" } }, ta,
+          el("p", { class: "note" }, tr("v_gis.i_codici_non_elenco_si"))), [{ label: tr("common.annulla"), value: null }, { label: tr("common.applica"), primary: true, value: () => ta.value.trim() }]);
         if (!v) { s.value = L.code; return; }
         const known = /^\d+$/.test(v) || /^epsg:\d+$/i.test(v) ? null : codeFromPrj(v);
         code = useCrs(ol, proj4, known || v);
-        if (!code) { toast("Sistema non riconosciuto: incolla il WKT o la stringa proj4", true, 5000); s.value = L.code; return; }
+        if (!code) { toast(tr("v_gis.sistema_non_riconosciuto_incolla_wkt"), true, 5000); s.value = L.code; return; }
       }
       L.code = code; L.guessed = false;
       L.note = (L.note || "").replace(/ ?·? ?sistema di riferimento sconosciuto[^·]*/, "");
@@ -445,7 +447,7 @@ export async function mount(ctx) {
     const box = el("div", { class: "gis-style" });
     const op = el("input", { type: "range", min: 0, max: 1, step: 0.05, value: L.opacity });
     op.addEventListener("input", () => { L.opacity = +op.value; L.ol.setOpacity(L.opacity); });
-    box.append(row("Sistema", crsSelect(L)), row("Opacita'", op));
+    box.append(row(tr("v_gis.sistema"), crsSelect(L)), row(tr("v_gis.opacita"), op));
     if (L.kind === "vector") {
       const s = L.style;
       const inp = (type, key, attrs = {}) => {
@@ -464,21 +466,21 @@ export async function mount(ctx) {
       if (L.fileStyles) {
         const fs = el("input", { type: "checkbox" }); fs.checked = s.fileStyles;
         fs.addEventListener("change", () => { s.fileStyles = fs.checked; restyle(L); renderLayers(); });
-        box.append(row("Stili del file", fs));
+        box.append(row(tr("v_gis.stili_file"), fs));
       }
       if (!s.fileStyles) {
-        box.append(row("Linea", inp("color", "color"), inp("number", "width", { min: 0, max: 20, step: 0.5, class: "num" })),
-          row("Riempimento", fillC, inp("range", "fillOpacity", { min: 0, max: 1, step: 0.05 })),
-          row("Punti", inp("number", "radius", { min: 1, max: 30, step: 1, class: "num" })),
-          row("Colora per", fieldSel("byField", "(un colore)")));
+        box.append(row(tr("v_gis.linea"), inp("color", "color"), inp("number", "width", { min: 0, max: 20, step: 0.5, class: "num" })),
+          row(tr("v_gis.riempimento"), fillC, inp("range", "fillOpacity", { min: 0, max: 1, step: 0.05 })),
+          row(tr("v_gis.punti"), inp("number", "radius", { min: 1, max: 30, step: 1, class: "num" })),
+          row(tr("v_gis.colora"), fieldSel("byField", tr("v_gis.colore"))));
         if (s.byField) {
           const leg = el("div", { class: "gis-legend" });
           [...L.cats.entries()].slice(0, 40).forEach(([v, c]) => leg.append(el("div", {}, el("span", { class: "gis-sw", style: { background: c, borderColor: c } }), v || "(vuoto)")));
-          if (L.cats.size > 40) leg.append(el("div", { class: "note" }, `... altre ${L.cats.size - 40} categorie`));
+          if (L.cats.size > 40) leg.append(el("div", { class: "note" }, tr("v_gis.altre_0_categorie", L.cats.size - 40)));
           box.append(leg);
         }
       }
-      box.append(row("Etichette", fieldSel("label", "(nessuna)")));
+      box.append(row(tr("v_gis.etichette"), fieldSel("label", tr("v_gis.nessuna"))));
     } else if (L.band) {
       const cm = el("select", { class: "field" }, Object.keys(io.COLORMAPS).map(k => el("option", { value: k }, k)));
       cm.value = L.colormap;
@@ -486,17 +488,17 @@ export async function mount(ctx) {
       const mx = el("input", { type: "number", class: "num", value: +L.max.toPrecision(6), step: "any" });
       const apply = () => { L.colormap = cm.value; L.min = +mn.value; L.max = +mx.value; setRasterSource(L); };
       [cm, mn, mx].forEach(x => x.addEventListener("change", apply));
-      box.append(row("Colori", cm), row("Intervallo", mn, mx),
+      box.append(row(tr("v_gis.colori"), cm), row(tr("v_gis.intervallo"), mn, mx),
         el("div", { class: "gis-prop-btns" },
           el("button", { class: "btn", onclick: () => { mn.value = +L.stat.p2.toPrecision(6); mx.value = +L.stat.p98.toPrecision(6); apply(); } }, "2-98%"),
-          el("button", { class: "btn", onclick: () => { mn.value = +L.stat.min.toPrecision(6); mx.value = +L.stat.max.toPrecision(6); apply(); } }, "Min-max")),
-        el("div", { class: "note" }, `Valori: ${nf(L.stat.min, 2)} ÷ ${nf(L.stat.max, 2)}${L.nodata !== null ? ` · nessun dato = ${L.nodata}` : ""}`));
+          el("button", { class: "btn", onclick: () => { mn.value = +L.stat.min.toPrecision(6); mx.value = +L.stat.max.toPrecision(6); apply(); } }, tr("v_gis.min_max"))),
+        el("div", { class: "note" }, tr("v_gis.valori_0_1", nf(L.stat.min, 2), nf(L.stat.max, 2)) + `${L.nodata !== null ? tr("v_gis.nessun_dato_0", L.nodata) : ""}`));
     }
     box.append(el("div", { class: "gis-prop-btns" },
-      button("", '<svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>', () => { if (idx < layers.length - 1) { layers.splice(idx, 1); layers.splice(idx + 1, 0, L); reorder(); renderLayers(); } }, { iconOnly: true, title: "Porta sopra" }),
-      button("", '<svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg>', () => { if (idx > 0) { layers.splice(idx, 1); layers.splice(idx - 1, 0, L); reorder(); renderLayers(); } }, { iconOnly: true, title: "Porta sotto" }),
+      button("", '<svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>', () => { if (idx < layers.length - 1) { layers.splice(idx, 1); layers.splice(idx + 1, 0, L); reorder(); renderLayers(); } }, { iconOnly: true, title: tr("v_gis.porta_sopra") }),
+      button("", '<svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg>', () => { if (idx > 0) { layers.splice(idx, 1); layers.splice(idx - 1, 0, L); reorder(); renderLayers(); } }, { iconOnly: true, title: tr("v_gis.porta_sotto") }),
       el("span", { class: "grow" }),
-      button("Rimuovi", "trash", () => removeLayer(L), { title: "Toglie il livello dalla mappa (il file non cambia)" })));
+      button(tr("v_gis.rimuovi"), "trash", () => removeLayer(L), { title: tr("v_gis.toglie_livello_mappa_file_non") })));
     return box;
   }
   let rlTimer = 0;
@@ -539,7 +541,7 @@ export async function mount(ctx) {
     targets.forEach(L => L.source.forEachFeatureIntersectingExtent(ext, f => { found.push(f); }));
     found.forEach(f => sel.add(f));
     selectionChanged();
-    toast(`${found.length} elementi aggiunti alla selezione`, false, 1500);
+    toast(tr("v_gis.0_elementi_aggiunti_selezione", found.length), false, 1500);
   });
   map.addInteraction(dragBox);
 
@@ -547,10 +549,10 @@ export async function mount(ctx) {
     const p = io.props(f);
     const keys = Object.keys(p).filter(k => p[k] !== null && p[k] !== "" && p[k] !== undefined);
     popup.innerHTML = "";
-    popup.append(...[el("div", { class: "gis-popup-head" }, el("b", {}, f.__L.name), el("button", { class: "btn", title: "Chiudi", onclick: () => { popup.hidden = true; } }, "×")),
-      el("table", {}, keys.slice(0, 16).map(k => el("tr", {}, el("th", {}, k), el("td", {}, typeof p[k] === "number" ? p[k].toLocaleString("it-IT", { maximumFractionDigits: 6 }) : String(p[k]))))),
-      keys.length > 16 ? el("div", { class: "note" }, `... altri ${keys.length - 16} campi nella tabella attributi`) : null,
-      keys.length ? null : el("div", { class: "note" }, "Nessun attributo")].filter(Boolean));
+    popup.append(...[el("div", { class: "gis-popup-head" }, el("b", {}, f.__L.name), el("button", { class: "btn", title: tr("common.chiudi"), onclick: () => { popup.hidden = true; } }, "×")),
+      el("table", {}, keys.slice(0, 16).map(k => el("tr", {}, el("th", {}, k), el("td", {}, typeof p[k] === "number" ? p[k].toLocaleString(LOCALE, { maximumFractionDigits: 6 }) : String(p[k]))))),
+      keys.length > 16 ? el("div", { class: "note" }, tr("v_gis.altri_0_campi_tabella_attributi", keys.length - 16)) : null,
+      keys.length ? null : el("div", { class: "note" }, tr("v_gis.nessun_attributo"))].filter(Boolean));
     popup.hidden = false;
     popupOv.setPosition(coord);
   }
@@ -570,7 +572,7 @@ export async function mount(ctx) {
 
   // ---------- tabella attributi
   const ROW_H = 24;
-  const tSearch = el("input", { type: "search", class: "field", placeholder: "Cerca negli attributi..." });
+  const tSearch = el("input", { type: "search", class: "field", placeholder: tr("v_gis.cerca_negli_attributi") });
   const tOnlySel = el("input", { type: "checkbox" });
   const tCount = el("span", { class: "note" });
   const tTitle = el("b", {});
@@ -578,13 +580,13 @@ export async function mount(ctx) {
   const tHead = el("div", { class: "gis-thead" });
   const tBody = el("div", { class: "gis-tbody" });
   tScroll.append(tHead, tBody);
-  tableWrap.append(el("div", { class: "gis-ttools" }, tTitle, tSearch, el("label", { class: "note" }, tOnlySel, "solo selezionati"),
-    el("button", { class: "btn", onclick: () => { rowsView.forEach(i => sel.add(active.features[i])); selectionChanged(); } }, "Seleziona risultati"),
-    el("button", { class: "btn", onclick: () => zoomTo([...sel].filter(f => f.__L === active)) }, "Zoom selezione"),
-    el("button", { class: "btn", onclick: () => { sel.clear(); selectionChanged(); } }, "Deseleziona"),
+  tableWrap.append(el("div", { class: "gis-ttools" }, tTitle, tSearch, el("label", { class: "note" }, tOnlySel, tr("v_gis.solo_selezionati")),
+    el("button", { class: "btn", onclick: () => { rowsView.forEach(i => sel.add(active.features[i])); selectionChanged(); } }, tr("v_gis.seleziona_risultati")),
+    el("button", { class: "btn", onclick: () => zoomTo([...sel].filter(f => f.__L === active)) }, tr("v_gis.zoom_selezione")),
+    el("button", { class: "btn", onclick: () => { sel.clear(); selectionChanged(); } }, tr("v_gis.deseleziona")),
     el("button", { class: "btn", onclick: () => exportCsv() }, "CSV"),
     el("span", { class: "grow" }), tCount,
-    el("button", { class: "btn", title: "Chiudi la tabella", onclick: () => showTable(false) }, "×")), tScroll);
+    el("button", { class: "btn", title: tr("v_gis.chiudi_tabella"), onclick: () => showTable(false) }, "×")), tScroll);
   let rowsView = [], sortKey = null, sortDir = 1, cols = [], colW = [], lastClick = -1;
   tSearch.addEventListener("input", () => renderTableSoon(false));
   tOnlySel.addEventListener("change", () => renderTable(false));
@@ -618,7 +620,7 @@ export async function mount(ctx) {
   function renderTableSoon(scroll) { clearTimeout(rtTimer); rtTimer = setTimeout(() => renderTable(scroll), 60); }
   function renderTable(scroll) {
     if (tableWrap.hidden) return;
-    tTitle.textContent = active ? active.name : "Nessun livello vettoriale";
+    tTitle.textContent = active ? active.name : tr("v_gis.nessun_livello_vettoriale");
     cols = active ? active.fields.slice() : [];
     colW = cols.map(c => {
       let n = c.length;
@@ -626,12 +628,12 @@ export async function mount(ctx) {
       return Math.min(320, Math.max(60, n * 7.5 + 18));
     });
     tHead.innerHTML = "";
-    tHead.append(el("div", { class: "gis-cell num" }, "#"), ...cols.map((c, k) => el("div", { class: "gis-cell", style: { width: colW[k] + "px" }, title: "Ordina per " + c,
+    tHead.append(el("div", { class: "gis-cell num" }, "#"), ...cols.map((c, k) => el("div", { class: "gis-cell", style: { width: colW[k] + "px" }, title: tr("v_gis.ordina") + c,
       onclick: () => { if (sortKey === c) sortDir = -sortDir; else { sortKey = c; sortDir = 1; } renderTable(false); } }, c + (sortKey === c ? (sortDir > 0 ? " ▲" : " ▼") : ""))));
     rowsView = filteredRows();
     tBody.style.height = rowsView.length * ROW_H + "px";
     const nSel = active ? active.features.filter(f => sel.has(f)).length : 0;
-    tCount.textContent = active ? `${rowsView.length.toLocaleString("it-IT")} di ${active.features.length.toLocaleString("it-IT")} · ${nSel} selezionati` : "";
+    tCount.textContent = active ? tr("v_gis.0_1_2_selezionati", rowsView.length.toLocaleString(LOCALE), active.features.length.toLocaleString(LOCALE), nSel) : "";
     if (scroll && active) { const f = [...sel].reverse().find(x => x.__L === active); if (f) return scrollToFeature(f); }
     paintRows();
   }
@@ -644,7 +646,7 @@ export async function mount(ctx) {
       const i = rowsView[r], f = active.features[i];
       const row = el("div", { class: "gis-row" + (sel.has(f) ? " sel" : ""), style: { top: r * ROW_H + "px" } },
         el("div", { class: "gis-cell num" }, String(i + 1)),
-        ...cols.map((c, k) => { const v = f.get(c); return el("div", { class: "gis-cell" + (typeof v === "number" ? " n" : ""), style: { width: colW[k] + "px" }, title: v === null || v === undefined ? "" : String(v) }, v === null || v === undefined ? "" : typeof v === "number" ? v.toLocaleString("it-IT", { maximumFractionDigits: 6 }) : String(v)); }));
+        ...cols.map((c, k) => { const v = f.get(c); return el("div", { class: "gis-cell" + (typeof v === "number" ? " n" : ""), style: { width: colW[k] + "px" }, title: v === null || v === undefined ? "" : String(v) }, v === null || v === undefined ? "" : typeof v === "number" ? v.toLocaleString(LOCALE, { maximumFractionDigits: 6 }) : String(v)); }));
       row.addEventListener("click", e => {
         if (e.shiftKey && lastClick >= 0) { const a = Math.min(lastClick, r), b = Math.max(lastClick, r); for (let k = a; k <= b; k++) sel.add(active.features[rowsView[k]]); selectionChanged(false); return; }
         lastClick = r;
@@ -665,7 +667,7 @@ export async function mount(ctx) {
   }
   async function exportCsv() {
     if (!active) return;
-    const q = v => { const s = v === null || v === undefined ? "" : typeof v === "number" ? String(v).replace(".", ",") : String(v); return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const q = v => { const s = v === null || v === undefined ? "" : typeof v === "number" ? String(v).replace(".", ",") : String(v); return /[;\x22\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s; };
     const lines = [cols.map(q).join(";"), ...rowsView.map(i => cols.map(c => q(active.features[i].get(c))).join(";"))];
     const { saveBlobAs } = await import("../core.js");
     await saveBlobAs(active.name + ".csv", new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv" }), dirName(ctx.path));
@@ -681,7 +683,7 @@ export async function mount(ctx) {
 
   function updateStatus() {
     const nv = layers.filter(L => L.kind === "vector").reduce((s, L) => s + L.features.length, 0);
-    ctx.status(`${layers.length} livell${layers.length === 1 ? "o" : "i"} · ${nv.toLocaleString("it-IT")} elementi${sel.size ? ` · ${sel.size} selezionati` : ""}`);
+    ctx.status(tn("v_gis.livelli_n", layers.length) + " · " + nElem(nv) + (sel.size ? tr("v_gis.0_selezionati", sel.size) : ""));
   }
 
   // ---------- apertura dei file
@@ -719,9 +721,9 @@ export async function mount(ctx) {
     if (paths?.length) await addPaths(paths.filter(p => GIS_EXT.has(extOf(p)) || extOf(p) === "json"));
   }
 
-  prog.set?.(0.3, "Lettura del file");
+  prog.set?.(0.3, tr("v_gis.lettura_file"));
   const first = await addPaths([ctx.path], false);
-  if (!first.length) throw new Error("Nessun dato geografico leggibile in questo file");
+  if (!first.length) throw new Error(tr("v_gis.nessun_dato_geografico_leggibile_questo"));
   if (first.some(L => L.kind === "vector")) showTable(first.reduce((s, L) => s + (L.features?.length || 0), 0) <= 50000);
   requestAnimationFrame(() => requestAnimationFrame(() => { map.updateSize(); fitAll(); }));
 
@@ -760,11 +762,11 @@ export async function mount(ctx) {
   }
   async function viewBytes(fmt) {
     let c;
-    try { c = await viewCanvas(); } catch (e) { throw new Error("Vista non esportabile: " + e.message); }
+    try { c = await viewCanvas(); } catch (e) { throw new Error(tr("v_gis.vista_non_esportabile") + e.message); }
     const type = fmt === "png" ? "image/png" : "image/jpeg";
     let blob;
-    try { blob = await new Promise((r, j) => c.toBlob(b => (b ? r(b) : j(new Error("immagine vuota"))), type, 0.92)); } catch {
-      throw new Error("Lo sfondo cartografico non consente l'esportazione: scegli 'Nessuno sfondo' o un servizio con CORS");
+    try { blob = await new Promise((r, j) => c.toBlob(b => (b ? r(b) : j(new Error(tr("v_gis.immagine_vuota")))), type, 0.92)); } catch {
+      throw new Error(tr("v_gis.sfondo_cartografico_non_consente_l"));
     }
     const bytes = new Uint8Array(await blob.arrayBuffer());
     return fmt === "pdf" ? jpegToPdf(bytes, c.width, c.height, ctx.name) : bytes;
@@ -780,21 +782,21 @@ export async function mount(ctx) {
   // ---------- salvataggio nei formati vettoriali
   async function exportOptions(ext) {
     const vec = layers.filter(L => L.kind === "vector");
-    if (!vec.length) throw new Error("Non ci sono livelli vettoriali da salvare");
+    if (!vec.length) throw new Error(tr("v_gis.non_ci_sono_livelli_vettoriali"));
     const checks = vec.map(L => { const c = el("input", { type: "checkbox" }); c.checked = L.visible; return [L, c]; });
     const onlySel = el("input", { type: "checkbox", disabled: sel.size ? null : "" });
     const needCrs = ext === "zip";
-    const crsSel = el("select", { class: "field" }, el("option", { value: "" }, "Sistema di ogni livello (come nel file)"), crsChoices().map(c => el("option", { value: "EPSG:" + c.code }, `${c.name} · ${c.code}`)));
+    const crsSel = el("select", { class: "field" }, el("option", { value: "" }, tr("v_gis.sistema_ogni_livello_come_file")), crsChoices().map(c => el("option", { value: "EPSG:" + c.code }, `${c.name} · ${c.code}`)));
     if (vec.length === 1 && vec[0].guessed) crsSel.value = "EPSG:4326";
-    const body = el("div", { class: "gis-dialog" }, el("div", { class: "label" }, "Livelli da salvare"),
-      ...checks.map(([L, c]) => el("label", { class: "gis-check" }, c, `${L.name} (${L.features.length.toLocaleString("it-IT")} elementi)`)),
-      el("label", { class: "gis-check" }, onlySel, `solo gli elementi selezionati (${sel.size})`),
-      needCrs ? el("label", { class: "gis-form" }, "Sistema di riferimento", crsSel) : el("p", { class: "note" }, ext === "gpx" ? "GPX: coordinate WGS84; si salvano solo punti e linee." : "Coordinate in WGS84 (gradi), come richiesto dal formato."));
+    const body = el("div", { class: "gis-dialog" }, el("div", { class: "label" }, tr("v_gis.livelli_salvare")),
+      ...checks.map(([L, c]) => el("label", { class: "gis-check" }, c, tr("v_gis.0_1_elementi", L.name, L.features.length.toLocaleString(LOCALE)))),
+      el("label", { class: "gis-check" }, onlySel, tr("v_gis.solo_elementi_selezionati_0", sel.size)),
+      needCrs ? el("label", { class: "gis-form" }, tr("v_gis.sistema_riferimento"), crsSel) : el("p", { class: "note" }, ext === "gpx" ? tr("v_gis.gpx_coordinate_wgs84_si_salvano") : tr("v_gis.coordinate_wgs84_gradi_come_richiesto")));
     if (vec.length === 1 && !sel.size && !needCrs) return { layers: vec, onlySel: false, crs: null };
-    const ok = await modal(`Salva in ${ext === "zip" ? "shapefile (ZIP)" : ext.toUpperCase()}`, body, [{ label: "Annulla", value: false }, { label: "Salva", value: true, primary: true }]);
+    const ok = await modal(tr("v_gis.salva_0", ext === "zip" ? tr("v_gis.shapefile_zip") : ext.toUpperCase()), body, [{ label: tr("common.annulla"), value: false }, { label: tr("common.salva"), value: true, primary: true }]);
     if (!ok) return null;
     const chosen = checks.filter(([, c]) => c.checked).map(([L]) => L);
-    if (!chosen.length) throw new Error("Nessun livello scelto");
+    if (!chosen.length) throw new Error(tr("v_gis.nessun_livello_scelto"));
     return { layers: chosen, onlySel: onlySel.checked, crs: crsSel.value || null };
   }
   // elementi da scrivere: geometrie ricavate da quelle originali del file (nessuna perdita di precisione)
@@ -856,7 +858,7 @@ export async function mount(ctx) {
     }
     if (ext === "gpx") {
       const feats = opt.layers.flatMap(L => exportFeatures(L, "EPSG:4326", opt.onlySel)).filter(f => /Point|LineString/.test(f.getGeometry()?.getType() || ""));
-      if (!feats.length) throw new Error("GPX contiene solo punti e linee: nessun elemento adatto");
+      if (!feats.length) throw new Error(tr("v_gis.gpx_contiene_solo_punti_linee"));
       return enc.encode(new ol.format.GPX().writeFeatures(feats, { dataProjection: "EPSG:4326", featureProjection: "EPSG:4326" }));
     }
     if (ext === "zip") {
@@ -865,12 +867,12 @@ export async function mount(ctx) {
         const code = opt.crs || L.code;
         const wkt = wktFor(code) || (code === L.code && L.prj) || null;
         const files = io.writeShapefiles([{ name: L.name, features: exportFeatures(L, code, opt.onlySel) }], wkt);
-        if (!wkt) toast(`${L.name}: sistema ${code} senza .prj standard (scrivi il .prj a mano o scegli un sistema in elenco)`, true, 6000);
+        if (!wkt) toast(tr("v_gis.0_sistema_1_senza_prj", L.name, code), true, 6000);
         for (const [n, b] of Object.entries(files)) zip.file(n, b);
       }
       return zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
     }
-    throw new Error("Formato non supportato");
+    throw new Error(tr("v_gis.formato_non_supportato"));
   }
 
   const onKey = e => {
@@ -885,17 +887,17 @@ export async function mount(ctx) {
     onShow() { requestAnimationFrame(() => map.updateSize()); },
     saveInPlace: false,
     saveFormats: SAVE,
-    saveLabels: { geojson: "GeoJSON (WGS84)", kml: "KML per Google Earth (WGS84)", kmz: "KMZ (KML compresso)", gpx: "GPX (punti e tracce)",
-      zip: "Shapefile in archivio ZIP (.shp .shx .dbf .prj .cpg)", png: "Immagine PNG della vista", jpg: "Immagine JPG della vista", pdf: "PDF della vista" },
-    saveNote: "I formati vettoriali salvano i livelli della mappa con i loro attributi; PNG, JPG e PDF salvano la vista come la vedi, con le attribuzioni dello sfondo.",
+    saveLabels: { geojson: "GeoJSON (WGS84)", kml: tr("v_gis.kml_google_earth_wgs84"), kmz: tr("v_gis.kmz_kml_compresso"), gpx: tr("v_gis.gpx_punti_tracce"),
+      zip: tr("v_gis.shapefile_archivio_zip_shp_shx"), png: tr("v_gis.immagine_png_vista"), jpg: tr("v_gis.immagine_jpg_vista"), pdf: tr("v_gis.pdf_vista") },
+    saveNote: tr("v_gis.i_formati_vettoriali_salvano_i"),
     saveAsName: () => ctx.name.replace(/\.[^.]+$/, "") + (["geojson", "kml", "kmz", "gpx"].includes(ctx.ext) ? "_copia." + ctx.ext : ".geojson"),
     async save(target) {
       const ext = extOf(target);
       let bytes;
       if (["png", "jpg", "jpeg", "pdf"].includes(ext)) bytes = await viewBytes(ext === "jpeg" ? "jpg" : ext);
       else if (["geojson", "json", "kml", "kmz", "gpx", "zip"].includes(ext)) bytes = await saveVector(target, ext);
-      else throw new Error("Formati disponibili: " + SAVE.join(", ").toUpperCase());
-      if (!bytes) throw new Error("Salvataggio annullato");
+      else throw new Error(tr("v_gis.formati_disponibili") + SAVE.join(", ").toUpperCase());
+      if (!bytes) throw new Error(tr("v_gis.salvataggio_annullato"));
       await saveBytes(target, bytes);
       return { switchTo: false };
     },

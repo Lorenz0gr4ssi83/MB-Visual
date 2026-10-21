@@ -419,6 +419,7 @@ Librerie in fetch_vendor.py: ol (BSD-2), proj4 2.12.1 (MIT), geotiff 2.1.3 (MIT)
   attribuzione sempre visibile), ortofoto Esri/MapTiler solo con chiave dell'utente, XYZ/WMS personalizzati, "Nessuno sfondo".
   Impostazioni in localStorage "mbv-gis-sfondo". NON incluse: ortofoto PCN (limiti d'uso), EOX Sentinel-2 (commerciale a pagamento).
   OpenLayers: zIndex negativo = livello non disegnato (lo sfondo sta a 0, i livelli da 1).
+- Testi: chiavi v_gis.*, gisio.*, giscrs.*, srv_gis.*, fmt.gis.* in tutte e 5 le lingue (traduzioni unite con i18n_check --merge).
 - Salva con nome: GeoJSON/KML/KMZ/GPX (WGS84), shapefile zip (sistema a scelta; un file per tipo di geometria), PNG/JPG/PDF vista.
 - Campioni: `tests/samples/gis` da `tools/make_gis_samples.py` (Natural Earth pubblico dominio, Copernicus DEM GLO-90; fonti in FONTI.md;
   serve un venv a parte con pyproj e pyshp, NON nell'app). Prove dalla console: `MB.active.api._gis` (map, layers, sel, addPaths, saveVector).

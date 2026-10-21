@@ -18,6 +18,7 @@ import urllib.request
 from email.utils import parsedate_to_datetime
 
 from .paths import TEMP_DIR
+from .i18n import t
 
 CACHE = TEMP_DIR / "gis-tessere"
 MIN_AGE = 7 * 24 * 3600          # minimo chiesto da OSM se il server non dice altro
@@ -48,7 +49,7 @@ def _user_agent() -> str:
 def _check_url(url: str) -> str:
     u = urllib.parse.urlparse(url)
     if u.scheme not in ("http", "https") or not u.netloc:
-        raise ValueError("Indirizzo del servizio di mappe non valido (serve http:// o https://)")
+        raise ValueError(t("srv_gis.indirizzo_servizio_mappe_non_valido"))
     return url
 
 
@@ -64,7 +65,7 @@ def build_url(qs: dict) -> str:
         return _check_url(one.get("u", ""))
     tpl = PROVIDERS.get(p) or (one.get("tpl", "") if p == "xyz" else "")
     if not tpl:
-        raise ValueError("Sfondo sconosciuto")
+        raise ValueError(t("srv_gis.sfondo_sconosciuto"))
     z, x, y = int(one["z"]), int(one["x"]), int(one["y"])
     sub = "abc"[(x + y) % 3]
     url = (tpl.replace("{z}", str(z)).replace("{x}", str(x)).replace("{y}", str(y))

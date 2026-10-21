@@ -1,6 +1,7 @@
 // Sistemi di riferimento per il visualizzatore GIS: quelli piu' usati in Italia, con definizione proj4 e WKT
 // (per i .prj scritti) generate dagli stessi parametri; riconoscimento da .prj, codici EPSG, GeoTIFF, GeoJSON, GeoPackage.
 // Parametri di trasformazione verso WGS84: quelli pubblicati da EPSG (epsg.io) per l'Italia.
+import { t as tr } from "./i18n.js";
 
 const DATUMS = {
   WGS84: { geog: "WGS 84", datum: "WGS_1984", sph: ["WGS 84", 6378137, 298.257223563], p4: "+datum=WGS84" },
@@ -17,13 +18,13 @@ const GEOG_CODE = { WGS84: 4326, ETRS89: 4258, RDN2008: 6706, IGM95: 4670, MM: 4
 // RDN2008: i codici "(N-E)" (6707-6709, 6875, 6876) hanno per EPSG l'ordine Nord-Est, ma shapefile, GeoPackage e GeoTIFF
 // tengono comunque Est-Nord (come GDAL e QGIS): stessa definizione proj4, e nei .prj si scrive il codice E-N corrispondente.
 const TM = [
-  [3003, "Monte Mario / Italy zone 1 (Gauss-Boaga fuso Ovest)", "Monte Mario / Italy zone 1", "MM", 9, 0.9996, 1500000],
-  [3004, "Monte Mario / Italy zone 2 (Gauss-Boaga fuso Est)", "Monte Mario / Italy zone 2", "MM", 15, 0.9996, 2520000],
+  [3003, `Monte Mario / Italy zone 1 (${tr("giscrs.gb_ovest")})`, "Monte Mario / Italy zone 1", "MM", 9, 0.9996, 1500000],
+  [3004, `Monte Mario / Italy zone 2 (${tr("giscrs.gb_est")})`, "Monte Mario / Italy zone 2", "MM", 15, 0.9996, 2520000],
   [7791, "RDN2008 / UTM zone 32N", "RDN2008 / UTM zone 32N", "RDN2008", 9, 0.9996, 500000],
   [7792, "RDN2008 / UTM zone 33N", "RDN2008 / UTM zone 33N", "RDN2008", 15, 0.9996, 500000],
   [7793, "RDN2008 / UTM zone 34N", "RDN2008 / UTM zone 34N", "RDN2008", 21, 0.9996, 500000],
-  [7794, "RDN2008 / Italy zone (fuso Italia)", "RDN2008 / Italy zone (E-N)", "RDN2008", 12, 0.9985, 7000000],
-  [7795, "RDN2008 / Zone 12 (fuso 12)", "RDN2008 / Zone 12 (E-N)", "RDN2008", 12, 1, 3000000],
+  [7794, `RDN2008 / Italy zone (${tr("giscrs.fuso_italia")})`, "RDN2008 / Italy zone (E-N)", "RDN2008", 12, 0.9985, 7000000],
+  [7795, `RDN2008 / Zone 12 (${tr("giscrs.fuso_12")})`, "RDN2008 / Zone 12 (E-N)", "RDN2008", 12, 1, 3000000],
   [6707, "RDN2008 / UTM zone 32N (N-E)", 7791, "RDN2008", 9, 0.9996, 500000],
   [6708, "RDN2008 / UTM zone 33N (N-E)", 7792, "RDN2008", 15, 0.9996, 500000],
   [6709, "RDN2008 / UTM zone 34N (N-E)", 7793, "RDN2008", 21, 0.9996, 500000],
@@ -41,7 +42,7 @@ const TM = [
   [23033, "ED50 / UTM zone 33N", "ED50 / UTM zone 33N", "ED50", 15, 0.9996, 500000],
   [23034, "ED50 / UTM zone 34N", "ED50 / UTM zone 34N", "ED50", 21, 0.9996, 500000],
 ];
-const GEOG_NAMES = { 4326: "WGS 84 (gradi)", 4258: "ETRS89 (gradi)", 6706: "RDN2008 (gradi)", 4670: "IGM95 (gradi)", 4265: "Monte Mario (gradi)", 4230: "ED50 (gradi)" };
+const GEOG_NAMES = Object.fromEntries([[4326, "WGS 84"], [4258, "ETRS89"], [6706, "RDN2008"], [4670, "IGM95"], [4265, "Monte Mario"], [4230, "ED50"]].map(([c, n]) => [c, `${n} (${tr("giscrs.gradi")})`]));
 
 const p4tw = d => d.p4 || `+ellps=${ELL[d.sph[0]]} +towgs84=${d.tw.join(",")}`;
 // WKT dei .prj scritti come fa GDAL: senza TOWGS84 (con TOWGS84 PROJ/QGIS non riconoscono piu' il codice EPSG)
@@ -64,7 +65,7 @@ for (const [code, name, wname, dk, lon0, k, x0] of TM) {
 }
 for (const c of CRS.values()) if (c.en) c.wkt = CRS.get(c.en).wkt;
 CRS.set(3857, {
-  code: 3857, name: "WGS 84 / Pseudo-Mercator (web)", geographic: false,
+  code: 3857, name: `WGS 84 / Pseudo-Mercator (${tr("giscrs.web")})`, geographic: false,
   proj4: "+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs",
   wkt: `PROJCS["WGS 84 / Pseudo-Mercator",${wktGeog(DATUMS.WGS84)}],PROJECTION["Mercator_1SP"],PARAMETER["central_meridian",0],PARAMETER["scale_factor",1],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1],EXTENSION["PROJ4","+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs"],AUTHORITY["EPSG","3857"]]`,
 });
@@ -109,10 +110,10 @@ export function useCrs(ol, proj4, def) {
 }
 
 export function crsName(code) {
-  if (!code) return "Sconosciuto";
+  if (!code) return tr("giscrs.sconosciuto");
   const m = String(code).match(/^EPSG:(\d+)$/);
   if (m && CRS.has(+m[1])) return `${CRS.get(+m[1]).name} · EPSG:${m[1]}`;
-  return m ? `EPSG:${m[1]}` : "Definito dal file (WKT)";
+  return m ? `EPSG:${m[1]}` : tr("giscrs.dal_file");
 }
 
 export function wktFor(code) {

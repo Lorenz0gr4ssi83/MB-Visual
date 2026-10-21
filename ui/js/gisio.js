@@ -4,6 +4,7 @@
 // GeoTIFF: geotiff.js (anche file .tfw/.prj accanto). Ogni lettore restituisce livelli con geometrie nel sistema del file.
 import { api, fileUrl, readBytes, WEB } from "./core.js";
 import { codeFromGeoKeys, codeFromPrj } from "./giscrs.js";
+import { t as tr } from "./i18n.js";
 
 const td = (enc = "utf-8") => { try { return new TextDecoder(enc); } catch { return new TextDecoder("windows-1252"); } };
 
@@ -95,7 +96,7 @@ function assemblePolygons(rings) {
 
 export function readShp(ol, buf) {
   const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-  if (dv.getInt32(0, false) !== 9994) throw new Error("Il file .shp non e' uno shapefile valido");
+  if (dv.getInt32(0, false) !== 9994) throw new Error(tr("gisio.file_shp_non_shapefile_valido"));
   const end = Math.min(buf.length, dv.getInt32(24, false) * 2);
   const geoms = [];
   let o = 100;
@@ -149,7 +150,7 @@ export function shapefileLayer(ol, name, f) {
   return {
     name, kind: "vector", features, fields: dbf.fields.map(x => x.name), prj,
     crs: prj ? codeFromPrj(prj) || prj : null,
-    note: [!f.dbf ? "senza .dbf (nessun attributo)" : null, dbf.encoding && dbf.encoding !== "utf-8" ? `attributi in ${dbf.encoding}` : null].filter(Boolean).join(" · "),
+    note: [!f.dbf ? tr("gisio.senza_dbf_nessun_attributo") : null, dbf.encoding && dbf.encoding !== "utf-8" ? tr("gisio.attributi_0", dbf.encoding) : null].filter(Boolean).join(" · "),
   };
 }
 
@@ -360,7 +361,7 @@ export async function readKmz(ol, bytes, name, remoteIcon) {
   const zip = await window.JSZip.loadAsync(bytes);
   const files = Object.values(zip.files).filter(f => !f.dir);
   const kml = files.find(f => /(^|\/)doc\.kml$/i.test(f.name)) || files.find(f => /\.kml$/i.test(f.name));
-  if (!kml) throw new Error("Il KMZ non contiene un file KML");
+  if (!kml) throw new Error(tr("gisio.kmz_non_contiene_file_kml"));
   const urls = new Map();
   for (const f of files) if (/\.(png|jpe?g|gif|bmp|svg)$/i.test(f.name)) urls.set(f.name.toLowerCase(), URL.createObjectURL(new Blob([await f.async("uint8array")], { type: /\.svg$/i.test(f.name) ? "image/svg+xml" : "image/" + f.name.split(".").pop().toLowerCase().replace("jpg", "jpeg") })));
   const iconUrl = href => {
@@ -397,7 +398,7 @@ export async function readZip(ol, bytes, remoteIcon) {
     else if (/\.kml$/i.test(f.name)) layers.push(readKml(ol, decodeText(await f.async("uint8array")), nm, remoteIcon));
     else if (/\.gpx$/i.test(f.name)) layers.push(readGpx(ol, decodeText(await f.async("uint8array")), nm));
   }
-  if (!layers.length) throw new Error("Lo zip non contiene shapefile (.shp) o altri dati GIS");
+  if (!layers.length) throw new Error(tr("gisio.zip_non_contiene_shapefile_shp"));
   return layers;
 }
 
@@ -411,7 +412,7 @@ export async function readShapefileFromDisk(ol, path, name) {
   const shp = await readBytes(path);
   const parts = { shp, dbf: await tryRead("dbf"), prj: await tryRead("prj"), cpg: await tryRead("cpg") };
   const L = shapefileLayer(ol, name.replace(/\.[^.]+$/, ""), parts);
-  if (!parts.dbf && WEB) L.note = "nella web app i file accanto (.dbf, .prj) non sono leggibili: apri lo zip dello shapefile";
+  if (!parts.dbf && WEB) L.note = tr("gisio.web_app_i_file_accanto");
   return L;
 }
 
@@ -421,7 +422,7 @@ export async function readGpkg(ol, path) {
   let cols;
   try {
     cols = await q("SELECT c.table_name, c.column_name, c.srs_id, s.organization, s.organization_coordsys_id, s.definition, t.identifier FROM gpkg_geometry_columns c LEFT JOIN gpkg_spatial_ref_sys s ON s.srs_id = c.srs_id LEFT JOIN gpkg_contents t ON t.table_name = c.table_name");
-  } catch { throw new Error("Il file non e' un GeoPackage (manca la tabella gpkg_geometry_columns)"); }
+  } catch { throw new Error(tr("gisio.file_non_geopackage_manca_tabella")); }
   const wkb = new ol.format.WKB();
   const layers = [];
   for (const [table, gcol, srsId, org, orgId, def, ident] of cols.righe) {
@@ -431,7 +432,7 @@ export async function readGpkg(ol, path) {
     const r = await q(`SELECT ${sel} FROM "${table.replace(/"/g, '""')}"`);
     const features = r.righe.map(row => {
       const p = {};
-      names.forEach((n, i) => { const v = row[i]; p[n] = v && typeof v === "object" ? `[BLOB ${v.blob} byte]` : v; });
+      names.forEach((n, i) => { const v = row[i]; p[n] = v && typeof v === "object" ? tr("gisio.blob_0_byte", v.blob) : v; });
       const f = new ol.Feature(p);
       const hex = row[names.length];
       if (hex && hex.startsWith("4750")) {
@@ -449,8 +450,8 @@ export async function readGpkg(ol, path) {
   }
   let tiles = 0;
   try { tiles = (await q("SELECT COUNT(*) FROM gpkg_contents WHERE data_type IN ('tiles','2d-gridded-coverage')")).righe[0][0]; } catch { /* */ }
-  if (tiles && layers[0]) layers[0].note = `${tiles} livelli raster del GeoPackage non mostrati`;
-  if (!layers.length) throw new Error(tiles ? "Il GeoPackage contiene solo livelli raster (tessere), non ancora supportati" : "Il GeoPackage non contiene livelli vettoriali");
+  if (tiles && layers[0]) layers[0].note = tr("gisio.0_livelli_raster_geopackage_non", tiles);
+  if (!layers.length) throw new Error(tiles ? tr("gisio.geopackage_contiene_solo_livelli_raster") : tr("gisio.geopackage_non_contiene_livelli_vettoriali"));
   return layers;
 }
 
@@ -524,13 +525,13 @@ export async function readGeoTiff(path, name, maxDim = 2048) {
       const [a, , , e, c, f] = wf; // C, F = centro della cella in alto a sinistra; E negativo
       const x0 = c - a / 2, y0 = f - e / 2, x1 = x0 + a * W, y1 = y0 + e * H;
       extent = [Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1)];
-      note = "georeferenziato dal file world (.tfw)";
+      note = tr("gisio.georeferenziato_file_world_tfw");
     }
   }
   if (!WEB && !crs) {
     try { crs = codeFromPrj(td().decode(await readBytes(path.replace(/\.[^.\\/]+$/, ".prj")))); } catch { /* */ }
   }
-  if (!extent) throw new Error("Il TIFF non e' georeferenziato (nessuna coordinata interna ne' file .tfw accanto): aprilo come immagine");
+  if (!extent) throw new Error(tr("gisio.tiff_non_georeferenziato_nessuna_coordinata"));
   const k = Math.min(1, maxDim / Math.max(W, H));
   const w = Math.max(1, Math.round(W * k)), h = Math.max(1, Math.round(H * k));
   // immagine piu' piccola (panoramica dei COG) che basta per la risoluzione voluta
@@ -545,7 +546,7 @@ export async function readGeoTiff(path, name, maxDim = 2048) {
   const spp = main.getSamplesPerPixel(), bps = fd.BitsPerSample?.[0] || 8, photo = fd.PhotometricInterpretation;
   const nodata = main.getGDALNoData();
   const R = { name, kind: "raster", crs, extent, width: w, height: h, srcWidth: W, srcHeight: H, bands: spp, note,
-    info: { bit: bps, formato: fd.SampleFormat?.[0] === 3 ? "virgola mobile" : "intero", compressione: fd.Compression } };
+    info: { bit: bps, formato: fd.SampleFormat?.[0] === 3 ? tr("gisio.virgola_mobile") : tr("gisio.intero"), compressione: fd.Compression } };
   if ((photo === 2 || photo === 6 || photo === 3) && bps <= 8) {
     const rgb = await img.readRGB({ width: w, height: h, enableAlpha: true, interleave: true });
     const ch = rgb.length / (w * h);
