@@ -275,3 +275,17 @@ costumi (anche "meno vestiti"), pose audaci: permessi. safety_checker di diffuse
 - Collaudo: `python tests/test_firma.py [--tsa http://timestamp.digicert.com]` (21/21, 23/23 con marca): certificato
   autofirmato di prova generato al momento. In un browser di prova con piu' server MB Visual aperti il cookie di
   127.0.0.1 e' condiviso tra le porte: usare http://localhost:<porta>/?t=... per non avere "non autorizzato".
+
+## Multilingua (22/10/2026) - REGOLA PER TUTTE LE SESSIONI
+**Ogni testo nuovo visibile all'utente passa da t() con la chiave in `ui/i18n/it.json` E in `ui/i18n/en.json`** (anche es/fr/de
+se possibile; chi manca ricade sull'inglese). Niente stringhe italiane scritte direttamente nell'interfaccia o nei messaggi del motore.
+- JS: `import { t } from "./i18n.js"` (nei file dove `t` e' gia' una variabile locale: `import { t as tr }` e si usa `tr(...)`).
+  `t("modulo.chiave", x, y)` con `{0}`, `{1}` nel testo; `t("k", { n })` con `{n}`; plurali `tn("k", n)` con chiavi `k.one`/`k.other`.
+  Numeri e date: `fmtNum`, `fmtDate`, `fmtDateTime`, `LOCALE` da i18n.js (mai "it-IT" fisso). HTML statico: `data-i18n`, `data-i18n-title`.
+- Python (mbvisual/): `from .i18n import t` e `t("srv_modulo.chiave", x)`: la lingua arriva dall'interfaccia (intestazione X-MBV-Lang).
+- Chiavi: `<modulo>.<descrizione>` (es. `imgedit.nuovo_livello`, viewer `v_pdf.*`, motore `srv_convert.*`); comuni in `common.*`
+  (Annulla = `common.annulla`, annulla azione = `common.annulla_op`, Salva, Chiudi, OK...). Nomi dei tasti: `keys.*` (Maiusc/Shift).
+- Strumenti: `python tools/i18n_scan.py <file>` elenca i testi italiani non ancora tradotti; `--plan`/`--apply` li convertono;
+  `python tools/i18n_check.py` controlla chiavi mancanti e segnaposto; `--merge file.json` unisce traduzioni
+  (`{"chiave": ["it", "en", "es", "fr", "de"]}`). Il registro formati si traduce con le chiavi `fmt.<id>.name/view/edit`.
+- Lingua: automatica da Windows (api/lang) o scelta in File > Impostazioni > Lingua (localStorage "mbv-lang", si applica ricaricando).
