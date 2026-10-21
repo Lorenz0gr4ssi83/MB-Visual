@@ -98,7 +98,7 @@ Segna ✅ (funziona), ⚠️ (funziona male) oppure ❌ (non funziona).
 | 19 | **Crea nuovo** (Cmd+N o Ctrl+N): Word, DXF, immagine | |
 | 20 | **Mostra nella cartella**: si apre il Finder sul file | |
 | 21 | **Scorciatoie**: annota se funzionano con **Cmd** (come sul Mac) o solo con **Ctrl** | |
-| 22 | **Navisworks** (.nwd), se hai un file di prova | |
+| 22 | **Navisworks** (.nwd): in questa build il lettore Navisworks non c'è ancora; annota solo che messaggio compare | |
 
 Non serve provarle ora (verranno dopo): aggiornamento automatico, anteprime Quick Look, motore IA.
 

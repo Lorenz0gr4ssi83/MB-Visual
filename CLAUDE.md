@@ -283,3 +283,6 @@ Codice Python indipendente da Windows: ogni parte solo-Windows si spegne con gar
   da adattare al Mac; motore IA (ia_setup.py) non preparato per il Mac.
 - Collaudo su Mac (24-25/10/2026): guida e lista delle prove in `COLLAUDO_MAC.md`. Log dell'app impacchettata aperta dal
   Finder: ~/Library/Logs/MBVisual.log (app.py). Artefatti del workflow: MBVisual-mac-dmg, MBVisual-mac-zip (riserva), avvio-log.
+- nwd2mbv per Mac NON compila ancora con Apple clang 16 (Xcode 16.2): std::jthread risolto con -fexperimental-library,
+  ma manca std::from_chars per i double (nwd-reader src/protein_schema.cpp). Strada: LLVM di Homebrew con la sua libc++
+  collegata statica, oppure ripiego a strtod in una copia locale. Nel workflow il passo e' continue-on-error.
