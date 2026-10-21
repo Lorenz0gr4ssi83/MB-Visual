@@ -281,3 +281,5 @@ Codice Python indipendente da Windows: ogni parte solo-Windows si spegne con gar
   ONLYOFFICE in WebKit (COOP/COEP, SharedArrayBuffer), licenza e aggiornamento da .dmg. (3) Pubblicare il .dmg nelle
   release di MB-Visual-Rilasci accanto al setup Windows. (4) Interfaccia: testi "PC"/"Esplora file"/"Installa su questo PC"
   da adattare al Mac; motore IA (ia_setup.py) non preparato per il Mac.
+- Collaudo su Mac (24-25/10/2026): guida e lista delle prove in `COLLAUDO_MAC.md`. Log dell'app impacchettata aperta dal
+  Finder: ~/Library/Logs/MBVisual.log (app.py). Artefatti del workflow: MBVisual-mac-dmg, MBVisual-mac-zip (riserva), avvio-log.

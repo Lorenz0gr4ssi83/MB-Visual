@@ -75,20 +75,40 @@ jobs:
       - name: App e disco
         run: python tools/build_mac.py --out dist-mac
 
-      - name: Prova di avvio (server locale e /api/update_check)
+      - name: Prova di avvio (server locale, /api/update_check e /api/license/status)
         run: |
           APP="dist-mac/MB Visual.app/Contents/MacOS/MB Visual"
-          "$APP" --browser --no-open > avvio.log 2>&1 &
-          for i in $(seq 1 60); do URL=$(grep -m1 '^http' avvio.log || true); [ -n "$URL" ] && break; sleep 1; done
-          cat avvio.log
+          "$APP" --browser --no-open > dist-mac/avvio.log 2>&1 &
+          for i in $(seq 1 90); do URL=$(grep -m1 '^http' dist-mac/avvio.log || true); [ -n "$URL" ] && break; sleep 1; done
+          cat dist-mac/avvio.log
           [ -n "$URL" ] || { echo "l'app non ha avviato il server"; exit 1; }
           BASE="${URL%%/?t=*}"; TOKEN="${URL##*t=}"
-          curl -sf -c c.txt "$URL" > /dev/null
-          curl -sf -b c.txt -H "x-mbv-token: $TOKEN" "$BASE/api/update_check?t=$TOKEN" | tee check.json
+          curl -sf "$URL" > /dev/null
+          curl -sf "$BASE/api/update_check?t=$TOKEN"; echo
+          curl -sf "$BASE/api/license/status?t=$TOKEN"; echo
           kill %1 || true
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: MBVisual-mac
+          name: MBVisual-mac-dmg
           path: dist-mac/*.dmg
+          if-no-files-found: warn
+          compression-level: 0
           retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MBVisual-mac-zip
+          path: dist-mac/*.zip
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: avvio-log
+          path: dist-mac/avvio.log
+          if-no-files-found: ignore

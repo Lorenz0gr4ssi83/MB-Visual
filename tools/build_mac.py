@@ -156,6 +156,11 @@ def main() -> int:
     shutil.rmtree(final, ignore_errors=True)
     run(["ditto", app, final])
     print("App:", final)
+    # riserva se il .dmg non si crea: zip con ditto (conserva permessi, collegamenti e firma del pacchetto)
+    zpath = out_dir / f"MBVisual-{version}-mac.zip"
+    zpath.unlink(missing_ok=True)
+    run(["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", app, zpath])
+    print(f"Zip: {zpath}  ({zpath.stat().st_size / 1048576:.0f} MB)")
     if "--no-dmg" in sys.argv:
         return 0
 
