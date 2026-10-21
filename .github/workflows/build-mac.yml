@@ -84,6 +84,7 @@ jobs:
           "$APP" --browser --no-open > dist-mac/avvio.log 2>&1 &
           for i in $(seq 1 90); do URL=$(grep -m1 '^http' dist-mac/avvio.log || true); [ -n "$URL" ] && break; sleep 1; done
           cat dist-mac/avvio.log
+          cat ~/Library/Logs/MBVisual.log 2>/dev/null || true
           [ -n "$URL" ] || { echo "l'app non ha avviato il server"; exit 1; }
           BASE="${URL%%/?t=*}"; TOKEN="${URL##*t=}"
           curl -sf "$URL" > /dev/null

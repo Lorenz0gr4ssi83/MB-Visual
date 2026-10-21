@@ -16,7 +16,7 @@ if sys.stdout is None or sys.stderr is None:
     sys.stderr = sys.stderr or _log
 # app per Mac aperta dal Finder: i messaggi andrebbero persi, si scrivono in ~/Library/Logs/MBVisual.log
 # (avviata dal Terminale restano nel Terminale)
-elif sys.platform == "darwin" and getattr(sys, "frozen", False) and not sys.stderr.isatty():
+elif sys.platform == "darwin" and getattr(sys, "frozen", False) and not sys.stderr.isatty() and "--browser" not in sys.argv:
     _logdir = os.path.join(os.path.expanduser("~"), "Library", "Logs")
     os.makedirs(_logdir, exist_ok=True)
     sys.stdout = sys.stderr = open(os.path.join(_logdir, "MBVisual.log"), "a", encoding="utf-8", buffering=1)
