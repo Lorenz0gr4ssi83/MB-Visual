@@ -378,3 +378,26 @@ Testi: chiavi `cmp.*`, `pdfcmp.*`, `cadcmp.*`, `ifccmp.*`, `v_compare.*`, `app.c
 - Prove: `python tools/make_compare_samples.py` -> `tests/samples/confronto` (coppie PDF, DXF, IFC con modifiche note);
   dalla console `MB.active.api._cmp._pc / _cc / _ic`. Nel riquadro del browser di Claude i cookie del token sono condivisi
   con i server delle altre sessioni (403 a caso): per le prove aggiungere `t=<token>` alle fetch /api/.
+## Segnalazioni BIM BCF (22/10/2026) - FATTO
+Formato BCF (buildingSMART) 2.0/2.1/3.0, estensioni `.bcfzip`/`.bcf` (categoria `bcf` in formats.json, anche nella web app).
+- `ui/js/bcf.js` lettura/scrittura (modello unico per tutte le versioni, schema in testa al file; file non interpretati come
+  documents.xml/Documents/ e allegati delle segnalazioni conservati tali e quali). In scrittura: GUID minuscoli (3.0) e quelli
+  malformati sostituiti, colori in maiuscolo, FieldOfView 45-60 in 2.1 (limiti dello schema), ServerAssignedId solo in 3.0.
+  Valori standard in inglese nei file (Open, Clash, High...) e nomi italiani nell'interfaccia (`IT`).
+- `ui/js/bcfview.js` ponte con la scena 3D: coordinate BCF (metri, Z in alto) -> scena = C*N*mondo per IFC (C = matrice di
+  coordinamento di web-ifc, verificata con un IFC georeferenziato) e N*S(1/m)*mondo per gli altri modelli (m = metri per unita').
+  Elementi per GlobalId (`GetGuidFromExpressId`), elementi composti (facciate continue...) tramite IfcRelAggregates/IfcRelNests;
+  modelli non IFC: AuthoringToolId = posizione nell'albero ("0/3/1"). Visibilita' sugli elementi (non con Isola, che spegne le
+  mesh e non funziona con gli IFC uniti per colore); sezioni = piu' piani (`setClip` in model3d.js, voce "Sezione del punto di vista").
+  Camera ortogonale resa in prospettiva con la stessa altezza inquadrata.
+- `ui/js/bcfpanel.js` pannello (elenco con filtri, scheda, punti di vista, commenti, Salva 2.1/3.0, report) + `attach3d` per
+  il visualizzatore 3D (pulsante "Segnalazioni"; copia di recupero in IndexedDB per modello finche' non si salva in un BCF;
+  autore in localStorage `mbv-bcf-autore`). `ui/js/viewers/bcf.js` = BCF aperto da solo + "Sovrapponi al modello"
+  (modello aperto, IFC indicato nell'intestazione del BCF nella stessa cartella, o scelto). `ui/js/bcfreport.js` = report PDF
+  (scrittore PDF minimo interno, Helvetica WinAnsi + istantanee JPEG) ed Excel (SheetJS). Stili in `ui/css/bcf.css`.
+- In model3d.js solo aggiunte: `bcfHost`, pulsante, `api._bcf`, `setClip`/`clippedOut` (selezione che rispetta tutti i piani).
+- Collaudo: file di prova ufficiali del repository github.com/buildingSMART/BCF-XML (rami release_2_1 e release_3_0, cartelle
+  "Test Cases", con Architectural.ifc ed Estructura.ifc; NON copiati nel repo): 122 file letti, riscritti in 2.1 e 3.0 e
+  validati con gli XSD ufficiali (1138 documenti, 0 errori); punti di vista confrontati con le istantanee originali (camera,
+  sezione, facciata scomposta, muro nascosto); ciclo crea -> esporta -> reimporta senza perdite. Il riquadro del browser
+  integrato, se nascosto, congela la pagina: per le prove si e' usato Edge senza finestra pilotato via DevTools Protocol.

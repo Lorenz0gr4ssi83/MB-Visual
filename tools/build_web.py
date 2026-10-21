@@ -55,7 +55,7 @@ WEB_EXTS = {
               "tif", "tiff", "heic", "heif", "hif", "heics", "heifs", "psd", "ora"],
     "media": ["mp4", "m4v", "mov", "webm", "ogv", "3gp", "mkv"],
     "audio": ["mp3", "wav", "wave", "flac", "ogg", "oga", "opus", "m4a", "aac"],
-    "cad2d": ["dwg", "dxf", "dwt"], "cad3d": "*", "mesh3d": "*",
+    "cad2d": ["dwg", "dxf", "dwt"], "cad3d": "*", "mesh3d": "*", "bcf": "*",
     "archive": ["zip", "zipx", "7z", "rar", "tar", "ova", "gz", "gzip", "tgz", "tpz", "bz2", "bzip2", "tbz", "tbz2", "xz", "txz", "lzma", "z", "taz",
                 "cab", "lzh", "lha", "cpio", "rpm", "deb", "ar", "a", "iso", "xar", "pkg", "xip", "jar", "war", "ear", "apk", "aab", "xapk", "ipa",
                 "appx", "msix", "appxbundle", "nupkg", "vsix", "xpi", "whl", "egg", "cbz", "cbr", "cb7"],

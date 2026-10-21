@@ -1028,6 +1028,17 @@
    ]
   },
   {
+   "id": "bcf",
+   "name": "Segnalazioni BIM (BCF)",
+   "viewer": "bcf",
+   "view": "Segnalazioni BCF 2.0 / 2.1 / 3.0 (Revit, Navisworks, Solibri, BIMcollab, Archicad, Tekla): elenco con filtri, istantanee, commenti, punti di vista; sovrapposizione al modello IFC con ripristino di camera, elementi selezionati e visibili, colori e sezioni",
+   "edit": "Nuove segnalazioni dal visualizzatore 3D (titolo, descrizione, tipo, stato, priorita', assegnatario, scadenza, commenti, punto di vista e istantanea); salvataggio in .bcfzip BCF 2.1 o 3.0; report PDF ed Excel",
+   "exts": [
+    "bcfzip",
+    "bcf"
+   ]
+  },
+  {
    "id": "navisworks",
    "name": "Navisworks",
    "viewer": "external",

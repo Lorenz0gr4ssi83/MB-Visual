@@ -617,7 +617,7 @@ export async function mount(ctx) {
     // linee e punti (modelli analitici, assi): il clic li prende entro circa 8 pixel sullo schermo
     const pxWorld = 2 * camera.position.distanceTo(controls.target) * Math.tan((camera.fov * Math.PI) / 360) / r.height;
     ray.params.Line.threshold = ray.params.Points.threshold = pxWorld * 8;
-    const hits = ray.intersectObject(model, true).filter(h => h.object.visible && isVisibleChain(h.object) && (!clipPlane || clipPlane.distanceToPoint(h.point) >= 0));
+    const hits = ray.intersectObject(model, true).filter(h => h.object.visible && isVisibleChain(h.object) && !clippedOut(h.point));
     const hit = hits[0];
     if (measure) {
       if (!hit) return;
@@ -654,7 +654,7 @@ export async function mount(ctx) {
     model.traverse(m => {
       if (!(m.isMesh || m.isPoints) || m.userData.merged || !isVisibleChain(m.userData.proxy ? m.parent : m)) return;
       bb.setFromObject(m).getCenter(v);
-      if (clipPlane && clipPlane.distanceToPoint(v) < 0) return;
+      if (clippedOut(v)) return;
       v.project(camera);
       if (v.z < 1 && v.x >= ax && v.x <= bx && v.y >= by && v.y <= ay) found.add(unitOf(m));
     });
@@ -674,6 +674,8 @@ export async function mount(ctx) {
   let flip = 1;
   function updateClip() {
     const a = axisSel.value;
+    if (a === "bcf") return; // sezione (anche a scatola) di un punto di vista BCF: resta finche' non si sceglie un asse
+
     if (!a || !sectionRange) { clipPlane = null; renderer.clippingPlanes = []; return; }
     const t = slider.value / 1000;
     const pos = sectionRange[0][a] + (sectionRange[1][a] - sectionRange[0][a]) * t;
@@ -683,6 +685,15 @@ export async function mount(ctx) {
   }
   axisSel.addEventListener("change", updateClip);
   slider.addEventListener("input", updateClip);
+  // piani di sezione impostati da fuori (punti di vista BCF): uno o piu' piani, visibile cio' che sta dentro tutti
+  const clippedOut = p => renderer.clippingPlanes.some(pl => pl.distanceToPoint(p) < 0);
+  function setClip(planes) {
+    renderer.clippingPlanes = planes;
+    clipPlane = planes[0] || null;
+    let o = axisSel.querySelector('option[value="bcf"]');
+    if (planes.length) { if (!o) axisSel.append(o = el("option", { value: "bcf" }, "Sezione del punto di vista")); axisSel.value = "bcf"; }
+    else { o?.remove(); axisSel.value = ""; }
+  }
 
   // ---- filo di ferro, viste, esportazione
   let wire = false;
@@ -758,6 +769,15 @@ export async function mount(ctx) {
     try { (await import("../ar.js")).openAR({ model, ext: ctx.ext, name: ctx.name }); } catch (e) { toast(tr("ar.errore", e.message), true); }
   }, { title: tr("ar.vedi_titolo") }));
 
+  // ---- segnalazioni BCF (ui/js/bcfpanel.js + bcfview.js): pannello sopra la vista, punti di vista salvati e ripristinati
+  const bcfHost = { THREE, ctx, info, model, scene, camera, controls, renderer, box: host, select, isolate, showAll, visibilityChanged, zoomTo, isVisibleChain, setClip,
+    get selection() { return selection; }, render: () => renderer.render(scene, camera), partNames: () => parts.map(p => p.name) };
+  let bcfUi = null;
+  const bcfGet = async () => (bcfUi ??= (await import("../bcfpanel.js")).attach3d(bcfHost, v => bcfBtn.classList.toggle("on", v)));
+  const bcfBtn = button("Segnalazioni", '<svg viewBox="0 0 16 16" width="16" height="16"><path d="M3.5 14V2.5h8l-1.6 3 1.6 3h-8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+    async () => (await bcfGet()).toggle(), { title: "Segnalazioni BCF: crea, apri e salva segnalazioni con punto di vista (Revit, Navisworks, Solibri, BIMcollab)" });
+  exp.after(bcfBtn);
+
   async function doExport(kind) {
     const base = dirName(ctx.path);
     if (kind === "png") {
@@ -788,6 +808,7 @@ export async function mount(ctx) {
 
   return {
     onShow() { resize(); },
+    _bcf: { get: bcfGet, async load(store, path) { (await bcfGet()).load(store, path); } }, // usato da ui/js/viewers/bcf.js
     saveInPlace: false,
     // formati tecnici (ui/js/export3d.js) + formati mesh di three.js
     saveFormats: ["stp", "step", "ifc", "glb", "gltf", "stl", "obj", "3mf", "dxf", "ply", "wrl", "usdz"],
@@ -830,7 +851,7 @@ export async function mount(ctx) {
       await api("save", { path: target }, { body: new Uint8Array(data.buffer ? data.buffer : data) });
       return { switchTo: false };
     },
-    dispose() { running = false; window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onKey); window.removeEventListener("blur", onBlur); renderer.dispose(); (info.modelIDs || []).forEach(m => info.ifc?.CloseModel?.(m)); },
+    dispose() { bcfUi?.dispose(); running = false; window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onKey); window.removeEventListener("blur", onBlur); renderer.dispose(); (info.modelIDs || []).forEach(m => info.ifc?.CloseModel?.(m)); },
   };
 }
 
