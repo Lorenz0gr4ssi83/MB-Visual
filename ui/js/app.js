@@ -223,6 +223,7 @@ function fileMenu(anchor) {
   m.append(item(ICON_NEW, tr("app.crea_nuovo"), "Ctrl+N", doNew),
     item(ICON_SAVE, tr("common.salva"), "Ctrl+S", () => save(false), !active),
     item(ICON_SAVEAS, tr("app.salva_nome"), keysText("Ctrl+Shift+S"), () => save(true), !active),
+    ...(window.MBCloud ? [item('<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/></svg>', tr("cloud.salva_nel_cloud"), "", () => window.MBCloud.saveToCloud(), !active)] : []), // ui/js/cloud.js
     item('<svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM6 9h2M10 9h2M14 9h2M18 9h0M6 13h12"/></svg>', tr("app.scorciatoie_tastiera"), "F1", showShortcuts),
     item('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>', tr("lang.impostazioni") + " › " + tr("lang.titolo") + "...", LANG.toUpperCase(), showLanguage));
   if (!WEB) m.append(item('<svg viewBox="0 0 24 24"><path d="M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18"/></svg>', tr("app.firma_digitale"), "", () => import("./firma.js").then(f => f.signDialog({ path: active.path, openFile })), !active?.path)); // ui/js/firma.js
@@ -871,6 +872,7 @@ async function boot() {
   setupDrop();
   setupTheme();
   setupBack();
+  if (!WEB) import("./cloud.js").then(m => m.setupCloud()).catch(e => console.error(e)); // archivi cloud (SharePoint, Drive, Dropbox, Autodesk)
   if (!WEB) licenseGate(); // licenza dell'app per PC: senza attivazione copre l'app con la schermata della chiave
   if (!WEB) setTimeout(() => checkUpdates(false), 3000);
   setInterval(() => { if (!document.hidden) checkExternalChange(active); }, 2000);

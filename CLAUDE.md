@@ -195,6 +195,28 @@ ode-x64 e wrangler installato in
   licenze per se' e i colleghi con MB Visual Admin. Poi rendere privato il repository MB-Visual (lo fa l'utente; prima
   spostare/spegnere la web app di GitHub Pages, sostituita dall'app per cellulari sul server).
 
+## Archivi cloud (22/10/2026) - FATTO, collegamento reale da provare dopo la registrazione delle app
+Pannello "Cloud" accanto a Esplora (solo app per PC): SharePoint/OneDrive (Microsoft Graph), Google Drive, Dropbox,
+Autodesk Construction Cloud/BIM 360 (APS Data Management), senza sincronizzare le cartelle.
+- `mbvisual/cloud.py` (solo urllib): OAuth 2.0 + PKCE nel browser predefinito, ritorno su `http://localhost:47613/callback`
+  (porta fissa e configurabile: Dropbox e Autodesk vogliono l'indirizzo esatto; Google app desktop: `http://127.0.0.1:<porta>/`),
+  server di ritorno aperto solo durante l'accesso (senza SO_REUSEADDR). Token in `%LOCALAPPDATA%\MBVisual\cloud_token.bin`
+  cifrati con DPAPI (ctypes), rinnovo automatico, revoca/uscita. ID applicazione: `mbvisual/cloud_ids.py` (vuoti = servizio
+  nascosto) o `%LOCALAPPDATA%\MBVisual\cloud.json` scritto da Cloud -> Configura (segreto Google cifrato DPAPI).
+  Un solo ingresso API: `api_cloud` in server.py (`/api/cloud?op=stato|config|config_set|login|login_cancel|logout|list|search|
+  open|pending|aperti|upload|upload_copy|skip|check|refresh|save_new|info|guida`).
+- Apertura = download in `%TEMP%\MBVisual\cloud\<servizio>\<chiave>\<nome>` (+ `aperti.json`), poi il visualizzatore normale.
+  `ui/js/cloud.js` ogni 2,5 s chiede `pending` (file salvati e fermi da 1,5 s) e li carica con controllo di versione
+  (Graph If-Match cTag, Dropbox mode update rev, Google headRevisionId, Autodesk versione tip -> nuova versione); conflitto =
+  Salva come copia / Sovrascrivi / Apri la versione del cloud / Decidi dopo (`skip`). Ogni 60 s la scheda attiva aperta dal
+  cloud controlla la versione remota e, senza modifiche locali, la riscarica (la scheda si ricarica da checkExternalChange).
+  Documenti nativi Google: esportati in docx/xlsx/pptx, al salvataggio si propone un file nuovo. File -> "Salva nel cloud..."
+  (anche in un altro formato via api convert). app.js: solo import all'avvio e la voce di menu.
+- Guida per l'utente (registrazioni Entra, Google Cloud, Dropbox, APS + integrazione personalizzata ACC): `ui/guide/archivi-cloud.md`.
+- Collaudo SENZA account: `python tests/test_cloud.py` (finto fornitore OAuth + finte API Dropbox e Graph, 52 prove);
+  interfaccia: `python tests/cloud_demo.py` (stampa l'indirizzo; accesso simulato). Nel riquadro browser di Claude i cookie
+  `mbv` di 127.0.0.1/localhost vengono sovrascritti da altre sessioni: le API rispondono 403 dopo un po' (ricaricare con ?t=).
+
 ## Editor di pubblicazioni in stile Publisher (21/10/2026) - FATTO
 Formato proprio `.mbpub` (zip: document.json + immagini/ + anteprima.png), categoria `publisher` in formats.json (anche `.pub`,
 tolto da office-lo), voce "Pubblicazione" in Crea nuovo (un file vuoto; i modelli si scelgono nella galleria che si apre da sola).

@@ -1,0 +1,47 @@
+/* MB Visual - pannello Archivi cloud (ui/js/cloud.js) */
+.explorer.cloud { grid-template-rows: auto auto auto auto auto 1fr auto auto; }
+.cl-svcs { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 10px 6px; }
+.cl-svc { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--panel-2); font-size: 11.5px; cursor: pointer; }
+.cl-svc:hover { background: var(--accent-soft); }
+.cl-svc.on { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.cl-svc .dot, .cl-of .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex: none; }
+.cl-svc .dot.ok { background: var(--ok); }
+.cl-acc { display: flex; align-items: center; gap: 6px; padding: 0 12px 6px; font-size: 11.5px; color: var(--muted); }
+.cl-acc .who { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-acc:empty, .cl-svcs:empty { display: none; }
+.mini.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.mini:disabled { opacity: .45; cursor: default; }
+.cl-crumbs { line-height: 1.6; }
+.cl-crumbs .link { font-size: 11.5px; }
+.cl-msg { padding: 14px 14px; font-size: 12.5px; text-align: center; color: var(--fg); }
+.cl-msg p { margin: 0 0 10px; }
+.cl-msg .note, .cl-msg.note { color: var(--muted); font-size: 11.5px; }
+.cl-msg .bad, .cl-msg.bad { color: var(--bad); }
+.cl-msg .spinner { width: 22px; height: 22px; border-width: 2px; }
+.cl-foot { display: flex; gap: 6px; padding: 6px 10px; border-top: 1px solid var(--line); }
+.cl-foot .mini:last-child { flex: 1; }
+.cl-open { max-height: 30vh; overflow: auto; border-top: 1px solid var(--line); }
+.cl-open:empty { display: none; }
+.cl-open .label { display: block; padding: 6px 12px 2px; }
+.cl-of { display: grid; grid-template-columns: auto 1fr auto auto; gap: 6px; align-items: center; padding: 3px 12px; font-size: 11.5px; }
+.cl-of .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-of .st { color: var(--muted); font-size: 10.5px; }
+.cl-of.sincronizzato .dot { background: var(--ok); }
+.cl-of.da-caricare .dot { background: var(--warn); }
+.cl-of.caricamento .dot { background: var(--accent); }
+/* finestra Salva nel cloud */
+.cl-saveform { display: grid; gap: 8px; width: min(560px, 80vw); }
+.cl-saveform label, .cl-config label { display: grid; gap: 4px; font-size: 12px; }
+.cl-saveform .lbl { font-size: 12px; margin-bottom: -4px; }
+.cl-pick { height: 240px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); }
+.cl-pick .ex-item.off { opacity: .5; cursor: default; }
+.cl-pick .ex-item.off:hover { background: none; }
+/* configurazione */
+.cl-config { display: grid; gap: 10px; width: min(620px, 84vw); max-height: 66vh; overflow: auto; }
+.cl-config .note { margin: 0; color: var(--muted); font-size: 12px; }
+.cl-config fieldset { display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px 10px; margin: 0; }
+.cl-config legend { font-weight: 600; font-size: 12.5px; padding: 0 4px; }
+.cl-config input.field, .cl-saveform .field { padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--panel-2); color: var(--fg); font: 12.5px var(--ui); }
+.cl-redirect { font-size: 11.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cl-redirect code { font: 11.5px var(--mono); color: var(--fg); background: var(--panel-2); padding: 1px 5px; border-radius: 3px; }
+.cl-port { grid-template-columns: 1fr auto; align-items: center; }

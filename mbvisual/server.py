@@ -231,6 +231,12 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError(t("srv_server.percorso_non_consentito"))
         self._json({"ok": True, "job": jobs.start(ia.run, b)})
 
+    # ------------------------------------------------------------ API: archivi cloud (mbvisual/cloud.py, ui/js/cloud.js)
+    def api_cloud(self, qs):
+        from . import cloud
+        b = self._body_json() if self.command == "POST" else {}
+        self._json(cloud.handle(_q(qs, "op", ""), {k: v[0] for k, v in qs.items()}, b))
+
     def api_update_check(self, qs):
         from . import update
         self._json(update.check())
