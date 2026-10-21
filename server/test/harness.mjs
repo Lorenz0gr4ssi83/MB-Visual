@@ -30,7 +30,7 @@ function makeEnv(file = ":memory:") {
   const db = new DatabaseSync(file);
   db.exec(readFileSync(join(here, "..", "schema.sql"), "utf8"));
   const keys = JSON.parse(readFileSync(join(homedir(), ".mbvisual", "licenze", "chiavi.json"), "utf8"));
-  return { DB: d1(db), SIGNING_KEY: keys.private_pkcs8, PUBLIC_KEY: keys.public_raw, ADMIN_TOKEN: keys.admin_token, _db: db };
+  return { DB: d1(db), SIGNING_KEY: keys.private_pkcs8, PUBLIC_KEY: keys.public_raw, ADMIN_TOKEN: process.env.MBV_ADMIN_PROVA || keys.admin_token, _db: db }; // MBV_ADMIN_PROVA: codice di prova al posto di quello vero
 }
 
 if (process.argv[2] === "serve") {

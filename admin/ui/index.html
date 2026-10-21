@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>MB Visual Admin</title>
+<style>
+  :root { --bg: #17191b; --panel: #1f2224; --panel2: #26292c; --fg: #e6e8e5; --muted: #9ea29b; --line: #34383b; --accent: #6aa7d8; --ok: #5cb85c; --bad: #e0605a; --warn: #e3a33b; }
+  *, *::before, *::after { box-sizing: border-box; cursor: default !important; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 13px "Segoe UI", system-ui, sans-serif; display: grid; grid-template-rows: auto 1fr; height: 100vh; }
+  header { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  header b { font-size: 15px; margin-right: 14px; }
+  .tab { background: none; border: 1px solid transparent; color: var(--fg); padding: 6px 12px; border-radius: 6px; font: inherit; }
+  .tab.on { background: var(--panel2); border-color: var(--line); }
+  .badge { background: var(--bad); color: #fff; border-radius: 9px; padding: 0 6px; font-size: 11px; margin-left: 4px; }
+  .grow { flex: 1; } .muted { color: var(--muted); }
+  main { overflow: auto; padding: 16px 18px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .card .n { font-size: 26px; font-weight: 600; } .card .l { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel2); font-weight: 600; color: var(--muted); font-size: 12px; }
+  tr.sub td { background: var(--bg); font-size: 12px; }
+  .mono { font-family: Consolas, monospace; letter-spacing: .02em; }
+  button.b { background: var(--panel2); color: var(--fg); border: 1px solid var(--line); border-radius: 5px; padding: 4px 9px; font: inherit; font-size: 12px; margin: 0 4px 2px 0; }
+  button.b:hover { border-color: var(--accent); } button.p { background: var(--accent); color: #0d1b26; border-color: var(--accent); } button.d { color: var(--bad); }
+  .st { font-size: 11px; padding: 1px 7px; border-radius: 9px; border: 1px solid; }
+  .st.active, .st.done { color: var(--ok); } .st.revoked, .st.closed { color: var(--muted); } .st.replaced { color: var(--warn); } .st.pending, .st.open { color: var(--bad); }
+  form.new { display: grid; grid-template-columns: 2fr 2fr 1fr 1fr 2fr auto; gap: 8px; align-items: end; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 14px; }
+  label { display: grid; gap: 3px; color: var(--muted); font-size: 12px; }
+  input, select { background: var(--panel2); color: var(--fg); border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px; font: inherit; }
+  .ev { display: grid; grid-template-columns: 120px 180px 1fr; gap: 10px; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  .ev.unread { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--panel2); border: 1px solid var(--line); padding: 8px 14px; border-radius: 6px; display: none; }
+  .err { color: var(--bad); }
+  h3 { margin: 0 0 10px; font-size: 14px; }
+</style>
+</head>
+<body>
+<header>
+  <b>MB Visual Admin</b>
+  <button class="tab on" data-v="panoramica">Panoramica</button>
+  <button class="tab" data-v="licenze">Licenze</button>
+  <button class="tab" data-v="richieste">Richieste <span id="nreq"></span></button>
+  <button class="tab" data-v="impostazioni">Impostazioni</button>
+  <span class="grow"></span>
+  <span class="muted" id="conn"></span>
+  <button class="b" onclick="adminRefresh()">Aggiorna</button>
+</header>
+<main id="main"></main>
+<div id="toast"></div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = s => s ? new Date(s.replace(" ", "T") + "Z").toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" }) : "";
+const KIND = { activation: "Attivazione", change: "Cambio dispositivo", change_pending: "Cambio DA APPROVARE", report: "Segnalazione", limit: "Limite raggiunto", invalid_key: "Chiave non valida", revoked_use: "Licenza non valida in uso" };
+const STATO = { active: "attiva", revoked: "revocata", replaced: "sostituita", open: "aperta", pending: "in attesa", done: "completata", closed: "chiusa" };
+let view = "panoramica", data = {};
+function toast(t, bad) { const e = $("#toast"); e.textContent = t; e.className = bad ? "err" : ""; e.style.display = "block"; clearTimeout(e._h); e._h = setTimeout(() => (e.style.display = "none"), 3500); }
+async function call(m, p, b) { const r = await window.pywebview.api.call(m, p, b ?? null); if (r && r.ok === false) throw new Error(r.errore || "Errore"); return r; }
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => { view = t.dataset.v; document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t)); render(); });
+
+async function adminRefresh() {
+  try {
+    const [s, l, r, e] = await Promise.all([call("GET", "/admin/summary"), call("GET", "/admin/licenses"), call("GET", "/admin/requests"), call("GET", "/admin/events?after=0")]);
+    data = { s, lic: l.licenze, req: r.richieste, ev: e.avvisi.slice(-300).reverse() };
+    $("#conn").textContent = "Collegato · " + new Date().toLocaleTimeString("it-IT");
+    const open = data.req.filter(x => x.status === "open" || x.status === "pending").length;
+    $("#nreq").innerHTML = open ? `<span class="badge">${open}</span>` : "";
+  } catch (e) { $("#conn").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+  render();
+}
+window.adminRefresh = adminRefresh;
+
+function render() {
+  const m = $("#main");
+  if (view === "impostazioni") return renderSettings(m);
+  if (!data.s) { m.innerHTML = `<p class="muted">Collegamento al server delle licenze...</p>`; return; }
+  if (view === "panoramica") {
+    const s = data.s;
+    m.innerHTML = `<div class="cards">${[["Licenze attive", s.licenze], ["PC attivi", s.pc], ["Cellulari attivi", s.cellulari], ["Richieste aperte", s.richieste_aperte], ["Avvisi non letti", s.avvisi_non_letti]]
+      .map(([l, n]) => `<div class="card"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("")}</div>
+      <div class="toolbar"><h3 style="margin:0">Avvisi</h3><span class="grow"></span><button class="b" onclick="readAll()">Segna tutti come letti</button></div>
+      <div class="card" style="padding:0">${data.ev.map(e => `<div class="ev ${e.read ? "" : "unread"}"><span class="muted">${fmt(e.created)}</span><b>${esc(KIND[e.kind] || e.kind)}</b><span>${esc(e.text)}</span></div>`).join("") || `<p class="muted" style="padding:10px">Nessun avviso</p>`}</div>`;
+  }
+  if (view === "licenze") {
+    const rows = data.lic.map(l => {
+      const devs = l.dispositivi.filter(d => d.status === "active");
+      return `<tr><td><span class="mono">${esc(l.key)}</span><br><span class="st ${l.status}">${STATO[l.status]}</span>${l.replaced_by ? ` <span class="muted">→ ${esc(l.replaced_by)}</span>` : ""}</td>
+        <td><b>${esc(l.customer)}</b><br><span class="muted">${esc(l.email)}</span>${l.notes ? `<br><span class="muted">${esc(l.notes)}</span>` : ""}</td>
+        <td>PC ${devs.filter(d => d.kind === "pc").length}/${l.max_pc}<br>Cell. ${devs.filter(d => d.kind === "mobile").length}/${l.max_mobile}</td>
+        <td class="muted">${fmt(l.created)}${l.expires ? "<br>scade " + esc(l.expires) : ""}</td>
+        <td><button class="b" onclick="copyKey('${l.key}')">Copia</button>${l.status === "active" ? `<button class="b" onclick="act('${l.key}','replace','Generare una chiave nuova? Questa smettera\\' di funzionare su tutti i dispositivi.')">Nuova chiave</button><button class="b d" onclick="act('${l.key}','revoke','Revocare la licenza? Tutte le app si bloccano.')">Revoca</button>` : l.status === "revoked" ? `<button class="b" onclick="act('${l.key}','reactivate')">Riattiva</button>` : ""}</td></tr>`
+        + devs.map(d => `<tr class="sub"><td></td><td colspan="2">${d.kind === "pc" ? "PC" : "Cellulare"} · <b>${esc(d.name || "-")}</b> <span class="muted">${esc(d.version)}</span></td><td class="muted">attivato ${fmt(d.activated)}<br>ultimo uso ${fmt(d.last_seen)}</td><td><button class="b d" onclick="freeDev(${d.id})">Libera</button></td></tr>`).join("");
+    }).join("");
+    m.innerHTML = `<form class="new" onsubmit="return newLic(event)"><label>Cliente<input name="customer" required></label><label>Email<input name="email" type="email"></label>
+      <label>PC<input name="max_pc" type="number" value="1" min="1"></label><label>Cellulari<input name="max_mobile" type="number" value="2" min="0"></label>
+      <label>Note<input name="notes"></label><button class="b p" style="height:32px">Crea licenza</button></form>
+      <div class="toolbar"><input id="flt" placeholder="Cerca cliente, chiave, email" oninput="filt()" style="width:320px"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="all" onchange="filt()"> anche sostituite e revocate</label></div>
+      <table id="lt"><thead><tr><th>Chiave</th><th>Cliente</th><th>Dispositivi</th><th>Creata</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+    filt();
+  }
+  if (view === "richieste") {
+    m.innerHTML = `<table><thead><tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Messaggio</th><th>Stato</th><th></th></tr></thead><tbody>${data.req.map(r => `<tr>
+      <td class="muted">${fmt(r.created)}</td><td>${esc(r.customer || r.license_key)}<br><span class="muted mono">${esc(r.license_key)}</span></td>
+      <td>${r.type === "change" ? "Cambio dispositivo" : "Segnalazione"}${r.device_name ? `<br><span class="muted">da ${esc(r.device_name)}</span>` : ""}</td>
+      <td>${esc(r.message)}${r.new_key ? `<br>nuova chiave <span class="mono">${esc(r.new_key)}</span>` : ""}</td><td><span class="st ${r.status}">${STATO[r.status]}</span></td>
+      <td>${r.status === "pending" ? `<button class="b p" onclick="reqAct(${r.id},'approve')">Approva</button>` : ""}${r.status === "open" || r.status === "pending" ? `<button class="b" onclick="reqAct(${r.id},'close')">Chiudi</button>` : ""}</td></tr>`).join("") || `<tr><td colspan="6" class="muted">Nessuna richiesta</td></tr>`}</tbody></table>`;
+  }
+}
+function filt() {
+  const q = ($("#flt")?.value || "").toLowerCase(), all = $("#all")?.checked;
+  let show = false;
+  document.querySelectorAll("#lt tbody tr").forEach(tr => {
+    if (!tr.classList.contains("sub")) { const t = tr.textContent.toLowerCase(); show = t.includes(q) && (all || tr.querySelector(".st.active, .st.revoked")); }
+    tr.style.display = show ? "" : "none";
+  });
+}
+async function newLic(e) {
+  e.preventDefault();
+  const f = Object.fromEntries(new FormData(e.target));
+  try { const r = await call("POST", "/admin/licenses", { ...f, max_pc: +f.max_pc, max_mobile: +f.max_mobile }); await window.pywebview.api.copy(r.key); toast("Licenza creata e copiata: " + r.key); e.target.reset(); adminRefresh(); } catch (x) { toast(x.message, true); }
+  return false;
+}
+async function act(key, what, ask) { if (ask && !confirm(ask)) return; try { const r = await call("POST", `/admin/licenses/${encodeURIComponent(key)}/${what}`, {}); if (r.key) { await window.pywebview.api.copy(r.key); toast("Nuova chiave copiata: " + r.key); } else toast("Fatto"); adminRefresh(); } catch (x) { toast(x.message, true); } }
+async function freeDev(id) { if (!confirm("Liberare il dispositivo? L'app su quel dispositivo si blocca e il posto torna disponibile.")) return; try { await call("POST", `/admin/devices/${id}/revoke`, {}); toast("Dispositivo liberato"); adminRefresh(); } catch (x) { toast(x.message, true); } }
+async function reqAct(id, what) { try { const r = await call("POST", `/admin/requests/${id}/${what}`, {}); if (r.key) { await window.pywebview.api.copy(r.key); toast("Approvato: nuova chiave copiata " + r.key); } else toast("Fatto"); adminRefresh(); } catch (x) { toast(x.message, true); } }
+async function readAll() { const last = Math.max(0, ...data.ev.map(e => e.id)); try { await call("POST", "/admin/events/read", { upto: last }); adminRefresh(); } catch (x) { toast(x.message, true); } }
+async function copyKey(k) { await window.pywebview.api.copy(k); toast("Chiave copiata"); }
+async function renderSettings(m) {
+  const c = await window.pywebview.api.config();
+  m.innerHTML = `<div class="card" style="max-width:640px;display:grid;gap:12px"><h3>Impostazioni</h3>
+    <label>Indirizzo del server delle licenze<input id="url" value="${esc(c.url)}" placeholder="https://mbvisual-licenze.xxxxx.workers.dev"></label>
+    <div><button class="b p" onclick="saveUrl()">Salva indirizzo</button></div>
+    <label style="display:flex;gap:8px;align-items:center;color:var(--fg)"><input type="checkbox" id="auto" ${c.autostart ? "checked" : ""} onchange="setAuto()"> Avvia con Windows (nascosta nell'area di notifica)</label>
+    <p class="muted">Chiudendo la finestra l'app resta attiva nell'area di notifica e ti avvisa di attivazioni, richieste e segnalazioni. Per uscire: clic destro sull'icona → Esci.</p></div>`;
+}
+async function saveUrl() { await window.pywebview.api.set_url($("#url").value); toast("Indirizzo salvato"); adminRefresh(); }
+async function setAuto() { await window.pywebview.api.set_autostart($("#auto").checked); toast($("#auto").checked ? "Avvio automatico attivo" : "Avvio automatico disattivato"); }
+window.addEventListener("pywebviewready", () => { adminRefresh(); setInterval(adminRefresh, 60000); });
+</script>
+</body>
+</html>

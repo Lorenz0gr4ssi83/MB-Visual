@@ -18,3 +18,4 @@ markdown
 openpyxl
 brotli
 ezdxf
+pystray==0.19.5  # area di notifica e avvisi di MB Visual Admin (admin/)
