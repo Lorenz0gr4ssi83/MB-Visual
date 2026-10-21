@@ -98,6 +98,20 @@
    ]
   },
   {
+   "id": "visio",
+   "name": "Diagrammi (Visio)",
+   "viewer": "visio",
+   "view": "Pagine con forme, connettori, testi, stili e temi, immagini (anche EMF), livelli, pagine di sfondo, dati delle forme; elenco pagine, zoom, ricerca nel testo e nei dati",
+   "edit": "Editor in stile Visio: sposta/ridimensiona/ruota, testo sul posto, forme base e di flusso, connettori dinamici incollati che seguono le forme, gruppi, ordine, allineamento, livelli, dati forma, pagine; salvataggio nel VSDX (apribile in Visio), esportazione PDF/SVG/PNG. I .vsd binari: modificabili con Visio installato (conversione), altrimenti anteprima e testi",
+   "exts": [
+    "vsdx",
+    "vsdm",
+    "vstx",
+    "vstm",
+    "vsd"
+   ]
+  },
+  {
    "id": "office-lo",
    "name": "Altri documenti Office e OpenDocument",
    "viewer": "office",
@@ -120,9 +134,6 @@
     "odg",
     "otg",
     "fodg",
-    "vsd",
-    "vsdx",
-    "vsdm",
     "wpd",
     "wps",
     "wpt",

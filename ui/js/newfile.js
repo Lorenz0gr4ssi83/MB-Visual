@@ -25,6 +25,7 @@ const TYPES = [
     ["xlsx", tr("newfile.cartella_lavoro_excel"), tr("newfile.nuovo_foglio"), () => tpl("vuoto.xlsx"), "sheet", tr("newfile.tabelle_calcoli_computi")],
     ["pptx", tr("newfile.presentazione_powerpoint"), tr("newfile.nuova_presentazione"), () => tpl("vuoto.pptx"), "slide", tr("newfile.diapositive")],
     ["mbpub", tr("newfile.pubblicazione"), tr("newfile.nuova_pubblicazione"), () => import("./pubmodel.js").then(m => m.blankMbpub()), "pub", tr("newfile.volantini_brochure_biglietti_newsletter")],
+    ["vsdx", tr("newfile.diagramma"), tr("newfile.nuovo_diagramma"), () => import("./vsdmodel.js").then(m => m.blankVsdx()), "diagram-l", tr("newfile.diagrammi_flusso_schemi_visio")],
     ["mbvid", tr("newfile.progetto_video"), tr("newfile.nuovo_progetto_video"), () => import("./vidmodel.js").then(m => enc(JSON.stringify(m.newProject(), null, 1))), "video-l", tr("newfile.montaggio_video_audio_titoli_transizioni")],
     ["pdf", tr("newfile.documento_pdf"), tr("newfile.nuovo_pdf"), () => tpl("vuoto_A4.pdf"), "page", tr("newfile.moduli_testi_immagini")],
     ["dxf", tr("newfile.disegno_cad"), tr("newfile.nuovo_disegno"), () => tpl("vuoto.dxf"), "cad", tr("newfile.si_apre_autocad_ogni_cad")],
@@ -35,7 +36,7 @@ const TYPES = [
 
 // icona del programma (colori e iniziale come le app originali, senza marchi)
 const APP = {
-  docx: ["#185abd", "W"], xlsx: ["#107c41", "X"], csv: ["#107c41", "a,b"], pptx: ["#c43e1c", "P"], mbpub: ["#077568", "P"], mbvid: ["#3b2d8f", "VID"], pdf: ["#d93025", "PDF"], dxf: ["#c0392b", "DXF"],
+  docx: ["#185abd", "W"], xlsx: ["#107c41", "X"], csv: ["#107c41", "a,b"], pptx: ["#c43e1c", "P"], mbpub: ["#077568", "P"], vsdx: ["#3955a3", "V"], mbvid: ["#3b2d8f", "VID"], pdf: ["#d93025", "PDF"], dxf: ["#c0392b", "DXF"],
   txt: ["#5f6b76", "TXT"], md: ["#37474f", "MD"], html: ["#e65100", "</>"], json: ["#6a4fb3", "{ }"], xml: ["#00838f", "XML"], py: ["#2b6cb0", "PY"], bat: ["#3c3c3c", "BAT"],
   png: ["#0078d4", "PNG"], jpg: ["#0078d4", "JPG"], svg: ["#f57c00", "SVG"], sqlite: ["#0f6d8c", "DB"],
 };
@@ -65,6 +66,14 @@ function thumb(kind, color) {
       + `<rect x="${x + 6}" y="${y + H * 0.52 + 18}" width="${W - 12}" height="9" fill="#4f9b5c" opacity=".85"/>`
       + Array.from({ length: 22 }, (_, i) => `<rect x="${x + 8 + i * (W - 16) / 22}" y="${y + H * 0.52 + 22.5 - (2 + (i * 7) % 4)}" width="2" height="${(2 + (i * 7) % 4) * 2}" fill="#1d4d26"/>`).join("")
       + `<rect x="${x + W * 0.6}" y="${y + H * 0.48}" width="1.5" height="${H * 0.48}" fill="#2d8ceb"/>`;
+  }
+  else if (kind === "diagram-l") {
+    // diagramma di flusso: inizio, processo, decisione collegati da connettori con freccia
+    const bx = (cx, cy, w, h, r) => `<rect x="${x + cx - w / 2}" y="${y + cy - h / 2}" width="${w}" height="${h}" rx="${r}" fill="${color}" opacity=".85"/>`;
+    const ar = (x1, y1, x2, y2) => `<path d="M${x + x1} ${y + y1}L${x + x2} ${y + y2}" stroke="#7a8691" stroke-width="1.2"/><path d="M${x + x2 - 3} ${y + y2 - 3}L${x + x2} ${y + y2}L${x + x2 + (x1 === x2 ? 3 : -3)} ${y + y2 + (x1 === x2 ? -3 : 3)}" fill="none" stroke="#7a8691" stroke-width="1.2"/>`;
+    inner = bx(22, 14, 26, 10, 5) + ar(22, 19, 22, 30) + bx(22, 37, 26, 13, 1)
+      + `<path d="M${x + 70} ${y + 26}l13 11 -13 11 -13 -11z" fill="${color}" opacity=".55"/>` + ar(35, 37, 56, 37) + ar(83, 37, 96, 37)
+      + bx(102, 37, 12, 13, 1) + `<path d="M${x + 70} ${y + 48}V${y + 60}H${x + 22}V${y + 56}" fill="none" stroke="#7a8691" stroke-width="1.2"/>` + bx(22, 63, 26, 10, 5);
   }
   else if (kind.startsWith("page")) inner = "";
   else if (kind === "cad") inner = `<path d="M${x + 20} ${y + 55} L${x + 50} ${y + 25} L${x + 85} ${y + 45}" fill="none" stroke="${color}" stroke-width="1.4"/><circle cx="${x + 50}" cy="${y + 25}" r="2" fill="${color}"/><circle cx="${x + 68}" cy="${y + 50}" r="12" fill="none" stroke="#7a8691"/>`;

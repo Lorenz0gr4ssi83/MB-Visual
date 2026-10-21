@@ -526,3 +526,30 @@ l'import map) e aggiunge due esportazioni (`_parseToRaw`, `_buildInstancedSceneF
   alla camera" restano fermi. Web app: .skp non abilitato (WEB_EXTS/WEB_LIBS di build_web.py).
 - Prove nel browser con altre sessioni attive: il cookie `mbv` e' per host (non per porta) e le altre app su 127.0.0.1 lo
   sovrascrivono -> usare http://localhost:<porta>/?t=<token> e rifare `fetch("/?t=" + token)` prima di aprire.
+## Diagrammi di Visio (22/10/2026) - FATTO
+Categoria `visio` in formats.json (vsdx, vsdm, vstx, vstm, vsd; tolti vsd/vsdx/vsdm da office-lo), voce "Diagramma" in Crea nuovo
+(pacchetto vuoto generato da `vsdmodel.blankVsdx`, A4 in mm). Scritto da zero sulla specifica pubblica [MS-VSDX].
+- `ui/js/vsdmodel.js` pacchetto (JSZip + DOM XML delle parti: si modificano i DOM e si riscrivono solo le parti cambiate, tutto
+  il resto resta com'e' -> il file si riapre in Visio), ereditarieta' delle celle forma -> forma del master -> stili (LineStyle/
+  FillStyle/TextStyle) -> tema, sezioni unite riga per riga (Del="1"), valutatore delle formule (ad albero: unita', MIN/MAX/IF...,
+  Geometry1.X2, User.x, Controls.Row_1.Y, Sheet.N!Cella, ThePage!). Regola di scrittura: la formula di una cella cambiata resta
+  solo se, rivalutata con i valori nuovi, da' lo stesso valore (F="Inh" se ereditata), altrimenti diventa costante.
+  Colori "Themed": senza tema nel file = bianco/nero (come Visio); con tema = QuickStyle*Color (0-7 dk1/lt1/accent, 100 e
+  200-206 = colori della variante VariationColorIndex della pagina). Forme con Del="1" (ID 4294967295) si ignorano.
+- `ui/js/vsdrender.js` disegno unico (operazioni in punti, stesso formato del PDF delle pubblicazioni): geometrie (anche
+  ArcTo con freccia positiva a destra della corda, EllipticalArcTo, NURBS, PolylineTo, Rel*), Rounding, frecce, retini/
+  gradienti, ombre, testo con a capo/allineamenti/margini, immagini (EMF/WMF -> PNG con Pillow, API visio_metafile), livelli,
+  pagine di sfondo, scala del disegno. `ui/js/vsdops.js` modifiche (sposta, ridimensiona con ricalcolo delle formule, ruota,
+  capovolgi, connettori dinamici con Connect + _WALKGLUE/_XFTRIGGER e percorso ad angoli retti, gruppi, ordine, incolla con ID e
+  Sheet.N! rinumerati, formato, dati forma, livelli, pagine). `ui/js/vsdedit.js` interfaccia in stile Visio (schede Home/Inserisci/
+  Progettazione/Visualizza, pannello Forme con stencil di `vsdshapes.js` e "Forme del documento", linguette pagine, Dati forma,
+  Dimensioni e posizione, Trova/Sostituisci, tasti di Visio in keymap). `ui/css/visio.css`, icone `vsdicons.js` (+ pubicons).
+- Salva con nome: vsdx/vsdm/vstx/vstm (tipo del pacchetto cambiato su una copia; senza "m" si toglie il progetto VBA), PDF
+  vettoriale (riusa `publisher.export_pdf`, API visio_pdf), SVG e PNG una per pagina.
+- `.vsd` binari (`mbvisual/visio.py`, API visio_vsd): con Visio installato conversione COM in .vsdx (non provata: Visio non c'e'
+  su questo PC); con LibreOffice pagine come immagini; altrimenti anteprima del file e testi delle pagine (flussi LZSS
+  decompressi, blocchi 0x0E) per la versione 11+.
+- Prove: file pubblici in `tests/samples/visio` (fonti in FONTI.md), `tests/check_vsdx.py` controlla la struttura del file
+  salvato. Confronto visivo utile: `docProps/thumbnail.emf` dentro ogni vsdx e' l'anteprima disegnata da Visio.
+  Dalla console: `MB.tabs[i].api._vs` (doc, page, model, sel, run, exportPdf...). Se il server di prova risponde "non
+  autorizzato", il cookie e' stato sovrascritto da un altro server su 127.0.0.1: aggiungere ?t=token alle richieste.

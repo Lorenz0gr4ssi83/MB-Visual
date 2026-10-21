@@ -669,6 +669,19 @@ class Handler(BaseHTTPRequestHandler):
         from . import publisher
         self._json({"ok": True, "job": jobs.start(publisher.import_pub, self._path(qs))})
 
+    # ------------------------------------------------------------ diagrammi di Visio (ui/js/vsdedit.js)
+    def api_visio_metafile(self, qs):
+        from . import visio
+        self._send(200, visio.metafile_png(self._body()), "image/png")
+
+    def api_visio_pdf(self, qs):
+        from . import visio
+        self._json(visio.export_pdf(self._body(), self._path(qs)))
+
+    def api_visio_vsd(self, qs):
+        from . import visio
+        self._json({"ok": True, "job": jobs.start(visio.open_vsd, self._path(qs))})
+
     # ------------------------------------------------------------ archivi
     def api_archive_list(self, qs):
         self._json(archive.list_entries(self._path(qs), _q(qs, "password")))
