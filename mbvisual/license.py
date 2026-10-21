@@ -32,7 +32,9 @@ def server_url() -> str:
 
 
 def required() -> bool:
-    return FROZEN or os.environ.get("MBV_LICENZA") == "1"
+    # finche' il server non e' online (LICENSE_URL vuoto) le versioni distribuite restano libere: senza server
+    # nessuno potrebbe attivarle
+    return (FROZEN and bool(server_url())) or os.environ.get("MBV_LICENZA") == "1"
 
 
 def device_id() -> str:
