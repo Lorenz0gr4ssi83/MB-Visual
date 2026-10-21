@@ -56,7 +56,11 @@ jobs:
       - name: Lettore Navisworks (nwd2mbv)
         if: ${{ github.event_name == 'push' || inputs.navisworks }}
         continue-on-error: true
-        run: bash tools/nwd2mbv/build_mac.sh
+        run: |
+          XC=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$XC" ] && export DEVELOPER_DIR="$XC/Contents/Developer" && echo "Xcode: $XC"
+          clang++ --version | head -1
+          bash tools/nwd2mbv/build_mac.sh
 
       - uses: actions/setup-node@v4
         if: ${{ github.event_name == 'push' || inputs.onlyoffice }}
