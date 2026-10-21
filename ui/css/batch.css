@@ -1,0 +1,58 @@
+/* Conversione a lotti (ui/js/batch.js) */
+.bt-back { position: fixed; inset: 0; z-index: 85; display: grid; place-items: center; background: rgba(10, 12, 14, .42); }
+.bt-dlg { background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+  width: min(860px, 96vw); max-height: 92vh; display: grid; grid-template-rows: auto 1fr auto; min-height: 0; }
+.bt-head { display: flex; align-items: center; gap: 10px; padding: 16px 20px 10px; border-bottom: 1px solid var(--line); }
+.bt-head h3 { margin: 0; font: 600 17px var(--display); flex: 1; }
+.bt-body { overflow: auto; min-height: 0; padding: 14px 20px; display: grid; gap: 16px; align-content: start; }
+.bt-foot { display: flex; gap: 8px; align-items: center; padding: 12px 20px 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.bt-foot .grow { flex: 1; }
+.bt-sec { display: grid; gap: 8px; }
+.bt-sec > h4 { margin: 0; font: 600 12px var(--ui); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.bt-src { display: grid; gap: 4px; max-height: 120px; overflow: auto; }
+.bt-src .row { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.bt-src .row .p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+.bt-line { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.bt-sum { font-size: 12.5px; color: var(--muted); }
+.bt-sum b { color: var(--fg); font-weight: 600; }
+.bt-ops { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 6px; }
+.bt-op { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.bt-op.on { border-color: var(--accent); background: var(--accent-soft); }
+.bt-op.off { opacity: .5; }
+.bt-op .n { font: 11px var(--mono); color: var(--muted); }
+.bt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 14px; }
+.bt-grid label, .bt-f { display: grid; gap: 4px; font-size: 12.5px; }
+.bt-grid label.chk, .bt-chk { display: flex; align-items: center; gap: 6px; }
+.bt-dlg .field { width: 100%; box-sizing: border-box; min-height: 28px; color: var(--fg); }
+.bt-note { margin: 0; font-size: 12px; color: var(--muted); }
+.bt-out { display: grid; gap: 6px; }
+.bt-out .path { display: flex; gap: 6px; align-items: center; }
+.bt-out .path .field { flex: 1; }
+/* avanzamento */
+.bt-bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.bt-bar > span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.bt-stats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; }
+.bt-stats .ok { color: var(--ok); } .bt-stats .bad { color: var(--bad); } .bt-stats .skip { color: var(--muted); }
+.bt-cur { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-items { border: 1px solid var(--line); border-radius: 8px; overflow: auto; max-height: 46vh; background: var(--panel); }
+.bt-items table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.bt-items td { padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.bt-items td.st { white-space: nowrap; font-weight: 600; width: 1%; }
+.bt-items td.f { overflow-wrap: anywhere; }
+.bt-items td.m { color: var(--muted); overflow-wrap: anywhere; }
+.bt-items tr.ok td.st { color: var(--ok); } .bt-items tr.errore td.st { color: var(--bad); } .bt-items tr.errore td.m { color: var(--bad); }
+.bt-items tr.saltato td, .bt-items tr.annullato td { color: var(--muted); }
+.bt-items tr.cur { background: var(--accent-soft); }
+.bt-tabs { display: flex; gap: 4px; }
+.bt-tabs button.on { background: var(--accent-soft); border-color: var(--accent); }
+/* riquadro ridotto in basso a destra */
+.bt-chip { position: fixed; right: 16px; bottom: 34px; z-index: 70; width: 300px; display: grid; gap: 6px; padding: 10px 12px;
+  background: var(--panel-2); color: var(--fg); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: var(--shadow); font-size: 12.5px; }
+.bt-chip .t { display: flex; gap: 6px; align-items: center; }
+.bt-chip .t b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-chip .c { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bt-chip .btn { height: 26px; }
+/* contenitore fuori schermo per i visualizzatori usati dal lotto (3D) */
+.bt-hidden { position: fixed; left: -20000px; top: 0; width: 1024px; height: 768px; overflow: hidden; pointer-events: none; }
+.bt-hidden > .body { width: 100%; height: 100%; position: relative; }
+@media (max-width: 600px) { .bt-body { padding: 12px 16px; } .bt-head, .bt-foot { padding-left: 16px; padding-right: 16px; } }

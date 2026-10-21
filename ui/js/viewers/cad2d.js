@@ -315,7 +315,7 @@ function ptsBB(P) { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity
 // ---------------------------------------------------------------- decodifica DWG
 // Un motore nuovo per ogni disegno: la sua memoria si libera quando il disegno e' letto. Con un motore condiviso
 // la memoria cresceva a ogni file aperto fino a esaurirsi ("out of WASM memory").
-async function decodeDwg(bytes, ctx, ld) {
+export async function decodeDwg(bytes, ctx, ld) { // usata anche dalla conversione a lotti (ui/js/batch.js)
   const m = await import("/vendor/libredwg/dist/libredwg-web.js");
   const type = ctx.ext === "dxf" ? m.Dwg_File_Type.DXF : m.Dwg_File_Type.DWG;
   for (let attempt = 1; ; attempt++) {

@@ -163,6 +163,7 @@
  "app.stai_usando_l_app_direttamente": "You are running the app directly from the OneDrive folder: when a new version arrives, OneDrive downloads it one file at a time and the app may start halfway through the update.",
  "app.stampa": "Print...",
  "app.stampa_desc": "Print",
+ "app.conversione_lotti": "Batch conversion...",
  "app.stampa_lotti": "Batch print...",
  "app.stampa_lotti_desc": "Batch print",
  "app.stampa_solo_pc": "Printing is available in the PC app",

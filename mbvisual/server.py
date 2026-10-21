@@ -330,6 +330,11 @@ class Handler(BaseHTTPRequestHandler):
         out = self._body_json()["out"]
         self._json({"ok": True, "job": jobs.start(convert.convert, self._path(qs), out)})
 
+    def api_batch(self, qs):
+        # conversione a lotti (mbvisual/batch.py): scan, start, status, cancel, list, take/client (compiti della pagina)
+        from . import batch
+        self._json(batch.handle(_q(qs, "op", ""), self._body_json(), lambda k: _q(qs, k)))
+
     def api_temp_path(self, qs):
         # percorso temporaneo per salvare lo stato attuale di un documento prima di convertirlo
         d = TEMP_DIR / "conversioni" / uuid.uuid4().hex[:8]

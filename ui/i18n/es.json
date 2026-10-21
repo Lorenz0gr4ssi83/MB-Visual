@@ -163,6 +163,7 @@
  "app.stai_usando_l_app_direttamente": "Está usando la app directamente desde la carpeta de OneDrive: cuando llega una nueva versión, OneDrive la descarga archivo por archivo y la app puede iniciarse a mitad de la actualización.",
  "app.stampa": "Imprimir...",
  "app.stampa_desc": "Imprimir",
+ "app.conversione_lotti": "Conversión por lotes...",
  "app.stampa_lotti": "Impresión por lotes...",
  "app.stampa_lotti_desc": "Impresión por lotes",
  "app.stampa_solo_pc": "La impresión está disponible en la aplicación para PC",

@@ -244,6 +244,9 @@ function fileMenu(anchor) {
   m.append(item('<svg viewBox="0 0 24 24"><path d="M4 4h7v16H4zM13 4h7v16h-7M8 9l-2 2 2 2M16 9l2 2-2 2"/></svg>', tr("app.confronta_con"), "", compareWith, !active || active.viewer === "compare" || !COMPARE_EXT.test(extOf(active.info?.nome || active.name))));
   if (WEB && window.MBV_MOBILE) m.append(el("hr"), item(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount)); // app per cellulari con licenza
   if (!WEB) {
+    // conversione a lotti (ui/js/batch.js): cartella del pannello Esplora gia' proposta
+    m.append(item('<svg viewBox="0 0 24 24"><path d="M4 4h10v10H4zM10 10h10v10H10M17 6l3 3-3 3"/></svg>', tr("app.conversione_lotti"), "",
+      () => import("./batch.js").then(b => b.openBatch({ paths: exDir && !$("explorer").hidden ? [exDir] : [] }))));
     m.append(el("hr"), item(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount), item(ICON_UPD, tr("app.verifica_aggiornamenti"), "", () => checkUpdates(true)));
     if (updInfo?.installabile && !updInfo.installata) m.append(item("", tr("app.installa_questo_pc"), "", askInstall));
   }
@@ -396,7 +399,7 @@ function renderDir() {
   box.innerHTML = "";
   const items = exItems.filter(i => !q || i.name.toLowerCase().includes(q));
   for (const i of items) {
-    box.append(el("button", { class: "ex-item" + (i.dir ? " dir" : ""), title: i.name, onclick: () => (i.dir ? loadDir(i.path) : openPaths([i.path])) },
+    box.append(el("button", { class: "ex-item" + (i.dir ? " dir" : ""), title: i.name, "data-path": i.path, onclick: () => (i.dir ? loadDir(i.path) : openPaths([i.path])) },
       badgeFor(i.name, i.dir), el("span", { class: "nm" }, i.name),
       el("span", { class: "sz", title: i.nuvola ? tr("app.solo_onedrive_verra_scaricato_all") : "" }, (i.nuvola ? "☁ " : "") + (i.dir ? "" : fmtSize(i.size)))));
   }
@@ -937,6 +940,13 @@ async function boot() {
   $("ex-up").addEventListener("click", () => exDir && dirName(exDir) && loadDir(dirName(exDir)));
   $("ex-filter").addEventListener("input", renderDir);
   $("ex-search").addEventListener("click", () => import("./search.js").then(m => m.toggle(true)));
+  // clic destro nel pannello Esplora: conversione a lotti della cartella (o a partire dal file)
+  $("ex-list").addEventListener("contextmenu", e => {
+    if (WEB || !exDir) return;
+    e.preventDefault();
+    const b = e.target.closest(".ex-item");
+    import("./batch.js").then(m => m.explorerMenu(e, b ? b.dataset.path : exDir, b ? b.classList.contains("dir") : true, p => openPaths([p])));
+  });
   $("btn-file").addEventListener("click", e => fileMenu(e.currentTarget));
   $("btn-as").addEventListener("click", e => openAsMenu(e.currentTarget));
   $("btn-folder").addEventListener("click", () => active && api("reveal", { path: active.path }));

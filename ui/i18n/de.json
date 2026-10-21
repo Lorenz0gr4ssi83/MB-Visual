@@ -163,6 +163,7 @@
  "app.stai_usando_l_app_direttamente": "Sie verwenden die App direkt aus dem OneDrive-Ordner: Bei einer neuen Version lädt OneDrive Datei für Datei herunter, und die App kann mitten im Update starten.",
  "app.stampa": "Drucken...",
  "app.stampa_desc": "Drucken",
+ "app.conversione_lotti": "Stapelkonvertierung...",
  "app.stampa_lotti": "Stapeldruck...",
  "app.stampa_lotti_desc": "Stapeldruck",
  "app.stampa_solo_pc": "Drucken ist in der PC-App verfügbar",

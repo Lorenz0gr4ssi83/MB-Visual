@@ -554,3 +554,25 @@ Categoria `visio` in formats.json (vsdx, vsdm, vstx, vstm, vsd; tolti vsd/vsdx/v
   salvato. Confronto visivo utile: `docProps/thumbnail.emf` dentro ogni vsdx e' l'anteprima disegnata da Visio.
   Dalla console: `MB.tabs[i].api._vs` (doc, page, model, sel, run, exportPdf...). Se il server di prova risponde "non
   autorizzato", il cookie e' stato sovrascritto da un altro server su 127.0.0.1: aggiungere ?t=token alle richieste.
+
+## Conversione a lotti (22/10/2026) - FATTO
+File -> "Conversione a lotti..." e clic destro nel pannello Esplora (cartella o file). `mbvisual/batch.py` (API unica
+`api/batch?op=scan|start|status|cancel|list|take|client`) + `ui/js/batch.js` (finestra, avanzamento, riquadro ridotto) +
+`ui/css/batch.css`. Coda sequenziale nel motore (un lotto alla volta, gli altri aspettano), annullabile (FFmpeg fermato subito,
+gli altri dopo il file in corso), rapporto CSV (riusciti / saltati / falliti con il motivo leggibile, `_reason`), uscita accanto
+agli originali o in una cartella con la struttura replicata; mai sopra l'originale; esistente = numero / sostituisci / salta.
+- Operazioni: PDF, altro formato (convert.py), immagini (ridimensiona/converti/comprimi con Pillow), unisci in un PDF
+  (segnalibri per file, gli altri documenti convertiti prima), comprimi PDF, OCR, video MP4 (H.264 CRF + altezza max).
+- Office: un'istanza di Word/Excel/PowerPoint per tutto il lotto (`_office_convert`; avviarli a ogni file costava 30-100 s e un
+  riavvio a ridosso del precedente faceva fallire il file successivo); password finta per non bloccare la coda sui file protetti.
+- DWG/DXF -> PDF/SVG/PNG con ezdxf (`cad_render`): modello e/o fogli (pagina per foglio, segnalibri), formato carta, scala 1:N
+  esatta (Settings.scale = mm per unita' / N), colori/b-n. DXF letti da ezdxf; DWG: con ODA File Converter -> DXF, senza ODA la
+  PAGINA decodifica il DWG con libredwg (`decodeDwg` esportata da cad2d.js) e manda il database: `doc_from_db` ricostruisce
+  modello (cadedit._from_db/_create) e fogli con le finestre (la prima VIEWPORT di ogni foglio e' il foglio stesso: saltata).
+- 3D/BIM -> GLB/STEP/IFC/STL/OBJ...: la pagina monta `viewers/model3d.js` in un contenitore fuori schermo (.bt-hidden) e usa il
+  suo save(). Compiti della pagina: il motore li pubblica in `status.task`, la pagina fa `take` e risponde con `client`; se la
+  pagina non interroga per 45 s (o 30 min dopo aver preso il compito) il file fallisce con un motivo chiaro.
+- Prove: cartella mista in scratchpad (Office, email .msg/.eml, PDF reali, PDF rotto, immagini, video, DWG reali, IFC, STEP, STL).
+  libredwg-web NON legge i DXF: i fogli DWG si provano con un database sintetico (struttura di libredwg) -> doc_from_db.
+- Prove nel browser con piu' sessioni: il cookie `mbv` e' per host (non per porta), le app di prova delle altre sessioni lo
+  sovrascrivono -> aprire l'app con un nome unico, es. http://mbvlotti.localhost:PORTA/?t=TOKEN.
