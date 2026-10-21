@@ -99,6 +99,7 @@ function all(g, code) { return g.filter(x => x[0] === code).map(x => parseFloat(
 
 function toEntity(type, g) {
   const e = { type, layer: val(g, 8) || "0", colorIndex: val(g, 62) !== undefined ? num(g, 62) : 256 };
+  if (val(g, 5) !== undefined) e.handle = String(val(g, 5)).trim(); // identificativo: serve all'editor per modificare il file originale
   if (val(g, 420) !== undefined) { e.color = parseInt(val(g, 420), 10); e.colorIndex = undefined; }
   if (num(g, 67) === 1) e.isInPaperSpace = true;
   if (num(g, 60) === 1) e.isVisible = false;

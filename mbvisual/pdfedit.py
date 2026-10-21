@@ -235,3 +235,58 @@ def working_copy(path: str, folder: Path) -> str:
     dst = folder / (Path(path).stem + "_" + os.urandom(4).hex() + ".pdf")
     shutil.copyfile(path, dst)
     return str(dst)
+
+
+# ---------------------------------------------------------------- OCR con il motore integrato di Windows
+def _ocr_png(png: bytes):
+    """Parole riconosciute in un'immagine: [[(testo, x, y, larghezza, altezza), ...] per riga]. Usa ocr.ps1 (motore di Windows)
+    in un processo PowerShell separato: nessuna libreria aggiuntiva nell'app."""
+    import json
+    import subprocess
+    import tempfile
+    script = Path(__file__).with_name("ocr.ps1")
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+        f.write(png)
+        img = f.name
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(script), img, "it"],
+                           capture_output=True, timeout=300, creationflags=0x08000000)
+        if r.returncode != 0:
+            raise RuntimeError("Riconoscimento del testo non riuscito: " + r.stderr.decode("utf-8", "replace").strip()[-300:])
+        out = r.stdout.decode("utf-8-sig", "replace").strip()
+        data = json.loads(out) if out else []
+        if data and isinstance(data[0], list) and data[0] and not isinstance(data[0][0], list):
+            data = [data] if isinstance(data[0][0], str) else data
+        return [[tuple(w) for w in line] for line in data]
+    finally:
+        os.remove(img)
+
+
+def ocr(path: str, out: str, dpi: int = 300, update=None) -> dict:
+    """Rende ricercabile un PDF scansionato: sotto ogni pagina senza testo si inserisce il testo riconosciuto, invisibile
+    e allineato alle parole (si cerca, si seleziona e si copia come in un PDF nato digitale)."""
+    words = pages = 0
+    with pymupdf.open(path) as doc:
+        n = len(doc)
+        for i, page in enumerate(doc):
+            if update:
+                update(progress=i / max(n, 1), message=f"Riconoscimento del testo: pagina {i + 1} di {n}")
+            if len(page.get_text().strip()) > 40:
+                continue  # la pagina ha gia' del testo
+            pix = page.get_pixmap(dpi=dpi)
+            lines = _ocr_png(pix.tobytes("png"))
+            s = 72 / dpi
+            for line in lines:
+                for text, x, y, w, h in line:
+                    if not text.strip():
+                        continue
+                    fs = max(2.0, h * s * 0.92)
+                    width = pymupdf.get_text_length(text, fontname="helv", fontsize=fs) or 1
+                    p = pymupdf.Point(x * s, (y + h) * s - h * s * 0.18) * page.derotation_matrix
+                    sx = (w * s) / width
+                    page.insert_text(p, text, fontname="helv", fontsize=fs, render_mode=3, rotate=page.rotation,
+                                     morph=(p, pymupdf.Matrix(sx, 1)) if page.rotation == 0 else None)
+                    words += 1
+            pages += 1
+        doc.save(out, garbage=3, deflate=True)
+    return {"ok": True, "path": out, "pagine": pages, "parole": words}

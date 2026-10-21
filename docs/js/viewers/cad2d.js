@@ -1,5 +1,6 @@
 // Disegni CAD 2D (DWG con libredwg, DXF con lettore interno): zoom/pan, layer, blocchi, testi, quote, misure, esportazione.
-import { api, button, el, loading, readBytes, saveBlobAs, toast, withExt } from "../core.js";
+import { api, button, el, loading, readBytes, saveBlobAs, toast, withExt, WEB } from "../core.js";
+import { createCadEditor } from "../cadedit.js";
 import { parseDxf } from "../dxf.js";
 
 
@@ -81,6 +82,8 @@ function build(db) {
   const groups = new Map(); // layer|colore -> {layer, color, lines: [[x,y,...]], fills: []}
   const texts = [];
   const snaps = [];
+  const ents = []; // indice entita' di primo livello -> polilinee in coordinate di disegno (per la selezione)
+  let owner = -1;
   let bbox = [Infinity, Infinity, -Infinity, -Infinity];
   const xs = [], ys = [];
 
@@ -99,6 +102,7 @@ function build(db) {
     let g = groups.get(key);
     if (!g) groups.set(key, (g = { layer, color, lines: [], fills: [] }));
     (fill ? g.fills : g.lines).push({ pts, closed });
+    if (owner >= 0) (ents[owner] ||= []).push(closed && pts.length > 2 ? [...pts, pts[0]] : pts);
     for (const [x, y] of pts) {
       if (!isFinite(x) || !isFinite(y)) continue;
       if (xs.length < 400000) { xs.push(x); ys.push(y); }
@@ -110,7 +114,8 @@ function build(db) {
     if (depth > 12) return;
     const tp = (x, y) => [M[0] * x + M[2] * y + M[4], M[1] * x + M[3] * y + M[5]];
     const scale = Math.sqrt(Math.abs(M[0] * M[3] - M[1] * M[2])) || 1;
-    for (const e of list) {
+    for (const [k, e] of list.entries()) {
+      if (depth === 0) { owner = k; if (e._deleted || e.type === "_skip") continue; }
       if (e.isVisible === false || e.isInPaperSpace) continue;
       const lname = e.layer === "0" && inheritedLayer ? inheritedLayer : e.layer || "0";
       const L = layerOf(lname);
@@ -177,6 +182,10 @@ function build(db) {
             hal: isM ? ["left", "center", "right"][(ap - 1) % 3] : ["left", "center", "right", "left", "center", "left"][e.halign || 0] || "left",
             val: isM ? ["top", "middle", "bottom"][Math.floor((ap - 1) / 3)] : ["alphabetic", "bottom", "middle", "top"][e.valign || 0] || "alphabetic", width: isM ? (e.rectWidth || 0) * scale : 0 });
           if (xs.length < 400000) { xs.push(x, x); ys.push(y, y + (e.textHeight || 1) * scale * 1.3); }
+          if (owner >= 0) {
+            const h = (e.textHeight || 1) * scale, w = Math.max(...cleanMText(e.text).split("\n").map(s => s.length), 1) * h * 0.62;
+            (ents[owner] ||= []).push({ box: [x - (isM ? 0 : 0), y - h * 0.3, x + w, y + h * 1.2] });
+          }
           break;
         }
         case "INSERT": case "DIMENSION": {
@@ -225,7 +234,7 @@ function build(db) {
     g.fillPath = new Path2D();
     for (const { pts } of g.fills) { g.fillPath.moveTo(pts[0][0], pts[0][1]); for (let k = 1; k < pts.length; k++) g.fillPath.lineTo(pts[k][0], pts[k][1]); g.fillPath.closePath(); }
   }
-  return { layers, groups: [...groups.values()], texts, bbox, snaps: Float64Array.from(snaps) };
+  return { layers, groups: [...groups.values()], texts, bbox, snaps: Float64Array.from(snaps), ents };
 }
 
 // ---------------------------------------------------------------- decodifica DWG
@@ -268,7 +277,7 @@ export async function mount(ctx) {
   }
   ld.set(0.7, "Preparazione del disegno");
   await new Promise(r => setTimeout(r, 0));
-  const model = build(db);
+  let model = build(db);
   ctx.el.innerHTML = "";
 
   // ---- interfaccia
@@ -276,7 +285,15 @@ export async function mount(ctx) {
   const layerList = el("div", { class: "tree" });
   const side = el("div", {}, el("div", { style: { padding: "8px 10px", display: "flex", gap: "6px", alignItems: "center" } }, el("b", {}, "Layer"), el("span", { class: "note" }, String(model.layers.size)),
     el("span", { style: { flex: 1 } }), el("button", { class: "btn", onclick: () => setAll(true) }, "Tutti"), el("button", { class: "btn", onclick: () => setAll(false) }, "Nessuno")), layerList);
-  const wrap = el("div", { class: "side" }, side, el("div", { style: { position: "relative", overflow: "hidden" } }, canvas));
+  // editor del disegno (solo app per PC: il salvataggio usa il motore ezdxf)
+  const editor = WEB ? null : createCadEditor({
+    ctx, db, sourceKind: ctx.ext === "dxf" ? "dxf" : "dwg", ACI, getModel: () => model,
+    rebuild: () => { model = build(db); refreshLayers(); draw(); },
+    draw: () => draw(), toWorld: (x, y) => toWorld(x, y), toScreen: (x, y) => toScreen(x, y), get view() { return view; }, snap: (x, y) => snap(x, y),
+  });
+  if (editor) side.append(editor.props);
+  const wrap = el("div", { class: "side" }, side, el("div", { style: { display: "grid", gridTemplateRows: "auto 1fr", minHeight: 0, minWidth: 0 } },
+    editor ? editor.bar : el("span"), el("div", { style: { position: "relative", overflow: "hidden" } }, canvas)));
   ctx.el.append(wrap);
   ctx.fillBody(true);
   let dark = true, measure = false, mpts = [], showText = true;
@@ -286,7 +303,8 @@ export async function mount(ctx) {
   const mBtn = button("Misura", "ruler", () => { measure = !measure; mBtn.classList.toggle("on", measure); mpts = []; canvas.style.cursor = measure ? "crosshair" : "grab"; draw(); });
   const tBtn = button("Testi", "text", () => { showText = !showText; tBtn.classList.toggle("on", showText); draw(); });
   tBtn.classList.add("on");
-  ctx.tb.append(...[button("Adatta", "fit", fit), button("", "zoomIn", () => zoomAt(1.4), { iconOnly: true, title: "Ingrandisci" }), button("", "zoomOut", () => zoomAt(1 / 1.4), { iconOnly: true, title: "Riduci" }),
+  const editBtn = editor ? button("Modifica disegno", "edit", () => { const on = editor.toggle(); editBtn.classList.toggle("on", on); if (on && measure) mBtn.click(); }, { title: "Seleziona, modifica e disegna elementi; cambia layer, colori e proprieta'" }) : null;
+  ctx.tb.append(...[editBtn, editBtn ? el("span", { class: "sep" }) : null, button("Adatta", "fit", fit), button("", "zoomIn", () => zoomAt(1.4), { iconOnly: true, title: "Ingrandisci" }), button("", "zoomOut", () => zoomAt(1 / 1.4), { iconOnly: true, title: "Riduci" }),
     el("span", { class: "sep" }), mBtn, tBtn, bgBtn, el("span", { class: "sep" }),
     button("PNG", "download", () => exportPng()), button("SVG", "download", () => exportSvg()), button("PDF", "download", () => exportPdf()),
     ctx.ext === "dxf" ? button("Modifica DXF (testo)", "code", () => ctx.openAs("text")) : null,
@@ -294,18 +312,24 @@ export async function mount(ctx) {
     el("span", { class: "grow" }), el("span", { class: "note" }, "Rotella: zoom · trascina: sposta · doppio clic: adatta")].filter(Boolean));
 
   // ---- elenco layer
-  const sortedLayers = [...model.layers.values()].filter(l => l.count).sort((a, b) => a.name.localeCompare(b.name));
+  let sortedLayers = [];
+  function refreshLayers() {
+    const off = new Map(sortedLayers.map(L => [L.name, L.off]));
+    sortedLayers = [...model.layers.values()].filter(l => l.count).sort((a, b) => a.name.localeCompare(b.name));
+    for (const L of sortedLayers) if (off.has(L.name)) L.off = off.get(L.name);
+    renderLayers();
+  }
   function renderLayers() {
     layerList.innerHTML = "";
     for (const L of sortedLayers) {
       const c = ACI[Math.abs(L.aci ?? 7)] || ACI[7];
       const cb = el("input", { type: "checkbox", checked: !L.off });
-      cb.addEventListener("change", () => { L.off = !cb.checked; draw(); });
+      cb.addEventListener("change", () => { L.off = !cb.checked; const M = model.layers.get(L.name); if (M) M.off = L.off; draw(); });
       layerList.append(el("label", { class: "node" }, cb, el("span", { style: { width: "10px", height: "10px", background: rgb(c), border: "1px solid var(--line)", flex: "none" } }), el("span", {}, L.name), el("span", { class: "note", style: { marginLeft: "auto" } }, String(L.count))));
     }
   }
   function setAll(v) { sortedLayers.forEach(L => (L.off = !v)); renderLayers(); draw(); }
-  renderLayers();
+  refreshLayers();
 
   // ---- vista
   const view = { s: 1, tx: 0, ty: 0 };
@@ -365,8 +389,10 @@ export async function mount(ctx) {
   }
 
   function draw() {
+    for (const L of sortedLayers) { const M = model.layers.get(L.name); if (M) M.off = L.off; }
     render(g2, canvas.width, canvas.height, view.s, view.tx, view.ty, dark);
     g2.setTransform(1, 0, 0, 1, 0, 0);
+    editor?.overlay(g2);
     if (measure && mpts.length) {
       g2.strokeStyle = "#ff9f1a";
       g2.fillStyle = "#ff9f1a";
@@ -416,6 +442,7 @@ export async function mount(ctx) {
   const pos = e => { const r = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1; return [(e.clientX - r.left) * dpr, (e.clientY - r.top) * dpr]; };
   canvas.addEventListener("pointerdown", e => {
     const [px, py] = pos(e);
+    if (editor?.pointerDown(e, px, py)) { canvas.setPointerCapture(e.pointerId); return; }
     if (measure && e.button === 0) {
       if (mpts.length === 2) mpts = [];
       mpts.push(snap(px, py));
@@ -430,15 +457,19 @@ export async function mount(ctx) {
   canvas.addEventListener("pointermove", e => {
     const [px, py] = pos(e);
     const [wx, wy] = toWorld(px, py);
-    if (!measure) ctx.status(`X ${fmt(wx)}  Y ${fmt(wy)}`);
+    if (!measure && !editor?.on) ctx.status(`X ${fmt(wx)}  Y ${fmt(wy)}`);
+    if (editor?.pointerMove(e, px, py)) return;
     if (!drag) return;
     view.tx = drag.tx + (px - drag.px);
     view.ty = drag.ty + (py - drag.py);
     draw();
   });
-  canvas.addEventListener("pointerup", () => { drag = null; canvas.style.cursor = measure ? "crosshair" : "grab"; });
+  canvas.addEventListener("pointerup", e => { const [px, py] = pos(e); if (editor?.pointerUp(e, px, py)) return; drag = null; });
+  canvas.addEventListener("contextmenu", e => { if (editor?.on) e.preventDefault(); });
+  const onKey = e => { if (!ctx.tab.view.hidden && editor?.key(e)) e.preventDefault(); };
+  window.addEventListener("keydown", onKey);
   canvas.addEventListener("wheel", e => { e.preventDefault(); const [px, py] = pos(e); zoomAt(e.deltaY < 0 ? 1.2 : 1 / 1.2, px, py); }, { passive: false });
-  canvas.addEventListener("dblclick", () => { if (!measure) fit(); });
+  canvas.addEventListener("dblclick", () => { if (editor?.dblclick()) return; if (!measure && !editor?.on) fit(); });
   new ResizeObserver(() => { const s = canvas.width; resize(); if (s <= 1) fit(); else draw(); }).observe(canvas);
   requestAnimationFrame(fit);
 
@@ -491,13 +522,21 @@ export async function mount(ctx) {
   ctx.status(`${model.groups.reduce((n, g) => n + g.lines.length, 0).toLocaleString("it-IT")} elementi · ${model.texts.length} testi`);
   return {
     onShow() { resize(); draw(); },
-    saveInPlace: false,
-    saveAsName: () => withExt(ctx.name, ctx.ext === "dxf" ? "dxf" : "pdf"),
+    onBack() { if (editor?.on) { editBtn.click(); return true; } return false; },
+    saveInPlace: ctx.ext === "dxf",
+    saveFormats: editor ? ["dxf", "dwg", "pdf", "svg", "png"] : ["png", "svg", "pdf"],
+    saveAsName: () => withExt(ctx.name, "dxf"),
     async save(target) {
-      if (/\.dxf$/i.test(target) && ctx.ext === "dxf") { await api("save", { path: target }, { body: bytes }); return; }
-      toast("Per i disegni usa i pulsanti PNG / SVG / PDF; per modificare un DXF usa \"Modifica DXF (testo)\".", true, 6000);
-      throw new Error("Esportazione da scegliere con i pulsanti PNG / SVG / PDF");
+      const ext = target.split(".").pop().toLowerCase();
+      if (editor && ["dxf", "dwg", "pdf", "svg", "png"].includes(ext)) {
+        const r = await api("cad_save", { path: ctx.path }, { json: { out: target, edits: editor.payload() } });
+        if (r.non_scritti) toast(`${r.non_scritti} elementi di tipo non supportato non sono stati scritti`, true, 6000);
+        return { switchTo: ext === ctx.ext };
+      }
+      if (ext === "png") { const c = offscreen(); await api("save", { path: target }, { body: new Uint8Array(await (await new Promise(r => c.toBlob(r, "image/png"))).arrayBuffer()) }); return { switchTo: false }; }
+      throw new Error("Usa i pulsanti PNG / SVG / PDF per esportare il disegno");
     },
+    dispose() { window.removeEventListener("keydown", onKey); },
   };
 }
 

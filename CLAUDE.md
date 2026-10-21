@@ -60,7 +60,27 @@ l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.m
    definitiva), Bianchetto, Annulla; menu Altro: comprimi, numeri di pagina, password (AES-256) e sblocco, pagina bianca,
    riordina, PDF -> Word (pdf2docx), pagine -> immagini. Le modifiche vanno su una copia di lavoro in TEMP_DIR/pdf-modifica;
    l'originale cambia solo con Salva. Solo app per PC (nella web app i pulsanti non compaiono).
-   Idee successive: OCR (serve Tesseract), modifica di paragrafi su piu' righe, spostamento di immagini.
-Da fare: 3 salvataggio in molti formati; 5 ONLYOFFICE integrato
-(candidato: github.com/ranuts/document, AGPL, editor ONLYOFFICE senza server, API iframe `document:open-buffer` / `document:save`);
-7 modifica dei disegni CAD e delle proprieta'.
+   OCR "Rendi ricercabile": motore OCR di Windows chiamato da `mbvisual/ocr.ps1` (PowerShell, lingua it-IT), testo
+   invisibile sotto la scansione. NON usare i pacchetti Python winrt: importati prima di PyMuPDF lo mandano in crash
+   (anche nell'analisi di PyInstaller).
+   Immagini, firme e testi nuovi: strumenti di pdf.js (in alto a destra nel documento).
+5. ONLYOFFICE integrato - FATTO: build di github.com/ranuts/document (AGPL) in `%USERPROFILE%\.mbvisual\onlyoffice`
+   (si rifa' con `pnpm install && pnpm run build` in `%USERPROFILE%\.mbvisual\src\oo-document`, poi copia di dist/).
+   Servito da un secondo server locale (`server.onlyoffice_url`, intestazioni COOP/COEP/CORP, file .br con Content-Encoding);
+   l'app principale manda COOP/COEP (pagina isolata). Visualizzatore `ui/js/viewers/oo.js` (postMessage open-buffer / save);
+   alla pagina dell'editor si aggiunge uno script (server `_INJECT`) che segnala le modifiche (tasti + indicatore del motore)
+   e forza il puntatore a freccia. Lingua: `?locale=it`. Solo app per PC; la web app usa gli editor leggeri.
+3. Salva con nome in quasi ogni formato - FATTO: `mbvisual/convert.py` (Office via COM con pywin32, LibreOffice di riserva,
+   Pillow, FFmpeg, PyMuPDF, pdf2docx, 7-Zip, fontTools, sqlite3/openpyxl, markdown). In app.js `chooseFormat` + `convertTo`
+   (job con avanzamento). Collaudo 43/43 conversioni riuscite. 3D: glb, gltf, stl, obj, ply, usdz.
+7. Modifica dei disegni CAD - FATTO: `ui/js/cadedit.js` (selezione, proprieta', Sposta/Copia/Ruota/Elimina, Linea, Polilinea,
+   Rettangolo, Cerchio, Testo, aggancio, Orto F8, Annulla/Ripeti, nuovi layer) + `mbvisual/cadedit.py` (ezdxf): i DXF si
+   modificano sull'originale (handle o posizione nel model space se il file non ha handle), i DWG si ricostruiscono in DXF
+   da layer, blocchi ed entita'; uscita DXF, DWG (solo con ODA File Converter installato), PDF/SVG/PNG vettoriali.
+- Rhino .3dm - FATTO: Rhino3dmLoader di three.js; i solidi salvati senza mesh (file esportati da EsaPRO) si ricostruiscono
+  in `ui/js/rhino.js` (estrusioni da profili, Brep campionati, facce piane dai bordi). Albero per layer, user strings in scheda.
+- Navisworks senza Navisworks - FATTO per NWD/NWC: `tools/nwd2mbv/nwd2mbv.cpp` sulla libreria open source nwd-reader
+  (build: `tools/nwd2mbv/build.sh`, eseguibile in `%USERPROFILE%\.mbvisual\nwd`). Esporta gerarchia, proprieta', materiali
+  (colori dagli asset Autodesk `generic_diffuse`) e geometria in metri; `ui/js/navis.js` la carica (oltre 3000 mesh: blocchi
+  uniti per colore + copie invisibili per selezione). NWF: resta il modello federato dai file sorgente.
+- Puntatore sempre a freccia (richiesta esplicita): regola globale in app.css e negli iframe (pdf.js, ONLYOFFICE).

@@ -12,7 +12,9 @@ const LOADERS = {
   vtk: ["VTKLoader", "VTKLoader"], vtp: ["VTKLoader", "VTKLoader"], pcd: ["PCDLoader", "PCDLoader"], xyz: ["XYZLoader", "XYZLoader"],
   usdz: ["USDZLoader", "USDZLoader"], lwo: ["LWOLoader", "LWOLoader"], md2: ["MD2Loader", "MD2Loader"], pdb: ["PDBLoader", "PDBLoader"],
   kmz: ["KMZLoader", "KMZLoader"], bvh: ["BVHLoader", "BVHLoader"], vox: ["VOXLoader", "VOXLoader"],
+  "3dm": ["3DMLoader", "Rhino3dmLoader"],
 };
+const NAVIS = { nwd: 1, nwc: 1, nwf: 1 }; // Navisworks letto da nwd2mbv (senza Navisworks)
 const OCCT = { step: "step", stp: "step", p21: "step", stpz: "step", iges: "iges", igs: "iges", brep: "brep", brp: "brep" };
 
 // ---------------------------------------------------------------- caricamento
@@ -164,9 +166,12 @@ async function loadMesh(ctx, bytes, ld) {
   }
   const textual = ["obj", "ply", "wrl", "vrml", "vtk", "xyz", "pdb", "dae", "amf"].includes(ctx.ext) && !(bytes[0] === 0x50 && bytes[1] === 0x4b);
   const input = textual && ctx.ext !== "ply" && ctx.ext !== "vtk" ? new TextDecoder().decode(bytes) : bytes.buffer;
+  if (ctx.ext === "3dm") loader.setLibraryPath(window.MBV_ROOT + "vendor/three/examples/jsm/libs/rhino3dm/"); // Rhino (libreria ufficiale rhino3dm)
   let out = await new Promise((resolve, reject) => {
     try {
       if (ctx.ext === "gltf" || ctx.ext === "glb") loader.parse(bytes.buffer, "", resolve, reject);
+      // copia: il lettore trasferisce il buffer al suo worker, e i byte servono ancora per ricostruire i solidi
+      else if (ctx.ext === "3dm") loader.parse(bytes.slice().buffer, resolve, e => reject(new Error(e?.message || String(e))));
       else resolve(loader.parse(input, ""));
     } catch (e) { reject(e); }
   });
@@ -191,6 +196,16 @@ async function loadMesh(ctx, bytes, ld) {
   obj.name = obj.name || ctx.name;
   const root = new THREE.Group();
   root.add(obj);
+  if (ctx.ext === "3dm") {
+    // solidi senza mesh di visualizzazione: ricostruiti dalla geometria esatta (ui/js/rhino.js)
+    ld.set(0.6, "Ricostruzione dei solidi Rhino");
+    try {
+      const { addMissingSolids } = await import("../rhino.js");
+      const n = await addMissingSolids(bytes, obj);
+      if (n) ctx.solidsRebuilt = n;
+    } catch (e) { console.warn("3dm: ricostruzione dei solidi non riuscita", e); }
+    return { root, tree: rhinoTree(obj), animations: [] };
+  }
   const tree = [];
   const walk = (o, outList, depth) => {
     const item = { name: o.name || o.type, obj: o, children: [] };
@@ -201,16 +216,36 @@ async function loadMesh(ctx, bytes, ld) {
   return { root, tree, animations: out.animations };
 }
 
+// Rhino: albero per layer (come nel pannello Livelli di Rhino), con il nome del layer su ogni oggetto
+function rhinoTree(obj) {
+  const layers = obj.userData.layers || [];
+  const byLayer = new Map();
+  for (const c of obj.children) {
+    const li = c.userData.attributes?.layerIndex;
+    const L = layers[li];
+    const lname = L?.fullPath || L?.name || "Senza layer";
+    c.userData.layerName = lname;
+    if (!byLayer.has(lname)) byLayer.set(lname, []);
+    byLayer.get(lname).push(c);
+  }
+  const kind = { Curve: "Curva", Point: "Punto", Brep: "Solido", Extrusion: "Estrusione", Mesh: "Mesh", SubD: "SubD", InstanceReference: "Blocco", TextDot: "Etichetta", Annotation: "Quota" };
+  return [...byLayer.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([name, list]) => ({
+    name: `${name} (${list.length})`, obj: null, objs: list,
+    children: list.map(c => ({ name: c.name || kind[c.userData.objectType] || c.userData.objectType || c.type, obj: c, children: [] })),
+  }));
+}
+
 // ---------------------------------------------------------------- visualizzatore
 async function loadAny(c, ld, info) {
-  const bytes = await readBytes(c.path);
+  const bytes = NAVIS[c.ext] ? null : await readBytes(c.path); // Navisworks: lo legge il motore nativo
   let loaded;
   if (OCCT[c.ext]) loaded = await loadOcct(c, bytes, ld);
   else if (c.ext === "ifc") loaded = await loadIfc(c, bytes, ld, info);
+  else if (NAVIS[c.ext]) { const { loadNavis } = await import("../navis.js"); loaded = await loadNavis(c, ld); if (c.navisInfo) info.status = c.navisInfo; }
   else if (LOADERS[c.ext]) loaded = await loadMesh(c, bytes, ld);
   else throw new Error(`Il formato .${c.ext} non e' un modello 3D`);
   // asse Z verso l'alto per CAD e mesh tecniche (convenzione ingegneristica)
-  if (OCCT[c.ext] || ["stl", "3mf", "amf", "ply", "obj", "3ds"].includes(c.ext)) loaded.root.rotation.x = -Math.PI / 2;
+  if (OCCT[c.ext] || ["stl", "3mf", "amf", "ply", "obj", "3ds", "3dm"].includes(c.ext) || NAVIS[c.ext]) loaded.root.rotation.x = -Math.PI / 2;
   loaded.root.name = c.name;
   return loaded;
 }
@@ -321,13 +356,15 @@ export async function mount(ctx) {
   const saved = new Map();
   let propsToken = 0;
   function select(list, { scroll = true } = {}) {
-    for (const [m, mat] of saved) m.material = mat;
+    for (const [m, mat] of saved) { m.material = mat; if (m.userData.proxy) m.visible = false; }
     saved.clear();
     selection = [...new Set(list.filter(Boolean))];
     for (const obj of selection) obj.traverse(m => {
       if (!m.isMesh || saved.has(m)) return;
       saved.set(m, m.material);
-      const mk = mt => { const c = mt.clone(); c.emissive = selColor; c.emissiveIntensity = 0.55; return c; };
+      // modelli uniti (Navisworks grandi): la copia dell'elemento si mostra sopra il blocco unito
+      if (m.userData.proxy) { m.visible = true; if (!m.geometry.attributes.normal) m.geometry.computeVertexNormals(); }
+      const mk = mt => { const c = mt.clone(); c.emissive = selColor; c.emissiveIntensity = 0.55; if (m.userData.proxy) { c.polygonOffset = true; c.polygonOffsetFactor = -2; c.polygonOffsetUnits = -2; } return c; };
       m.material = Array.isArray(m.material) ? m.material.map(mk) : mk(m.material);
     });
     markTree(scroll);
@@ -355,8 +392,30 @@ export async function mount(ctx) {
       const path = [];
       for (let p = one.parent; p && p !== model; p = p.parent) if (p.name) path.unshift(p.name);
       add("Percorso nell'assieme", path.join(" › "));
-      for (const [k, v] of Object.entries(one.userData || {})) if (!["expressID", "modelID"].includes(k) && (typeof v !== "object" || v === null)) add(k, v);
-      if (one.userData && typeof one.userData === "object") for (const [k, v] of Object.entries(one.userData)) if (v && typeof v === "object" && !Array.isArray(v)) for (const [k2, v2] of Object.entries(v)) if (typeof v2 !== "object") add(`${k} · ${k2}`, v2);
+      const at = one.userData.attributes;
+      if (one.userData.navisProps || one.userData.navisId !== undefined) {
+        if (one.userData.classe) add("Tipo", one.userData.classe);
+      } else if (at) {
+        // oggetto Rhino: layer, tipo, identificativo e testi utente (chiave = valore)
+        add("Layer", one.userData.layerName);
+        add("Tipo Rhino", one.userData.objectType);
+        add("Nome Rhino", at.name);
+        add("ID", at.id);
+        const col = at.drawColor || at.objectColor;
+        if (col) add("Colore", `RGB ${col.r}, ${col.g}, ${col.b}`);
+        for (const [k, v] of at.userStrings || []) add(k, v);
+        const g = one.geometry;
+        if (one.isLine && g?.attributes?.position) {
+          const p = g.attributes.position;
+          let len = 0;
+          for (let i = 1; i < p.count; i++) len += Math.hypot(p.getX(i) - p.getX(i - 1), p.getY(i) - p.getY(i - 1), p.getZ(i) - p.getZ(i - 1));
+          add("Lunghezza", fmt(len));
+        }
+        if (one.isPoints && g?.attributes?.position) add("Coordinate", `${fmt(g.attributes.position.getX(0))} ; ${fmt(g.attributes.position.getY(0))} ; ${fmt(g.attributes.position.getZ(0))}`);
+      } else {
+        for (const [k, v] of Object.entries(one.userData || {})) if (!["expressID", "modelID"].includes(k) && (typeof v !== "object" || v === null)) add(k, v);
+        if (one.userData && typeof one.userData === "object") for (const [k, v] of Object.entries(one.userData)) if (v && typeof v === "object" && !Array.isArray(v)) for (const [k2, v2] of Object.entries(v)) if (typeof v2 !== "object") add(`${k} · ${k2}`, v2);
+      }
     }
     const cpick = el("input", { type: "color", value: "#b8bcc0", title: "Colore della selezione" });
     cpick.addEventListener("input", () => {
@@ -365,10 +424,14 @@ export async function mount(ctx) {
     });
     props.append(el("div", { style: { display: "flex", gap: "6px", alignItems: "center", marginBottom: "6px", flexWrap: "wrap" } },
       el("b", {}, "Selezione"), el("span", { style: { flex: 1 } }), cpick,
-      el("button", { class: "btn", onclick: () => { objs.forEach(o => (o.visible = false)); select([]); refreshTree(); } }, "Nascondi"),
+      el("button", { class: "btn", onclick: () => { objs.forEach(o => (o.visible = false)); select([]); visibilityChanged(); } }, "Nascondi"),
       el("button", { class: "btn", onclick: () => isolate(objs) }, "Isola"),
       el("button", { class: "btn", onclick: () => zoomTo(objs) }, "Inquadra"),
       el("button", { class: "btn", onclick: () => select([]) }, "Deseleziona")), dl);
+    if (one?.userData.navisProps) {
+      const { navisSheet } = await import("../navis.js");
+      if (token === propsToken) props.append(navisSheet(one.userData.navisProps, el, toast));
+    }
     const id = one?.userData.expressID;
     if (one && info.ifc && id !== undefined) {
       const wait = el("p", { class: "note" }, "Lettura delle informazioni BIM...");
@@ -382,14 +445,22 @@ export async function mount(ctx) {
   }
 
   function isolate(objs) {
-    model.traverse(o => { if (o.isMesh || o.isPoints || o.isLine) o.visible = false; });
+    model.traverse(o => { if (o.isMesh || o.isPoints || o.isLine || o.userData.navisId !== undefined) o.visible = false; });
     for (const obj of objs) {
       obj.traverse(o => { o.visible = true; });
       for (let p = obj.parent; p; p = p.parent) p.visible = true;
     }
+    visibilityChanged();
+  }
+  function showAll() { model.traverse(o => (o.visible = true)); visibilityChanged(); }
+  // dopo ogni cambio di visibilita': le copie degli elementi tornano invisibili (tranne i selezionati) e i blocchi
+  // uniti si ricostruiscono senza gli elementi nascosti
+  function visibilityChanged() {
+    const roots = [];
+    model.traverse(o => { if (o.userData.proxy) o.visible = saved.has(o); if (o.userData.refresh) roots.push(o); });
+    roots.forEach(r => r.userData.refresh());
     refreshTree();
   }
-  function showAll() { model.traverse(o => (o.visible = true)); refreshTree(); }
 
   // ---- albero: le righe si creano quando un ramo viene aperto (anche decine di migliaia di elementi BIM)
   const rows = [];
@@ -407,7 +478,7 @@ export async function mount(ctx) {
       twist.addEventListener("click", e => { e.stopPropagation(); expand(it, kids.hidden); });
       node.append(twist, cb, el("span", { style: { overflow: "hidden", textOverflow: "ellipsis" } }, it.name));
       const objs = it.obj ? [it.obj] : it.objs || [];
-      cb.addEventListener("change", () => { objs.forEach(o => (o.visible = cb.checked)); });
+      cb.addEventListener("change", () => { objs.forEach(o => (o.visible = cb.checked)); visibilityChanged(); });
       node.addEventListener("click", e => {
         if (e.target === cb || e.target === twist) return;
         if (objs.length > 5000) return toast("Troppi elementi da selezionare insieme: apri il gruppo e scegli gli elementi", true);
@@ -460,7 +531,11 @@ export async function mount(ctx) {
   const mGroup = new THREE.Group();
   scene.add(mGroup);
   // elemento selezionabile: per i modelli BIM l'intero elemento IFC, altrimenti la parte colpita
-  const unitOf = o => { while (o.parent && o.parent !== model && o.userData.expressID !== undefined && o.userData.expressID === o.parent.userData.expressID) o = o.parent; return o; };
+  const unitOf = o => {
+    while (o.parent && o.parent !== model && o.userData.expressID !== undefined && o.userData.expressID === o.parent.userData.expressID) o = o.parent;
+    if (o.userData.navisId !== undefined && o.parent?.userData.navisId === o.userData.navisId) o = o.parent; // Navisworks: il nodo, non la singola mesh
+    return o;
+  };
   const band = el("div", { hidden: true, style: { position: "absolute", border: "1px dashed #ff9f1a", background: "rgba(255,159,26,.12)", pointerEvents: "none" } });
   host.append(band);
   let down = null;
@@ -483,6 +558,9 @@ export async function mount(ctx) {
     if (moved || e.button !== 0) return;
     const r = renderer.domElement.getBoundingClientRect();
     ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+    // linee e punti (modelli analitici, assi): il clic li prende entro circa 8 pixel sullo schermo
+    const pxWorld = 2 * camera.position.distanceTo(controls.target) * Math.tan((camera.fov * Math.PI) / 360) / r.height;
+    ray.params.Line.threshold = ray.params.Points.threshold = pxWorld * 8;
     const hits = ray.intersectObject(model, true).filter(h => h.object.visible && isVisibleChain(h.object) && (!clipPlane || clipPlane.distanceToPoint(h.point) >= 0));
     const hit = hits[0];
     if (measure) {
@@ -505,7 +583,9 @@ export async function mount(ctx) {
       }
       return;
     }
-    const target = hit ? unitOf(hit.object) : null;
+    const pick = hit?.object.userData.merged ? hit.object.parent?.userData.pick : null;
+    const fi = hit ? (hit.faceIndex ?? (hit.index != null ? Math.floor(hit.index / (hit.object.userData.merged?.per || 1)) : null)) : null;
+    const target = pick ? pick(hit.object, fi) : hit ? unitOf(hit.object) : null;
     if (multi) { if (target) select(toggleIn(selection, [target])); }
     else select(target ? [target] : []);
   });
@@ -516,7 +596,7 @@ export async function mount(ctx) {
     const [ax, bx] = [nx(Math.min(x0, x1)), nx(Math.max(x0, x1))], [by, ay] = [ny(Math.max(y0, y1)), ny(Math.min(y0, y1))];
     const found = new Set(), v = new THREE.Vector3(), bb = new THREE.Box3();
     model.traverse(m => {
-      if (!(m.isMesh || m.isPoints) || !isVisibleChain(m)) return;
+      if (!(m.isMesh || m.isPoints) || m.userData.merged || !isVisibleChain(m.userData.proxy ? m.parent : m)) return;
       bb.setFromObject(m).getCenter(v);
       if (clipPlane && clipPlane.distanceToPoint(v) < 0) return;
       v.project(camera);
@@ -643,21 +723,28 @@ export async function mount(ctx) {
 
   requestAnimationFrame(() => { resize(); fit(); });
   let tri = 0;
-  model.traverse(m => { if (m.isMesh && m.geometry) tri += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
+  model.traverse(m => { if (m.isMesh && m.geometry && !m.userData.merged) tri += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
   ctx.status((info.status ? info.status + " · " : "") + Math.round(tri).toLocaleString("it-IT") + " triangoli");
 
   return {
     onShow() { resize(); },
     saveInPlace: false,
+    saveFormats: ["glb", "gltf", "stl", "obj", "ply", "usdz"],
     saveAsName: () => withExt(ctx.name, "glb"),
     async save(target) {
       const ext = target.split(".").pop().toLowerCase();
-      if (!["glb", "stl", "obj"].includes(ext)) throw new Error("Salva il modello come .glb, .stl o .obj");
-      const visibleCopy = model.clone(true);
+      if (!this.saveFormats.includes(ext)) throw new Error("Formati del modello 3D: " + this.saveFormats.join(", ").toUpperCase());
+      // si esporta solo cio' che e' visibile (niente elementi nascosti, niente copie di servizio dei modelli uniti)
+      const copy = model.clone(true);
+      const drop = [];
+      copy.traverse(o => { if (!o.visible) drop.push(o); });
+      drop.forEach(o => o.parent?.remove(o));
       let data;
-      if (ext === "stl") { const { STLExporter } = await import("three/addons/exporters/STLExporter.js"); data = new STLExporter().parse(visibleCopy, { binary: true }); }
-      else if (ext === "obj") { const { OBJExporter } = await import("three/addons/exporters/OBJExporter.js"); data = new TextEncoder().encode(new OBJExporter().parse(visibleCopy)); }
-      else { const { GLTFExporter } = await import("three/addons/exporters/GLTFExporter.js"); data = await new GLTFExporter().parseAsync(visibleCopy, { binary: true, onlyVisible: true }); }
+      if (ext === "stl") { const { STLExporter } = await import("three/addons/exporters/STLExporter.js"); data = new STLExporter().parse(copy, { binary: true }); }
+      else if (ext === "obj") { const { OBJExporter } = await import("three/addons/exporters/OBJExporter.js"); data = new TextEncoder().encode(new OBJExporter().parse(copy)); }
+      else if (ext === "ply") { const { PLYExporter } = await import("three/addons/exporters/PLYExporter.js"); data = await new Promise(r => new PLYExporter().parse(copy, r, { binary: true })); }
+      else if (ext === "usdz") { const { USDZExporter } = await import("three/addons/exporters/USDZExporter.js"); data = await new USDZExporter().parseAsync(copy); }
+      else { const { GLTFExporter } = await import("three/addons/exporters/GLTFExporter.js"); const out = await new GLTFExporter().parseAsync(copy, { binary: ext === "glb", onlyVisible: true, embedImages: true }); data = ext === "glb" ? out : new TextEncoder().encode(JSON.stringify(out)); }
       await api("save", { path: target }, { body: new Uint8Array(data.buffer ? data.buffer : data) });
       return { switchTo: false };
     },

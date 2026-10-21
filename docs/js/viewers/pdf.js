@@ -1,5 +1,5 @@
 // PDF con il visualizzatore di Mozilla (pdf.js): pagine, ricerca, stampa, annotazioni; firme PAdES.
-import { api, baseName, button, dirName, el, fileUrl, modal, pickFiles, pickFolder, pickSavePath, toast, WEB } from "../core.js";
+import { api, baseName, button, dirName, el, fileUrl, modal, pickFiles, pickFolder, pickSavePath, toast, waitJob, WEB } from "../core.js";
 import { createPdfEditor } from "../pdfeditor.js";
 import { renderSigner } from "./signed.js";
 
@@ -11,6 +11,8 @@ export async function mount(ctx) {
   const app = () => frame.contentWindow?.PDFViewerApplication;
 
   frame.addEventListener("load", async () => {
+    // puntatore sempre a freccia anche dentro il visualizzatore PDF (richiesta dell'utente)
+    try { const s = frame.contentDocument.createElement("style"); s.textContent = "*, *::before, *::after { cursor: default !important; }"; frame.contentDocument.head.append(s); } catch { /* */ }
     const a = app();
     if (!a) return;
     await a.initializedPromise;
@@ -100,13 +102,24 @@ export async function mount(ctx) {
   for (const [label, icon, fn, title] of tools) ctx.tb.append(button(label, icon, fn, { title }));
   if (ed) {
     const more = el("select", { class: "field", title: "Altre operazioni sul PDF", id: "pdf-more-" + ctx.tab.name, onchange: async e => { const v = e.target.value; e.target.value = ""; if (v) await extra(v); } },
-      el("option", { value: "" }, "Altro..."), el("option", { value: "compress" }, "Comprimi (riduce le dimensioni)"), el("option", { value: "numbers" }, "Numeri di pagina"),
+      el("option", { value: "" }, "Altro..."), el("option", { value: "ocr" }, "Rendi ricercabile (OCR dei documenti scansionati)"), el("option", { value: "compress" }, "Comprimi (riduce le dimensioni)"), el("option", { value: "numbers" }, "Numeri di pagina"),
       el("option", { value: "protect" }, "Proteggi con password"), el("option", { value: "unlock" }, "Togli la password"), el("option", { value: "blank" }, "Inserisci pagina bianca"),
       el("option", { value: "reorder" }, "Riordina le pagine"), el("option", { value: "word" }, "Converti in Word (.docx)"), el("option", { value: "images" }, "Esporta pagine come immagini"));
     ctx.tb.append(more);
   }
   const lbl = (text, input) => el("label", { style: { display: "grid", gap: "4px" } }, text, input);
   async function extra(v) {
+    if (v === "ocr") {
+      const out = await pickSavePath(stem + "_ricercabile.pdf", dir);
+      if (!out) return;
+      try {
+        const { job } = await api("pdf_tool", { path: await current(), op: "ocr" }, { json: { out } });
+        const r = await waitJob(job, (p, m) => ctx.status(`${m} (${Math.round(p * 100)}%)`));
+        toast(r.pagine ? `Testo riconosciuto su ${r.pagine} pagine (${r.parole} parole)` : "Il documento aveva gia' il testo in tutte le pagine");
+        ctx.openFile(out);
+      } catch (e) { toast(e.message, true, 8000); }
+      return;
+    }
     if (v === "compress") {
       const q = el("select", { class: "field", id: "pdf-cq-" + ctx.tab.name }, el("option", { value: "150|75" }, "Equilibrata (150 dpi)"), el("option", { value: "110|60" }, "Massima riduzione (110 dpi)"), el("option", { value: "220|85" }, "Alta qualita' (220 dpi)"));
       if (!(await ask("Comprimi PDF", [lbl("Qualita' delle immagini", q)]))) return;

@@ -36,7 +36,15 @@ def main() -> int:
         "--hidden-import", "clr", "--hidden-import", "asn1crypto", "--hidden-import", "mbvisual.pdftools", "--collect-submodules", "pypdf",
         # editor PDF (PyMuPDF) e conversione PDF -> Word
         "--hidden-import", "mbvisual.pdfedit", "--collect-all", "pymupdf", "--collect-submodules", "pdf2docx", "--collect-data", "pdf2docx",
+        # convertitore universale (Office via automazione COM, markdown, openpyxl, fontTools)
+        "--hidden-import", "mbvisual.convert", "--hidden-import", "win32com.client", "--hidden-import", "pythoncom",
+        "--collect-submodules", "markdown", "--hidden-import", "openpyxl", "--hidden-import", "brotli",
+        # editor CAD (ezdxf) e OCR con il motore di Windows (winrt)
+        "--hidden-import", "mbvisual.cadedit", "--collect-all", "ezdxf", "--exclude-module", "winrt",
+        "--add-data", f"{ROOT / 'mbvisual' / 'ocr.ps1'}{sep}mbvisual",
         "--exclude-module", "tkinter", "--exclude-module", "matplotlib",
+        # moduli opzionali di PyMuPDF non usati (onnxruntime va in crash durante l analisi su Windows ARM)
+        "--exclude-module", "onnxruntime", "--exclude-module", "pymupdf4llm", "--exclude-module", "pymupdf.layout", "--exclude-module", "pymupdf_layout",
     ]
     print(" ".join(args))
     subprocess.run(args, check=True)
@@ -45,6 +53,16 @@ def main() -> int:
     internal_bin = out / "_internal" / "bin"
     for f in internal_bin.glob("ffmpeg-*.exe"):
         f.replace(internal_bin / "ffmpeg.exe")
+    # editor ONLYOFFICE senza server (circa 500 MB): costruito da github.com/ranuts/document in %USERPROFILE%\.mbvisual\onlyoffice
+    oo = Path.home() / ".mbvisual" / "onlyoffice"
+    if (oo / "editor.html").exists():
+        shutil.copytree(oo, out / "_internal" / "onlyoffice")
+    else:
+        print("ATTENZIONE: ONLYOFFICE non trovato in", oo, "- Word/Excel/PowerPoint useranno gli editor semplici")
+    # lettore Navisworks (nwd2mbv.exe) se compilato
+    nav = Path.home() / ".mbvisual" / "nwd" / "nwd2mbv.exe"
+    if nav.exists():
+        shutil.copy2(nav, internal_bin / "nwd2mbv.exe")
     final = DIST / NAME
     if final.exists():
         shutil.rmtree(final)

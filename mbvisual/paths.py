@@ -93,6 +93,22 @@ def find_office(exe: str):
     return None
 
 
+def find_nwd2mbv():
+    """Lettore Navisworks indipendente (tools/nwd2mbv, basato su nwd-reader): NWD/NWC senza Navisworks installato."""
+    for f in (RES_DIR / "bin" / "nwd2mbv.exe", Path.home() / ".mbvisual" / "nwd" / "nwd2mbv.exe"):
+        if f.exists():
+            return str(f)
+    return None
+
+
+def find_onlyoffice():
+    """Cartella dell'editor ONLYOFFICE senza server (inclusa nel pacchetto, oppure in %USERPROFILE%\\.mbvisual\\onlyoffice per lo sviluppo)."""
+    for d in (RES_DIR / "onlyoffice", Path.home() / ".mbvisual" / "onlyoffice"):
+        if (d / "editor.html").exists():
+            return d
+    return None
+
+
 def tools_status():
     return {
         "7zip": find_7zip(),
@@ -103,4 +119,6 @@ def tools_status():
         "excel": find_office("excel.exe"),
         "word": find_office("winword.exe"),
         "powerpoint": find_office("powerpnt.exe"),
+        "onlyoffice": find_onlyoffice(),
+        "nwdreader": find_nwd2mbv(),
     }

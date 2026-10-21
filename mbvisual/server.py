@@ -8,12 +8,13 @@ import subprocess
 import threading
 import traceback
 import uuid
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from functools import partial
+from http.server import BaseHTTPRequestHandler, SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from . import archive, jobs, media, misc, office, signed
-from .paths import TEMP_DIR, UI_DIR, find_navisworks, find_office, find_trueview, tools_status
+from .paths import TEMP_DIR, UI_DIR, find_navisworks, find_nwd2mbv, find_office, find_onlyoffice, find_trueview, tools_status
 
 TOKEN = secrets.token_urlsafe(24)
 COOKIE = "mbv"
@@ -42,6 +43,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt, *args):  # silenzioso
         pass
+
+    def end_headers(self):
+        # pagina "isolata" (COOP/COEP): richiesta dall'editor ONLYOFFICE incorporato, che usa WebAssembly a piu' thread
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+        super().end_headers()
 
     # ------------------------------------------------------------ helpers
     def _authorized(self, qs) -> bool:
@@ -196,6 +203,51 @@ class Handler(BaseHTTPRequestHandler):
             except OSError:
                 return self._json({"ok": False, "errore": "Download da OneDrive annullato o non riuscito: il file non e' stato aperto."}, 409)
         self._json({**base, "sniff": misc.sniff(str(p))})
+
+    # ------------------------------------------------------------ disegni CAD modificati
+    def api_cad_save(self, qs):
+        from . import cadedit
+        b = self._body_json()
+        self._json(cadedit.save(self._path(qs), b["out"], b.get("edits") or {}))
+
+    # ------------------------------------------------------------ "Salva con nome" in altri formati
+    def api_convert_targets(self, qs):
+        from . import convert
+        self._json(convert.targets(self._path(qs)))
+
+    def api_convert(self, qs):
+        from . import convert
+        out = self._body_json()["out"]
+        self._json({"ok": True, "job": jobs.start(convert.convert, self._path(qs), out)})
+
+    def api_temp_path(self, qs):
+        # percorso temporaneo per salvare lo stato attuale di un documento prima di convertirlo
+        d = TEMP_DIR / "conversioni" / uuid.uuid4().hex[:8]
+        d.mkdir(parents=True, exist_ok=True)
+        self._json({"ok": True, "path": str(d / Path(_q(qs, "name", "file")).name)})
+
+    def api_nwd_convert(self, qs):
+        # Navisworks senza Navisworks: nwd2mbv scrive gerarchia/proprieta' (json) e geometria (bin) in una cache
+        import hashlib
+        p = self._path(qs)
+        exe = find_nwd2mbv()
+        if not exe:
+            raise RuntimeError("Il lettore Navisworks non e' incluso in questa installazione")
+        st = os.stat(p)
+        # nella chiave anche la data del lettore: un lettore aggiornato rifa' la conversione
+        key = hashlib.sha1(f"{p}|{st.st_size}|{st.st_mtime}|{os.path.getmtime(exe)}".encode()).hexdigest()[:16]
+        out = TEMP_DIR / "navisworks" / key
+        out.mkdir(parents=True, exist_ok=True)
+        prefix = out / "modello"
+        if not (prefix.with_suffix(".json")).exists():
+            r = subprocess.run([exe, p, str(prefix)], capture_output=True, timeout=1800, creationflags=NO_WINDOW)
+            if r.returncode != 0 or not prefix.with_suffix(".json").exists():
+                msg = (r.stderr or r.stdout).decode("utf-8", "replace").strip()[-400:]
+                raise RuntimeError("Lettura del file Navisworks non riuscita: " + (msg or f"codice {r.returncode}"))
+        self._json({"ok": True, "json": str(prefix.with_suffix(".json")), "bin": str(prefix.with_suffix(".bin"))})
+
+    def api_onlyoffice(self, qs):
+        self._json({"ok": True, "url": onlyoffice_url()})
 
     def api_stat(self, qs):
         # solo data e dimensione (senza leggere il file): serve ad accorgersi delle modifiche fatte da altri programmi
@@ -352,6 +404,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _pdf_edit_op(self, op, p, b):
         from . import pdfedit
+        if op == "ocr":  # lungo: lavoro in background con avanzamento
+            return self._json({"ok": True, "job": jobs.start(pdfedit.ocr, p, b["out"])})
         if op == "compress":
             r = pdfedit.compress(p, b["out"], int(b.get("dpi", 150)), int(b.get("quality", 75)))
         elif op == "protect":
@@ -438,6 +492,87 @@ class Handler(BaseHTTPRequestHandler):
     def api_sqlite_query(self, qs):
         b = self._body_json()
         self._json(misc.sqlite_query(self._path(qs), b["sql"], b.get("params"), int(b.get("limit", 1000)), bool(b.get("write"))))
+
+
+# ---------------------------------------------------------------- ONLYOFFICE (editor Word/Excel/PowerPoint integrato)
+# Gira su un secondo server locale, con un indirizzo suo: il suo service worker e la sua cache restano separati da
+# MB Visual. Le intestazioni COOP/COEP/CORP permettono di incorporarlo nelle schede come pagina isolata.
+_OO = {"port": None, "lock": threading.Lock()}
+
+
+class OOHandler(SimpleHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, fmt, *args):  # silenzioso
+        pass
+
+    def end_headers(self):
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+        self.send_header("Cross-Origin-Resource-Policy", "cross-origin")
+        self.send_header("Cache-Control", "no-cache" if self.path.split("?")[0].endswith((".html", "sw.js", "/")) else "max-age=86400")
+        if self.path.split("?")[0].endswith(".br"):
+            self.send_header("Content-Encoding", "br")  # file gia' compresso (es. x2t.wasm.br): lo decomprime il browser
+        super().end_headers()
+
+    def guess_type(self, path):
+        return super().guess_type(path[:-3] if str(path).endswith(".br") else path)
+
+    def send_head(self):
+        p = self.path.split("?", 1)
+        if p[0] in ("/editor", "/editor/"):
+            self.path = "/editor.html" + ("?" + p[1] if len(p) > 1 else "")
+            p[0] = "/editor.html"
+        if p[0] == "/editor.html":
+            return self._editor_page()
+        return super().send_head()
+
+    # la pagina dell'editor riceve uno script di MB Visual: segnala le modifiche non salvate (l'indicatore interno
+    # dell'editor senza server non si aggiorna) e mantiene il puntatore a freccia
+    _INJECT = b"""<style>*,*::before,*::after{cursor:default!important}</style><script>
+(function(){var last=null,base=null;function win(){try{var f=document.querySelector('iframe[name="frameEditor"]')||document.querySelector('iframe');return f&&f.contentWindow;}catch(e){return null;}}
+function ed(){var w=win();return w&&(w.editor||(w.Asc&&w.Asc.editor));}
+function hist(){try{var w=win(),h=w&&w.AscCommon&&w.AscCommon.History;return h&&typeof h.Index==='number'?h.Index:null;}catch(e){return null;}}
+var edits=0,NAV=/^(Arrow|Page|Home|End|Shift|Control|Alt|Meta|Escape|Tab|F\\d|CapsLock|NumLock|ContextMenu)/;
+function hook(){var w=win();if(!w||w.__mbv)return;try{var d=w.document;w.__mbv=1;
+d.addEventListener('keydown',function(k){if(!NAV.test(k.key)&&!(k.ctrlKey&&/^[acfp]$/i.test(k.key)))edits++;},true);
+['paste','cut','drop'].forEach(function(t){d.addEventListener(t,function(){edits++;},true);});
+d.addEventListener('mousedown',function(m){var t=m.target;if(t&&t.closest&&t.closest('#toolbar,.toolbar,.dropdown-menu,.asc-window'))edits++;},true);}catch(x){}}
+setInterval(function(){var e=ed();if(!e)return;hook();var flag=true;
+try{if(e.asc_isDocumentModified||e.isDocumentModified)flag=!!(e.asc_isDocumentModified?e.asc_isDocumentModified():e.isDocumentModified());}catch(x){}
+var m=edits>0&&flag;
+if(m!==last){last=m;parent.postMessage({type:'mbv:dirty',payload:{dirty:m}},'*');}
+try{var d=document.querySelector('iframe').contentDocument;if(d&&!d.getElementById('mbv-arrow')){var s=d.createElement('style');s.id='mbv-arrow';s.textContent='*,*::before,*::after{cursor:default!important}';d.head.appendChild(s);}}catch(x){}},1200);
+addEventListener('message',function(ev){if(ev.source===parent&&ev.data&&ev.data.type==='mbv:diag'){var w=win(),h=w&&w.AscCommon&&w.AscCommon.History,e2=ed(),o={};
+try{o.hasHist=!!h;o.index=h&&h.Index;o.points=h&&h.Points&&h.Points.length;o.histKeys=h&&Object.keys(h).slice(0,30);o.wHist=!!(w&&w.History);o.wIndex=w&&w.History&&w.History.Index;
+o.mod=e2&&(e2.asc_isDocumentModified?e2.asc_isDocumentModified():e2.isDocumentModified&&e2.isDocumentModified());o.canUndo=e2&&e2.asc_getCanUndo&&e2.asc_getCanUndo();}catch(x){o.err=String(x);}
+parent.postMessage({type:'mbv:diag',payload:o},'*');return;}
+if(ev.source!==parent||!ev.data||ev.data.type!=='mbv:saved')return;var e=ed();
+edits=0;try{e.setDocumentModified?e.setDocumentModified(false):e.asc_setDocumentModified&&e.asc_setDocumentModified(false);}catch(x){}last=false;});})();
+</script>"""
+
+    def _editor_page(self):
+        import io
+        f = Path(self.directory) / "editor.html"
+        data = f.read_bytes().replace(b"</head>", self._INJECT + b"</head>", 1)
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        return io.BytesIO(data)
+
+
+def onlyoffice_url() -> str:
+    d = find_onlyoffice()
+    if not d:
+        raise RuntimeError("L'editor ONLYOFFICE non e' incluso in questa installazione")
+    with _OO["lock"]:
+        if not _OO["port"]:
+            srv = ThreadingHTTPServer(("127.0.0.1", 0), partial(OOHandler, directory=str(d)))
+            srv.daemon_threads = True
+            threading.Thread(target=srv.serve_forever, daemon=True).start()
+            _OO["port"] = srv.server_address[1]
+    return f"http://127.0.0.1:{_OO['port']}"
 
 
 def start_server(port: int = 0) -> tuple[ThreadingHTTPServer, int]:

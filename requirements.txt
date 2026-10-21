@@ -13,3 +13,8 @@ pyinstaller
 pypdf
 pymupdf
 pdf2docx
+pywin32
+markdown
+openpyxl
+brotli
+ezdxf

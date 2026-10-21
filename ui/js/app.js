@@ -1,7 +1,7 @@
 // MB Visual - guscio dell'applicazione: schede, apertura file, trascinamento, scelta del visualizzatore, pagina formati.
 import {
   api, baseName, button, confirmBox, dirName, el, extOf, fmtSize, isDesktop, modal, pickFiles, pickFolder,
-  pickSavePath, toast, WEB,
+  pickSavePath, toast, waitJob, WEB,
 } from "./core.js";
 
 const $ = id => document.getElementById(id);
@@ -10,8 +10,11 @@ const VIEWER_NAMES = {
   office: "Documento Office (LibreOffice)", text: "Testo / codice", markdown: "Markdown", html: "Pagina web",
   image: "Immagine", svg: "SVG", media: "Audio / video", cad2d: "Disegno CAD 2D", model3d: "Modello 3D",
   external: "Programma esterno", archive: "Archivio", email: "Email", epub: "eBook", font: "Font",
-  sqlite: "Database SQLite", hex: "Esadecimale (byte grezzi)",
+  sqlite: "Database SQLite", hex: "Esadecimale (byte grezzi)", oo: "Word / Excel / PowerPoint (ONLYOFFICE)",
 };
+// documenti che sul PC si aprono nell'editor ONLYOFFICE integrato (modifica completa come nei programmi originali)
+const OO_EXTS = new Set(["docx", "docm", "dotx", "dotm", "doc", "dot", "rtf", "odt", "ott", "fodt", "xlsx", "xlsm", "xltx", "xltm", "xls", "xlt", "ods", "fods", "csv",
+  "pptx", "pptm", "potx", "potm", "ppsx", "ppsm", "ppt", "pps", "pot", "odp", "otp", "fodp"]);
 const TEXT_VIEWERS = new Set(["text", "markdown", "html", "svg"]);
 const SNIFF_FAMILY = {
   pdf: ["pdf"], signed: ["signed"], media: ["media", "audio"], archive: ["archive"], image: ["image", "image-raw"],
@@ -266,7 +269,10 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   const name = extraCtx.displayName || info.nome;
   const { cat } = resolveCategory(extraCtx.displayName && !extOf(extraCtx.displayName) ? info.nome : name, info.sniff);
   const ext = extFor(info.nome);
-  const viewer = forcedViewer || (cat ? cat.viewer : "hex");
+  let viewer = forcedViewer || (cat ? cat.viewer : "hex");
+  if (!forcedViewer && !WEB && TOOLS.onlyoffice && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
+  // Navisworks senza Navisworks: NWD e NWC si aprono nel visualizzatore 3D (lettore nwd2mbv)
+  if (!forcedViewer && !WEB && TOOLS.nwdreader && ["nwd", "nwc", "nwf"].includes(ext)) viewer = "model3d";
   const view = el("div", { class: "view" });
   const tb = el("div", { class: "tb" });
   const body = el("div", { class: "body" });
@@ -311,6 +317,16 @@ async function save(asNew) {
   const t = active;
   if (!t) return;
   const a = t.api || {};
+  // "Salva con nome" sul PC: prima il formato (quelli del visualizzatore piu' quelli del convertitore), poi il nome
+  if (!WEB && !t.path.startsWith("web://") && (asNew || !a.save)) {
+    const fmt = await chooseFormat(t, a);
+    if (!fmt) return;
+    const target = await pickSavePath(t.name.replace(/.[^.]+$/, "") + "." + fmt, dirName(t.path));
+    if (!target) return;
+    const ext = extOf(target);
+    if (a.save && ((ext === extOf(t.path) && !a.saveFormats) || (a.saveFormats || []).includes(ext))) return doSave(t, a, target);
+    return convertTo(t, a, target);
+  }
   if (!a.save) return toast("Questo tipo di file e' in sola lettura: usa \"Apri come\" o \"Esterno\" per modificarlo.", true);
   let target = t.path;
   if (asNew || a.saveInPlace === false || !t.info.scrivibile) {
@@ -318,6 +334,10 @@ async function save(asNew) {
     target = await pickSavePath(suggested, dirName(t.path));
     if (!target) return;
   }
+  return doSave(t, a, target);
+}
+
+async function doSave(t, a, target) {
   try {
     const res = (await a.save(target)) || {};
     t.dirty = false;
@@ -333,6 +353,53 @@ async function save(asNew) {
   } catch (e) {
     console.error(e);
     toast("Salvataggio non riuscito: " + e.message, true, 6000);
+  }
+}
+
+// formati in cui si puo' salvare il file aperto: scelta da un elenco
+async function chooseFormat(t, a) {
+  const src = extOf(t.path);
+  const own = [...new Set([...(a.save && (!a.saveFormats || a.saveFormats.includes(src)) ? [src] : []), ...(a.saveFormats || [])])];
+  let conv = [];
+  try { conv = (await api("convert_targets", { path: t.path })).targets || []; } catch { /* */ }
+  const list = el("select", { size: 14, id: "fmt-choice", class: "field", style: { width: "100%", minWidth: "340px" } });
+  if (own.length) {
+    const g = el("optgroup", { label: "Formati dell'editor" });
+    own.forEach(e => g.append(el("option", { value: e }, e.toUpperCase() + (e === src ? "  (formato attuale)" : ""))));
+    list.append(g);
+  }
+  const extra = conv.filter(c => !own.includes(c.ext));
+  if (extra.length) {
+    const g = el("optgroup", { label: "Conversione in altri formati" });
+    extra.forEach(c => g.append(el("option", { value: c.ext }, `${c.ext.toUpperCase()} - ${c.label}`)));
+    list.append(g);
+  }
+  if (!list.options.length) { toast("Per questo tipo di file non ci sono altri formati di salvataggio", true); return null; }
+  list.selectedIndex = 0;
+  list.addEventListener("dblclick", () => document.querySelector("#modal .btn.primary")?.click());
+  const ok = await modal("Salva con nome: scegli il formato", el("div", { style: { display: "grid", gap: "8px" } }, list,
+    el("p", { class: "note", style: { margin: 0, color: "var(--muted)" } }, TOOLS.word || TOOLS.excel ? "I documenti Office vengono convertiti con Word, Excel e PowerPoint installati su questo PC." : "")),
+  [{ label: "Annulla", value: false }, { label: "Avanti", value: true, primary: true }]);
+  return ok ? list.value : null;
+}
+
+async function convertTo(t, a, target) {
+  try {
+    let src = t.path;
+    // modifiche non ancora salvate: prima si salva una copia temporanea, poi si converte quella
+    if (t.dirty && a.save) {
+      const tmp = (await api("temp_path", { name: t.info?.nome || t.name })).path;
+      await a.save(tmp);
+      src = tmp;
+    }
+    toast(`Conversione in ${extOf(target).toUpperCase()}...`, false, 600000);
+    const { job } = await api("convert", { path: src }, { json: { out: target } });
+    const r = await waitJob(job, (p, m) => { if (active === t) $("st-extra").textContent = `${m || "Conversione"} ${Math.round(p * 100)}%`; });
+    toast("Salvato: " + baseName(target) + (r?.files ? ` (${r.files.length} file)` : r?.cartella ? ` (cartella ${baseName(r.cartella)})` : ""));
+    updateStatus();
+  } catch (e) {
+    console.error(e);
+    toast("Conversione non riuscita: " + e.message, true, 8000);
   }
 }
 
@@ -390,7 +457,7 @@ function openAsMenu(anchor) {
   if (!m.hidden) { m.hidden = true; return; }
   closeMenus();
   m.innerHTML = "";
-  const order = ["text", "hex", "pdf", "image", "media", "docx", "sheet", "pptx", "office", "cad2d", "model3d", "archive", "signed", "email", "sqlite", "font", "html", "markdown", "svg", "epub"];
+  const order = [...(TOOLS.onlyoffice && !WEB ? ["oo"] : []), "text", "hex", "pdf", "image", "media", "docx", "sheet", "pptx", "office", "cad2d", "model3d", "archive", "signed", "email", "sqlite", "font", "html", "markdown", "svg", "epub"];
   for (const v of order) {
     m.append(el("button", { onclick: () => { m.hidden = true; openFile(active.path, v, { fresh: true }); } }, VIEWER_NAMES[v]));
   }
