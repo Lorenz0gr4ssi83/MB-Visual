@@ -141,3 +141,31 @@ l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.m
   render, stile MBVISUAL); quote dei DWG -> DIMENSION col blocco originale; per i DXF le entita' semplici si riscrivono e le
   altre si trasformano con `_xf` (prima le linee spostate venivano spostate due volte). Collaudo dalla console:
   `tests/cad_harness.js` (clic simulati in coordinate del disegno).
+
+## Licenze (21/10/2026) - in corso
+Decisioni dell'utente: Cloudflare Workers + D1 piano GRATUITO (Firebase Blaze scartato: a pagamento), attivazione online,
+1 PC + 2 cellulari per licenza, cambio dispositivo da File -> Account = chiave nuova (la vecchia smette di funzionare
+ovunque), max 3 cambi automatici l'anno poi approvazione, niente email per ora, setup.exe unico, repository da rendere
+privato (lo fa l'utente SOLO dopo che l'app per cellulari e' online su Cloudflare, altrimenti GitHub Pages si ferma).
+- `server/` (Worker): schema.sql, src/index.js (API /v1/* e /admin/*, attivazioni firmate Ed25519, app per cellulari
+  servita dai file statici ASSETS solo con cookie di attivazione "mobile"; pagina di attivazione nel browser = istruzioni
+  di installazione), wrangler.toml (segnaposto chiave pubblica e id del database).
+  Collaudo SENZA Cloudflare: `node server/test/harness.mjs` (node:sqlite al posto di D1; workerd non esiste per Windows
+  ARM64, quindi `wrangler dev` non parte su questo PC) - 40 prove; `node server/test/harness.mjs serve 8787` = server di
+  prova (MBV_ADMIN_PROVA=codice finto per la gestione).
+- Segreti FUORI da OneDrive e dal repo: `%USERPROFILE%\.mbvisual\licenze\chiavi.json` (chiave privata, codice di
+  gestione; l'utente ne deve fare una copia di sicurezza), `server_url.txt` (indirizzo del server dopo la messa online),
+  `database_id.txt`. `tools/license_setup.py chiavi|server`: scrive `mbvisual/license_pub.py` (chiave pubblica + URL) e
+  prepara la copia di lavoro del server in `%USERPROFILE%\.mbvisual\server` (con .dev.vars). `tools/build_web.py --mobile`
+  -> `%USERPROFILE%\.mbvisual\server\public`.
+- App per PC: `mbvisual/license.py` (impronta MachineGuid, rinnovo a ogni avvio e ogni 6 h, offline 30 giorni) +
+  API license/* nel server dell'app (senza licenza attiva risponde 402) + `ui/js/license.js` (schermata di attivazione,
+  File -> Account e licenza). La licenza NON e' richiesta finche' LICENSE_URL e' vuoto (versioni distribuite libere) e in
+  sviluppo; per provarla: MBV_LICENZA=1 MBV_LICENZE_URL=http://127.0.0.1:8787.
+- App per cellulari: `ui/js/mlicenza.js` (solo nella build --mobile) + File -> Account tramite cookie.
+- `admin/`: MB Visual Admin (pywebview + pystray: area di notifica, notifiche di Windows ogni 20 s, avvio con Windows);
+  eseguibile con `python admin/build_admin.py` -> `%USERPROFILE%\.mbvisual\dist\MB Visual Admin`.
+- DA FARE: messa online (account Cloudflare dell'utente, `npx wrangler login` fatto da lui, `wrangler d1 create
+  mbvisual-licenze` -> database_id.txt, schema con `wrangler d1 execute --remote`, `wrangler secret put SIGNING_KEY` e
+  `ADMIN_TOKEN`, deploy; poi server_url.txt + `license_setup.py chiavi` e nuova build); setup.exe (Inno Setup, chiedere
+  il permesso prima di installarlo) e aggiornamenti via internet per i clienti esterni.
