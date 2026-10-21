@@ -3,6 +3,7 @@
 // _XFTRIGGER), ridimensionamento che ricalcola le formule della geometria, gruppi, livelli, dati della forma.
 import { VNS, cell, val, num0, section, rowsOf, geometry, setCell, setRowCell, setSmart, invalidate, evalFormula, cellValue, markDirty, is1D, textEl, color, fmt } from "./vsdmodel.js";
 import { localXf, mul, ap, inv, layersOf, pageInfo } from "./vsdrender.js";
+import { t as tr } from "./i18n.js";
 
 const kids = (el, n) => el ? [...el.children].filter(c => c.localName === n) : [];
 const kid = (el, n) => el ? [...el.children].find(c => c.localName === n) || null : null;
@@ -470,7 +471,7 @@ export function createConnector(doc, page, model, kind, b, e, startShape = null,
   const el = d.createElementNS(VNS, "Shape");
   el.setAttribute("ID", String(id));
   const dyn = kind === "dynamic";
-  el.setAttribute("NameU", dyn ? "Dynamic connector" : "Line"); el.setAttribute("Name", dyn ? "Connettore dinamico" : kind === "arrow" ? "Freccia" : "Linea");
+  el.setAttribute("NameU", dyn ? "Dynamic connector" : "Line"); el.setAttribute("Name", dyn ? tr("vsdops.connettore_dinamico") : kind === "arrow" ? tr("vsdops.freccia") : tr("vsdops.linea"));
   el.setAttribute("Type", "Shape");
   for (const a of ["LineStyle", "FillStyle", "TextStyle"]) el.setAttribute(a, "0");
   const tc = themeColors(doc);
@@ -489,7 +490,7 @@ export function createConnector(doc, page, model, kind, b, e, startShape = null,
     // testo al centro del percorso (punto di controllo TextPosition, come i connettori di Visio)
     for (const c of [C(d, "TxtPinX", W / 2, "Controls.TextPosition"), C(d, "TxtPinY", H / 2, "Controls.TextPosition.Y"), C(d, "TxtWidth", 1, "MAX(TEXTWIDTH(TheText),5*Char.Size)"), C(d, "TxtHeight", 0.25, "TEXTHEIGHT(TheText,TxtWidth)"), C(d, "TxtLocPinX", 0.5, "TxtWidth*0.5"), C(d, "TxtLocPinY", 0.125, "TxtHeight*0.5")]) el.append(c);
     const ctl = sectionE(d, "Control"), r = rowE(d, null, null, "TextPosition");
-    r.append(C(d, "X", W / 2), C(d, "Y", H / 2), C(d, "XDyn", W / 2, "Controls.TextPosition"), C(d, "YDyn", H / 2, "Controls.TextPosition.Y"), C(d, "XCon", 5), C(d, "YCon", 0), C(d, "CanGlue", 0), C(d, "Prompt", "Riposiziona testo"));
+    r.append(C(d, "X", W / 2), C(d, "Y", H / 2), C(d, "XDyn", W / 2, "Controls.TextPosition"), C(d, "YDyn", H / 2, "Controls.TextPosition.Y"), C(d, "XCon", 5), C(d, "YCon", 0), C(d, "CanGlue", 0), C(d, "Prompt", tr("vsdops.riposiziona_testo")));
     ctl.append(r); el.append(ctl);
   }
   const ch = sectionE(d, "Character"), r0 = rowE(d, null, 0);
@@ -543,7 +544,7 @@ export function createImage(doc, page, model, rid, x, y, w, h) {
   const d = page.xml;
   const id = nextId(page);
   const el = d.createElementNS(VNS, "Shape");
-  el.setAttribute("ID", String(id)); el.setAttribute("NameU", "Picture"); el.setAttribute("Name", "Immagine"); el.setAttribute("Type", "Foreign");
+  el.setAttribute("ID", String(id)); el.setAttribute("NameU", "Picture"); el.setAttribute("Name", tr("vsdops.immagine")); el.setAttribute("Type", "Foreign");
   for (const a of ["LineStyle", "FillStyle", "TextStyle"]) el.setAttribute(a, "0");
   for (const c of [C(d, "PinX", x), C(d, "PinY", y), C(d, "Width", w), C(d, "Height", h), C(d, "LocPinX", w / 2, "Width*0.5"), C(d, "LocPinY", h / 2, "Height*0.5"), C(d, "Angle", 0), C(d, "FlipX", 0), C(d, "FlipY", 0),
     C(d, "ImgOffsetX", 0, "ImgWidth*0"), C(d, "ImgOffsetY", 0, "ImgHeight*0"), C(d, "ImgWidth", w, "Width*1"), C(d, "ImgHeight", h, "Height*1"), C(d, "LinePattern", 0), C(d, "FillPattern", 0), C(d, "ClippingPath", "")]) el.append(c);
@@ -600,7 +601,7 @@ export function groupShapes(doc, page, model, list) {
   const d = page.xml, id = nextId(page);
   const W = b[2] - b[0], H = b[3] - b[1];
   const g = d.createElementNS(VNS, "Shape");
-  g.setAttribute("ID", String(id)); g.setAttribute("NameU", "Group"); g.setAttribute("Name", "Gruppo"); g.setAttribute("Type", "Group");
+  g.setAttribute("ID", String(id)); g.setAttribute("NameU", "Group"); g.setAttribute("Name", tr("vsdops.gruppo")); g.setAttribute("Type", "Group");
   for (const a of ["LineStyle", "FillStyle", "TextStyle"]) g.setAttribute(a, "0");
   for (const c of [C(d, "PinX", b[0] + W / 2), C(d, "PinY", b[1] + H / 2), C(d, "Width", W), C(d, "Height", H), C(d, "LocPinX", W / 2, "Width*0.5"), C(d, "LocPinY", H / 2, "Height*0.5"), C(d, "Angle", 0), C(d, "FlipX", 0), C(d, "FlipY", 0), C(d, "ResizeMode", 0), C(d, "LinePattern", 0), C(d, "FillPattern", 0), C(d, "DisplayMode", 2)]) g.append(c);
   const sh = d.createElementNS(VNS, "Shapes");

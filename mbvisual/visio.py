@@ -17,6 +17,7 @@ import struct
 import uuid
 from pathlib import Path
 
+from .i18n import t as tr
 from .paths import TEMP_DIR, find_libreoffice
 
 OUT = TEMP_DIR / "visio"
@@ -145,7 +146,7 @@ class _Vsd:
             for q in self.pointers(data, sh):
                 if q[0] == 0x15 and q[1] + q[2] <= len(self.d):
                     pd, _ = self.stream(q)
-                    pages.append({"name": f"Pagina {len(pages) + 1}", "texts": [s for s in self.texts(pd) if s]})
+                    pages.append({"name": tr("srv_visio.pagina_n", len(pages) + 1), "texts": [s for s in self.texts(pd) if s]})
         return pages
 
 
@@ -217,7 +218,7 @@ def open_vsd(path: str, update=None) -> dict:
     d = OUT / uuid.uuid4().hex[:10]
     d.mkdir(parents=True, exist_ok=True)
     if update:
-        update(message="Lettura del file di Visio", progress=0.05)
+        update(message=tr("srv_visio.lettura_file"), progress=0.05)
     # 1) Visio installato: conversione completa in .vsdx
     target = str(d / (Path(path).stem + ".vsdx"))
     if _com_to_vsdx(path, target):
@@ -226,7 +227,7 @@ def open_vsd(path: str, update=None) -> dict:
     # 2) LibreOffice: pagine in PDF -> immagini
     if find_libreoffice():
         if update:
-            update(message="Conversione delle pagine con LibreOffice", progress=0.2)
+            update(message=tr("srv_visio.conversione_libreoffice"), progress=0.2)
         try:
             from . import office
             import pymupdf
@@ -236,10 +237,10 @@ def open_vsd(path: str, update=None) -> dict:
                     f = d / f"pagina{i + 1}.png"
                     pg.get_pixmap(dpi=144).save(str(f))
                     res["images"].append(str(f))
-                    res["pages"].append({"name": f"Pagina {i + 1}", "texts": [t for t in pg.get_text().split("\n") if t.strip()]})
+                    res["pages"].append({"name": tr("srv_visio.pagina_n", i + 1), "texts": [t for t in pg.get_text().split("\n") if t.strip()]})
             res["mode"] = "libreoffice"
         except Exception as e:  # noqa: BLE001
-            res["nota"] = f"LibreOffice non e' riuscito a convertire il file: {e}"
+            res["nota"] = tr("srv_visio.libreoffice_non_riuscito", e)
     # 3) lettore interno: anteprima e testi
     try:
         import olefile
@@ -250,7 +251,7 @@ def open_vsd(path: str, update=None) -> dict:
         if res["mode"] == "preview":
             res["pages"] = v.pages()
     except Exception as e:  # noqa: BLE001
-        res.setdefault("nota", f"Struttura del file non leggibile: {e}")
+        res.setdefault("nota", tr("srv_visio.struttura_non_leggibile", e))
     if res["mode"] == "preview":
         try:
             png = _thumbnail(path)

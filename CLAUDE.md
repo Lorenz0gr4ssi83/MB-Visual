@@ -549,6 +549,7 @@ Categoria `visio` in formats.json (vsdx, vsdm, vstx, vstm, vsd; tolti vsd/vsdx/v
 - `.vsd` binari (`mbvisual/visio.py`, API visio_vsd): con Visio installato conversione COM in .vsdx (non provata: Visio non c'e'
   su questo PC); con LibreOffice pagine come immagini; altrimenti anteprima del file e testi delle pagine (flussi LZSS
   decompressi, blocchi 0x0E) per la versione 11+.
+- Testi in 5 lingue: chiavi vsdedit.*, vsdshapes.*, vsdops.*, vsdmodel.*, v_visio.*, srv_visio.*, fmt.visio.* (plurali con tn).
 - Prove: file pubblici in `tests/samples/visio` (fonti in FONTI.md), `tests/check_vsdx.py` controlla la struttura del file
   salvato. Confronto visivo utile: `docProps/thumbnail.emf` dentro ogni vsdx e' l'anteprima disegnata da Visio.
   Dalla console: `MB.tabs[i].api._vs` (doc, page, model, sel, run, exportPdf...). Se il server di prova risponde "non

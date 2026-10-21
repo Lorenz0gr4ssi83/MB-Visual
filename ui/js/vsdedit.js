@@ -5,6 +5,7 @@
 // Il disegno e' di ui/js/vsdrender.js, le modifiche di ui/js/vsdops.js; il puntatore resta sempre la freccia.
 import { el, toast, modal, askText, confirmBox, api, pickFiles, readBytes, extOf, baseName, loadCss, WEB } from "./core.js";
 import { keymap, describeKeys } from "./shortcuts.js";
+import { t as tr, tn, LOCALE } from "./i18n.js";
 import { vsIcon } from "./vsdicons.js";
 import { buildShapes, num0, val, cell, plainText, shapeName, is1D, snapshot, restore, saveVsdx, addPage, deletePage, addImagePart, markDirty, setCell, VNS, color as vColor, textEl } from "./vsdmodel.js";
 import { renderPage, opsSvg, pageSvg, pageInfo, layersOf, textMatrix, ap, inv, mul, localXf, opsBox } from "./vsdrender.js";
@@ -15,9 +16,9 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const STD = ["#ffffff", "#000000", "#e7e6e6", "#44546a", "#5b9bd5", "#ed7d31", "#a5a5a5", "#ffc000", "#4472c4", "#70ad47",
   "#c00000", "#ff0000", "#ffc000", "#ffff00", "#92d050", "#00b050", "#00b0f0", "#0070c0", "#002060", "#7030a0"];
 const WEIGHTS = [0.25, 0.5, 0.75, 1, 1.5, 2.25, 3, 4.5, 6];
-const PATTERNS = [[1, "Continua"], [2, "Tratteggiata"], [3, "Punteggiata"], [4, "Tratto punto"], [9, "Tratto lungo"], [10, "Tratto corto"]];
-const ARROWS = [[0, "Nessuna"], [4, "Triangolo pieno"], [13, "Freccia piena"], [1, "Freccia aperta"], [10, "Cerchio"]];
-const PAGE_SIZES = [["A4", 210, 297], ["A3", 297, 420], ["A5", 148, 210], ["A2", 420, 594], ["A1", 594, 841], ["Lettera", 215.9, 279.4], ["Legale", 215.9, 355.6], ["Tabloid", 279.4, 431.8]];
+const PATTERNS = [[1, tr("vsdedit.continua")], [2, tr("vsdedit.tratteggiata")], [3, tr("vsdedit.punteggiata")], [4, tr("vsdedit.tratto_punto")], [9, tr("vsdedit.tratto_lungo")], [10, tr("vsdedit.tratto_corto")]];
+const ARROWS = [[0, tr("vsdedit.nessuna")], [4, tr("vsdedit.triangolo_pieno")], [13, tr("vsdedit.freccia_piena")], [1, tr("vsdedit.freccia_aperta")], [10, tr("vsdedit.cerchio")]];
+const PAGE_SIZES = [["A4", 210, 297], ["A3", 297, 420], ["A5", 148, 210], ["A2", 420, 594], ["A1", 594, 841], [tr("vsdedit.lettera"), 215.9, 279.4], [tr("vsdedit.legale"), 215.9, 355.6], [tr("vsdedit.tabloid"), 279.4, 431.8]];
 const MMIN = 1 / 25.4;
 
 export function createVisio(ctx, doc, opts = {}) {
@@ -33,7 +34,7 @@ export function createVisio(ctx, doc, opts = {}) {
   const toUnit = v => isMM() ? v * 25.4 : v;
   const fromUnit = v => isMM() ? v / 25.4 : v;
   const uName = () => isMM() ? "mm" : "in";
-  const fmtU = v => (Math.round(toUnit(v) * 100) / 100).toLocaleString("it-IT") + " " + uName();
+  const fmtU = v => (Math.round(toUnit(v) * 100) / 100).toLocaleString(LOCALE) + " " + uName();
 
   // ------------------------------------------------------------------ struttura
   loadCss("css/visio.css");
@@ -211,7 +212,7 @@ export function createVisio(ctx, doc, opts = {}) {
   // ------------------------------------------------------------------ comandi con Annulla
   let busy = false;
   async function run(fn, keepSel = true) {
-    if (readOnly) { toast("Il diagramma e' in sola lettura", true); return; }
+    if (readOnly) { toast(tr("vsdedit.diagramma_sola_lettura"), true); return; }
     if (busy) return;
     busy = true;
     try {
@@ -227,7 +228,7 @@ export function createVisio(ctx, doc, opts = {}) {
       else if (keepSel) selectById(ids);
       ctx.setDirty(true);
       return r;
-    } catch (e) { console.error(e); toast("Operazione non riuscita: " + e.message, true); }
+    } catch (e) { console.error(e); toast(tr("vsdedit.operazione_non_riuscita") + e.message, true); }
     finally { busy = false; }
   }
   async function doUndo(from, to) {
@@ -429,12 +430,12 @@ export function createVisio(ctx, doc, opts = {}) {
     const S = hitShape(e);
     if (S && !sel.includes(S)) setSel([S]);
     openMenu({ x: e.clientX, y: e.clientY }, sel.length ? [
-      { label: "Taglia", icon: "cut", keys: "Ctrl+X", run: cut }, { label: "Copia", icon: "copy", keys: "Ctrl+C", run: copy }, { label: "Incolla", icon: "paste", keys: "Ctrl+V", run: paste, dis: () => !clip },
-      "-", { label: "Modifica testo", icon: "textTool", keys: "F2", run: () => beginEdit(sel[0]), dis: () => sel.length !== 1 },
-      { label: "Porta in primo piano", icon: "bringFront", keys: "Ctrl+Maiusc+F", run: () => cmdZ("front") }, { label: "Porta sullo sfondo", icon: "sendBackmost", keys: "Ctrl+Maiusc+B", run: () => cmdZ("back") },
-      { label: "Raggruppa", icon: "group", keys: "Ctrl+G", run: cmdGroup, dis: () => sel.length < 2 }, { label: "Separa", icon: "ungroup", keys: "Ctrl+Maiusc+U", run: cmdUngroup, dis: () => !sel.some(S2 => S2.el?.getAttribute("Type") === "Group") },
-      "-", { label: "Dati forma...", icon: "shapedata", run: () => { panels.data = true; updatePanels(); } }, { label: "Elimina", icon: "trash", keys: "Canc", run: cmdDelete },
-    ] : [{ label: "Incolla", icon: "paste", keys: "Ctrl+V", run: paste, dis: () => !clip }, { label: "Seleziona tutto", icon: "select", keys: "Ctrl+A", run: () => setSel(model.top) }, "-", { label: "Adatta alla finestra", icon: "zoomPage", keys: "Ctrl+Maiusc+W", run: fitPage }]);
+      { label: tr("common.taglia"), icon: "cut", keys: "Ctrl+X", run: cut }, { label: tr("common.copia"), icon: "copy", keys: "Ctrl+C", run: copy }, { label: tr("common.incolla"), icon: "paste", keys: "Ctrl+V", run: paste, dis: () => !clip },
+      "-", { label: tr("vsdedit.modifica_testo"), icon: "textTool", keys: "F2", run: () => beginEdit(sel[0]), dis: () => sel.length !== 1 },
+      { label: tr("vsdedit.porta_primo_piano"), icon: "bringFront", keys: "Ctrl+Maiusc+F", run: () => cmdZ("front") }, { label: tr("vsdedit.porta_sullo_sfondo"), icon: "sendBackmost", keys: "Ctrl+Maiusc+B", run: () => cmdZ("back") },
+      { label: tr("vsdedit.raggruppa"), icon: "group", keys: "Ctrl+G", run: cmdGroup, dis: () => sel.length < 2 }, { label: tr("vsdedit.separa"), icon: "ungroup", keys: "Ctrl+Maiusc+U", run: cmdUngroup, dis: () => !sel.some(S2 => S2.el?.getAttribute("Type") === "Group") },
+      "-", { label: tr("vsdedit.dati_forma"), icon: "shapedata", run: () => { panels.data = true; updatePanels(); } }, { label: tr("common.elimina"), icon: "trash", keys: tr("vsdedit.canc"), run: cmdDelete },
+    ] : [{ label: tr("common.incolla"), icon: "paste", keys: "Ctrl+V", run: paste, dis: () => !clip }, { label: tr("vsdedit.seleziona_tutto"), icon: "select", keys: "Ctrl+A", run: () => setSel(model.top) }, "-", { label: tr("vsdedit.adatta_finestra"), icon: "zoomPage", keys: "Ctrl+Maiusc+W", run: fitPage }]);
   });
   window.addEventListener("keydown", e => { if (e.key === " " && !e.target.closest?.("input, textarea, select")) spaceDown = true; });
   window.addEventListener("keyup", e => { if (e.key === " ") spaceDown = false; });
@@ -448,7 +449,7 @@ export function createVisio(ctx, doc, opts = {}) {
       if (!dragged && d.start && !is1D(doc, d.start)) { beginEdit(d.start); return; }
       const w = dragged ? Math.abs(b[0] - a[0]) : 30 * MMIN, h = dragged ? Math.abs(b[1] - a[1]) : 8 * MMIN;
       const cx = dragged ? (a[0] + b[0]) / 2 : a[0] + w / 2, cy = dragged ? (a[1] + b[1]) / 2 : a[1] - h / 2;
-      const ids = await run(() => [O.createShape(doc, P, model, { name: "Testo", nameU: "Text", w, h, geom: [], textOnly: true }, cx, cy, { textValue: "" }).id]);
+      const ids = await run(() => [O.createShape(doc, P, model, { name: tr("vsdedit.testo"), nameU: "Text", w, h, geom: [], textOnly: true }, cx, cy, { textValue: "" }).id]);
       if (ids) setTimeout(() => beginEdit(model.all.get(ids[0])), 0);
       return;
     }
@@ -475,7 +476,7 @@ export function createVisio(ctx, doc, opts = {}) {
     tool = t;
     canvas.dataset.tool = t;
     updateRibbon();
-    statusText(t === "pointer" ? "" : { text: "Strumento Testo: clic su una forma per scriverci, oppure clic o trascinamento sulla pagina per una casella di testo", connector: "Connettore: trascina da una forma all'altra (i connettori dinamici seguono le forme)", line: "Linea: trascina per disegnare", rect: "Rettangolo: trascina (Maiusc = quadrato)", ellipse: "Ellisse: trascina (Maiusc = cerchio)" }[t]);
+    statusText(t === "pointer" ? "" : { text: tr("vsdedit.strumento_testo_clic_forma_scriverci"), connector: tr("vsdedit.connettore_trascina_forma_all_altra"), line: tr("vsdedit.linea_trascina_disegnare"), rect: "Rettangolo: trascina (Maiusc = quadrato)", ellipse: "Ellisse: trascina (Maiusc = cerchio)" }[t]);
   }
 
   // ------------------------------------------------------------------ testo sul posto
@@ -509,7 +510,7 @@ export function createVisio(ctx, doc, opts = {}) {
     const idx = R.items.findIndex(it => it.S === S);
     svg.querySelector(`g[data-i="${idx}"]`)?.classList.add("vs-editing");
     setTimeout(() => { textBox.focus(); if (replaceWith == null) textBox.select(); else textBox.setSelectionRange(textBox.value.length, textBox.value.length); }, 0);
-    statusText("Modifica del testo: Esc o clic fuori per terminare");
+    statusText(tr("vsdedit.modifica_testo_esc_clic_fuori"));
   }
   async function endEdit(cancel = false) {
     if (!editing) return;
@@ -533,7 +534,7 @@ export function createVisio(ctx, doc, opts = {}) {
   let clip = null;
   const sel0 = () => sel.filter(S => S.el);
   async function cmdDelete() { if (!sel.length) return; const list = sel0(); await run(() => { O.deleteShapes(doc, page(), model, list); return []; }); }
-  function copy() { if (!sel.length) return; clip = O.copyShapes(doc, page(), model, sel0()); toast(`Copiat${sel.length > 1 ? "e " + sel.length + " forme" : "a 1 forma"}`); }
+  function copy() { if (!sel.length) return; clip = O.copyShapes(doc, page(), model, sel0()); toast(tn("vsdedit.forme_copiate", sel.length)); }
   async function cut() { if (!sel.length) return; copy(); await cmdDelete(); }
   async function paste() {
     if (!clip) return;
@@ -555,7 +556,7 @@ export function createVisio(ctx, doc, opts = {}) {
   }
   async function align(how) {
     const list = sel0().filter(S => !is1D(doc, S));
-    if (list.length < 2) { toast("Seleziona almeno due forme: si allineano alla prima selezionata", true); return; }
+    if (list.length < 2) { toast(tr("vsdedit.seleziona_almeno_due_forme_si"), true); return; }
     const ref = O.bounds(doc, [list[0]]);
     await run(() => {
       for (const S of list.slice(1)) {
@@ -569,7 +570,7 @@ export function createVisio(ctx, doc, opts = {}) {
   }
   async function distribute(axis) {
     const list = sel0().filter(S => !is1D(doc, S));
-    if (list.length < 3) { toast("Seleziona almeno tre forme", true); return; }
+    if (list.length < 3) { toast(tr("vsdedit.seleziona_almeno_tre_forme"), true); return; }
     const bs = list.map(S => ({ S, b: O.bounds(doc, [S]) })).sort((p, q) => axis === "h" ? p.b[0] - q.b[0] : p.b[1] - q.b[1]);
     const i0 = axis === "h" ? 0 : 1, i1 = axis === "h" ? 2 : 3;
     const total = bs.reduce((s, x) => s + x.b[i1] - x.b[i0], 0), span = bs[bs.length - 1].b[i1] - bs[0].b[i0];
@@ -580,7 +581,7 @@ export function createVisio(ctx, doc, opts = {}) {
       O.rerouteFor(doc, page(), getFresh(), new Set(list.map(S => S.id)));
     });
   }
-  const fmtCmd = fn => async (...a) => { const list = sel0(); if (!list.length) { toast("Seleziona prima una forma", true); return; } await run(() => fn(list, ...a)); };
+  const fmtCmd = fn => async (...a) => { const list = sel0(); if (!list.length) { toast(tr("vsdedit.seleziona_prima_forma"), true); return; } await run(() => fn(list, ...a)); };
   const setFill = fmtCmd((list, c) => O.setFill(doc, page(), list, c));
   const setLine = fmtCmd((list, o) => O.setLine(doc, page(), list, o));
   const setChar = fmtCmd((list, o) => O.setChar(doc, page(), list, o));
@@ -595,7 +596,7 @@ export function createVisio(ctx, doc, opts = {}) {
       return;
     }
     if (def.master) { await run(() => [O.createInstance(doc, P, model, def.master, x, y)], false); return; }
-    const ids = await run(() => [O.createShape(doc, P, model, def, x, y, def.textOnly ? { textValue: "Testo" } : {}).id], false);
+    const ids = await run(() => [O.createShape(doc, P, model, def, x, y, def.textOnly ? { textValue: tr("vsdedit.testo") } : {}).id], false);
     if (ids && def.textOnly) setTimeout(() => beginEdit(model.all.get(ids[0])), 0);
   }
   function viewCenter() {
@@ -609,7 +610,7 @@ export function createVisio(ctx, doc, opts = {}) {
     let files;
     if (WEB) files = await pickFiles(); else files = await pickFiles();
     const f = (files || []).find(p => /\.(png|jpe?g|gif|bmp)$/i.test(p));
-    if (!f) { if (files?.length) toast("Scegli un'immagine PNG, JPG, GIF o BMP", true); return; }
+    if (!f) { if (files?.length) toast(tr("vsdedit.scegli_immagine_png_jpg_gif"), true); return; }
     const bytes = await readBytes(f);
     const bmp = await createImageBitmap(new Blob([bytes]));
     const P = page();
@@ -624,17 +625,17 @@ export function createVisio(ctx, doc, opts = {}) {
   }
   async function newPage() {
     const n = doc.pages.filter(p => !p.background).length + 1;
-    await run(async () => { const P = await addPage(doc, `Pagina-${n}`, page(), page()); pageIdx = doc.pages.indexOf(P); return []; }, false);
+    await run(async () => { const P = await addPage(doc, tr("vsdedit.pagina_0", n), page(), page()); pageIdx = doc.pages.indexOf(P); return []; }, false);
     fitPage();
   }
   async function renamePage(P) {
-    const name = await askText("Rinomina pagina", "Nome della pagina", P.name);
+    const name = await askText(tr("vsdedit.rinomina_pagina"), tr("vsdedit.nome_pagina"), P.name);
     if (!name || name === P.name) return;
     await run(() => { P.el.setAttribute("Name", name); if (!P.el.getAttribute("NameU") || P.el.getAttribute("IsCustomNameU") !== "1") P.el.setAttribute("NameU", name); markDirty(doc, doc.pagesPath); });
   }
   async function removePage(P) {
-    if (doc.pages.filter(p => !p.background).length <= 1 && !P.background) { toast("Il diagramma deve avere almeno una pagina", true); return; }
-    if (!(await confirmBox("Elimina pagina", `Eliminare la pagina "${P.name}" e tutte le sue forme?`, "Elimina", true))) return;
+    if (doc.pages.filter(p => !p.background).length <= 1 && !P.background) { toast(tr("vsdedit.diagramma_deve_avere_almeno_pagina"), true); return; }
+    if (!(await confirmBox(tr("vsdedit.elimina_pagina"), tr("vsdedit.eliminare_pagina_0_tutte_sue", P.name), tr("common.elimina"), true))) return;
     await run(async () => { await deletePage(doc, P); pageIdx = clamp(pageIdx, 0, doc.pages.length - 1); if (doc.pages[pageIdx]?.background) pageIdx = Math.max(0, doc.pages.findIndex(p => !p.background)); return []; }, false);
   }
   function goPage(i) {
@@ -691,18 +692,18 @@ export function createVisio(ctx, doc, opts = {}) {
       for (const c of list) g.append(el("button", { type: "button", class: "vs-cbtn" + (cur === c ? " on" : ""), title: c, style: { background: c }, onclick: () => { closePop(); onPick(c); } }));
       box.append(g);
     };
-    grid(theme, "Colori del tema");
-    grid(STD.slice(10), "Colori standard");
+    grid(theme, tr("vsdedit.colori_tema"));
+    grid(STD.slice(10), tr("vsdedit.colori_standard"));
     const inp = el("input", { type: "color", value: /^#[0-9a-f]{6}$/i.test(cur || "") ? cur : "#5b9bd5" });
     box.append(el("div", { class: "vs-crow" },
       noneLabel ? el("button", { type: "button", class: "vs-sm", onclick: () => { closePop(); onPick(null); } }, noneLabel) : null,
-      el("label", { class: "vs-sm" }, "Altri colori... ", inp)));
+      el("label", { class: "vs-sm" }, tr("vsdedit.altri_colori"), inp)));
     inp.addEventListener("change", () => { closePop(); onPick(inp.value); });
     popup(anchor, box);
   }
 
   // ------------------------------------------------------------------ barra multifunzione
-  const tabs = [["home", "Home"], ["insert", "Inserisci"], ["design", "Progettazione"], ["view", "Visualizza"]];
+  const tabs = [["home", tr("vsdedit.home")], ["insert", tr("vsdedit.inserisci")], ["design", tr("vsdedit.progettazione")], ["view", tr("vsdedit.visualizza")]];
   let tab = "home";
   const updaters = [];
   const big = (label, icon, run, o = {}) => {
@@ -722,10 +723,10 @@ export function createVisio(ctx, doc, opts = {}) {
   const row = (...items) => el("div", { class: "vs-row" }, ...items);
   const noSel = () => !sel.length || readOnly;
   const one = () => sel.length === 1 ? sel[0] : null;
-  const fontSel = el("select", { class: "vs-sel", title: "Tipo di carattere", style: { width: "140px" } });
+  const fontSel = el("select", { class: "vs-sel", title: tr("vsdedit.tipo_carattere"), style: { width: "140px" } });
   for (const f of ["Calibri", "Calibri Light", "Arial", "Segoe UI", "Times New Roman", "Cambria", "Verdana", "Tahoma", "Georgia", "Trebuchet MS", "Courier New", "Consolas", "Century Gothic", "Garamond"]) fontSel.append(el("option", { value: f }, f));
   fontSel.addEventListener("change", () => setChar({ font: fontSel.value }));
-  const sizeSel = el("select", { class: "vs-sel", title: "Dimensione carattere", style: { width: "58px" } });
+  const sizeSel = el("select", { class: "vs-sel", title: tr("vsdedit.dimensione_carattere"), style: { width: "58px" } });
   for (const s of [6, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72]) sizeSel.append(el("option", { value: s }, String(s)));
   sizeSel.addEventListener("change", () => setChar({ size: +sizeSel.value }));
   updaters.push(() => {
@@ -743,45 +744,45 @@ export function createVisio(ctx, doc, opts = {}) {
   const panels = { shapes: true, data: true, size: true };
   const P = {
     home: () => [
-      group("Appunti", big("Incolla", "paste", paste, { keys: "Ctrl+V", dis: () => !clip || readOnly }), col(sm("Taglia", "cut", cut, { keys: "Ctrl+X", dis: noSel }), sm("Copia", "copy", copy, { keys: "Ctrl+C", dis: () => !sel.length }), sm("Duplica", "duplicate", duplicate, { keys: "Ctrl+D", dis: noSel }))),
-      group("Carattere", col(row(fontSel, sizeSel, sm("", "grow", () => setChar({ dsize: 2 }), { title: "Aumenta dimensione carattere (Ctrl+Maiusc+>)", dis: noSel }), sm("", "shrink", () => setChar({ dsize: -2 }), { title: "Riduci dimensione carattere (Ctrl+Maiusc+<)", dis: noSel })),
-        row(sm("", "bold", () => setChar({ b: !charOn("b")() }), { title: "Grassetto (Ctrl+B)", on: charOn("b"), dis: noSel }), sm("", "italic", () => setChar({ i: !charOn("i")() }), { title: "Corsivo (Ctrl+I)", on: charOn("i"), dis: noSel }),
-          sm("", "underline", () => setChar({ u: !charOn("u")() }), { title: "Sottolineato (Ctrl+U)", on: charOn("u"), dis: noSel }),
-          sm("", "fontColor", (e, b) => colorPop(b, "Colore carattere", sel[0] && O.firstChar(doc, sel[0]).color, c => c && setChar({ color: c })), { title: "Colore carattere", dis: noSel, caret: true })))),
-      group("Paragrafo", col(row(sm("", "valignT", () => setVAlign(0), { title: "Allinea in alto", dis: noSel, on: () => sel[0] && num0(doc, sel[0], "VerticalAlign", 1) === 0 }), sm("", "valignM", () => setVAlign(1), { title: "Allinea al centro", dis: noSel, on: () => sel[0] && num0(doc, sel[0], "VerticalAlign", 1) === 1 }), sm("", "valignB", () => setVAlign(2), { title: "Allinea in basso", dis: noSel, on: () => sel[0] && num0(doc, sel[0], "VerticalAlign", 1) === 2 })),
-        row(sm("", "alignL", () => setPara(0), { title: "Allinea testo a sinistra (Ctrl+Maiusc+L)", dis: noSel, on: () => sel[0] && O.firstAlign(doc, sel[0]) === 0 }), sm("", "alignC", () => setPara(1), { title: "Centra (Ctrl+Maiusc+C)", dis: noSel, on: () => sel[0] && O.firstAlign(doc, sel[0]) === 1 }), sm("", "alignR", () => setPara(2), { title: "Allinea testo a destra (Ctrl+Maiusc+R)", dis: noSel, on: () => sel[0] && O.firstAlign(doc, sel[0]) === 2 }), sm("", "alignJ", () => setPara(3), { title: "Giustifica", dis: noSel, on: () => sel[0] && O.firstAlign(doc, sel[0]) === 3 })))),
-      group("Strumenti", col(toolBtn("Puntatore", "pointer", "pointer", "Ctrl+1"), toolBtn("Connettore", "connector", "connector", "Ctrl+3"), toolBtn("Testo", "textTool", "text", "Ctrl+2")),
-        col(toolBtn("Rettangolo", "rect", "rect", "Ctrl+8"), toolBtn("Ellisse", "ellipse", "ellipse", "Ctrl+9"), toolBtn("Linea", "line", "line", "Ctrl+6"))),
-      group("Stili forma", col(sm("Riempimento", "fillBucket", (e, b) => colorPop(b, "Riempimento", sel[0] && vColor(doc, val(doc, sel[0], "FillForegnd", 1)), c => setFill(c), "Nessun riempimento"), { dis: noSel, caret: true }),
-        sm("Linea", "lineColor", (e, b) => lineMenu(b), { dis: noSel, caret: true }), sm("Ombreggiatura", "shadowIco", (e, b) => openMenu(b, [{ label: "Nessuna ombreggiatura", run: () => setShadow(false) }, { label: "Ombreggiatura esterna", run: () => setShadow(true) }]), { dis: noSel, caret: true }))),
-      group("Disponi", col(sm("Allinea", "align", (e, b) => openMenu(b, [{ title: "Allinea alla prima forma selezionata" }, { label: "A sinistra", icon: "alignObjL", run: () => align("l") }, { label: "Al centro", icon: "alignObjC", run: () => align("c") }, { label: "A destra", icon: "alignObjR", run: () => align("r") }, "-", { label: "In alto", icon: "alignObjT", run: () => align("t") }, { label: "Al centro (verticale)", icon: "alignObjM", run: () => align("m") }, { label: "In basso", icon: "alignObjB", run: () => align("b") }]), { dis: () => sel.length < 2 || readOnly, caret: true }),
-        sm("Posizione", "distH", (e, b) => openMenu(b, [{ label: "Distribuisci orizzontalmente", icon: "distH", run: () => distribute("h") }, { label: "Distribuisci verticalmente", icon: "distV", run: () => distribute("v") }, "-", { label: "Ruota a destra di 90°", icon: "rotateR", keys: "Ctrl+R", run: () => cmdRotate(-90) }, { label: "Ruota a sinistra di 90°", icon: "rotateL", keys: "Ctrl+L", run: () => cmdRotate(90) }, { label: "Capovolgi orizzontalmente", icon: "flipH", keys: "Ctrl+H", run: () => cmdFlip("x") }, { label: "Capovolgi verticalmente", icon: "flipV", keys: "Ctrl+J", run: () => cmdFlip("y") }]), { dis: noSel, caret: true }),
-        sm("Raggruppa", "group", (e, b) => openMenu(b, [{ label: "Raggruppa", icon: "group", keys: "Ctrl+G", run: cmdGroup, dis: () => sel.length < 2 }, { label: "Separa", icon: "ungroup", keys: "Ctrl+Maiusc+U", run: cmdUngroup, dis: () => !sel.some(S => S.el?.getAttribute("Type") === "Group") }]), { dis: noSel, caret: true })),
-        col(sm("Porta avanti", "bringFwd", (e, b) => openMenu(b, [{ label: "Porta in primo piano", icon: "bringFront", keys: "Ctrl+Maiusc+F", run: () => cmdZ("front") }, { label: "Porta avanti", icon: "bringFwd", run: () => cmdZ("forward") }]), { dis: noSel, caret: true }),
-          sm("Porta indietro", "sendBack", (e, b) => openMenu(b, [{ label: "Porta sullo sfondo", icon: "sendBackmost", keys: "Ctrl+Maiusc+B", run: () => cmdZ("back") }, { label: "Porta indietro", icon: "sendBack", run: () => cmdZ("backward") }]), { dis: noSel, caret: true }))),
-      group("Modifica", col(sm("Trova", "find", () => findPanel(), { keys: "Ctrl+F" }), sm("Livelli", "layers", (e, b) => layersMenu(b)), sm("Seleziona", "select", (e, b) => openMenu(b, [{ label: "Seleziona tutto", keys: "Ctrl+A", run: () => setSel(model.top) }, { label: "Seleziona i connettori", run: () => setSel(model.top.filter(S => is1D(doc, S))) }, { label: "Seleziona le forme 2D", run: () => setSel(model.top.filter(S => !is1D(doc, S))) }]), { caret: true }))),
+      group(tr("vsdedit.appunti"), big(tr("common.incolla"), "paste", paste, { keys: "Ctrl+V", dis: () => !clip || readOnly }), col(sm(tr("common.taglia"), "cut", cut, { keys: "Ctrl+X", dis: noSel }), sm(tr("common.copia"), "copy", copy, { keys: "Ctrl+C", dis: () => !sel.length }), sm(tr("vsdedit.duplica"), "duplicate", duplicate, { keys: "Ctrl+D", dis: noSel }))),
+      group(tr("vsdedit.carattere"), col(row(fontSel, sizeSel, sm("", "grow", () => setChar({ dsize: 2 }), { title: tr("vsdedit.aumenta_dimensione_carattere_ctrl_maiusc"), dis: noSel }), sm("", "shrink", () => setChar({ dsize: -2 }), { title: tr("vsdedit.riduci_dimensione_carattere_ctrl_maiusc"), dis: noSel })),
+        row(sm("", "bold", () => setChar({ b: !charOn("b")() }), { title: tr("vsdedit.grassetto_ctrl_b"), on: charOn("b"), dis: noSel }), sm("", "italic", () => setChar({ i: !charOn("i")() }), { title: tr("vsdedit.corsivo_ctrl_i"), on: charOn("i"), dis: noSel }),
+          sm("", "underline", () => setChar({ u: !charOn("u")() }), { title: tr("vsdedit.sottolineato_ctrl_u"), on: charOn("u"), dis: noSel }),
+          sm("", "fontColor", (e, b) => colorPop(b, tr("vsdedit.colore_carattere"), sel[0] && O.firstChar(doc, sel[0]).color, c => c && setChar({ color: c })), { title: tr("vsdedit.colore_carattere"), dis: noSel, caret: true })))),
+      group(tr("vsdedit.paragrafo"), col(row(sm("", "valignT", () => setVAlign(0), { title: tr("vsdedit.allinea_alto"), dis: noSel, on: () => sel[0] && num0(doc, sel[0], "VerticalAlign", 1) === 0 }), sm("", "valignM", () => setVAlign(1), { title: tr("vsdedit.allinea_centro"), dis: noSel, on: () => sel[0] && num0(doc, sel[0], "VerticalAlign", 1) === 1 }), sm("", "valignB", () => setVAlign(2), { title: tr("vsdedit.allinea_basso"), dis: noSel, on: () => sel[0] && num0(doc, sel[0], "VerticalAlign", 1) === 2 })),
+        row(sm("", "alignL", () => setPara(0), { title: tr("vsdedit.allinea_testo_sinistra_ctrl_maiusc"), dis: noSel, on: () => sel[0] && O.firstAlign(doc, sel[0]) === 0 }), sm("", "alignC", () => setPara(1), { title: tr("vsdedit.centra_ctrl_maiusc_c"), dis: noSel, on: () => sel[0] && O.firstAlign(doc, sel[0]) === 1 }), sm("", "alignR", () => setPara(2), { title: tr("vsdedit.allinea_testo_destra_ctrl_maiusc"), dis: noSel, on: () => sel[0] && O.firstAlign(doc, sel[0]) === 2 }), sm("", "alignJ", () => setPara(3), { title: tr("vsdedit.giustifica"), dis: noSel, on: () => sel[0] && O.firstAlign(doc, sel[0]) === 3 })))),
+      group(tr("vsdedit.strumenti"), col(toolBtn(tr("vsdedit.puntatore"), "pointer", "pointer", "Ctrl+1"), toolBtn(tr("vsdedit.connettore"), "connector", "connector", "Ctrl+3"), toolBtn(tr("vsdedit.testo"), "textTool", "text", "Ctrl+2")),
+        col(toolBtn(tr("vsdedit.rettangolo"), "rect", "rect", "Ctrl+8"), toolBtn(tr("vsdedit.ellisse"), "ellipse", "ellipse", "Ctrl+9"), toolBtn(tr("vsdedit.linea"), "line", "line", "Ctrl+6"))),
+      group(tr("vsdedit.stili_forma"), col(sm(tr("vsdedit.riempimento"), "fillBucket", (e, b) => colorPop(b, tr("vsdedit.riempimento"), sel[0] && vColor(doc, val(doc, sel[0], "FillForegnd", 1)), c => setFill(c), tr("vsdedit.nessun_riempimento")), { dis: noSel, caret: true }),
+        sm(tr("vsdedit.linea"), "lineColor", (e, b) => lineMenu(b), { dis: noSel, caret: true }), sm(tr("vsdedit.ombreggiatura"), "shadowIco", (e, b) => openMenu(b, [{ label: tr("vsdedit.nessuna_ombreggiatura"), run: () => setShadow(false) }, { label: tr("vsdedit.ombreggiatura_esterna"), run: () => setShadow(true) }]), { dis: noSel, caret: true }))),
+      group(tr("vsdedit.disponi"), col(sm(tr("vsdedit.allinea"), "align", (e, b) => openMenu(b, [{ title: tr("vsdedit.allinea_prima_forma_selezionata") }, { label: tr("vsdedit.sinistra"), icon: "alignObjL", run: () => align("l") }, { label: tr("vsdedit.centro"), icon: "alignObjC", run: () => align("c") }, { label: tr("vsdedit.destra"), icon: "alignObjR", run: () => align("r") }, "-", { label: tr("vsdedit.alto"), icon: "alignObjT", run: () => align("t") }, { label: tr("vsdedit.centro_verticale"), icon: "alignObjM", run: () => align("m") }, { label: tr("vsdedit.basso"), icon: "alignObjB", run: () => align("b") }]), { dis: () => sel.length < 2 || readOnly, caret: true }),
+        sm(tr("vsdedit.posizione"), "distH", (e, b) => openMenu(b, [{ label: tr("vsdedit.distribuisci_orizzontalmente"), icon: "distH", run: () => distribute("h") }, { label: tr("vsdedit.distribuisci_verticalmente"), icon: "distV", run: () => distribute("v") }, "-", { label: tr("vsdedit.ruota_destra_90"), icon: "rotateR", keys: "Ctrl+R", run: () => cmdRotate(-90) }, { label: tr("vsdedit.ruota_sinistra_90"), icon: "rotateL", keys: "Ctrl+L", run: () => cmdRotate(90) }, { label: tr("vsdedit.capovolgi_orizzontalmente"), icon: "flipH", keys: "Ctrl+H", run: () => cmdFlip("x") }, { label: tr("vsdedit.capovolgi_verticalmente"), icon: "flipV", keys: "Ctrl+J", run: () => cmdFlip("y") }]), { dis: noSel, caret: true }),
+        sm(tr("vsdedit.raggruppa"), "group", (e, b) => openMenu(b, [{ label: tr("vsdedit.raggruppa"), icon: "group", keys: "Ctrl+G", run: cmdGroup, dis: () => sel.length < 2 }, { label: tr("vsdedit.separa"), icon: "ungroup", keys: "Ctrl+Maiusc+U", run: cmdUngroup, dis: () => !sel.some(S => S.el?.getAttribute("Type") === "Group") }]), { dis: noSel, caret: true })),
+        col(sm(tr("vsdedit.porta_avanti"), "bringFwd", (e, b) => openMenu(b, [{ label: tr("vsdedit.porta_primo_piano"), icon: "bringFront", keys: "Ctrl+Maiusc+F", run: () => cmdZ("front") }, { label: tr("vsdedit.porta_avanti"), icon: "bringFwd", run: () => cmdZ("forward") }]), { dis: noSel, caret: true }),
+          sm(tr("vsdedit.porta_indietro"), "sendBack", (e, b) => openMenu(b, [{ label: tr("vsdedit.porta_sullo_sfondo"), icon: "sendBackmost", keys: "Ctrl+Maiusc+B", run: () => cmdZ("back") }, { label: tr("vsdedit.porta_indietro"), icon: "sendBack", run: () => cmdZ("backward") }]), { dis: noSel, caret: true }))),
+      group(tr("vsdedit.modifica"), col(sm(tr("vsdedit.trova"), "find", () => findPanel(), { keys: "Ctrl+F" }), sm(tr("vsdedit.livelli"), "layers", (e, b) => layersMenu(b)), sm(tr("vsdedit.seleziona"), "select", (e, b) => openMenu(b, [{ label: tr("vsdedit.seleziona_tutto"), keys: "Ctrl+A", run: () => setSel(model.top) }, { label: tr("vsdedit.seleziona_i_connettori"), run: () => setSel(model.top.filter(S => is1D(doc, S))) }, { label: tr("vsdedit.seleziona_forme_2d"), run: () => setSel(model.top.filter(S => !is1D(doc, S))) }]), { caret: true }))),
     ],
     insert: () => [
-      group("Pagine", big("Pagina vuota", "pageAdd", newPage, { dis: () => readOnly })),
-      group("Illustrazioni", big("Immagini", "image", insertPicture, { dis: () => readOnly })),
-      group("Testo", big("Casella di testo", "textbox", () => setTool("text"), { on: () => tool === "text", dis: () => readOnly })),
-      group("Parti di diagramma", big("Connettore", "connector", () => setTool("connector"), { on: () => tool === "connector", dis: () => readOnly }), big("Forme", "shapes", () => { panels.shapes = true; layoutPanels(); })),
+      group(tr("vsdedit.pagine"), big(tr("vsdedit.pagina_vuota"), "pageAdd", newPage, { dis: () => readOnly })),
+      group(tr("vsdedit.illustrazioni"), big(tr("vsdedit.immagini"), "image", insertPicture, { dis: () => readOnly })),
+      group(tr("vsdedit.testo"), big(tr("vsdedit.casella_testo"), "textbox", () => setTool("text"), { on: () => tool === "text", dis: () => readOnly })),
+      group(tr("vsdedit.parti_diagramma"), big(tr("vsdedit.connettore"), "connector", () => setTool("connector"), { on: () => tool === "connector", dis: () => readOnly }), big(tr("vsdedit.forme"), "shapes", () => { panels.shapes = true; layoutPanels(); })),
     ],
     design: () => [
-      group("Imposta pagina", big("Orientamento", info().W > info().H ? "orientationL" : "orientationP", (e, b) => openMenu(b, [{ label: "Verticale", icon: "orientationP", on: () => info().H >= info().W, run: () => setOrient(false) }, { label: "Orizzontale", icon: "orientationL", on: () => info().W > info().H, run: () => setOrient(true) }]), { caret: true, dis: () => readOnly }),
-        big("Dimensioni", "pageSize", (e, b) => openMenu(b, [...PAGE_SIZES.map(([n, w, h]) => ({ label: `${n}  (${w} × ${h} mm)`, run: () => setPageMM(w, h) })), "-", { label: "Adatta al disegno", icon: "fitDrawing", run: fitToDrawing }, { label: "Altre dimensioni...", run: customSize }]), { caret: true, dis: () => readOnly }),
-        big("Adatta al disegno", "fitDrawing", fitToDrawing, { dis: () => readOnly })),
+      group(tr("vsdedit.imposta_pagina"), big(tr("vsdedit.orientamento"), info().W > info().H ? "orientationL" : "orientationP", (e, b) => openMenu(b, [{ label: tr("vsdedit.verticale"), icon: "orientationP", on: () => info().H >= info().W, run: () => setOrient(false) }, { label: tr("vsdedit.orizzontale"), icon: "orientationL", on: () => info().W > info().H, run: () => setOrient(true) }]), { caret: true, dis: () => readOnly }),
+        big(tr("vsdedit.dimensioni"), "pageSize", (e, b) => openMenu(b, [...PAGE_SIZES.map(([n, w, h]) => ({ label: `${n}  (${w} × ${h} mm)`, run: () => setPageMM(w, h) })), "-", { label: tr("vsdedit.adatta_disegno"), icon: "fitDrawing", run: fitToDrawing }, { label: tr("vsdedit.altre_dimensioni"), run: customSize }]), { caret: true, dis: () => readOnly }),
+        big(tr("vsdedit.adatta_disegno"), "fitDrawing", fitToDrawing, { dis: () => readOnly })),
     ],
     view: () => [
-      group("Visualizzazioni", big("Schermo intero", "fullscreen", fullScreen, { keys: "F5" })),
-      group("Mostra", col(sm("Griglia", "grid", () => { showGrid = !showGrid; render(); }, { on: () => showGrid }), sm("Riquadro Forme", "panel", () => { panels.shapes = !panels.shapes; layoutPanels(); }, { on: () => panels.shapes })),
-        col(sm("Dati forma", "shapedata", () => { panels.data = !panels.data; layoutPanels(); }, { on: () => panels.data }), sm("Dimensioni e posizione", "sizepos", () => { panels.size = !panels.size; layoutPanels(); }, { on: () => panels.size }))),
-      group("Zoom", big("Zoom", "zoomIn", (e, b) => openMenu(b, [400, 200, 150, 100, 75, 50, 25].map(z => ({ label: z + "%", run: () => setZoom(z / 100 * 96 / 72) }))), { caret: true }), col(sm("Adatta alla finestra", "zoomPage", fitPage, { keys: "Ctrl+Maiusc+W" }), sm("Larghezza pagina", "zoomWidth", fitWidth), sm("100%", "zoom100", () => setZoom(96 / 72)))),
+      group(tr("vsdedit.visualizzazioni"), big(tr("vsdedit.schermo_intero"), "fullscreen", fullScreen, { keys: "F5" })),
+      group(tr("vsdedit.mostra"), col(sm(tr("vsdedit.griglia"), "grid", () => { showGrid = !showGrid; render(); }, { on: () => showGrid }), sm(tr("vsdedit.riquadro_forme"), "panel", () => { panels.shapes = !panels.shapes; layoutPanels(); }, { on: () => panels.shapes })),
+        col(sm(tr("vsdedit.dati_forma_2"), "shapedata", () => { panels.data = !panels.data; layoutPanels(); }, { on: () => panels.data }), sm(tr("vsdedit.dimensioni_posizione"), "sizepos", () => { panels.size = !panels.size; layoutPanels(); }, { on: () => panels.size }))),
+      group(tr("vsdedit.zoom"), big(tr("vsdedit.zoom"), "zoomIn", (e, b) => openMenu(b, [400, 200, 150, 100, 75, 50, 25].map(z => ({ label: z + "%", run: () => setZoom(z / 100 * 96 / 72) }))), { caret: true }), col(sm(tr("vsdedit.adatta_finestra"), "zoomPage", fitPage, { keys: "Ctrl+Maiusc+W" }), sm(tr("vsdedit.larghezza_pagina"), "zoomWidth", fitWidth), sm("100%", "zoom100", () => setZoom(96 / 72)))),
     ],
   };
   const tabStrip = el("div", { class: "vs-tabs" });
-  const qUndo = el("button", { type: "button", class: "vs-q", title: "Annulla (Ctrl+Z)", onclick: () => doUndo(undo, redo), html: vsIcon("undo") });
-  const qRedo = el("button", { type: "button", class: "vs-q", title: "Ripeti (Ctrl+Y)", onclick: () => doUndo(redo, undo), html: vsIcon("redo") });
+  const qUndo = el("button", { type: "button", class: "vs-q", title: tr("vsdedit.annulla_ctrl_z"), onclick: () => doUndo(undo, redo), html: vsIcon("undo") });
+  const qRedo = el("button", { type: "button", class: "vs-q", title: tr("vsdedit.ripeti_ctrl_y"), onclick: () => doUndo(redo, undo), html: vsIcon("redo") });
   ctx.tb.classList.add("vs-tb");
   ctx.tb.append(qUndo, qRedo, el("span", { class: "sep" }), tabStrip);
   function buildRibbon() {
@@ -798,23 +799,23 @@ export function createVisio(ctx, doc, opts = {}) {
   function lineMenu(b) {
     const S = sel[0];
     openMenu(b, [
-      { label: "Colore linea...", icon: "lineColor", run: () => colorPop(b, "Colore linea", S && vColor(doc, val(doc, S, "LineColor", 0), "line"), c => c ? setLine({ color: c }) : setLine({ none: true }), "Nessuna linea") },
-      { title: "Spessore" }, ...WEIGHTS.map(w => ({ label: `${w.toLocaleString("it-IT")} pt`, dash: "", w: Math.min(6, w), run: () => setLine({ weight: w / 72 }), on: () => S && Math.abs(num0(doc, S, "LineWeight") * 72 - w) < 0.01 })),
-      { title: "Tratteggio" }, ...PATTERNS.map(([p, n]) => ({ label: n, dash: { 1: "", 2: "6 4", 3: "1.5 3", 4: "6 3 1.5 3", 9: "10 4", 10: "3 3" }[p] || " ", run: () => setLine({ pattern: p }), on: () => S && num0(doc, S, "LinePattern", 1) === p })),
-      { title: "Frecce (inizio / fine)" }, ...ARROWS.map(([a, n]) => ({ label: `Fine: ${n}`, run: () => setLine({ endArrow: a }), on: () => S && num0(doc, S, "EndArrow") === a })), ...ARROWS.slice(0, 3).map(([a, n]) => ({ label: `Inizio: ${n}`, run: () => setLine({ beginArrow: a }) })),
+      { label: tr("vsdedit.colore_linea"), icon: "lineColor", run: () => colorPop(b, tr("vsdedit.colore_linea_2"), S && vColor(doc, val(doc, S, "LineColor", 0), "line"), c => c ? setLine({ color: c }) : setLine({ none: true }), tr("vsdedit.nessuna_linea")) },
+      { title: tr("vsdedit.spessore") }, ...WEIGHTS.map(w => ({ label: `${w.toLocaleString(LOCALE)} pt`, dash: "", w: Math.min(6, w), run: () => setLine({ weight: w / 72 }), on: () => S && Math.abs(num0(doc, S, "LineWeight") * 72 - w) < 0.01 })),
+      { title: tr("vsdedit.tratteggio") }, ...PATTERNS.map(([p, n]) => ({ label: n, dash: { 1: "", 2: "6 4", 3: "1.5 3", 4: "6 3 1.5 3", 9: "10 4", 10: "3 3" }[p] || " ", run: () => setLine({ pattern: p }), on: () => S && num0(doc, S, "LinePattern", 1) === p })),
+      { title: tr("vsdedit.frecce_inizio_fine") }, ...ARROWS.map(([a, n]) => ({ label: tr("vsdedit.fine_0", n), run: () => setLine({ endArrow: a }), on: () => S && num0(doc, S, "EndArrow") === a })), ...ARROWS.slice(0, 3).map(([a, n]) => ({ label: tr("vsdedit.inizio_0", n), run: () => setLine({ beginArrow: a }) })),
     ]);
   }
   function layersMenu(b) {
     const L = layersOf(doc, page());
     openMenu(b, [
-      { title: L.length ? "Livelli della pagina (clic = mostra/nascondi)" : "Nessun livello in questa pagina" },
-      ...L.map(l => ({ label: `${l.name}${l.print ? "" : "  (non stampato)"}`, on: () => l.visible, run: () => run(() => O.setLayer(doc, page(), l.ix, "Visible", !l.visible)) })),
-      "-", { label: "Proprieta' livello...", icon: "layers", run: layersDialog }, { label: "Assegna al livello...", run: assignLayer, dis: () => !sel.length || readOnly },
+      { title: L.length ? tr("vsdedit.livelli_pagina_clic_mostra_nascondi") : tr("vsdedit.nessun_livello_questa_pagina") },
+      ...L.map(l => ({ label: `${l.name}${l.print ? "" : tr("vsdedit.non_stampato")}`, on: () => l.visible, run: () => run(() => O.setLayer(doc, page(), l.ix, "Visible", !l.visible)) })),
+      "-", { label: tr("vsdedit.proprieta_livello"), icon: "layers", run: layersDialog }, { label: tr("vsdedit.assegna_livello"), run: assignLayer, dis: () => !sel.length || readOnly },
     ]);
   }
   async function layersDialog() {
     const L = layersOf(doc, page());
-    const tbl = el("table", { class: "vs-ltable" }, el("tr", {}, el("th", {}, "Nome"), el("th", {}, "Forme"), el("th", {}, "Visibile"), el("th", {}, "Stampa")));
+    const tbl = el("table", { class: "vs-ltable" }, el("tr", {}, el("th", {}, tr("common.nome")), el("th", {}, tr("vsdedit.forme")), el("th", {}, tr("vsdedit.visibile")), el("th", {}, tr("vsdedit.stampa"))));
     const count = ix => model.top.filter(S => String(cell(doc, S, "LayerMember")?.v || "").split(";").includes(ix)).length;
     const state = L.map(l => ({ ...l }));
     for (const l of state) {
@@ -822,8 +823,8 @@ export function createVisio(ctx, doc, opts = {}) {
       const p = el("input", { type: "checkbox", checked: l.print || undefined, onchange: e => { l.print = e.target.checked; } });
       tbl.append(el("tr", {}, el("td", {}, l.name), el("td", {}, String(count(l.ix))), el("td", {}, v), el("td", {}, p)));
     }
-    const nn = el("input", { class: "field", placeholder: "Nome del nuovo livello" });
-    const ok = await modal("Proprieta' livello", el("div", { style: { display: "grid", gap: "10px", minWidth: "380px" } }, L.length ? tbl : el("p", {}, "Questa pagina non ha livelli."), el("div", { style: { display: "flex", gap: "6px" } }, nn)), [{ label: "Annulla", value: false }, { label: "OK", value: true, primary: true }]);
+    const nn = el("input", { class: "field", placeholder: tr("vsdedit.nome_nuovo_livello") });
+    const ok = await modal(tr("vsdedit.proprieta_livello_2"), el("div", { style: { display: "grid", gap: "10px", minWidth: "380px" } }, L.length ? tbl : el("p", {}, tr("vsdedit.questa_pagina_non_ha_livelli")), el("div", { style: { display: "flex", gap: "6px" } }, nn)), [{ label: tr("common.annulla"), value: false }, { label: "OK", value: true, primary: true }]);
     if (!ok) return;
     await run(() => {
       for (const l of state) { const o = L.find(x => x.ix === l.ix); if (o.visible !== l.visible) O.setLayer(doc, page(), l.ix, "Visible", l.visible); if (o.print !== l.print) O.setLayer(doc, page(), l.ix, "Print", l.print); }
@@ -835,8 +836,8 @@ export function createVisio(ctx, doc, opts = {}) {
     const list = sel0();
     const cur = new Set(String(cell(doc, list[0], "LayerMember")?.v || "").split(";"));
     const checks = L.map(l => ({ l, c: el("input", { type: "checkbox", checked: cur.has(l.ix) || undefined }) }));
-    const nn = el("input", { class: "field", placeholder: "Nuovo livello" });
-    const ok = await modal("Livello", el("div", { style: { display: "grid", gap: "6px", minWidth: "300px" } }, ...checks.map(({ l, c }) => el("label", { style: { display: "flex", gap: "8px" } }, c, l.name)), nn), [{ label: "Annulla", value: false }, { label: "OK", value: true, primary: true }]);
+    const nn = el("input", { class: "field", placeholder: tr("vsdedit.nuovo_livello") });
+    const ok = await modal(tr("vsdedit.livello"), el("div", { style: { display: "grid", gap: "6px", minWidth: "300px" } }, ...checks.map(({ l, c }) => el("label", { style: { display: "flex", gap: "8px" } }, c, l.name)), nn), [{ label: tr("common.annulla"), value: false }, { label: "OK", value: true, primary: true }]);
     if (!ok) return;
     await run(() => {
       for (const { l, c } of checks) O.setMembership(doc, page(), list, l.ix, c.checked);
@@ -848,7 +849,7 @@ export function createVisio(ctx, doc, opts = {}) {
   async function customSize() {
     const i = info();
     const w = el("input", { class: "field", type: "number", step: "any", value: (Math.round(toUnit(i.W * i.r) * 10) / 10).toString() }), h = el("input", { class: "field", type: "number", step: "any", value: (Math.round(toUnit(i.H * i.r) * 10) / 10).toString() });
-    const ok = await modal("Dimensioni pagina", el("div", { style: { display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px", alignItems: "center" } }, `Larghezza (${uName()})`, w, `Altezza (${uName()})`, h), [{ label: "Annulla", value: false }, { label: "OK", value: true, primary: true }]);
+    const ok = await modal(tr("vsdedit.dimensioni_pagina"), el("div", { style: { display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px", alignItems: "center" } }, tr("vsdedit.larghezza_0", uName()), w, tr("vsdedit.altezza_0", uName()), h), [{ label: tr("common.annulla"), value: false }, { label: "OK", value: true, primary: true }]);
     if (!ok) return;
     await run(() => O.setPageSize(doc, page(), fromUnit(+w.value) / i.r, fromUnit(+h.value) / i.r));
     fitPage();
@@ -866,9 +867,9 @@ export function createVisio(ctx, doc, opts = {}) {
   function fullScreen() { if (document.fullscreenElement) document.exitFullscreen(); else root.requestFullscreen?.().then(() => setTimeout(fitPage, 200)).catch(() => {}); }
 
   // ------------------------------------------------------------------ pannello Forme
-  const search = el("input", { type: "search", class: "vs-search", placeholder: "Cerca forme" });
+  const search = el("input", { type: "search", class: "vs-search", placeholder: tr("vsdedit.cerca_forme") });
   const stencils = el("div", { class: "vs-stencils" });
-  left.append(el("div", { class: "vs-ptitle" }, "Forme"), search, stencils);
+  left.append(el("div", { class: "vs-ptitle" }, tr("vsdedit.forme")), search, stencils);
   const openSt = new Set(["base", "flow", "conn", "doc"]);
   search.addEventListener("input", renderStencils);
   const preview = new Map();
@@ -908,7 +909,7 @@ export function createVisio(ctx, doc, opts = {}) {
     const q = search.value.trim().toLowerCase();
     const groups = [...STENCILS];
     const docMasters = [...doc.masters.values()].filter(M => !M.hidden && M.top.length);
-    if (docMasters.length) groups.unshift({ id: "doc", name: "Forme del documento", shapes: docMasters.map(M => ({ id: "m" + M.id, name: M.name, master: M })) });
+    if (docMasters.length) groups.unshift({ id: "doc", name: tr("vsdedit.forme_documento"), shapes: docMasters.map(M => ({ id: "m" + M.id, name: M.name, master: M })) });
     for (const st of groups) {
       const items = st.shapes.filter(s => !q || (s.name + " " + (s.keys || "")).toLowerCase().includes(q));
       if (!items.length) continue;
@@ -918,7 +919,7 @@ export function createVisio(ctx, doc, opts = {}) {
       if (!open) continue;
       const grid = el("div", { class: "vs-stgrid" });
       for (const def of items) {
-        const it = el("div", { class: "vs-stitem", title: def.name + (readOnly ? "" : " - trascina sulla pagina") });
+        const it = el("div", { class: "vs-stitem", title: def.name + (readOnly ? "" : tr("vsdedit.trascina_pagina")) });
         it.innerHTML = `<span class="vs-stico">${defPreview(def)}</span>`;
         it.append(el("span", { class: "vs-stname" }, def.name));
         it.addEventListener("pointerdown", e => startStencilDrag(e, def, it));
@@ -962,29 +963,29 @@ export function createVisio(ctx, doc, opts = {}) {
     right.innerHTML = "";
     const S = one();
     if (panels.size) {
-      const box = el("section", { class: "vs-pane" }, el("div", { class: "vs-ptitle" }, "Dimensioni e posizione"));
-      if (!S) box.append(el("p", { class: "vs-empty" }, sel.length ? `${sel.length} forme selezionate` : "Nessuna forma selezionata"));
+      const box = el("section", { class: "vs-pane" }, el("div", { class: "vs-ptitle" }, tr("vsdedit.dimensioni_posizione")));
+      if (!S) box.append(el("p", { class: "vs-empty" }, sel.length ? tn("vsdedit.forme_selezionate", sel.length) : tr("vsdedit.nessuna_forma_selezionata")));
       else if (is1D(doc, S)) {
         const fld = (lab, name) => numField(lab, num0(doc, S, name), v => run(() => { const b = [num0(doc, S, "BeginX"), num0(doc, S, "BeginY")], e = [num0(doc, S, "EndX"), num0(doc, S, "EndY")]; const i = { BeginX: [b, 0], BeginY: [b, 1], EndX: [e, 0], EndY: [e, 1] }[name]; i[0][i[1]] = v; O.setEndpoints(doc, page(), model, S, b, e); }));
-        box.append(fld("X iniziale", "BeginX"), fld("Y iniziale", "BeginY"), fld("X finale", "EndX"), fld("Y finale", "EndY"), roField("Lunghezza", fmtU(Math.hypot(num0(doc, S, "EndX") - num0(doc, S, "BeginX"), num0(doc, S, "EndY") - num0(doc, S, "BeginY")))));
+        box.append(fld("X iniziale", "BeginX"), fld("Y iniziale", "BeginY"), fld("X finale", "EndX"), fld("Y finale", "EndY"), roField(tr("vsdedit.lunghezza"), fmtU(Math.hypot(num0(doc, S, "EndX") - num0(doc, S, "BeginX"), num0(doc, S, "EndY") - num0(doc, S, "BeginY")))));
       } else {
         const W = num0(doc, S, "Width"), H = num0(doc, S, "Height");
         box.append(
           numField("X", num0(doc, S, "PinX"), v => run(() => { O.moveShapes(doc, page(), model, [S], v - num0(doc, S, "PinX"), 0); O.rerouteFor(doc, page(), getFresh(), new Set([S.id])); })),
           numField("Y", num0(doc, S, "PinY"), v => run(() => { O.moveShapes(doc, page(), model, [S], 0, v - num0(doc, S, "PinY")); O.rerouteFor(doc, page(), getFresh(), new Set([S.id])); })),
-          numField("Larghezza", W, v => v > 0 && run(() => { O.resizeShape(doc, page(), model, S, [(W - v) * num0(doc, S, "LocPinX") / (W || 1), 0, (W - v) * num0(doc, S, "LocPinX") / (W || 1) + v, H]); O.rerouteFor(doc, page(), getFresh(), new Set([S.id])); })),
-          numField("Altezza", H, v => v > 0 && run(() => { O.resizeShape(doc, page(), model, S, [0, (H - v) * num0(doc, S, "LocPinY") / (H || 1), W, (H - v) * num0(doc, S, "LocPinY") / (H || 1) + v]); O.rerouteFor(doc, page(), getFresh(), new Set([S.id])); })),
-          numField("Angolo", num0(doc, S, "Angle") * 180 / Math.PI, v => run(() => { O.rotateShape(doc, page(), S, v * Math.PI / 180); O.rerouteFor(doc, page(), getFresh(), new Set([S.id])); }), "°"));
+          numField(tr("common.larghezza"), W, v => v > 0 && run(() => { O.resizeShape(doc, page(), model, S, [(W - v) * num0(doc, S, "LocPinX") / (W || 1), 0, (W - v) * num0(doc, S, "LocPinX") / (W || 1) + v, H]); O.rerouteFor(doc, page(), getFresh(), new Set([S.id])); })),
+          numField(tr("common.altezza"), H, v => v > 0 && run(() => { O.resizeShape(doc, page(), model, S, [0, (H - v) * num0(doc, S, "LocPinY") / (H || 1), W, (H - v) * num0(doc, S, "LocPinY") / (H || 1) + v]); O.rerouteFor(doc, page(), getFresh(), new Set([S.id])); })),
+          numField(tr("vsdedit.angolo"), num0(doc, S, "Angle") * 180 / Math.PI, v => run(() => { O.rotateShape(doc, page(), S, v * Math.PI / 180); O.rerouteFor(doc, page(), getFresh(), new Set([S.id])); }), "°"));
       }
       right.append(box);
     }
     if (panels.data) {
-      const box = el("section", { class: "vs-pane" }, el("div", { class: "vs-ptitle" }, "Dati forma"));
-      if (!S) box.append(el("p", { class: "vs-empty" }, "Seleziona una forma per vederne i dati"));
+      const box = el("section", { class: "vs-pane" }, el("div", { class: "vs-ptitle" }, tr("vsdedit.dati_forma_2")));
+      if (!S) box.append(el("p", { class: "vs-empty" }, tr("vsdedit.seleziona_forma_vederne_i_dati")));
       else {
         box.append(el("div", { class: "vs-sname" }, `${shapeName(S)}  ·  ID ${S.id}${S.master ? "  ·  master: " + S.master.name : ""}`));
         const data = O.shapeData(doc, S);
-        if (!data.length) box.append(el("p", { class: "vs-empty" }, "Questa forma non ha dati"));
+        if (!data.length) box.append(el("p", { class: "vs-empty" }, tr("vsdedit.questa_forma_non_ha_dati")));
         const tbl = el("div", { class: "vs-data" });
         for (const d of data) {
           let inp;
@@ -997,14 +998,14 @@ export function createVisio(ctx, doc, opts = {}) {
           tbl.append(el("label", { class: "vs-dl", title: d.prompt || d.label }, d.label), inp);
         }
         box.append(tbl);
-        if (!readOnly) box.append(el("button", { type: "button", class: "vs-sm vs-add", onclick: async () => { const lab = await askText("Definisci dati forma", "Etichetta del nuovo dato"); if (!lab) return; const v = await askText("Definisci dati forma", `Valore di "${lab}"`); await run(() => O.addData(doc, page(), S, lab, v || "")); } }, "+ Aggiungi dato"));
+        if (!readOnly) box.append(el("button", { type: "button", class: "vs-sm vs-add", onclick: async () => { const lab = await askText(tr("vsdedit.definisci_dati_forma"), tr("vsdedit.etichetta_nuovo_dato")); if (!lab) return; const v = await askText(tr("vsdedit.definisci_dati_forma"), tr("vsdedit.valore_0", lab)); await run(() => O.addData(doc, page(), S, lab, v || "")); } }, tr("vsdedit.aggiungi_dato")));
       }
       right.append(box);
     }
     statusText();
   }
   function numField(label, v, onSet, unit) {
-    const inp = el("input", { class: "vs-in", value: unit === "°" ? String(Math.round(v * 100) / 100).replace(".", ",") : String(Math.round(toUnit(v) * 100) / 100).replace(".", ","), disabled: readOnly || undefined });
+    const inp = el("input", { class: "vs-in", value: (Math.round((unit === "°" ? v : toUnit(v)) * 100) / 100).toLocaleString(LOCALE, { useGrouping: false }), disabled: readOnly || undefined });
     inp.addEventListener("change", () => { const n = parseFloat(inp.value.replace(",", ".")); if (Number.isFinite(n)) onSet(unit === "°" ? n : fromUnit(n)); });
     inp.addEventListener("keydown", e => { if (e.key === "Enter") inp.blur(); });
     return el("label", { class: "vs-field" }, el("span", {}, label), inp, el("small", {}, unit || uName()));
@@ -1015,44 +1016,44 @@ export function createVisio(ctx, doc, opts = {}) {
   function renderPages() {
     pagebar.innerHTML = "";
     const nav = el("div", { class: "vs-pnav" },
-      el("button", { type: "button", title: "Pagina precedente (Ctrl+Pag su)", onclick: () => goPage(pageIdx - 1) }, "◀"),
-      el("button", { type: "button", title: "Pagina successiva (Ctrl+Pag giu')", onclick: () => goPage(pageIdx + 1) }, "▶"),
-      el("button", { type: "button", title: "Tutte le pagine", onclick: e => openMenu(e.currentTarget, doc.pages.map((p, i) => ({ label: p.name + (p.background ? " (sfondo)" : ""), on: i === pageIdx, run: () => goPage(i) }))) }, "☰"));
+      el("button", { type: "button", title: tr("vsdedit.pagina_precedente_ctrl_pag"), onclick: () => goPage(pageIdx - 1) }, "◀"),
+      el("button", { type: "button", title: tr("vsdedit.pagina_successiva_ctrl_pag_giu"), onclick: () => goPage(pageIdx + 1) }, "▶"),
+      el("button", { type: "button", title: tr("vsdedit.tutte_pagine"), onclick: e => openMenu(e.currentTarget, doc.pages.map((p, i) => ({ label: p.name + (p.background ? " (sfondo)" : ""), on: i === pageIdx, run: () => goPage(i) }))) }, "☰"));
     const list = el("div", { class: "vs-ptabs" });
     doc.pages.forEach((p, i) => {
-      const t = el("button", { type: "button", class: "vs-ptab" + (i === pageIdx ? " on" : "") + (p.background ? " bg" : ""), title: p.name + (p.background ? " (pagina di sfondo)" : ""), onclick: () => goPage(i), ondblclick: () => !readOnly && renamePage(p) }, p.name);
-      t.addEventListener("contextmenu", e => { e.preventDefault(); openMenu({ x: e.clientX, y: e.clientY }, [{ label: "Inserisci pagina", icon: "pageAdd", run: newPage, dis: readOnly }, { label: "Elimina", icon: "trash", run: () => removePage(p), dis: readOnly }, { label: "Rinomina", icon: "rename", run: () => renamePage(p), dis: readOnly }]); });
+      const t = el("button", { type: "button", class: "vs-ptab" + (i === pageIdx ? " on" : "") + (p.background ? " bg" : ""), title: p.name + (p.background ? tr("vsdedit.pagina_sfondo") : ""), onclick: () => goPage(i), ondblclick: () => !readOnly && renamePage(p) }, p.name);
+      t.addEventListener("contextmenu", e => { e.preventDefault(); openMenu({ x: e.clientX, y: e.clientY }, [{ label: tr("vsdedit.inserisci_pagina"), icon: "pageAdd", run: newPage, dis: readOnly }, { label: tr("common.elimina"), icon: "trash", run: () => removePage(p), dis: readOnly }, { label: tr("common.rinomina"), icon: "rename", run: () => renamePage(p), dis: readOnly }]); });
       list.append(t);
     });
-    if (!readOnly) list.append(el("button", { type: "button", class: "vs-padd", title: "Inserisci pagina", onclick: newPage }, "+"));
+    if (!readOnly) list.append(el("button", { type: "button", class: "vs-padd", title: tr("vsdedit.inserisci_pagina"), onclick: newPage }, "+"));
     pagebar.append(nav, list);
     requestAnimationFrame(() => list.querySelector(".on")?.scrollIntoView({ block: "nearest", inline: "nearest" }));
   }
-  const zoomRange = el("input", { type: "range", min: "-400", max: "500", step: "1", title: "Zoom" });
+  const zoomRange = el("input", { type: "range", min: "-400", max: "500", step: "1", title: tr("vsdedit.zoom") });
   zoomRange.addEventListener("input", () => setZoom((96 / 72) * 2 ** (+zoomRange.value / 100)));
   const zoomLab = el("span", { class: "vs-zl" }, "100%");
   const stText = el("span", { class: "vs-st" });
   status.append(stText, el("span", { class: "grow" }),
-    el("button", { type: "button", class: "vs-zb", title: "Riduci (Alt+Maiusc+F6)", onclick: () => setZoom(scale / 1.25) }, "−"), zoomRange,
-    el("button", { type: "button", class: "vs-zb", title: "Ingrandisci (Alt+F6)", onclick: () => setZoom(scale * 1.25) }, "+"), zoomLab,
-    el("button", { type: "button", class: "vs-zb fit", title: "Adatta pagina alla finestra (Ctrl+Maiusc+W)", onclick: fitPage, html: vsIcon("zoomPage") }));
+    el("button", { type: "button", class: "vs-zb", title: tr("vsdedit.riduci_alt_maiusc_f6"), onclick: () => setZoom(scale / 1.25) }, "−"), zoomRange,
+    el("button", { type: "button", class: "vs-zb", title: tr("vsdedit.ingrandisci_alt_f6"), onclick: () => setZoom(scale * 1.25) }, "+"), zoomLab,
+    el("button", { type: "button", class: "vs-zb fit", title: tr("vsdedit.adatta_pagina_finestra_ctrl_maiusc"), onclick: fitPage, html: vsIcon("zoomPage") }));
   function statusText(extra) {
     const S = one();
-    let s = `Pagina ${pageIdx + 1} di ${doc.pages.length}`;
+    let s = tr("vsdedit.pagina_0_1", pageIdx + 1, doc.pages.length);
     if (S && !is1D(doc, S)) s += `   Larghezza: ${fmtU(num0(doc, S, "Width"))}   Altezza: ${fmtU(num0(doc, S, "Height"))}   Angolo: ${Math.round(num0(doc, S, "Angle") * 1800 / Math.PI) / 10}°`;
-    else if (S) s += `   Lunghezza: ${fmtU(Math.hypot(num0(doc, S, "EndX") - num0(doc, S, "BeginX"), num0(doc, S, "EndY") - num0(doc, S, "BeginY")))}`;
-    else if (sel.length) s += `   ${sel.length} forme selezionate`;
-    if (readOnly) s += "   ·   sola lettura";
+    else if (S) s += tr("vsdedit.lunghezza_0", fmtU(Math.hypot(num0(doc, S, "EndX") - num0(doc, S, "BeginX"), num0(doc, S, "EndY") - num0(doc, S, "BeginY"))));
+    else if (sel.length) s += "   " + tn("vsdedit.forme_selezionate", sel.length);
+    if (readOnly) s += tr("vsdedit.sola_lettura");
     stText.textContent = extra ? s + "   ·   " + extra : s;
-    ctx.status(`Pagina ${pageIdx + 1}/${doc.pages.length} · ${zoomLab.textContent}`);
+    ctx.status(tr("vsdedit.pagina_0_1_2", pageIdx + 1, doc.pages.length, zoomLab.textContent));
   }
 
   // ------------------------------------------------------------------ Trova
   let findBox = null;
   function findPanel() {
     if (findBox) { findBox.querySelector("input").focus(); return; }
-    const q = el("input", { type: "search", class: "vs-in", placeholder: "Testo da cercare" });
-    const rep = el("input", { type: "text", class: "vs-in", placeholder: "Sostituisci con" });
+    const q = el("input", { type: "search", class: "vs-in", placeholder: tr("vsdedit.testo_cercare") });
+    const rep = el("input", { type: "text", class: "vs-in", placeholder: tr("vsdedit.sostituisci") });
     const inData = el("input", { type: "checkbox", checked: true }), inNames = el("input", { type: "checkbox" }), allPages = el("input", { type: "checkbox", checked: true }), mcase = el("input", { type: "checkbox" });
     const res = el("div", { class: "vs-fres" });
     let hits = [], cur = -1;
@@ -1075,7 +1076,7 @@ export function createVisio(ctx, doc, opts = {}) {
         };
         for (const S of m.top) walk(S, S);
       }
-      res.append(el("div", { class: "vs-fcount" }, hits.length ? `${hits.length} risultat${hits.length === 1 ? "o" : "i"}` : "Nessun risultato"));
+      res.append(el("div", { class: "vs-fcount" }, hits.length ? tn("vsdedit.n_risultati", hits.length) : tr("vsdedit.nessun_risultato")));
       hits.forEach((h, i) => res.append(el("button", { type: "button", class: "vs-fhit", onclick: () => go(i) }, el("b", {}, h.P.name), " · ", h.where, ": ", h.txt.slice(0, 70))));
       if (hits.length) go(0);
     };
@@ -1101,16 +1102,16 @@ export function createVisio(ctx, doc, opts = {}) {
           m.top.forEach(walk);
         }
       });
-      toast(n ? `Sostituito il testo in ${n} form${n === 1 ? "a" : "e"}` : "Nessuna sostituzione");
+      toast(n ? tn("vsdedit.testo_sostituito_forme", n) : tr("vsdedit.nessuna_sostituzione"));
       doFind();
     };
     q.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); if (hits.length && q.value === q._last) go(cur + (e.shiftKey ? -1 : 1)); else { q._last = q.value; doFind(); } } if (e.key === "Escape") close(); e.stopPropagation(); });
     const close = () => { findBox.remove(); findBox = null; };
     findBox = el("div", { class: "vs-find" },
-      el("div", { class: "vs-fhead" }, el("b", {}, "Trova"), el("span", { class: "grow" }), el("button", { type: "button", class: "vs-x", title: "Chiudi (Esc)", onclick: close }, "×")),
-      q, el("div", { class: "vs-frow" }, el("button", { type: "button", class: "vs-sm", onclick: () => { q._last = q.value; doFind(); } }, "Trova"), el("button", { type: "button", class: "vs-sm", onclick: () => go(cur - 1) }, "◀ Precedente"), el("button", { type: "button", class: "vs-sm", onclick: () => go(cur + 1) }, "Successivo ▶")),
-      el("div", { class: "vs-frow" }, el("label", {}, inData, "Dati forma"), el("label", {}, inNames, "Nomi"), el("label", {}, allPages, "Tutte le pagine"), el("label", {}, mcase, "Maiuscole/minuscole")),
-      readOnly ? null : el("div", { class: "vs-frow" }, rep, el("button", { type: "button", class: "vs-sm", onclick: replaceAll }, "Sostituisci tutto")),
+      el("div", { class: "vs-fhead" }, el("b", {}, tr("vsdedit.trova")), el("span", { class: "grow" }), el("button", { type: "button", class: "vs-x", title: tr("vsdedit.chiudi_esc"), onclick: close }, "×")),
+      q, el("div", { class: "vs-frow" }, el("button", { type: "button", class: "vs-sm", onclick: () => { q._last = q.value; doFind(); } }, tr("vsdedit.trova")), el("button", { type: "button", class: "vs-sm", onclick: () => go(cur - 1) }, tr("vsdedit.precedente")), el("button", { type: "button", class: "vs-sm", onclick: () => go(cur + 1) }, "Successivo ▶")),
+      el("div", { class: "vs-frow" }, el("label", {}, inData, tr("vsdedit.dati_forma_2")), el("label", {}, inNames, tr("vsdedit.nomi")), el("label", {}, allPages, tr("vsdedit.tutte_pagine")), el("label", {}, mcase, "Maiuscole/minuscole")),
+      readOnly ? null : el("div", { class: "vs-frow" }, rep, el("button", { type: "button", class: "vs-sm", onclick: replaceAll }, tr("vsdedit.sostituisci_tutto"))),
       res);
     root.append(findBox);
     q.focus();
@@ -1131,7 +1132,7 @@ export function createVisio(ctx, doc, opts = {}) {
     const img = new Image();
     const url = URL.createObjectURL(new Blob([s], { type: "image/svg+xml" }));
     try {
-      await new Promise((ok, ko) => { img.onload = ok; img.onerror = () => ko(new Error("Immagine della pagina non disegnabile")); img.src = url; });
+      await new Promise((ok, ko) => { img.onload = ok; img.onerror = () => ko(new Error(tr("vsdedit.immagine_pagina_non_disegnabile"))); img.src = url; });
       const k = dpi / 72, c = document.createElement("canvas");
       c.width = Math.max(1, Math.round(RR.info.wPt * k)); c.height = Math.max(1, Math.round(RR.info.hPt * k));
       const g = c.getContext("2d");
@@ -1175,60 +1176,60 @@ export function createVisio(ctx, doc, opts = {}) {
   // ------------------------------------------------------------------ tasti (come Visio)
   const ed = () => !readOnly;
   const defs = [
-    { keys: "Ctrl+Z", desc: "Annulla", group: "Modifica", run: () => doUndo(undo, redo), when: ed },
-    { keys: "Ctrl+Y|Ctrl+Shift+Z", desc: "Ripeti", group: "Modifica", run: () => doUndo(redo, undo), when: ed },
-    { keys: "Ctrl+C", desc: "Copia", group: "Modifica", run: copy }, { keys: "Ctrl+X", desc: "Taglia", group: "Modifica", run: cut, when: ed },
-    { keys: "Ctrl+V", desc: "Incolla", group: "Modifica", run: paste, when: ed }, { keys: "Ctrl+D", desc: "Duplica", group: "Modifica", run: duplicate, when: ed },
-    { keys: "Delete|Backspace", desc: "Elimina le forme selezionate (anche i connettori incollati)", group: "Modifica", run: cmdDelete, when: () => ed() && sel.length > 0 },
-    { keys: "Ctrl+A", desc: "Seleziona tutto", group: "Modifica", run: () => setSel(model.top) },
-    { keys: "Escape", desc: "Deseleziona / torna al Puntatore", group: "Modifica", run: () => { if (tool !== "pointer") setTool("pointer"); else setSel([]); } },
-    { keys: "Ctrl+F", desc: "Trova (anche nei dati delle forme e in tutte le pagine)", group: "Modifica", run: findPanel },
-    { keys: "F2", desc: "Modifica il testo della forma (oppure inizia a scrivere)", group: "Testo", run: () => sel[0] && beginEdit(sel[0]), when: ed },
-    { keys: "Ctrl+1", desc: "Strumento Puntatore", group: "Strumenti", run: () => setTool("pointer") },
-    { keys: "Ctrl+2", desc: "Strumento Testo", group: "Strumenti", run: () => setTool("text"), when: ed },
-    { keys: "Ctrl+3", desc: "Strumento Connettore", group: "Strumenti", run: () => setTool("connector"), when: ed },
-    { keys: "Ctrl+6", desc: "Strumento Linea", group: "Strumenti", run: () => setTool("line"), when: ed },
-    { keys: "Ctrl+8", desc: "Strumento Rettangolo", group: "Strumenti", run: () => setTool("rect"), when: ed },
-    { keys: "Ctrl+9", desc: "Strumento Ellisse", group: "Strumenti", run: () => setTool("ellipse"), when: ed },
-    { keys: "Ctrl+G", desc: "Raggruppa", group: "Disponi", run: cmdGroup, when: ed },
-    { keys: "Ctrl+Shift+U", desc: "Separa (scomponi il gruppo)", group: "Disponi", run: cmdUngroup, when: ed },
-    { keys: "Ctrl+Shift+F", desc: "Porta in primo piano", group: "Disponi", run: () => cmdZ("front"), when: ed },
-    { keys: "Ctrl+Shift+B", desc: "Porta sullo sfondo", group: "Disponi", run: () => cmdZ("back"), when: ed },
-    { keys: "Ctrl+L", desc: "Ruota a sinistra di 90°", group: "Disponi", run: () => cmdRotate(90), when: ed },
-    { keys: "Ctrl+R", desc: "Ruota a destra di 90°", group: "Disponi", run: () => cmdRotate(-90), when: ed },
-    { keys: "Ctrl+H", desc: "Capovolgi orizzontalmente", group: "Disponi", run: () => cmdFlip("x"), when: ed },
-    { keys: "Ctrl+J", desc: "Capovolgi verticalmente", group: "Disponi", run: () => cmdFlip("y"), when: ed },
-    { keys: "ArrowLeft", desc: "Sposta la selezione (Maiusc: passo fine)", group: "Disponi", run: e => nudge(e.shiftKey ? -0.25 : -1, 0), when: () => ed() && sel.length > 0 },
-    { keys: "ArrowRight", desc: "Sposta la selezione", group: "Disponi", run: e => nudge(e.shiftKey ? 0.25 : 1, 0), when: () => ed() && sel.length > 0 },
-    { keys: "ArrowUp", desc: "Sposta la selezione", group: "Disponi", run: e => nudge(0, e.shiftKey ? 0.25 : 1), when: () => ed() && sel.length > 0 },
-    { keys: "ArrowDown", desc: "Sposta la selezione", group: "Disponi", run: e => nudge(0, e.shiftKey ? -0.25 : -1), when: () => ed() && sel.length > 0 },
-    { keys: "Shift+ArrowLeft", desc: "Sposta di un passo fine", group: "Disponi", run: () => nudge(-0.25, 0), when: () => ed() && sel.length > 0 },
-    { keys: "Shift+ArrowRight", desc: "Sposta di un passo fine", group: "Disponi", run: () => nudge(0.25, 0), when: () => ed() && sel.length > 0 },
-    { keys: "Shift+ArrowUp", desc: "Sposta di un passo fine", group: "Disponi", run: () => nudge(0, 0.25), when: () => ed() && sel.length > 0 },
-    { keys: "Shift+ArrowDown", desc: "Sposta di un passo fine", group: "Disponi", run: () => nudge(0, -0.25), when: () => ed() && sel.length > 0 },
-    { keys: "Ctrl+B", desc: "Grassetto", group: "Testo", run: () => setChar({ b: !charOn("b")() }), when: () => ed() && sel.length > 0 },
-    { keys: "Ctrl+I", desc: "Corsivo", group: "Testo", run: () => setChar({ i: !charOn("i")() }), when: () => ed() && sel.length > 0 },
-    { keys: "Ctrl+U", desc: "Sottolineato", group: "Testo", run: () => setChar({ u: !charOn("u")() }), when: () => ed() && sel.length > 0 },
-    { keys: "Ctrl+Shift+>|Ctrl+Shift+.", desc: "Aumenta la dimensione del carattere", group: "Testo", run: () => setChar({ dsize: 2 }), when: () => ed() && sel.length > 0 },
-    { keys: "Ctrl+Shift+<|Ctrl+Shift+,", desc: "Riduci la dimensione del carattere", group: "Testo", run: () => setChar({ dsize: -2 }), when: () => ed() && sel.length > 0 },
-    { keys: "Ctrl+Shift+L", desc: "Allinea il testo a sinistra", group: "Testo", run: () => setPara(0), when: () => ed() && sel.length > 0 },
-    { keys: "Ctrl+Shift+C", desc: "Centra il testo", group: "Testo", run: () => setPara(1), when: () => ed() && sel.length > 0 },
-    { keys: "Ctrl+Shift+R", desc: "Allinea il testo a destra", group: "Testo", run: () => setPara(2), when: () => ed() && sel.length > 0 },
-    { keys: "Ctrl+Shift+W", desc: "Adatta pagina alla finestra", group: "Visualizza", run: fitPage },
-    { keys: "Alt+F6|Ctrl+Plus", desc: "Ingrandisci", group: "Visualizza", run: () => setZoom(scale * 1.25) },
-    { keys: "Alt+Shift+F6|Ctrl+Minus", desc: "Riduci", group: "Visualizza", run: () => setZoom(scale / 1.25) },
-    { keys: "F5", desc: "Schermo intero", group: "Visualizza", run: fullScreen },
-    { keys: "Ctrl+PageDown", desc: "Pagina successiva", group: "Pagine", run: () => goPage(pageIdx + 1) },
-    { keys: "Ctrl+PageUp", desc: "Pagina precedente", group: "Pagine", run: () => goPage(pageIdx - 1) },
+    { keys: "Ctrl+Z", desc: tr("common.annulla"), group: tr("vsdedit.modifica"), run: () => doUndo(undo, redo), when: ed },
+    { keys: "Ctrl+Y|Ctrl+Shift+Z", desc: tr("common.ripeti"), group: tr("vsdedit.modifica"), run: () => doUndo(redo, undo), when: ed },
+    { keys: "Ctrl+C", desc: tr("common.copia"), group: tr("vsdedit.modifica"), run: copy }, { keys: "Ctrl+X", desc: tr("common.taglia"), group: tr("vsdedit.modifica"), run: cut, when: ed },
+    { keys: "Ctrl+V", desc: tr("common.incolla"), group: tr("vsdedit.modifica"), run: paste, when: ed }, { keys: "Ctrl+D", desc: tr("vsdedit.duplica"), group: tr("vsdedit.modifica"), run: duplicate, when: ed },
+    { keys: "Delete|Backspace", desc: tr("vsdedit.elimina_forme_selezionate_anche_i"), group: tr("vsdedit.modifica"), run: cmdDelete, when: () => ed() && sel.length > 0 },
+    { keys: "Ctrl+A", desc: tr("vsdedit.seleziona_tutto"), group: tr("vsdedit.modifica"), run: () => setSel(model.top) },
+    { keys: "Escape", desc: tr("vsdedit.deseleziona_torna_puntatore"), group: tr("vsdedit.modifica"), run: () => { if (tool !== "pointer") setTool("pointer"); else setSel([]); } },
+    { keys: "Ctrl+F", desc: tr("vsdedit.trova_anche_dati_forme_tutte"), group: tr("vsdedit.modifica"), run: findPanel },
+    { keys: "F2", desc: tr("vsdedit.modifica_testo_forma_oppure_inizia"), group: tr("vsdedit.testo"), run: () => sel[0] && beginEdit(sel[0]), when: ed },
+    { keys: "Ctrl+1", desc: tr("vsdedit.strumento_puntatore"), group: tr("vsdedit.strumenti"), run: () => setTool("pointer") },
+    { keys: "Ctrl+2", desc: tr("vsdedit.strumento_testo"), group: tr("vsdedit.strumenti"), run: () => setTool("text"), when: ed },
+    { keys: "Ctrl+3", desc: tr("vsdedit.strumento_connettore"), group: tr("vsdedit.strumenti"), run: () => setTool("connector"), when: ed },
+    { keys: "Ctrl+6", desc: tr("vsdedit.strumento_linea"), group: tr("vsdedit.strumenti"), run: () => setTool("line"), when: ed },
+    { keys: "Ctrl+8", desc: tr("vsdedit.strumento_rettangolo"), group: tr("vsdedit.strumenti"), run: () => setTool("rect"), when: ed },
+    { keys: "Ctrl+9", desc: tr("vsdedit.strumento_ellisse"), group: tr("vsdedit.strumenti"), run: () => setTool("ellipse"), when: ed },
+    { keys: "Ctrl+G", desc: tr("vsdedit.raggruppa"), group: tr("vsdedit.disponi"), run: cmdGroup, when: ed },
+    { keys: "Ctrl+Shift+U", desc: tr("vsdedit.separa_scomponi_gruppo"), group: tr("vsdedit.disponi"), run: cmdUngroup, when: ed },
+    { keys: "Ctrl+Shift+F", desc: tr("vsdedit.porta_primo_piano"), group: tr("vsdedit.disponi"), run: () => cmdZ("front"), when: ed },
+    { keys: "Ctrl+Shift+B", desc: tr("vsdedit.porta_sullo_sfondo"), group: tr("vsdedit.disponi"), run: () => cmdZ("back"), when: ed },
+    { keys: "Ctrl+L", desc: tr("vsdedit.ruota_sinistra_90"), group: tr("vsdedit.disponi"), run: () => cmdRotate(90), when: ed },
+    { keys: "Ctrl+R", desc: tr("vsdedit.ruota_destra_90"), group: tr("vsdedit.disponi"), run: () => cmdRotate(-90), when: ed },
+    { keys: "Ctrl+H", desc: tr("vsdedit.capovolgi_orizzontalmente"), group: tr("vsdedit.disponi"), run: () => cmdFlip("x"), when: ed },
+    { keys: "Ctrl+J", desc: tr("vsdedit.capovolgi_verticalmente"), group: tr("vsdedit.disponi"), run: () => cmdFlip("y"), when: ed },
+    { keys: "ArrowLeft", desc: tr("vsdedit.sposta_selezione_maiusc_passo_fine"), group: tr("vsdedit.disponi"), run: e => nudge(e.shiftKey ? -0.25 : -1, 0), when: () => ed() && sel.length > 0 },
+    { keys: "ArrowRight", desc: tr("vsdedit.sposta_selezione"), group: tr("vsdedit.disponi"), run: e => nudge(e.shiftKey ? 0.25 : 1, 0), when: () => ed() && sel.length > 0 },
+    { keys: "ArrowUp", desc: tr("vsdedit.sposta_selezione"), group: tr("vsdedit.disponi"), run: e => nudge(0, e.shiftKey ? 0.25 : 1), when: () => ed() && sel.length > 0 },
+    { keys: "ArrowDown", desc: tr("vsdedit.sposta_selezione"), group: tr("vsdedit.disponi"), run: e => nudge(0, e.shiftKey ? -0.25 : -1), when: () => ed() && sel.length > 0 },
+    { keys: "Shift+ArrowLeft", desc: tr("vsdedit.sposta_passo_fine"), group: tr("vsdedit.disponi"), run: () => nudge(-0.25, 0), when: () => ed() && sel.length > 0 },
+    { keys: "Shift+ArrowRight", desc: tr("vsdedit.sposta_passo_fine"), group: tr("vsdedit.disponi"), run: () => nudge(0.25, 0), when: () => ed() && sel.length > 0 },
+    { keys: "Shift+ArrowUp", desc: tr("vsdedit.sposta_passo_fine"), group: tr("vsdedit.disponi"), run: () => nudge(0, 0.25), when: () => ed() && sel.length > 0 },
+    { keys: "Shift+ArrowDown", desc: tr("vsdedit.sposta_passo_fine"), group: tr("vsdedit.disponi"), run: () => nudge(0, -0.25), when: () => ed() && sel.length > 0 },
+    { keys: "Ctrl+B", desc: tr("vsdedit.grassetto"), group: tr("vsdedit.testo"), run: () => setChar({ b: !charOn("b")() }), when: () => ed() && sel.length > 0 },
+    { keys: "Ctrl+I", desc: tr("vsdedit.corsivo"), group: tr("vsdedit.testo"), run: () => setChar({ i: !charOn("i")() }), when: () => ed() && sel.length > 0 },
+    { keys: "Ctrl+U", desc: tr("vsdedit.sottolineato"), group: tr("vsdedit.testo"), run: () => setChar({ u: !charOn("u")() }), when: () => ed() && sel.length > 0 },
+    { keys: "Ctrl+Shift+>|Ctrl+Shift+.", desc: tr("vsdedit.aumenta_dimensione_carattere"), group: tr("vsdedit.testo"), run: () => setChar({ dsize: 2 }), when: () => ed() && sel.length > 0 },
+    { keys: "Ctrl+Shift+<|Ctrl+Shift+,", desc: tr("vsdedit.riduci_dimensione_carattere"), group: tr("vsdedit.testo"), run: () => setChar({ dsize: -2 }), when: () => ed() && sel.length > 0 },
+    { keys: "Ctrl+Shift+L", desc: tr("vsdedit.allinea_testo_sinistra"), group: tr("vsdedit.testo"), run: () => setPara(0), when: () => ed() && sel.length > 0 },
+    { keys: "Ctrl+Shift+C", desc: tr("vsdedit.centra_testo"), group: tr("vsdedit.testo"), run: () => setPara(1), when: () => ed() && sel.length > 0 },
+    { keys: "Ctrl+Shift+R", desc: tr("vsdedit.allinea_testo_destra"), group: tr("vsdedit.testo"), run: () => setPara(2), when: () => ed() && sel.length > 0 },
+    { keys: "Ctrl+Shift+W", desc: tr("vsdedit.adatta_pagina_finestra"), group: tr("vsdedit.visualizza"), run: fitPage },
+    { keys: "Alt+F6|Ctrl+Plus", desc: tr("vsdedit.ingrandisci"), group: tr("vsdedit.visualizza"), run: () => setZoom(scale * 1.25) },
+    { keys: "Alt+Shift+F6|Ctrl+Minus", desc: tr("vsdedit.riduci"), group: tr("vsdedit.visualizza"), run: () => setZoom(scale / 1.25) },
+    { keys: "F5", desc: tr("vsdedit.schermo_intero"), group: tr("vsdedit.visualizza"), run: fullScreen },
+    { keys: "Ctrl+PageDown", desc: tr("vsdedit.pagina_successiva"), group: tr("vsdedit.pagine"), run: () => goPage(pageIdx + 1) },
+    { keys: "Ctrl+PageUp", desc: tr("vsdedit.pagina_precedente"), group: tr("vsdedit.pagine"), run: () => goPage(pageIdx - 1) },
   ];
   keymap(ctx, "Visio", defs, window);
   describeKeys(ctx, "Visio", [
-    ["Rotellina + Ctrl", "Zoom attorno al puntatore", "Visualizza"], ["Pulsante centrale o Spazio + trascinamento", "Sposta la vista", "Visualizza"],
-    ["Maiusc durante lo spostamento", "Solo in orizzontale o in verticale", "Forme"], ["Alt durante lo spostamento", "Senza aggancio alla griglia", "Forme"],
-    ["Maiusc + maniglia d'angolo", "Ridimensiona senza mantenere le proporzioni (immagini) / mantenendole (forme)", "Forme"], ["Maiusc + rotazione", "Ruota a passi di 15°", "Forme"],
-    ["Doppio clic", "Modifica il testo della forma", "Testo"], ["Esc (nel testo)", "Termina la modifica del testo", "Testo"],
-    ["Trascina un estremo del connettore su una forma", "Incolla il connettore alla forma (segue gli spostamenti)", "Connettori"],
-    ["Doppio clic sulla linguetta della pagina", "Rinomina la pagina", "Pagine"],
+    [tr("vsdedit.rotellina_ctrl"), tr("vsdedit.zoom_attorno_puntatore"), tr("vsdedit.visualizza")], [tr("vsdedit.pulsante_centrale_spazio_trascinamento"), tr("vsdedit.sposta_vista"), tr("vsdedit.visualizza")],
+    [tr("vsdedit.maiusc_durante_spostamento"), tr("vsdedit.solo_orizzontale_verticale"), tr("vsdedit.forme")], [tr("vsdedit.alt_durante_spostamento"), tr("vsdedit.senza_aggancio_griglia"), tr("vsdedit.forme")],
+    [tr("vsdedit.maiusc_maniglia_d_angolo"), tr("vsdedit.ridimensiona_senza_mantenere_proporzioni_immagini"), tr("vsdedit.forme")], [tr("vsdedit.maiusc_rotazione"), tr("vsdedit.ruota_passi_15"), tr("vsdedit.forme")],
+    [tr("vsdedit.doppio_clic"), tr("vsdedit.modifica_testo_forma"), tr("vsdedit.testo")], [tr("vsdedit.esc_testo"), tr("vsdedit.termina_modifica_testo"), tr("vsdedit.testo")],
+    [tr("vsdedit.trascina_estremo_connettore_forma"), tr("vsdedit.incolla_connettore_forma_segue_spostamenti"), tr("vsdedit.connettori")],
+    [tr("vsdedit.doppio_clic_linguetta_pagina"), tr("vsdedit.rinomina_pagina_2"), tr("vsdedit.pagine")],
   ]);
   // scrivere con una forma selezionata ne sostituisce il testo (come Visio)
   window.addEventListener("keydown", e => {

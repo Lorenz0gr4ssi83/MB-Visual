@@ -1,6 +1,7 @@
 // Forme base dell'editor di diagrammi, come gli stencil "Forme di base", "Diagramma di flusso di base" e "Connettori"
 // di Visio. La geometria si scrive con le formule (Width, Height) come fa Visio: ridimensionando, Visio e MB Visual
 // ricalcolano le stesse coordinate. Dimensioni predefinite in pollici (unita' interne di Visio).
+import { t } from "./i18n.js";
 const MM = 1 / 25.4;
 const R = (x, y) => ({ X: `Width*${x}`, Y: `Height*${y}` });
 const poly = pts => [["MoveTo", R(...pts[0])], ...pts.slice(1).map(p => ["LineTo", R(...p)]), ["LineTo", R(...pts[0])]];
@@ -40,46 +41,46 @@ const documentShape = [
 
 // { id, name, w, h (pollici), geom: righe | [{ rows, noFill, noLine }], keys (ricerca), text }
 export const STENCILS = [
-  { id: "base", name: "Forme di base", shapes: [
-    { id: "rect", name: "Rettangolo", w: 30 * MM, h: 20 * MM, geom: poly([[0, 0], [1, 0], [1, 1], [0, 1]]) },
-    { id: "square", name: "Quadrato", w: 20 * MM, h: 20 * MM, geom: poly([[0, 0], [1, 0], [1, 1], [0, 1]]) },
-    { id: "rrect", name: "Rettangolo arrotondato", w: 30 * MM, h: 20 * MM, geom: rounded("MIN(Width,Height)*0.15") },
-    { id: "ellipse", name: "Ellisse", w: 30 * MM, h: 20 * MM, geom: ellipse },
-    { id: "circle", name: "Cerchio", w: 20 * MM, h: 20 * MM, geom: ellipse },
-    { id: "triangle", name: "Triangolo", w: 25 * MM, h: 20 * MM, geom: poly([[0, 0], [1, 0], [0.5, 1]]) },
-    { id: "rtriangle", name: "Triangolo rettangolo", w: 25 * MM, h: 20 * MM, geom: poly([[0, 0], [1, 0], [0, 1]]) },
-    { id: "diamond", name: "Rombo", w: 25 * MM, h: 20 * MM, geom: poly([[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]]) },
-    { id: "pentagon", name: "Pentagono", w: 22 * MM, h: 21 * MM, geom: poly([[0.19, 0], [0.81, 0], [1, 0.62], [0.5, 1], [0, 0.62]]) },
-    { id: "hexagon", name: "Esagono", w: 25 * MM, h: 21 * MM, geom: poly([[0.25, 0], [0.75, 0], [1, 0.5], [0.75, 1], [0.25, 1], [0, 0.5]]) },
-    { id: "octagon", name: "Ottagono", w: 22 * MM, h: 22 * MM, geom: ngon(8) },
-    { id: "star5", name: "Stella a 5 punte", w: 22 * MM, h: 22 * MM, geom: star(5, 0.2) },
-    { id: "star8", name: "Stella a 8 punte", w: 22 * MM, h: 22 * MM, geom: star(8, 0.32) },
-    { id: "parallelogram", name: "Parallelogramma", w: 30 * MM, h: 18 * MM, geom: poly([[0, 0], [0.8, 0], [1, 1], [0.2, 1]]) },
-    { id: "trapezoid", name: "Trapezio", w: 30 * MM, h: 18 * MM, geom: poly([[0, 0], [1, 0], [0.8, 1], [0.2, 1]]) },
-    { id: "cross", name: "Croce", w: 20 * MM, h: 20 * MM, geom: poly([[0.33, 0], [0.67, 0], [0.67, 0.33], [1, 0.33], [1, 0.67], [0.67, 0.67], [0.67, 1], [0.33, 1], [0.33, 0.67], [0, 0.67], [0, 0.33], [0.33, 0.33]]) },
-    { id: "arrowR", name: "Freccia a destra", w: 30 * MM, h: 15 * MM, geom: poly([[0, 0.3], [0.65, 0.3], [0.65, 0], [1, 0.5], [0.65, 1], [0.65, 0.7], [0, 0.7]]) },
-    { id: "arrowLR", name: "Freccia doppia", w: 30 * MM, h: 15 * MM, geom: poly([[0, 0.5], [0.25, 0], [0.25, 0.3], [0.75, 0.3], [0.75, 0], [1, 0.5], [0.75, 1], [0.75, 0.7], [0.25, 0.7], [0.25, 1]]) },
-    { id: "arrowU", name: "Freccia in su", w: 15 * MM, h: 30 * MM, geom: poly([[0.3, 0], [0.7, 0], [0.7, 0.65], [1, 0.65], [0.5, 1], [0, 0.65], [0.3, 0.65]]) },
-    { id: "cylinder", name: "Cilindro", w: 20 * MM, h: 28 * MM, geom: cylinder },
-    { id: "text", name: "Casella di testo", w: 30 * MM, h: 8 * MM, geom: [], text: "Testo", textOnly: true },
+  { id: "base", name: t("vsdshapes.forme_base"), shapes: [
+    { id: "rect", name: t("vsdshapes.rettangolo"), w: 30 * MM, h: 20 * MM, geom: poly([[0, 0], [1, 0], [1, 1], [0, 1]]) },
+    { id: "square", name: t("vsdshapes.quadrato"), w: 20 * MM, h: 20 * MM, geom: poly([[0, 0], [1, 0], [1, 1], [0, 1]]) },
+    { id: "rrect", name: t("vsdshapes.rettangolo_arrotondato"), w: 30 * MM, h: 20 * MM, geom: rounded("MIN(Width,Height)*0.15") },
+    { id: "ellipse", name: t("vsdshapes.ellisse"), w: 30 * MM, h: 20 * MM, geom: ellipse },
+    { id: "circle", name: t("vsdshapes.cerchio"), w: 20 * MM, h: 20 * MM, geom: ellipse },
+    { id: "triangle", name: t("vsdshapes.triangolo"), w: 25 * MM, h: 20 * MM, geom: poly([[0, 0], [1, 0], [0.5, 1]]) },
+    { id: "rtriangle", name: t("vsdshapes.triangolo_rettangolo"), w: 25 * MM, h: 20 * MM, geom: poly([[0, 0], [1, 0], [0, 1]]) },
+    { id: "diamond", name: t("vsdshapes.rombo"), w: 25 * MM, h: 20 * MM, geom: poly([[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]]) },
+    { id: "pentagon", name: t("vsdshapes.pentagono"), w: 22 * MM, h: 21 * MM, geom: poly([[0.19, 0], [0.81, 0], [1, 0.62], [0.5, 1], [0, 0.62]]) },
+    { id: "hexagon", name: t("vsdshapes.esagono"), w: 25 * MM, h: 21 * MM, geom: poly([[0.25, 0], [0.75, 0], [1, 0.5], [0.75, 1], [0.25, 1], [0, 0.5]]) },
+    { id: "octagon", name: t("vsdshapes.ottagono"), w: 22 * MM, h: 22 * MM, geom: ngon(8) },
+    { id: "star5", name: t("vsdshapes.stella_5_punte"), w: 22 * MM, h: 22 * MM, geom: star(5, 0.2) },
+    { id: "star8", name: t("vsdshapes.stella_8_punte"), w: 22 * MM, h: 22 * MM, geom: star(8, 0.32) },
+    { id: "parallelogram", name: t("vsdshapes.parallelogramma"), w: 30 * MM, h: 18 * MM, geom: poly([[0, 0], [0.8, 0], [1, 1], [0.2, 1]]) },
+    { id: "trapezoid", name: t("vsdshapes.trapezio"), w: 30 * MM, h: 18 * MM, geom: poly([[0, 0], [1, 0], [0.8, 1], [0.2, 1]]) },
+    { id: "cross", name: t("vsdshapes.croce"), w: 20 * MM, h: 20 * MM, geom: poly([[0.33, 0], [0.67, 0], [0.67, 0.33], [1, 0.33], [1, 0.67], [0.67, 0.67], [0.67, 1], [0.33, 1], [0.33, 0.67], [0, 0.67], [0, 0.33], [0.33, 0.33]]) },
+    { id: "arrowR", name: t("vsdshapes.freccia_destra"), w: 30 * MM, h: 15 * MM, geom: poly([[0, 0.3], [0.65, 0.3], [0.65, 0], [1, 0.5], [0.65, 1], [0.65, 0.7], [0, 0.7]]) },
+    { id: "arrowLR", name: t("vsdshapes.freccia_doppia"), w: 30 * MM, h: 15 * MM, geom: poly([[0, 0.5], [0.25, 0], [0.25, 0.3], [0.75, 0.3], [0.75, 0], [1, 0.5], [0.75, 1], [0.75, 0.7], [0.25, 0.7], [0.25, 1]]) },
+    { id: "arrowU", name: t("vsdshapes.freccia"), w: 15 * MM, h: 30 * MM, geom: poly([[0.3, 0], [0.7, 0], [0.7, 0.65], [1, 0.65], [0.5, 1], [0, 0.65], [0.3, 0.65]]) },
+    { id: "cylinder", name: t("vsdshapes.cilindro"), w: 20 * MM, h: 28 * MM, geom: cylinder },
+    { id: "text", name: t("vsdshapes.casella_testo"), w: 30 * MM, h: 8 * MM, geom: [], text: t("vsdshapes.testo"), textOnly: true },
   ] },
-  { id: "flow", name: "Diagramma di flusso di base", shapes: [
-    { id: "process", name: "Processo", w: 30 * MM, h: 20 * MM, geom: poly([[0, 0], [1, 0], [1, 1], [0, 1]]), keys: "processo attivita passo" },
-    { id: "decision", name: "Decisione", w: 30 * MM, h: 20 * MM, geom: poly([[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]]), keys: "decisione rombo se condizione" },
-    { id: "terminator", name: "Inizio/Fine", w: 30 * MM, h: 12 * MM, geom: pill, keys: "terminatore inizio fine start end" },
-    { id: "data", name: "Dati", w: 30 * MM, h: 18 * MM, geom: poly([[0, 0], [0.8, 0], [1, 1], [0.2, 1]]), keys: "dati input output" },
-    { id: "document", name: "Documento", w: 30 * MM, h: 20 * MM, geom: documentShape, keys: "documento" },
-    { id: "subprocess", name: "Sottoprocesso", w: 30 * MM, h: 20 * MM, geom: [{ rows: poly([[0, 0], [1, 0], [1, 1], [0, 1]]) }, { noFill: true, rows: [["MoveTo", R(0.1, 0)], ["LineTo", R(0.1, 1)], ["MoveTo", R(0.9, 0)], ["LineTo", R(0.9, 1)]] }], keys: "processo predefinito sottoprocesso" },
-    { id: "database", name: "Database", w: 20 * MM, h: 25 * MM, geom: cylinder, keys: "database archivio cilindro" },
-    { id: "preparation", name: "Preparazione", w: 30 * MM, h: 18 * MM, geom: poly([[0.2, 0], [0.8, 0], [1, 0.5], [0.8, 1], [0.2, 1], [0, 0.5]]), keys: "preparazione esagono" },
-    { id: "manual", name: "Operazione manuale", w: 30 * MM, h: 18 * MM, geom: poly([[0.2, 0], [0.8, 0], [1, 1], [0, 1]]), keys: "manuale" },
-    { id: "onpage", name: "Riferimento nella pagina", w: 10 * MM, h: 10 * MM, geom: ellipse, keys: "connettore cerchio riferimento" },
-    { id: "offpage", name: "Riferimento a un'altra pagina", w: 12 * MM, h: 14 * MM, geom: poly([[0.5, 0], [1, 0.3], [1, 1], [0, 1], [0, 0.3]]), keys: "riferimento pagina" },
+  { id: "flow", name: t("vsdshapes.diagramma_flusso_base"), shapes: [
+    { id: "process", name: t("vsdshapes.processo"), w: 30 * MM, h: 20 * MM, geom: poly([[0, 0], [1, 0], [1, 1], [0, 1]]), keys: t("vsdshapes.processo_attivita_passo") },
+    { id: "decision", name: t("vsdshapes.decisione"), w: 30 * MM, h: 20 * MM, geom: poly([[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]]), keys: t("vsdshapes.decisione_rombo_se_condizione") },
+    { id: "terminator", name: "Inizio/Fine", w: 30 * MM, h: 12 * MM, geom: pill, keys: t("vsdshapes.terminatore_inizio_fine_start_end") },
+    { id: "data", name: t("vsdshapes.dati"), w: 30 * MM, h: 18 * MM, geom: poly([[0, 0], [0.8, 0], [1, 1], [0.2, 1]]), keys: t("vsdshapes.dati_input_output") },
+    { id: "document", name: t("vsdshapes.documento"), w: 30 * MM, h: 20 * MM, geom: documentShape, keys: "documento" },
+    { id: "subprocess", name: t("vsdshapes.sottoprocesso"), w: 30 * MM, h: 20 * MM, geom: [{ rows: poly([[0, 0], [1, 0], [1, 1], [0, 1]]) }, { noFill: true, rows: [["MoveTo", R(0.1, 0)], ["LineTo", R(0.1, 1)], ["MoveTo", R(0.9, 0)], ["LineTo", R(0.9, 1)]] }], keys: t("vsdshapes.processo_predefinito_sottoprocesso") },
+    { id: "database", name: t("vsdshapes.database"), w: 20 * MM, h: 25 * MM, geom: cylinder, keys: t("vsdshapes.database_archivio_cilindro") },
+    { id: "preparation", name: t("vsdshapes.preparazione"), w: 30 * MM, h: 18 * MM, geom: poly([[0.2, 0], [0.8, 0], [1, 0.5], [0.8, 1], [0.2, 1], [0, 0.5]]), keys: t("vsdshapes.preparazione_esagono") },
+    { id: "manual", name: t("vsdshapes.operazione_manuale"), w: 30 * MM, h: 18 * MM, geom: poly([[0.2, 0], [0.8, 0], [1, 1], [0, 1]]), keys: "manuale" },
+    { id: "onpage", name: t("vsdshapes.riferimento_pagina"), w: 10 * MM, h: 10 * MM, geom: ellipse, keys: t("vsdshapes.connettore_cerchio_riferimento") },
+    { id: "offpage", name: t("vsdshapes.riferimento_altra_pagina"), w: 12 * MM, h: 14 * MM, geom: poly([[0.5, 0], [1, 0.3], [1, 1], [0, 1], [0, 0.3]]), keys: t("vsdshapes.riferimento_pagina_2") },
   ] },
-  { id: "conn", name: "Connettori", shapes: [
-    { id: "dynconn", name: "Connettore dinamico", connector: "dynamic", keys: "connettore freccia collegamento" },
-    { id: "line", name: "Linea", connector: "line", keys: "linea retta" },
-    { id: "arrow", name: "Freccia", connector: "arrow", keys: "freccia linea" },
+  { id: "conn", name: t("vsdshapes.connettori"), shapes: [
+    { id: "dynconn", name: t("vsdshapes.connettore_dinamico"), connector: "dynamic", keys: t("vsdshapes.connettore_freccia_collegamento") },
+    { id: "line", name: t("vsdshapes.linea"), connector: "line", keys: t("vsdshapes.linea_retta") },
+    { id: "arrow", name: t("vsdshapes.freccia_2"), connector: "arrow", keys: t("vsdshapes.freccia_linea") },
   ] },
 ];
 export const shapeDef = id => { for (const st of STENCILS) for (const s of st.shapes) if (s.id === id) return s; return null; };

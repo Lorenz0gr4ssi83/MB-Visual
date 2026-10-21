@@ -11,6 +11,7 @@
 //     risultato; altrimenti diventa costante (Visio non la ricalcola in modo diverso da quello che si vede).
 //   - nell'elemento Shape: prima le Cell, poi Trigger, poi Section, poi Text / Data / ForeignData / Shapes.
 import { loadScript } from "./core.js";
+import { t as tr } from "./i18n.js";
 
 export const VNS = "http://schemas.microsoft.com/office/visio/2012/main";
 export const RNS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -48,7 +49,7 @@ export async function openVsdx(bytes) {
     const f = zip.file(p);
     if (!f) return null;
     const d = parser().parseFromString(await f.async("string"), "application/xml");
-    if (d.getElementsByTagName("parsererror").length) throw new Error("XML non valido nella parte " + p);
+    if (d.getElementsByTagName("parsererror").length) throw new Error(tr("vsdmodel.xml_non_valido_parte") + p);
     doc.xml.set(p, d);
     return d;
   };
@@ -63,7 +64,7 @@ export async function openVsdx(bytes) {
   let docPath = [...root.values()].find(r => /\/document$/.test(r.type))?.target || "visio/document.xml";
   doc.docPath = docPath;
   doc.docXml = await read(docPath);
-  if (!doc.docXml) throw new Error("Il file non contiene un diagramma di Visio (manca visio/document.xml)");
+  if (!doc.docXml) throw new Error(tr("vsdmodel.file_non_contiene_diagramma_visio"));
   const drels = await doc.rels(docPath);
   const find = re => [...drels.values()].find(r => re.test(r.type))?.target;
   doc.pagesPath = find(/\/pages$/) || "visio/pages/pages.xml";
@@ -110,7 +111,7 @@ async function loadPages(doc) {
   for (const el of kids(px.documentElement, "Page")) {
     const rel = kid(el, "Rel");
     const path = rel && pr.get(rel.getAttributeNS(RNS, "id"))?.target;
-    doc.pages.push({ el, path, id: el.getAttribute("ID"), get name() { return el.getAttribute("Name") || el.getAttribute("NameU") || "Pagina"; }, background: el.getAttribute("Background") === "1", backPage: el.getAttribute("BackPage"), xml: null, rels: new Map(), doc });
+    doc.pages.push({ el, path, id: el.getAttribute("ID"), get name() { return el.getAttribute("Name") || el.getAttribute("NameU") || tr("vsdmodel.pagina"); }, background: el.getAttribute("Background") === "1", backPage: el.getAttribute("BackPage"), xml: null, rels: new Map(), doc });
   }
   await Promise.all(doc.pages.map(async P => {
     if (!P.path) return;
@@ -310,7 +311,7 @@ export function plainText(S) {
   }
   return s.replace(/\r\n?/g, "\n").replace(/\n$/, "");
 }
-export const shapeName = S => S.el?.getAttribute("Name") || S.el?.getAttribute("NameU") || S.ms?.el?.getAttribute("Name") || S.master?.name || (S.id ? "Forma " + S.id : "Forma");
+export const shapeName = S => S.el?.getAttribute("Name") || S.el?.getAttribute("NameU") || S.ms?.el?.getAttribute("Name") || S.master?.name || (S.id ? tr("vsdmodel.forma") + S.id : "Forma");
 export const is1D = (doc, S) => !!cell(doc, S, "BeginX") && !!cell(doc, S, "EndX") && (S.el?.getAttribute("Type") !== "Group");
 
 // ------------------------------------------------------------------ colori

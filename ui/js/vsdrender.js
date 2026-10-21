@@ -5,6 +5,7 @@
 //   { t: "image", key, m: [a,b,c,d,e,f] (riquadro w x h in pt), w, h, c: [cx,cy], a (gradi) }
 // Coordinate di Visio: pollici, y verso l'alto; trasformazione di una forma = T(Pin) R(Angle) S(Flip) T(-LocPin).
 import { cell, val, num0, section, rowsOf, rowNum, rowStr, geometry, textEl, color, is1D } from "./vsdmodel.js";
+import { t as _t } from "./i18n.js";
 
 // ------------------------------------------------------------------ matrici [a,b,c,d,e,f]: (x,y) -> (a x + c y + e, b x + d y + f)
 export const I = [1, 0, 0, 1, 0, 0];
@@ -38,7 +39,7 @@ export function layersOf(doc, page) {
   for (const se of [...ps.children].filter(c => c.localName === "Section" && c.getAttribute("N") === "Layer"))
     for (const r of [...se.children].filter(c => c.localName === "Row")) {
       const g = n => [...r.children].find(c => c.getAttribute("N") === n)?.getAttribute("V");
-      out.push({ ix: r.getAttribute("IX"), name: g("Name") || g("NameUniv") || "Livello " + r.getAttribute("IX"), visible: g("Visible") !== "0", print: g("Print") !== "0", lock: g("Lock") === "1", color: g("Color"), row: r });
+      out.push({ ix: r.getAttribute("IX"), name: g("Name") || g("NameUniv") || _t("vsdrender.livello") + r.getAttribute("IX"), visible: g("Visible") !== "0", print: g("Print") !== "0", lock: g("Lock") === "1", color: g("Color"), row: r });
     }
   return out;
 }
