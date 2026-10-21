@@ -186,14 +186,14 @@ export function createPdfEditor(ctx, frame, setBusy) {
     if (mode !== "select") return;
     const layer = newLayer(pv);
     // disegni sotto, poi testi, immagini, collegamenti e campi sopra (si selezionano per primi)
-    const order = { drawing: 0, text: 1, image: 2, link: 3, field: 4 };
+    const order = { group: 0, drawing: 0, text: 1, image: 2, annot: 3, link: 3, field: 4 };
     const list = [...data.oggetti].sort((a, b) => order[a.kind] - order[b.kind]);
     for (const o of list) {
       const r = rectToCss(vp, o.box);
       if (r.width < 2 && r.height < 2) continue;
       const d = doc().createElement("div");
       d.className = "mbv-obj k-" + o.kind;
-      d.title = { image: "Immagine", text: "Blocco di testo", drawing: "Disegno vettoriale", field: "Campo modulo: " + (o.name || ""), link: "Collegamento" }[o.kind];
+      d.title = { image: "Immagine", text: "Blocco di testo", drawing: "Disegno vettoriale", group: "Gruppo di disegni", annot: "Annotazione", field: "Campo modulo: " + (o.name || ""), link: "Collegamento" }[o.kind];
       place(d, r);
       d.addEventListener("pointerdown", e => { e.stopPropagation(); selectObj(pno, o, d, vp); startDrag(e, d, o, pno, vp, "move"); });
       d.addEventListener("dblclick", e => { e.stopPropagation(); if (o.kind === "text") editTextInline(d, o, pno); });
@@ -206,7 +206,7 @@ export function createPdfEditor(ctx, frame, setBusy) {
     doc().querySelectorAll(".mbv-h").forEach(n => n.remove());
     d.classList.add("sel");
     sel = { pno, o, d, vp };
-    if (["image", "drawing", "field", "link", "text"].includes(o.kind)) {
+    if (["image", "drawing", "group", "annot", "field", "link", "text"].includes(o.kind)) {
       for (const pos of ["nw", "ne", "sw", "se"]) {
         const h = doc().createElement("div");
         h.className = "mbv-h";
@@ -252,7 +252,8 @@ export function createPdfEditor(ctx, frame, setBusy) {
   }
   function moveObj(pno, o, to) {
     if (o.kind === "image") return o.movable ? ops([{ kind: "image_move", page: pno, xref: o.xref, box: o.box, to }]) : toast("Questa immagine e' incorporata nel testo della pagina e non si puo' spostare: usa Bianchetto e reinseriscila", true, 6000);
-    if (o.kind === "drawing") return ops([{ kind: "draw_move", page: pno, box: o.box, to }]);
+    if (o.kind === "drawing" || o.kind === "group") return ops([{ kind: "draw_move", page: pno, box: o.box, to }]);
+    if (o.kind === "annot") return ops([{ kind: "annot_update", page: pno, xref: o.xref, to, props: {} }]);
     if (o.kind === "field") return ops([{ kind: "field_update", page: pno, xref: o.xref, to, props: {} }]);
     if (o.kind === "link") return ops([{ kind: "link_delete", page: pno, box: o.box }, o.uri ? { kind: "link_add", page: pno, box: to, uri: o.uri } : { kind: "link_add", page: pno, box: to, target: (o.page ?? 0) + 1 }]);
     if (o.kind === "text") return ops([{ kind: "text_block", page: pno, box: o.box, to, text: o.text, font: o.font, size: o.size, color: o.color, bold: o.bold, italic: o.italic }]);
@@ -260,9 +261,9 @@ export function createPdfEditor(ctx, frame, setBusy) {
   function deleteObj(s = sel) {
     if (!s) return;
     const { pno, o } = s;
-    const op = { image: { kind: "image_delete", page: pno, xref: o.xref }, drawing: { kind: "draw_delete", page: pno, box: o.box }, field: { kind: "field_delete", page: pno, xref: o.xref },
+    const op = { image: { kind: "image_delete", page: pno, xref: o.xref, box: o.box }, drawing: { kind: "draw_delete", page: pno, box: o.box }, group: { kind: "draw_delete", page: pno, box: o.box },
+      annot: { kind: "annot_delete", page: pno, xref: o.xref }, field: { kind: "field_delete", page: pno, xref: o.xref },
       link: { kind: "link_delete", page: pno, box: o.box }, text: { kind: "text_block", page: pno, box: o.box, text: "", font: o.font, size: o.size } }[o.kind];
-    if (o.kind === "image" && !o.movable) return ops([{ kind: "whiteout", page: pno, box: o.box }]);
     return ops([op]);
   }
   function editTextInline(d, o, pno) {
@@ -430,7 +431,7 @@ export function createPdfEditor(ctx, frame, setBusy) {
           el("div", {}, apply("Applica", () => ops([{ kind: "text_block", page: pno, box: o.box, text: ta.value, ...st }])), del));
       } else if (o.kind === "image") {
         panel.append(h("Immagine"), el("p", { class: "note" }, `${o.px?.[0] || "?"} × ${o.px?.[1] || "?"} pixel`),
-          el("div", {}, apply("Sostituisci...", async () => { const data = await pickImage(); if (data) await ops([{ kind: "image_replace", page: pno, xref: o.xref, data }]); }), del));
+          el("div", {}, apply("Sostituisci...", async () => { const data = await pickImage(); if (data) await ops([{ kind: "image_replace", page: pno, xref: o.xref, box: o.box, data }]); }), del));
       } else if (o.kind === "field") {
         const p = { name: o.name, tooltip: o.tooltip, value: o.value, fontsize: o.fontsize, required: o.required, readonly: o.readonly, multiline: o.multiline, options: o.options };
         const optsTa = el("textarea", { rows: 6, class: "field", style: { width: "100%" } }, (o.options || []).join("\n"));
@@ -441,6 +442,8 @@ export function createPdfEditor(ctx, frame, setBusy) {
           chk("Obbligatorio", o.required, v => (p.required = v)), chk("Sola lettura", o.readonly, v => (p.readonly = v)), o.type === "text" ? chk("Piu' righe", o.multiline, v => (p.multiline = v)) : "",
           el("div", {}, apply("Applica", () => { if (o.type === "combo" || o.type === "list") p.options = optsTa.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean); return ops([{ kind: "field_update", page: pno, xref: o.xref, props: p }]); }), del));
       } else if (o.kind === "link") panel.append(h("Collegamento"), el("p", {}, o.uri || `Pagina ${(o.page ?? 0) + 1}`), del);
+      else if (o.kind === "group") panel.append(h("Gruppo di disegni"), el("p", { class: "note" }, `${o.n} tracciati · bordo ${o.stroke || "nessuno"} · riempimento ${o.fill || "nessuno"}`), del);
+      else if (o.kind === "annot") panel.append(h("Annotazione · " + o.type), o.contents ? el("p", {}, o.contents) : "", del);
       else if (o.kind === "drawing") panel.append(h("Disegno vettoriale"), el("p", { class: "note" }, `Bordo ${o.stroke || "nessuno"} · riempimento ${o.fill || "nessuno"} · spessore ${o.width}`), del);
     }
   }

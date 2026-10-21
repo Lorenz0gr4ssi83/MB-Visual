@@ -195,7 +195,7 @@ async function checkUpdates(manual = false) {
       [{ label: "Più tardi", value: false }, { label: "Aggiorna ora", value: true, primary: true }]);
     if (!ok) return;
     if (tabs.some(t => t.dirty) && !(await confirmBox("File non salvati", "Ci sono modifiche non salvate che andranno perse. Aggiornare comunque?", "Aggiorna", true))) return;
-    try { await api("update_apply"); toast("Aggiornamento in corso: MB Visual si riapre tra poco", false, 60000); } catch (e) { toast(e.message, true, 8000); }
+    await runUpdateJob("update_apply", "Aggiornamento di MB Visual", "Aggiornamento pronto: MB Visual si chiude e si riapre da sola");
     return;
   }
   if (r.stato === "sincronizzazione") {
@@ -226,7 +226,25 @@ async function askInstall() {
     el("p", {}, "Installandola su questo PC (senza diritti di amministratore, nella cartella del tuo utente) avrai i collegamenti sul Desktop e nel menu Start, e ogni nuova versione ti verrà proposta all'avvio.")),
     [{ label: "Non ora", value: false }, { label: "Installa", value: true, primary: true }]);
   if (!ok) return;
-  try { await api("update_install"); toast("Installazione in corso: MB Visual si riapre dalla nuova posizione", false, 60000); } catch (e) { toast(e.message, true, 8000); }
+  await runUpdateJob("update_install", "Installazione di MB Visual", "Installata: MB Visual si riapre dal Desktop / menu Start");
+}
+// installazione / aggiornamento con finestra di avanzamento (la copia scarica da OneDrive i file "solo online": puo' richiedere minuti)
+async function runUpdateJob(route, title, doneText) {
+  const bar = el("div", { class: "progress" }, el("span"));
+  const msg = el("p", {}, "Avvio...");
+  const back = $("modal"), body = $("modal-body");
+  body.innerHTML = "";
+  body.append(el("h3", {}, title), msg, bar, el("p", { class: "note" }, "Non chiudere MB Visual: alla fine si riavvia da sola."));
+  back.hidden = false;
+  try {
+    const { job } = await api(route);
+    await waitJob(job, (p, m) => { bar.firstChild.style.width = Math.round(p * 100) + "%"; if (m) msg.textContent = m; });
+    bar.firstChild.style.width = "100%";
+    msg.textContent = doneText;
+  } catch (e) {
+    back.hidden = true;
+    await modal(title + " non riuscita", el("div", {}, el("p", {}, e.message), el("p", { class: "note" }, "Dettagli nel file MBVisual-aggiornamento.log nella cartella temporanea di Windows (%TEMP%).")));
+  }
 }
 
 // nuovo file vuoto (Word, Excel, PowerPoint, PDF, DXF, testo, immagini, database), aperto subito nel suo editor

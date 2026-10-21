@@ -134,55 +134,92 @@ def check() -> dict:
     return res
 
 
-def _launch(script: str):
-    p = Path(tempfile.gettempdir()) / "MBVisual-aggiorna.ps1"
-    p.write_text(script, encoding="utf-8-sig")
-    flags = 0x00000008 | 0x00000200 | 0x08000000  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
-    subprocess.Popen(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", str(p)],
-                     creationflags=flags, close_fds=True)
-    # l'app si chiude subito dopo aver risposto all'interfaccia; lo script attende la chiusura e copia i file
-    threading.Timer(1.0, lambda: os._exit(0)).start()
+STAGING = Path(os.environ.get("LOCALAPPDATA", tempfile.gettempdir())) / "MBVisual" / "nuova-versione"
 
 
-def _ps(s) -> str:
-    return "'" + str(s).replace("'", "''") + "'"
+def _log(msg: str) -> None:
+    try:
+        with open(LOG, "a", encoding="utf-8") as f:
+            import datetime
+            f.write(f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S} {msg}\n")
+    except OSError:
+        pass
 
 
-def _copy_script(src: Path, dst: Path, shortcuts: bool) -> str:
-    # _internal viene allineata con /MIR (solo li' dentro si cancellano file); in cima si copiano solo i file dell'app
-    lines = [
-        "$ErrorActionPreference = 'Continue'",
-        f"$log = {_ps(LOG)}",
-        f"\"$(Get-Date) aggiornamento da {src} a {dst}\" | Out-File $log -Encoding utf8",
-        f"Wait-Process -Id {os.getpid()} -Timeout 60 -ErrorAction SilentlyContinue",
-        "Start-Sleep -Milliseconds 800",
-        f"New-Item -ItemType Directory -Force -Path {_ps(dst)} | Out-Null",
-        f"robocopy {_ps(src / '_internal')} {_ps(dst / '_internal')} /MIR /R:3 /W:2 /NP /NFL /NDL | Out-File $log -Append -Encoding utf8",
-        "$rc1 = $LASTEXITCODE",
-        f"robocopy {_ps(src)} {_ps(dst)} MBVisual.exe LEGGIMI.txt /R:3 /W:2 /NP /NFL /NDL | Out-File $log -Append -Encoding utf8",
-        "$rc2 = $LASTEXITCODE",
-        "\"esito robocopy: $rc1 $rc2\" | Out-File $log -Append -Encoding utf8",
-        "if ($rc1 -ge 8 -or $rc2 -ge 8) {",
-        "  Add-Type -AssemblyName PresentationFramework",
-        f"  [System.Windows.MessageBox]::Show(\"Aggiornamento di MB Visual non riuscito (file in uso o non scaricati da OneDrive). Dettagli in $log\", 'MB Visual') | Out-Null",
-        "}",
-    ]
-    if shortcuts:
-        exe = dst / "MBVisual.exe"
-        lines += [
-            "$sh = New-Object -ComObject WScript.Shell",
-            "foreach ($d in @([Environment]::GetFolderPath('Desktop'), (Join-Path ([Environment]::GetFolderPath('Programs')) ''))) {",
-            "  $l = $sh.CreateShortcut((Join-Path $d 'MB Visual.lnk'))",
-            f"  $l.TargetPath = {_ps(exe)}; $l.WorkingDirectory = {_ps(dst)}; $l.IconLocation = {_ps(str(exe) + ',0')}; $l.Description = 'MB Visual'",
-            "  $l.Save()",
-            "}",
-        ]
-    lines.append(f"Start-Process -FilePath {_ps(dst / 'MBVisual.exe')}")
-    return "\r\n".join(lines) + "\r\n"
+def _copy_app(src: Path, dst: Path, update=None) -> None:
+    """Copia l'app (cartella _internal + MBVisual.exe + LEGGIMI.txt) con avanzamento.
+    Leggere i file li scarica da OneDrive se sono "solo online": per questo serve l'avanzamento visibile.
+    Salta i file gia' uguali (dimensione e data), toglie da _internal quelli che non esistono piu'."""
+    files = []
+    for dp, _dn, fn in os.walk(src / "_internal"):
+        for n in fn:
+            files.append(Path(dp) / n)
+    files += [src / n for n in ("MBVisual.exe", "LEGGIMI.txt") if (src / n).is_file()]
+    total = sum(f.stat().st_size for f in files) or 1
+    done = 0
+    wanted = set()
+    import shutil
+    for k, f in enumerate(files):
+        rel = f.relative_to(src)
+        wanted.add(rel.as_posix())
+        d = dst / rel
+        st = f.stat()
+        try:
+            ds = d.stat()
+            same = ds.st_size == st.st_size and abs(ds.st_mtime - st.st_mtime) < 2
+        except OSError:
+            same = False
+        if not same:
+            d.parent.mkdir(parents=True, exist_ok=True)
+            for attempt in range(3):
+                try:
+                    shutil.copy2(f, d)
+                    break
+                except OSError as e:
+                    if attempt == 2:
+                        raise OSError(f"Copia non riuscita di {rel}: {e}") from e
+                    import time
+                    time.sleep(1.5)
+        done += st.st_size
+        if update and (k % 25 == 0 or k == len(files) - 1):
+            update(0.97 * done / total, f"Copia dei file: {done / 1048576:.0f} di {total / 1048576:.0f} MB")
+    for dp, _dn, fn in os.walk(dst / "_internal", topdown=False):
+        for n in fn:
+            rel = (Path(dp) / n).relative_to(dst).as_posix()
+            if rel not in wanted:
+                try:
+                    (Path(dp) / n).unlink()
+                except OSError:
+                    pass
 
 
-def apply() -> dict:
-    """Aggiorna la cartella dell'app con la build piu' recente e la riavvia."""
+def _shortcuts(exe: Path) -> None:
+    """Collegamenti "MB Visual" sul Desktop e nel menu Start (senza script PowerShell)."""
+    import pythoncom
+    import win32com.client
+    pythoncom.CoInitialize()
+    try:
+        sh = win32com.client.Dispatch("WScript.Shell")
+        for folder in (sh.SpecialFolders("Desktop"), sh.SpecialFolders("Programs")):
+            lnk = sh.CreateShortcut(str(Path(folder) / "MB Visual.lnk"))
+            lnk.TargetPath = str(exe)
+            lnk.WorkingDirectory = str(exe.parent)
+            lnk.IconLocation = f"{exe},0"
+            lnk.Description = "MB Visual"
+            lnk.Save()
+    finally:
+        pythoncom.CoUninitialize()
+
+
+def _restart(exe: Path) -> None:
+    flags = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+    subprocess.Popen([str(exe)], cwd=str(exe.parent), creationflags=flags, close_fds=True)
+    threading.Timer(1.5, lambda: os._exit(0)).start()
+
+
+def apply(update=None) -> dict:
+    """Prepara la nuova versione in una cartella locale (con avanzamento), poi uno script di Windows la copia
+    nella cartella dell'app appena questa si chiude e la riavvia."""
     r = check()
     if r["stato"] != "nuova":
         raise ValueError({"sincronizzazione": "OneDrive sta ancora scaricando la nuova versione: riprova tra qualche minuto",
@@ -192,12 +229,31 @@ def apply() -> dict:
         raise ValueError("L'app e' avviata dalla cartella di OneDrive: si aggiorna con la sincronizzazione")
     if not ((APP_DIR / "_internal").is_dir() and (APP_DIR / "MBVisual.exe").is_file()):
         raise ValueError("Cartella dell'app non riconosciuta: aggiornamento annullato per sicurezza")
-    _launch(_copy_script(src, APP_DIR, shortcuts=False))
+    _log(f"aggiornamento {r['attuale']} -> {r['disponibile']} da {src}")
+    _copy_app(src, STAGING, update)
+    if update:
+        update(0.98, "Riavvio di MB Visual")
+    # .cmd e robocopy: niente PowerShell (puo' essere bloccato dai criteri aziendali); file gia' tutti in locale
+    log = str(LOG)
+    cmd = Path(tempfile.gettempdir()) / "MBVisual-aggiorna.cmd"
+    pid = os.getpid()
+    cmd.write_text("\r\n".join([
+        "@echo off", "chcp 65001 >nul",
+        ":attesa",
+        rf'"%SystemRoot%\System32\tasklist.exe" /FI "PID eq {pid}" 2>nul | "%SystemRoot%\System32\find.exe" "{pid}" >nul && ("%SystemRoot%\System32\ping.exe" -n 2 127.0.0.1 >nul & goto attesa)',
+        f'robocopy "{STAGING / "_internal"}" "{APP_DIR / "_internal"}" /MIR /R:5 /W:2 /NP /NFL /NDL >> "{log}"',
+        f'robocopy "{STAGING}" "{APP_DIR}" MBVisual.exe LEGGIMI.txt /R:5 /W:2 /NP /NFL /NDL >> "{log}"',
+        f'start "" "{APP_DIR / "MBVisual.exe"}"',
+    ]) + "\r\n", encoding="utf-8", newline="")
+    flags = 0x00000200 | 0x08000000  # CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
+    subprocess.Popen(["cmd", "/c", str(cmd)], creationflags=flags, close_fds=True)
+    threading.Timer(1.0, lambda: os._exit(0)).start()
     return {"ok": True, "versione": r["disponibile"]}
 
 
-def install() -> dict:
-    """Installa l'app su questo PC (cartella locale + collegamenti su Desktop e menu Start) e la avvia da li'."""
+def install(update=None) -> dict:
+    """Installa l'app su questo PC (%LOCALAPPDATA%/Programs/MB Visual + collegamenti su Desktop e menu Start),
+    con avanzamento visibile, e la riavvia da li'."""
     if not FROZEN:
         raise ValueError("Disponibile solo nell'app per PC")
     r = check()
@@ -208,5 +264,18 @@ def install() -> dict:
         src = APP_DIR
     if _same(src, INSTALL_DIR):
         raise ValueError("L'app e' gia' installata su questo PC")
-    _launch(_copy_script(src, INSTALL_DIR, shortcuts=True))
+    _log(f"installazione da {src} in {INSTALL_DIR}")
+    try:
+        _copy_app(src, INSTALL_DIR, update)
+        if update:
+            update(0.98, "Collegamenti sul Desktop e nel menu Start")
+        exe = INSTALL_DIR / "MBVisual.exe"
+        try:
+            _shortcuts(exe)
+        except Exception as e:  # noqa: BLE001
+            _log(f"collegamenti non creati: {e}")
+        _restart(exe)
+    except Exception as e:
+        _log(f"installazione non riuscita: {e}")
+        raise
     return {"ok": True, "cartella": str(INSTALL_DIR)}

@@ -18,6 +18,7 @@ WIDGET_TYPES = {
     "check": pymupdf.PDF_WIDGET_TYPE_CHECKBOX, "radio": pymupdf.PDF_WIDGET_TYPE_RADIOBUTTON, "signature": pymupdf.PDF_WIDGET_TYPE_SIGNATURE,
 }
 TYPE_NAMES = {v: k for k, v in WIDGET_TYPES.items()}
+MAX_PATHS = 25000  # oltre (disegni CAD molto densi) i tracciati non si elencano uno per uno
 
 
 def _rgb(c, default=(0, 0, 0)):
@@ -45,8 +46,11 @@ def page_objects(path: str, pno: int) -> dict:
         for info in page.get_image_info(xrefs=True):
             if (info.get("width") or 0) <= 1 and (info.get("height") or 0) <= 1:
                 continue  # immagine eliminata (segnaposto trasparente lasciato da PyMuPDF)
+            if pymupdf.Rect(info["bbox"]).is_empty:
+                continue
+            # tutte le immagini sono modificabili: quelle senza xref (in linea) si ricavano dalla pagina
             out.append({"kind": "image", "xref": info.get("xref", 0), "box": _to_pdf(page, info["bbox"]),
-                        "px": [info.get("width"), info.get("height")], "movable": bool(info.get("xref"))})
+                        "px": [info.get("width"), info.get("height")], "movable": True})
         for b in page.get_text("dict")["blocks"]:
             if b.get("type") != 0:
                 continue
@@ -62,13 +66,41 @@ def page_objects(path: str, pno: int) -> dict:
                         "size": round(first["size"], 2), "color": _hex(first["color"]),
                         "bold": bool(first["flags"] & 16) or "bold" in first["font"].lower(),
                         "italic": bool(first["flags"] & 2) or "italic" in first["font"].lower()})
+        # disegni vettoriali: gruppi (tracciati vicini, come li vede l'occhio) + singoli tracciati per entrare nel gruppo
         draws = page.get_drawings()
-        for d in draws[:4000]:
+        paths = []
+        for d in draws[:MAX_PATHS]:
             r = pymupdf.Rect(d["rect"])
-            if r.is_empty and r.width == 0 and r.height == 0:
+            if r.width == 0 and r.height == 0:
                 continue
-            out.append({"kind": "drawing", "box": _to_pdf(page, r), "stroke": _hex(d.get("color")), "fill": _hex(d.get("fill")),
-                        "width": d.get("width") or 0})
+            paths.append({"kind": "drawing", "seqno": d.get("seqno"), "box": _to_pdf(page, r), "stroke": _hex(d.get("color")),
+                          "fill": _hex(d.get("fill")), "width": round(d.get("width") or 0, 2),
+                          "opacity": d.get("fill_opacity") if d.get("fill") else d.get("stroke_opacity"), "dashed": bool(d.get("dashes") and d["dashes"] not in ("[] 0", "[] 0.0"))})
+        if 0 < len(draws) <= MAX_PATHS:
+            try:
+                clusters = page.cluster_drawings(drawings=draws, x_tolerance=3, y_tolerance=3)
+            except Exception:  # noqa: BLE001
+                clusters = []
+            for c in clusters:
+                big = c + (-0.6, -0.6, 0.6, 0.6)
+                members = [d for d in draws if pymupdf.Rect(d["rect"]) in big]
+                if not members:
+                    continue
+                strokes = [_hex(d.get("color")) for d in members if d.get("color")]
+                fills = [_hex(d.get("fill")) for d in members if d.get("fill")]
+                out.append({"kind": "group", "box": _to_pdf(page, c), "n": len(members),
+                            "stroke": max(set(strokes), key=strokes.count) if strokes else None,
+                            "fill": max(set(fills), key=fills.count) if fills else None,
+                            "width": round(max((d.get("width") or 0) for d in members), 2)})
+        # annotazioni (evidenziazioni, note, timbri, disegni a mano, caselle di testo...)
+        for a in page.annots():
+            try:
+                cols = a.colors or {}
+                out.append({"kind": "annot", "xref": a.xref, "type": a.type[1], "box": _to_pdf(page, a.rect),
+                            "stroke": _hex(cols.get("stroke")), "fill": _hex(cols.get("fill")), "opacity": a.opacity if a.opacity >= 0 else 1,
+                            "width": (a.border or {}).get("width") or 0, "contents": (a.info or {}).get("content", "")})
+            except Exception:  # noqa: BLE001
+                pass
         for w in page.widgets():
             out.append({"kind": "field", "xref": w.xref, "name": w.field_name, "type": TYPE_NAMES.get(w.field_type, "text"),
                         "label": w.field_type_string, "box": _to_pdf(page, w.rect), "value": w.field_value,
@@ -79,7 +111,7 @@ def page_objects(path: str, pno: int) -> dict:
         for ln in page.get_links():
             out.append({"kind": "link", "box": _to_pdf(page, ln["from"]), "uri": ln.get("uri") or "", "page": ln.get("page", -1)})
         meta = doc.metadata or {}
-        return {"ok": True, "oggetti": out, "pagine": len(doc), "metadata": {k: meta.get(k, "") for k in ("title", "author", "subject", "keywords")},
+        return {"ok": True, "oggetti": out, "tracciati": paths, "troppi_disegni": len(draws) > MAX_PATHS, "pagine": len(doc), "metadata": {k: meta.get(k, "") for k in ("title", "author", "subject", "keywords")},
                 "toc": doc.get_toc(simple=True), "size": [page.rect.width, page.rect.height]}
 
 
@@ -104,11 +136,103 @@ def _redact(page, rect, text=True, images=False, graphics=False, fill=None):
                           text=pymupdf.PDF_REDACT_TEXT_REMOVE if text else pymupdf.PDF_REDACT_TEXT_NONE)
 
 
-def _draw_paths(page, paths, dx=0.0, dy=0.0, sx=1.0, sy=1.0, ox=0.0, oy=0.0):
-    """Ridisegna percorsi vettoriali (da get_drawings) traslati/scalati attorno a (ox, oy)."""
+def _same_box(a, b, tol=1.5):
+    return all(abs(x - y) <= tol for x, y in zip(a, b))
+
+
+def _image_count(doc, xref) -> int:
+    """Quante volte un'immagine compare nel documento (logo ripetuto su ogni pagina, ecc.)."""
+    n = 0
+    for p in doc:
+        n += sum(1 for i in p.get_image_info(xrefs=True) if i.get("xref") == xref)
+    return n
+
+
+def _take_image(doc, page, xref, r):
+    """Restituisce (PNG/JPEG, riquadro) dell'immagine nel riquadro r e la toglie SOLO da questo punto della pagina.
+    Non si usa delete_image: cambierebbe l'immagine condivisa ovunque (es. lo stesso logo sulle altre pagine)."""
+    if xref:
+        try:
+            data = _image_bytes(doc, xref)
+        except Exception:  # noqa: BLE001
+            data = None
+    else:
+        data = None
+    if data is None:  # immagine in linea o non estraibile: si ricava dalla pagina alla sua risoluzione
+        info = next((i for i in page.get_image_info() if _same_box(i["bbox"], r)), None)
+        dpi = 150
+        if info and r.width:
+            dpi = max(72, min(600, int(72 * (info.get("width") or 1) / r.width)))
+        data = page.get_pixmap(clip=r, dpi=dpi).tobytes("png")
+    others = [i for i in page.get_image_info(xrefs=True) if not _same_box(i["bbox"], r) and pymupdf.Rect(i["bbox"]).intersects(r)]
+    page.add_redact_annot(r + (-0.3, -0.3, 0.3, 0.3))
+    page.apply_redactions(images=pymupdf.PDF_REDACT_IMAGE_PIXELS if others else pymupdf.PDF_REDACT_IMAGE_REMOVE,
+                          graphics=pymupdf.PDF_REDACT_LINE_ART_NONE, text=pymupdf.PDF_REDACT_TEXT_NONE)
+    return data
+
+
+def _process_image(data: bytes, o: dict) -> bytes:
+    """Colori trasparenti (anche piu' di uno, con tolleranza), opacita', rotazione, specchio, bianco e nero."""
+    import io
+
+    from PIL import Image, ImageChops, ImageOps
+    im = Image.open(io.BytesIO(data))
+    im.load()
+    im = im.convert("RGBA")
+    if o.get("gray"):
+        a = im.getchannel("A")
+        im = ImageOps.grayscale(im).convert("RGBA")
+        im.putalpha(a)
+    cols = [c for c in (o.get("transparent") or []) if c]
+    if cols:
+        tol = max(0, min(100, float(o.get("tol", 12)))) * 2.55
+        rgb = im.convert("RGB")
+        alpha = im.getchannel("A")
+        for c in cols:
+            r, g, b = (int(round(v * 255)) for v in _rgb(c))
+            diff = ImageChops.difference(rgb, Image.new("RGB", im.size, (r, g, b)))
+            dr, dg, db = diff.split()
+            dmax = ImageChops.lighter(ImageChops.lighter(dr, dg), db)
+            keep = dmax.point(lambda v, t=tol: 255 if v > t else 0)  # 0 dove il colore e' "uguale" (entro la tolleranza)
+            alpha = ImageChops.multiply(alpha, keep)
+        im.putalpha(alpha)
+    op = o.get("opacity")
+    if op is not None and float(op) < 1:
+        im.putalpha(im.getchannel("A").point(lambda v, k=max(0.0, float(op)): int(v * k)))
+    if o.get("flip_h"):
+        im = ImageOps.mirror(im)
+    if o.get("flip_v"):
+        im = ImageOps.flip(im)
+    rot = int(o.get("rotate") or 0) % 360
+    if rot:
+        im = im.rotate(-rot, expand=True)  # gradi in senso orario
+    buf = io.BytesIO()
+    im.save(buf, "PNG", optimize=True)
+    return buf.getvalue()
+
+
+def _draw_paths(page, paths, dx=0.0, dy=0.0, sx=1.0, sy=1.0, ox=0.0, oy=0.0, style=None, targets=None, overlay=True):
+    """Ridisegna percorsi vettoriali (da get_drawings) traslati/scalati attorno a (ox, oy).
+    style: nuovo aspetto (stroke, fill, width, opacity, dashed) per i tracciati in targets (None = tutti)."""
     T = lambda p: pymupdf.Point(ox + (p.x - ox) * sx + dx, oy + (p.y - oy) * sy + dy)  # noqa: E731
     shape = page.new_shape()
     for path in paths:
+        if style and (targets is None or path.get("seqno") in targets):
+            path = dict(path)
+            if "stroke" in style:
+                path["color"] = _rgb(style["stroke"], None)
+            if "fill" in style:
+                path["fill"] = _rgb(style["fill"], None)
+            if style.get("width") is not None:
+                path["width"] = float(style["width"])
+            if style.get("opacity") is not None:
+                path["fill_opacity"] = path["stroke_opacity"] = float(style["opacity"])
+            if "dashed" in style:
+                path["dashes"] = f"[{3 * max(1, path.get('width') or 1):.2f} {2 * max(1, path.get('width') or 1):.2f}] 0" if style["dashed"] else None
+            if path.get("color") is None and path.get("fill") is None:
+                continue  # ne' bordo ne' riempimento: tracciato invisibile
+        if path.get("color") is None and path.get("fill") is None:
+            continue
         for it in path["items"]:
             op = it[0]
             if op == "l":
@@ -127,7 +251,7 @@ def _draw_paths(page, paths, dx=0.0, dy=0.0, sx=1.0, sy=1.0, ox=0.0, oy=0.0):
                      lineJoin=path.get("lineJoin") or 0, dashes=path.get("dashes") or None,
                      fill_opacity=path.get("fill_opacity") if path.get("fill_opacity") is not None else 1,
                      stroke_opacity=path.get("stroke_opacity") if path.get("stroke_opacity") is not None else 1)
-    shape.commit()
+    shape.commit(overlay=overlay)
 
 
 def _paths_in(page, rect, tol=0.6):
@@ -139,6 +263,13 @@ def _find_widget(page, xref):
     for w in page.widgets():
         if w.xref == int(xref):
             return w
+    return None
+
+
+def _find_annot(page, xref):
+    for a in page.annots():
+        if a.xref == int(xref):
+            return a
     return None
 
 
@@ -212,6 +343,10 @@ def apply_ops(path: str, ops: list[dict]) -> dict:
             k = o["kind"]
             page = doc[int(o["page"])] if "page" in o and o["page"] is not None and k not in ("page_delete", "page_move") else None
             r = _from_pdf(page, o["box"]) if page is not None and o.get("box") else None
+            if r is None and page is not None and k.startswith("image_") and o.get("xref"):
+                # richiesta senza riquadro: si usa la posizione dell'immagine sulla pagina
+                hit = next((i for i in page.get_image_info(xrefs=True) if i.get("xref") == int(o["xref"])), None)
+                r = pymupdf.Rect(hit["bbox"]) if hit else None
             to = _from_pdf(page, o["to"]) if page is not None and o.get("to") else None
 
             if k == "text_block":
@@ -233,21 +368,107 @@ def apply_ops(path: str, ops: list[dict]) -> dict:
                 data = base64.b64decode(o["data"])
                 page.insert_image(r, stream=data, keep_proportion=bool(o.get("keep", True)), rotate=int(o.get("rotate", 0)))
             elif k == "image_move":
-                xref = int(o["xref"])
-                data = _image_bytes(doc, xref)
-                page.delete_image(xref)
+                data = _take_image(doc, page, int(o.get("xref") or 0), r)
                 page.insert_image(to, stream=data, keep_proportion=False)
             elif k == "image_replace":
-                page.replace_image(int(o["xref"]), stream=base64.b64decode(o["data"]))
+                data = base64.b64decode(o["data"])
+                _take_image(doc, page, int(o.get("xref") or 0), r)
+                page.insert_image(r, stream=data, keep_proportion=bool(o.get("keep", True)))
             elif k == "image_delete":
-                page.delete_image(int(o["xref"]))
-            elif k in ("draw_move", "draw_delete"):
-                paths = _paths_in(page, r)
-                _redact(page, r + (-0.6, -0.6, 0.6, 0.6), text=False, images=False, graphics=True)
-                if k == "draw_move" and paths:
-                    sx = to.width / r.width if r.width else 1
-                    sy = to.height / r.height if r.height else 1
-                    _draw_paths(page, paths, to.x0 - r.x0, to.y0 - r.y0, sx, sy, r.x0, r.y0)
+                _take_image(doc, page, int(o.get("xref") or 0), r)
+            elif k == "image_edit":
+                # trasparenze, opacita', rotazione, specchio, bianco e nero
+                xref = int(o.get("xref") or 0)
+                rot = int(o.get("rotate") or 0) % 360
+                if xref and not to and rot in (0, 180) and _image_count(doc, xref) == 1:
+                    # stessa posizione e immagine usata una volta sola: si sostituisce sul posto (resta sotto/sopra come prima)
+                    page.replace_image(xref, stream=_process_image(_image_bytes(doc, xref), o))
+                else:
+                    data = _process_image(_take_image(doc, page, xref, r), o)
+                    dest = to or r
+                    if rot in (90, 270):  # riquadro ruotato attorno al centro
+                        c = (dest.tl + dest.br) / 2
+                        dest = pymupdf.Rect(c.x - dest.height / 2, c.y - dest.width / 2, c.x + dest.height / 2, c.y + dest.width / 2)
+                    page.insert_image(dest, stream=data, keep_proportion=False)
+            elif k in ("draw_move", "draw_delete", "draw_edit"):
+                # gruppo o singolo tracciato: si tolgono i tracciati contenuti nel riquadro e si ridisegnano
+                # (spostati / con il nuovo aspetto); quelli non scelti tornano identici
+                # la zona include mezzo spessore del bordo: altrimenti i tratti spessi restano (copiati invece che spostati)
+                first = _paths_in(page, r)
+                m = max([(p.get("width") or 0) for p in first] + [0]) / 2 + 1
+                zone = r + (-m, -m, m, m)
+                # MuPDF non toglie i tracciati racchiusi in un altro ("coperti"): si tolgono quelli che toccano la zona
+                # e si ridisegnano identici quelli che non fanno parte del gruppo
+                touched = [p for p in page.get_drawings() if (pymupdf.Rect(p["rect"]) + (-0.05, -0.05, 0.05, 0.05)).intersects(zone)]
+                strangers = [p for p in touched if pymupdf.Rect(p["rect"]) not in zone]
+                paths = [p for p in touched if pymupdf.Rect(p["rect"]) in zone]
+                targets = set(o["targets"]) if o.get("targets") else None
+                page.add_redact_annot(zone)
+                page.apply_redactions(images=pymupdf.PDF_REDACT_IMAGE_NONE, graphics=pymupdf.PDF_REDACT_LINE_ART_REMOVE_IF_TOUCHED,
+                                      text=pymupdf.PDF_REDACT_TEXT_NONE)
+                if strangers:
+                    _draw_paths(page, strangers, overlay=False)
+                if k == "draw_delete" or o.get("delete"):
+                    paths = [p for p in paths if targets is not None and p.get("seqno") not in targets]
+                    to = None
+                if paths:
+                    dest = to or r
+                    sx = dest.width / r.width if r.width else 1
+                    sy = dest.height / r.height if r.height else 1
+                    # sotto testi e immagini (sfondi, tabelle), salvo che il gruppo stia sopra un'immagine
+                    over = any(pymupdf.Rect(i["bbox"]).intersects(dest) for i in page.get_image_info())
+                    if targets is not None and to is not None:  # spostamento di singoli tracciati: gli altri restano fermi
+                        _draw_paths(page, [p for p in paths if p.get("seqno") not in targets], overlay=over)
+                        _draw_paths(page, [p for p in paths if p.get("seqno") in targets], dest.x0 - r.x0, dest.y0 - r.y0, sx, sy, r.x0, r.y0,
+                                    style=o.get("style"), overlay=over)
+                    else:
+                        _draw_paths(page, paths, dest.x0 - r.x0, dest.y0 - r.y0, sx, sy, r.x0, r.y0, style=o.get("style"), targets=targets, overlay=over)
+            # ---- annotazioni esistenti e nuove
+            elif k == "annot_update":
+                a = _find_annot(page, o["xref"])
+                if a:
+                    p = o.get("props") or {}
+                    if "stroke" in p or "fill" in p:
+                        cur = a.colors or {}
+                        a.set_colors(stroke=_rgb(p["stroke"], None) if "stroke" in p else cur.get("stroke"),
+                                     fill=_rgb(p["fill"], None) if "fill" in p else cur.get("fill"))
+                    if p.get("opacity") is not None:
+                        a.set_opacity(float(p["opacity"]))
+                    if p.get("width") is not None:
+                        try:
+                            a.set_border(width=float(p["width"]))
+                        except Exception:  # noqa: BLE001
+                            pass
+                    if "contents" in p:
+                        a.set_info(content=p["contents"])
+                    if to:
+                        try:
+                            a.set_rect(to)
+                        except Exception:  # noqa: BLE001
+                            pass
+                    a.update()
+            elif k == "annot_delete":
+                a = _find_annot(page, o["xref"])
+                if a:
+                    page.delete_annot(a)
+            elif k == "annot_add":
+                # sottolineato, barrato, ondulato, evidenziato sulle parole del riquadro; nota adesiva nel punto
+                t = o.get("type", "underline")
+                col = _rgb(o.get("color") or {"underline": "#1565c0", "strikeout": "#d32f2f", "squiggly": "#d32f2f", "highlight": "#ffeb3b"}.get(t, "#ffcc00"))
+                if t == "note":
+                    a = page.add_text_annot(r.tl, o.get("text", ""), icon="Note")
+                else:
+                    words = page.get_text("words", clip=r)
+                    if not words:
+                        raise ValueError("Nessun testo nel riquadro: trascina sopra le parole da segnare")
+                    quads = [pymupdf.Rect(w[:4]).quad for w in words]
+                    a = {"underline": page.add_underline_annot, "strikeout": page.add_strikeout_annot,
+                         "squiggly": page.add_squiggly_annot, "highlight": page.add_highlight_annot}[t](quads)
+                a.set_colors(stroke=col)
+                if o.get("opacity") is not None:
+                    a.set_opacity(float(o["opacity"]))
+                a.set_info(title=o.get("author") or "MB Visual")
+                a.update()
             elif k == "shape":
                 shp = page.new_shape()
                 kind = o.get("shape", "rect")

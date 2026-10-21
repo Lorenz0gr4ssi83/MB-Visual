@@ -184,11 +184,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def api_update_apply(self, qs):
         from . import update
-        self._json(update.apply())
+        self._json({"ok": True, "job": jobs.start(update.apply)})
 
     def api_update_install(self, qs):
         from . import update
-        self._json(update.install())
+        self._json({"ok": True, "job": jobs.start(update.install)})
 
     def api_update_source(self, qs):
         from . import update

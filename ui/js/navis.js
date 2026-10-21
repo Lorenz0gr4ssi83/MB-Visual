@@ -102,30 +102,55 @@ export function navisSheet(props, el, toast) {
   return el("div", {}, el("div", { style: { margin: "8px 0 4px" } }, copy), root);
 }
 
+// Copia invisibile di un elemento che usa gli stessi vertici del blocco unito (nessun dato duplicato): serve per
+// evidenziare, inquadrare e misurare l'elemento selezionato. box = riquadro dell'elemento [minx,miny,minz,maxx,maxy,maxz].
+export function sharedProxy(part, mat) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", part.geom.attributes.position);
+  if (part.geom.attributes.normal) g.setAttribute("normal", part.geom.attributes.normal);
+  g.setIndex(new THREE.BufferAttribute(part.all.subarray(part.start, part.start + part.count), 1));
+  const b = part.box;
+  g.boundingBox = new THREE.Box3(new THREE.Vector3(b[0], b[1], b[2]), new THREE.Vector3(b[3], b[4], b[5]));
+  g.boundingSphere = g.boundingBox.getBoundingSphere(new THREE.Sphere());
+  const m = new THREE.Mesh(g, mat);
+  m.visible = false;
+  m.userData.proxy = true;
+  m.raycast = () => {};
+  return m;
+}
+
 // Blocchi uniti per materiale. refresh() li ricostruisce saltando gli elementi nascosti (Nascondi, Isola, caselle
 // dell'albero); pick(oggetto, triangolo) restituisce l'elemento colpito.
-function buildBatches(root, batches) {
+export function buildBatches(root, batches) {
   const merged = [];
   for (const [mat, b] of batches) {
     let nv = 0, ni = 0;
     for (const p of b.parts) { nv += p.pos.length; ni += p.idx.length; }
     const pos = new Float32Array(nv);
+    const withNrm = b.parts.every(p => p.nrm); // normali gia' pronte (IFC): niente ricalcolo
+    const nrm = withNrm ? new Float32Array(nv) : null;
     const all = new Uint32Array(ni);
     const ranges = []; // per ogni parte: inizio e numero di indici nel blocco completo
     let ov = 0, oi = 0;
     for (const p of b.parts) {
       pos.set(p.pos, ov);
+      if (nrm) nrm.set(p.nrm, ov);
       const base = ov / 3;
       for (let k = 0; k < p.idx.length; k++) all[oi + k] = p.idx[k] + base;
       ranges.push([oi, p.idx.length, p.owner]);
+      p.start = oi;
+      p.count = p.idx.length;
       ov += p.pos.length;
       oi += p.idx.length;
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
     g.setIndex(new THREE.BufferAttribute(all, 1));
-    if (b.kind === "t") g.computeVertexNormals();
+    if (nrm) g.setAttribute("normal", new THREE.BufferAttribute(nrm, 3));
+    else if (b.kind === "t") g.computeVertexNormals();
     g.computeBoundingSphere();
+    // le parti possono condividere i dati del blocco (proxy senza copia: vedi sharedProxy); i dati sorgente si liberano
+    for (const p of b.parts) { p.geom = g; p.all = all; if (p.shared) { p.pos = p.nrm = p.idx = null; } }
     const obj = b.kind === "t" ? new THREE.Mesh(g, mat) : b.kind === "l" ? new THREE.LineSegments(g, mat) : new THREE.Points(g, mat);
     obj.userData.merged = { all, ranges, per: b.kind === "t" ? 3 : b.kind === "l" ? 2 : 1, owners: null };
     obj.name = "";
