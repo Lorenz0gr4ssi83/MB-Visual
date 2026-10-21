@@ -256,3 +256,22 @@ costumi (anche "meno vestiti"), pose audaci: permessi. safety_checker di diffuse
   (`_id` della richiesta): il motore si ferma al passo successivo (progress() solleva Cancelled; un calcolo ONNX o il
   caricamento di un modello non si spezzano).
 - Altri PC: `python tools/ia_setup.py` (Python 3.13 ARM64 o x64; CUDA se c'e' nvidia-smi) in %LOCALAPPDATA%\MBVisual\ia.
+
+## Firma digitale PAdES/CAdES (22/10/2026) - FATTO (prova con smart card vera: la fa l'utente)
+- `mbvisual/firma.py` (pyHanko 0.38, MIT): PAdES nei PDF (sottotipo ETSI.CAdES.detached; visibile con riquadro o invisibile;
+  campi Firma1, Firma2... con aggiornamento incrementale: le firme precedenti restano valide), CAdES .p7m / .p7s separata /
+  firma parallela su un .p7m (`_add_parallel` aggiunge il SignerInfo alla busta esistente) / busta annidata.
+  Marca temporale RFC 3161 (HTTPTimeStamper, URL/utente/password in %LOCALAPPDATA%\MBVisual\firma.json, password cifrata
+  con DPAPI). Dopo la firma verifica automatica con signed.py (+ apertura del PDF con PyMuPDF).
+- `mbvisual/winsign.py`: magazzino personale di Windows via ctypes (crypt32/ncrypt): CryptAcquireCertificatePrivateKey +
+  NCryptSignHash (RSA PKCS#1 v1.5, ECDSA) o CryptSignHash per i vecchi driver CryptoAPI; il PIN lo chiede Windows (finestra
+  agganciata a quella in primo piano), l'app non lo vede. Catena dagli intermedi presenti in Windows (senza rete).
+  `use_test_pfx` = SOLO collaudo: magazzino in memoria con chiave non salvata (stesso percorso NCrypt, nessun certificato
+  installato nel PC). Elenco: si nascondono i certificati solo di autenticazione; nell'interfaccia i non qualificati
+  (senza nonRepudiation, es. MS-Organization-Access) solo con "Mostra anche...".
+- API unica `api/firma?op=` (certificati, impostazioni, p12, anteprima, uscita; pades/cades = lavori in background).
+  Interfaccia `ui/js/firma.js` (anteprima della pagina da PyMuPDF, riquadro da trascinare); ingressi: pulsante Firma nel
+  PDF, "Aggiungi firma" nei .p7m, File -> Firma digitale... per qualsiasi file. Solo app per PC.
+- Collaudo: `python tests/test_firma.py [--tsa http://timestamp.digicert.com]` (21/21, 23/23 con marca): certificato
+  autofirmato di prova generato al momento. In un browser di prova con piu' server MB Visual aperti il cookie di
+  127.0.0.1 e' condiviso tra le porte: usare http://localhost:<porta>/?t=... per non avere "non autorizzato".

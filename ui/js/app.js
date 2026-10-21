@@ -222,6 +222,7 @@ function fileMenu(anchor) {
     item(ICON_SAVE, "Salva", "Ctrl+S", () => save(false), !active),
     item(ICON_SAVEAS, "Salva con nome...", "Ctrl+Maiusc+S", () => save(true), !active),
     item('<svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM6 9h2M10 9h2M14 9h2M18 9h0M6 13h12"/></svg>', "Scorciatoie da tastiera", "F1", showShortcuts));
+  if (!WEB) m.append(item('<svg viewBox="0 0 24 24"><path d="M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18"/></svg>', "Firma digitale...", "", () => import("./firma.js").then(f => f.signDialog({ path: active.path, openFile })), !active?.path)); // ui/js/firma.js
   if (WEB && window.MBV_MOBILE) m.append(el("hr"), item(ICON_ACCOUNT, "Account e licenza...", "", showAccount)); // app per cellulari con licenza
   if (!WEB) {
     m.append(el("hr"), item(ICON_ACCOUNT, "Account e licenza...", "", showAccount), item(ICON_UPD, "Verifica aggiornamenti", "", () => checkUpdates(true)));

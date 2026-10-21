@@ -1,5 +1,5 @@
 // Documenti firmati (p7m, p7s, tsd, m7m, p7c/p7b): dati dei firmatari, verifica, documento contenuto.
-import { api, button, el, loading, pickSavePath, readBytes, toast } from "../core.js";
+import { api, button, el, loading, pickSavePath, readBytes, toast, WEB } from "../core.js";
 
 const yes = (v, okText, badText, nullText = "Non verificabile") =>
   v === true ? el("span", { class: "chip ok" }, okText) : v === false ? el("span", { class: "chip bad" }, badText) : el("span", { class: "chip mute" }, nullText);
@@ -73,6 +73,7 @@ export async function mount(ctx) {
   wrap.append(el("p", { style: { color: "var(--muted)", fontSize: "12.5px", margin: 0 } }, r.avviso));
   ctx.el.append(wrap);
 
+  if (!WEB && signers.length && r.contenuto) ctx.tb.append(button("Aggiungi firma", "sign", () => import("../firma.js").then(m => m.signDialog({ path: ctx.path, openFile: ctx.openFile })), { title: "Firma parallela o controfirma con smart card, token o file .p12" }));
   ctx.tb.append(r.contenuto ? button("Apri il documento contenuto", "open", () => ctx.openFile(r.contenuto)) : el("span"),
     el("span", { class: "grow" }), el("span", { class: "note" }, "Il documento contenuto si modifica nel suo editor e si salva come nuovo file (la firma non resta valida sul file modificato)."));
   // apertura automatica del contenuto in una scheda accanto

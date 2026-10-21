@@ -18,4 +18,5 @@ markdown
 openpyxl
 brotli
 ezdxf
+pyHanko==0.38.0  # firma digitale PAdES/CAdES (MIT; porta pyhanko-certvalidator MIT, aiohttp Apache-2.0, oscrypto MIT, uritools MIT) - mbvisual/firma.py
 pystray==0.19.5  # area di notifica e avvisi di MB Visual Admin (admin/)

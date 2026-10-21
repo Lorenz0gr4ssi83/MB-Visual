@@ -91,6 +91,7 @@ export async function mount(ctx) {
       if (await ask("Timbro in alto a destra", [el("label", { style: { display: "grid", gap: "4px" } }, "Testo del timbro (una riga per riga)", f), p.row])) run("stamp", { text: f.value, mode: "timbro", pages: p.input.value }, stem + "_timbrato.pdf");
     }, "Riquadro di testo in alto a destra (approvazione, revisione, data)"],
   ];
+  if (!WEB) tools.push(["Firma", "sign", () => import("../firma.js").then(m => m.signDialog({ path: ctx.path, openFile: ctx.openFile })), "Firma digitale PAdES o CAdES con smart card, CNS, token USB o file .p12 (si firma il file salvato)"]);
   // ---- editor (solo app per PC: motore PyMuPDF): barra sempre visibile sotto la barra principale, pannello a destra
   let backHandler = null;
   if (ed) {

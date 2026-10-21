@@ -546,6 +546,15 @@ class Handler(BaseHTTPRequestHandler):
     def api_pdf_signatures(self, qs):
         self._json(signed.pdf_signatures(self._path(qs)))
 
+    def api_firma(self, qs):
+        # firma digitale (mbvisual/firma.py, ui/js/firma.js): certificati, impostazioni, anteprima; firma = lavoro in background
+        from . import firma
+        op, b = _q(qs, "op"), self._body_json()
+        if op in ("pades", "cades"):
+            fn = firma.sign_pdf if op == "pades" else firma.sign_cades
+            return self._json({"ok": True, "job": jobs.start(fn, b["path"], b["out"], b)})
+        self._json(firma.run(op, b))
+
     # ------------------------------------------------------------ pubblicazioni (editor in stile Publisher)
     def api_pub_pdf(self, qs):
         from . import publisher

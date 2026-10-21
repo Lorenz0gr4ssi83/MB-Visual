@@ -137,7 +137,9 @@ def _timestamp_from_token(token_der_or_ci) -> dict | None:
         tsa = None
         certs = [c.chosen for c in ci["content"]["certificates"] or [] if c.name == "certificate"]
         if certs:
-            tsa = cert_info(certs[0])["nome"]
+            sis = ci["content"]["signer_infos"]
+            tsa_cert = (_find_signer_cert(sis[0]["sid"], certs) if len(sis) else None) or certs[0]
+            tsa = cert_info(tsa_cert)["nome"]
         return {"data": _fmt_time(tst["gen_time"].native), "autorita": tsa}
     except Exception:
         return None
@@ -341,6 +343,9 @@ def pdf_signatures(path: str) -> dict:
             ci = cms.ContentInfo.load(blob)
             info, _ = analyze_signed_data(ci, signed)
             info["copre_intero_file"] = (c + d) == len(data)
+            for s in info["firmatari"]:  # nel PDF la busta CAdES e' una firma PAdES (B se semplice, T con marca temporale)
+                if s.get("tipo") == "CAdES-BES":
+                    s["tipo"] = "PAdES-T" if s.get("marca_temporale") else "PAdES-B"
             sigs.append(info)
         except Exception as e:  # noqa: BLE001
             sigs.append({"errore": str(e)})
