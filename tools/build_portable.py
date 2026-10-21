@@ -34,6 +34,13 @@ def publish(final: Path, info: dict) -> None:
 
 
 def main() -> int:
+    if "--solo-pubblica" in sys.argv:  # ripete solo la copia in App per PC dell'ultima build
+        final = DIST / NAME
+        info = json.loads((final / "_internal" / "build.json").read_text(encoding="utf-8"))
+        files = [p for p in (final / "_internal").rglob("*") if p.is_file()]
+        info.update(file=len(files), byte=sum(p.stat().st_size for p in files))
+        publish(final, info)
+        return 0
     import imageio_ffmpeg
     ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
     sep = os.pathsep
