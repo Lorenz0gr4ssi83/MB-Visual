@@ -770,6 +770,15 @@ class Handler(BaseHTTPRequestHandler):
         b = self._body_json()
         self._json(office.save_docx_from_html(b["html"], self._path(qs), b.get("title", "")))
 
+    # ------------------------------------------------------------ formati aggiuntivi (DICOM, certificati, dati scientifici, iWork, Revit): mbvisual/formati.py
+    def api_fx(self, qs):
+        from . import formati
+        r = formati.handle(_q(qs, "op", ""), self._path(qs) if _q(qs, "path") else None, qs, self._body())
+        if isinstance(r, tuple):
+            data, hdr = r
+            return self._send(200, data, hdr.pop("Content-Type", "application/octet-stream"), {**hdr, "Access-Control-Expose-Headers": "*"})
+        self._json(r)
+
     # ------------------------------------------------------------ email / sqlite
     def api_email(self, qs):
         self._json(misc.read_email(self._path(qs)))

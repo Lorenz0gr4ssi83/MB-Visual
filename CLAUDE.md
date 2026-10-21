@@ -700,3 +700,34 @@ gia' presente). Categorie `inventor` (ipt, iam -> model3d) e `inventor-doc` (idw
   scheda da 98 MB; tavole .idw ok). Script di prova nella cartella scratchpad della sessione (non nel repo).
 - Da provare con file dell'utente: nessun file Inventor sul PC. Mai visti: file pre-2010 ("ACIS BinaryFile" vecchio), .ipn,
   saldature (geometria nell'assieme), pattern di componenti, componenti soppressi, sostituzioni di colore nell'assieme.
+
+## Formati aggiuntivi (22/10/2026) - FATTO
+DICOM, calendari, contatti, certificati, Apple iWork, plotter HP-GL, HDF5/NetCDF/Parquet/Arrow, Revit. Registro con
+`python tools/add_fx_formats.py` (rilanciabile: toglie e rimette le 8 categorie; sposta ics/vcf/cer/crt/pem/csr da "text"
+e p7b da "signed"), poi `tools/gen_elenco.py`. Backend: UNA sola API `api/fx?op=...` (server.py `api_fx` -> `mbvisual/formati.py`,
+che ritorna JSON oppure (byte, intestazioni) per i dati binari). Stili in `ui/css/formati.css`. Riconoscimento dal contenuto
+in `misc.sniff`: kind `dicom` (DICM a 128), `scidata` (CDF/HDF5), `iwork` (`_is_iwork` legge l'indice dello zip).
+I DICOM SENZA estensione (o con nome numerico) si aprono col visualizzatore DICOM se il contenuto lo conferma (app.js resolveCategory).
+- DICOM `fx_dicom.py` + `viewers/dicom.js`: serie = file della cartella con lo stesso SeriesInstanceUID (anche senza
+  estensione), ordinati lungo la normale; DICOMDIR (nome senza estensione -> NAME_AS_EXT dicomdir). Pixel con LUT di
+  modalita' mandati grezzi (i16/f32 o RGB u8, intestazioni X-W/X-H/X-C/X-T): finestra/livello nel browser con LUT a 65536 voci.
+  Compressi via python-gdcm. Tasto destro = finestra, centrale = sposta, rotella = sezioni, Ctrl+rotella = zoom.
+- Certificati `fx_cert.py` + `viewers/cert.js`: la password .p12 va solo nel corpo della richiesta di lettura; le
+  esportazioni (PEM/CRT/CER/P7B/TXT) usano i PEM pubblici gia' letti, mai la password. Catena verificata con
+  `verify_directly_issued_by`, poi archivio di Windows (ssl.enum_certificates ROOT/CA).
+- Calendari/contatti `ui/js/pim.js` (iCalendar con RRULE/EXDATE/fusi IANA e Windows, vCard 2.1-4.0 con quoted-printable e foto),
+  `viewers/calendar.js`, `viewers/contacts.js`: funzionano anche nella web app; PDF via `html_pdf` (PyMuPDF Story), Excel via `xlsx`.
+- HP-GL `ui/js/hpgl.js` (interprete scritto da zero: PE compresso base 64/32, PM/FP, CI/AA/AT, SC/IP, LB, PC/PW, RO) +
+  `viewers/hpgl.js`; SVG in mm, PDF = SVG -> PyMuPDF (`svg_pdf`) a dimensione reale.
+- Dati `fx_sci.py` + `viewers/scidata.js`: HDF5/NetCDF-4 con h5py, NetCDF 3 letto a mano (classe NC3, anche CDF-5),
+  Parquet a gruppi di righe, Feather/Arrow; grafico (serie o mappa) da un campione con passo.
+- iWork `fx_iwork.py` + `viewers/iwork.js`: Snappy + protobuf scritti a mano. Testi = oggetti tipo 2001 (TSWP.StorageArchive,
+  campo 3); tabelle Numbers = 6001 (modello) -> tile 6002 -> celle; formato celle v4 (2013-2018) decifrato e verificato
+  sui file di Tika; v5 (dal 2019, campi 6/7 delle righe) scritto ma NON collaudato (manca un file di prova).
+  iWork '09 = XML (index.xml/index.apxl). Anteprime: preview.jpg, QuickLook/Thumbnail.jpg, QuickLook/Preview.pdf.
+- Revit `fx_revit.py` + `viewers/revit.js`: olefile; BasicFileInfo (versione, build, condivisione, centrale), RevitPreview4.0 (PNG),
+  PartAtom (famiglie: categoria, parametri, tipi), TransmissionData (collegamenti esterni). Geometria non leggibile.
+- Prove: `python tools/make_fx_samples.py [--pubblici]` -> tests/samples/fx (campioni generati + `pubblici/` da Apache Tika e
+  DynamoRevit, Apache-2.0, vedi FONTI.md), poi `python tests/test_fx_formats.py` (46 controlli).
+- Librerie nuove (requirements.txt + hidden import in build_portable.py): pydicom MIT, python-gdcm Apache-2.0/BSD, h5py BSD-3,
+  pyarrow Apache-2.0, olefile BSD-2.

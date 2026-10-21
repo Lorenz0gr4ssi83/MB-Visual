@@ -459,6 +459,7 @@ async function handle(route, p = {}, opts = {}) {
     case "sqlite_schema": return sqliteSchema(path);
     case "sqlite_query": return sqliteQuery(path, body);
     case "office_convert": return NOT_HERE(tr("webapi.conversione_formati_office_libreoffice"));
+    case "fx": return NOT_HERE(tr("webapi.lettura_formati_fx"));
     case "list_dir": return NOT_HERE(tr("webapi.l_esplorazione_cartelle"));
     case "reveal": case "open_external": return NOT_HERE(tr("webapi.l_apertura_altri_programmi"));
     case "job": return { ok: false, errore: tr("webapi.nessun_lavoro_corso") };

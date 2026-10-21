@@ -14,6 +14,8 @@ const VIEWER_NAMES = {
   external: tr("app.programma_esterno"), archive: tr("app.archivio"), email: tr("app.email"), epub: "eBook", font: "Font",
   sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), visio: tr("app.diagramma_visio"), gis: tr("app.mappa_gis"), bcf: tr("app.segnalazioni_bim_bcf"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"), compare: tr("app.confronto_revisioni"),
   solidcad: tr("app.solidworks_solid_edge"),
+  dicom: tr("app.immagine_medica_dicom"), calendar: tr("app.calendario"), contacts: tr("app.contatti"), cert: tr("app.certificato_digitale"),
+  iwork: "Apple iWork", hpgl: tr("app.plotter_hpgl"), scidata: tr("app.dati_scientifici"), revit: "Revit",
 };
 // documenti che sul PC si aprono nell'editor ONLYOFFICE integrato (modifica completa come nei programmi originali)
 const OO_EXTS = new Set(["docx", "docm", "dotx", "dotm", "doc", "dot", "rtf", "odt", "ott", "fodt", "xlsx", "xlsm", "xltx", "xltm", "xls", "xlt", "ods", "fods", "csv",
@@ -24,9 +26,10 @@ const SNIFF_FAMILY = {
   zip: ["word", "sheet", "pptx", "publisher", "visio", "office-lo", "archive", "mesh3d", "ebook"], sqlite: ["database"],
   ole: ["publisher", "visio", "office-lo", "sheet", "email", "archive", "image", "solidcad"], cad2d: ["cad2d"], ifc: ["mesh3d"], cad3d: ["cad3d"],
   mesh3d: ["mesh3d"], pointcloud: ["pointcloud"], font: ["font"], svg: ["svg"], html: ["html"], email: ["email"], vis3d: ["vis3d"],
+  dicom: ["dicom"], iwork: ["iwork"], scidata: ["scidata"], cert: ["cert"],
 };
 const NAME_AS_EXT = { makefile: "makefile", dockerfile: "dockerfile", containerfile: "containerfile", license: "txt", readme: "txt",
-  ".gitignore": "gitignore", ".gitattributes": "gitattributes", ".editorconfig": "editorconfig", ".env": "env", ".htaccess": "htaccess" };
+  ".gitignore": "gitignore", ".gitattributes": "gitattributes", ".editorconfig": "editorconfig", ".env": "env", ".htaccess": "htaccess", dicomdir: "dcm" };
 
 let REG = null;          // formats.json
 let EXT = new Map();     // estensione -> [categorie]
@@ -54,6 +57,8 @@ function extFor(name) {
 export function resolveCategory(name, sniff) {
   const ext = extFor(name);
   const cands = EXT.get(ext) || [];
+  // immagini DICOM senza estensione (IM000001 dei CD medici, o con UID numerici come nome): riconosciute dal contenuto
+  if (!cands.length && (!ext || /^\d+$/.test(ext)) && sniff?.kind === "dicom") return { cat: REG.categories.find(c => c.id === "dicom") || null, ext };
   if (!cands.length) return { cat: null, ext };
   if (cands.length === 1) return { cat: cands[0], ext };
   // dati geografici: precedenza alla mappa GIS (TIFF e ZIP solo se georeferenziati / con shapefile: vedi gisViewer)
@@ -76,7 +81,8 @@ export function resolveCategory(name, sniff) {
 // ------------------------------------------------------------------ badge per tipo di file
 const BADGE_COLOR = { pdf: "pdf", signed: "sig", word: "doc", "office-lo": "doc", sheet: "xls", pptx: "ppt", publisher: "cad", visio: "doc", cad2d: "cad",
   cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", inventor: "3d", "inventor-doc": "cad", solidcad: "3d", vis3d: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", videoproject: "av", bcf: "3d",
-  archive: "zip", email: "mail", text: "code", markdown: "code", html: "code", ebook: "code", font: "code", database: "db", gis: "img" };
+  archive: "zip", email: "mail", text: "code", markdown: "code", html: "code", ebook: "code", font: "code", database: "db", gis: "img",
+  dicom: "img", calendar: "mail", contacts: "mail", cert: "sig", iwork: "doc", hpgl: "cad", scidata: "db", revit: "3d" };
 export function badgeFor(name, isDir = false) {
   if (isDir) return el("span", { class: "badge" }, "DIR");
   const { cat, ext } = resolveCategory(name, null);

@@ -75,6 +75,10 @@ def main() -> int:
         "--hidden-import", "mbvisual.pointcloud", "--collect-submodules", "laspy", "--hidden-import", "lazrs",
         "--collect-all", "pye57", "--hidden-import", "pyquaternion",
         "--hidden-import", "mbvisual.search", "--hidden-import", "mbvisual.search_extract", "--hidden-import", "olefile",  # ricerca nel progetto
+        # formati aggiuntivi (mbvisual/formati.py): DICOM (pydicom + GDCM), HDF5 (h5py), Parquet/Arrow (pyarrow), Revit (olefile)
+        "--hidden-import", "mbvisual.formati", "--hidden-import", "mbvisual.fx_dicom", "--hidden-import", "mbvisual.fx_cert",
+        "--hidden-import", "mbvisual.fx_sci", "--hidden-import", "mbvisual.fx_iwork", "--hidden-import", "mbvisual.fx_revit",
+        "--collect-submodules", "pydicom", "--collect-all", "gdcm", "--collect-submodules", "h5py", "--collect-submodules", "pyarrow", "--hidden-import", "olefile",
         "--exclude-module", "tkinter", "--exclude-module", "matplotlib",
         # moduli opzionali di PyMuPDF non usati (onnxruntime va in crash durante l analisi su Windows ARM)
         "--exclude-module", "onnxruntime", "--exclude-module", "pymupdf4llm", "--exclude-module", "pymupdf.layout", "--exclude-module", "pymupdf_layout",

@@ -260,6 +260,18 @@ def sqlite_query(path: str, sql: str, params=None, limit: int = 1000, write: boo
 
 
 # ---------------------------------------------------------------- tipo reale
+def _is_iwork(path: str) -> bool:
+    """Zip di Apple iWork (Pages/Numbers/Keynote '09 o 2013+, anche pacchetto con Index.zip): dall'indice dello zip."""
+    import zipfile
+    try:
+        with zipfile.ZipFile(path) as z:
+            names = z.namelist()
+    except Exception:
+        return False
+    return any(n.startswith("Index/") and n.endswith(".iwa") or n.endswith(("/Index.zip", "index.apxl", "index.apxl.gz"))
+               or n.lower() == "buildversionhistory.plist" or n == "Metadata/BuildVersionHistory.plist" for n in names[:5000])
+
+
 def sniff(path: str) -> dict:
     """Riconosce il tipo reale di un file dai primi byte. Ritorna {'kind': ..., 'descr': ...}."""
     try:
@@ -272,6 +284,9 @@ def sniff(path: str) -> dict:
     h = head
     tests = [
         (h.startswith(b"%PDF"), "pdf", tr("srv_misc.documento_pdf")),
+        (h.startswith(b"PK\x03\x04") and _is_iwork(path), "iwork", tr("srv_misc.documento_apple_iwork")),
+        (h[128:132] == b"DICM", "dicom", tr("srv_misc.immagine_medica_dicom")),
+        (h.startswith((b"CDF\x01", b"CDF\x02", b"CDF\x05", b"\x89HDF\r\n\x1a\n")), "scidata", tr("srv_misc.dati_netcdf_hdf5")),
         (h.startswith(b"PK\x03\x04") or h.startswith(b"PK\x05\x06"), "zip", tr("srv_misc.archivio_zip_documento_office_opendocument")),
         (h.startswith(b"7z\xbc\xaf\x27\x1c"), "archive", tr("srv_misc.archivio_7_zip")),
         (h.startswith(b"Rar!\x1a\x07"), "archive", tr("srv_misc.archivio_rar")),
