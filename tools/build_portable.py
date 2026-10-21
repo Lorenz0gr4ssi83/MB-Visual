@@ -67,6 +67,8 @@ def main() -> int:
         # editor CAD (ezdxf) e OCR con il motore di Windows (winrt)
         "--hidden-import", "mbvisual.cadedit", "--hidden-import", "mbvisual.update", "--collect-all", "ezdxf", "--exclude-module", "winrt",
         "--add-data", f"{ROOT / 'mbvisual' / 'ocr.ps1'}{sep}mbvisual",
+        # motore IA: script eseguito dal Python dedicato (ambiente e modelli in %LOCALAPPDATA%\MBVisual\ia), non dall'exe
+        "--add-data", f"{ROOT / 'ia' / 'engine.py'}{sep}ia", "--hidden-import", "mbvisual.ia",
         "--exclude-module", "tkinter", "--exclude-module", "matplotlib",
         # moduli opzionali di PyMuPDF non usati (onnxruntime va in crash durante l analisi su Windows ARM)
         "--exclude-module", "onnxruntime", "--exclude-module", "pymupdf4llm", "--exclude-module", "pymupdf.layout", "--exclude-module", "pymupdf_layout",

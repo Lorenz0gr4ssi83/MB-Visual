@@ -11,6 +11,7 @@ import { keymap, describeKeys } from "./shortcuts.js";
 import { psIcon } from "./psicons.js";
 import { ADJ, FILTERS, makeAdjust, autoAdjust, histogram, adjustControls, filterControls, blurCanvas, mkCanvas, hexToRgb, rgbToHex, lum } from "./imgadjust.js";
 import { BLENDS, readPsd, writePsd, readOra, writeOra } from "./imgfile.js";
+import { aiMenu, genFill, removeObj } from "./aiedit.js";
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const g2 = c => c.getContext("2d");
@@ -1838,6 +1839,15 @@ export function createEditor(ctx, init) {
   const noSel = () => !sel, noLayer = () => !cur(), noMask = () => !cur()?.mask;
   const adjItems = () => [...Object.entries(ADJ).map(([k, a]) => ({ label: a.name + (k === "invert" ? "" : "..."), keys: a.keys, run: () => runAdjust(k) })),
     "-", { label: "Togli saturazione", keys: "Ctrl+Shift+U", run: () => quickAdjust("desaturate") }];
+  // accesso del menu IA all'editor: documento appiattito, selezione, livelli nuovi, dimensione del quadro
+  const aiHost = {
+    ctx, size: () => [W, H], version: () => ver, flatten: () => flatten(), selMask: () => sel?.c || null,
+    setSel: (c, name) => { endText(true); sel = makeSel(c); if (sel) lastSel = sel; invalidate(); commit(name || "Selezione IA"); },
+    addLayer: (c, x, y, name) => { endText(true); addLayer({ c, x, y, name }, layers.length, name); },
+    canvasSize: (nw, nh, ax, ay) => canvasSize(nw, nh, ax, ay, null),
+    hideBelowTop: () => { layers.forEach((L, i) => { if (i < layers.length - 1) L.visible = false; }); invalidate(); commit("Nascondi originale"); },
+    openResult: p => ctx.openFile(p),
+  };
   const MENUS = {
     Modifica: () => [
       { label: "Annulla" + (hi > 0 ? " " + history[hi].name : ""), keys: "Ctrl+Z", run: undo, disabled: () => hi <= 0 },
@@ -1889,6 +1899,8 @@ export function createEditor(ctx, init) {
       return [{ label: lastFilter ? "Ultimo filtro: " + FILTERS[lastFilter.id].name.replace("...", "") : "Ultimo filtro", keys: "Ctrl+Alt+F", run: () => lastFilter && runFilter(lastFilter.id, true), disabled: () => !lastFilter }, "-",
         ...Object.entries(groups).map(([g, items]) => ({ label: g, sub: () => items }))];
     },
+    // funzioni IA del motore locale (ui/js/aiedit.js): solo nell'app per PC
+    ...(WEB ? {} : { IA: () => aiMenu(aiHost) }),
     Visualizza: () => [
       { label: "Zoom avanti", keys: "Ctrl+Plus", run: () => zoomStep(1) }, { label: "Zoom indietro", keys: "Ctrl+Minus", run: () => zoomStep(-1) },
       { label: "Adatta allo schermo", keys: "Ctrl+0", run: () => fit(true) }, { label: "100%", keys: "Ctrl+1", run: () => setZoom(1) }, "-",
@@ -1941,6 +1953,10 @@ export function createEditor(ctx, init) {
     ["Alt+clic", "Timbro clone: imposta l'origine", "Strumenti"], ["Maiusc+clic", "Pennello/gomma: linea retta dall'ultimo punto", "Strumenti"], ["Ctrl+clic", "Strumento Sposta: seleziona il livello sotto il puntatore", "Strumenti"],
     ["Ctrl+clic sulla miniatura", "Carica la trasparenza del livello come selezione", "Livelli"], ["Alt+clic sull'occhio", "Mostra solo questo livello", "Livelli"],
     ["Alt+rotella / Ctrl+rotella", "Zoom nel punto del puntatore", "Vista"], ["Ctrl+V", "Incolla come nuovo livello (anche dagli appunti di Windows)", "Modifica"]]);
+  if (!WEB) {
+    K("Ctrl+Shift+G", "Riempimento generativo (IA) nella selezione", () => genFill(aiHost), "IA");
+    K("Ctrl+Shift+R", "Rimuovi oggetto (IA) nella selezione", () => removeObj(aiHost), "IA");
+  }
   K("D", "Colori predefiniti (nero / bianco)", defaultColors, "Colori");
   K("X", "Inverti primo piano e sfondo", swapColors, "Colori");
   K("[|Ctrl+Alt+[", "Pennello piu' piccolo", () => brushSize(s => (s > 100 ? s * 0.9 : s - (s > 10 ? 5 : 1))), "Pennello");

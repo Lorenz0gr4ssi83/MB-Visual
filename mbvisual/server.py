@@ -201,6 +201,23 @@ class Handler(BaseHTTPRequestHandler):
         b = self._body_json()
         self._json(lic.request(b.get("type", "report"), str(b.get("message", "")), str(b.get("key", ""))))
 
+    # ------------------------------------------------------------ API: motore IA (mbvisual/ia.py -> ia/engine.py)
+    def api_ia_status(self, qs):
+        from . import ia
+        self._json(ia.status())
+
+    def api_ia_put(self, qs):
+        from . import ia
+        self._json({"ok": True, "path": ia.put(self._body())})
+
+    def api_ia_run(self, qs):
+        from . import ia
+        b = self._body_json()
+        for k in ("image", "mask"):  # solo file passati dall'app (cartella temporanea dell'IA)
+            if b.get(k) and not str(Path(b[k]).resolve()).startswith(str(ia.OUT.resolve())):
+                raise ValueError("Percorso non consentito")
+        self._json({"ok": True, "job": jobs.start(ia.run, b)})
+
     def api_update_check(self, qs):
         from . import update
         self._json(update.check())
