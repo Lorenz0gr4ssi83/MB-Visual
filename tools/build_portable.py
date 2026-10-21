@@ -1,7 +1,8 @@
 """Crea la versione portatile di MB Visual (cartella con MBVisual.exe, nessuna installazione richiesta).
 
 Uso:  C:\\Users\\<utente>\\.mbvisual\\venv\\Scripts\\python.exe tools\\build_portable.py
-Risultato: C:\\Users\\<utente>\\.mbvisual\\dist\\MB Visual\\  +  "MB Visual - portatile.zip" nella cartella del progetto.
+Risultato: C:\\Users\\<utente>\\.mbvisual\\dist\\MB Visual\\  +  "MB Visual - portatile.zip" (stessa cartella dist, fuori da OneDrive),
+poi copia incrementale in "App per PC" (solo i file cambiati).
 La compilazione avviene fuori da OneDrive (migliaia di file); nel progetto finisce solo lo zip.
 """
 import datetime
@@ -23,12 +24,13 @@ PUBLISH = ROOT / "App per PC"  # cartella su OneDrive da cui gli altri PC si agg
 
 def publish(final: Path, info: dict) -> None:
     """Copia la build in "App per PC"; versione.json per ultimo, quando tutti i file sono gia' al loro posto."""
+    sys.path.insert(0, str(ROOT / "tools"))
+    from synctree import sync_tree
     PUBLISH.mkdir(exist_ok=True)
     (PUBLISH / "versione.json").unlink(missing_ok=True)
-    for args in ([str(final / "_internal"), str(PUBLISH / "_internal"), "/MIR"], [str(final), str(PUBLISH), "MBVisual.exe", "LEGGIMI.txt"]):
-        rc = subprocess.run(["robocopy", *args, "/R:3", "/W:2", "/NP", "/NFL", "/NDL", "/NJH"], check=False).returncode
-        if rc >= 8:
-            raise SystemExit(f"robocopy non riuscito ({rc})")
+    # solo i file con contenuto cambiato: OneDrive ricarica pochi MB invece di 1 GB a ogni versione
+    st = sync_tree(final, PUBLISH, keep=("MBVisual.lnk",))
+    print("Copia in App per PC:", st)
     (PUBLISH / "versione.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
     print("Pubblicata in", PUBLISH, info)
 
@@ -107,7 +109,7 @@ def main() -> int:
         "Consigliato: dal menu Apri scegli 'Installa su questo PC' (collegamenti su Desktop e menu Start).\r\n", encoding="utf-8")
     files = [p for p in (final / "_internal").rglob("*") if p.is_file()]
     info.update(file=len(files), byte=sum(p.stat().st_size for p in files))
-    zpath = ROOT / f"{NAME} - portatile.zip"
+    zpath = DIST / f"{NAME} - portatile.zip"  # fuori da OneDrive: 450 MB riscritti a ogni build
     if zpath.exists():
         zpath.unlink()
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:

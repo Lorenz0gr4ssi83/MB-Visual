@@ -7,6 +7,7 @@ Uso:  python tools/build_web.py
 """
 import io
 import json
+import sys
 import re
 import shutil
 import tarfile
@@ -203,11 +204,11 @@ def main() -> None:
     n = len({e for c in json.loads((OUT / "formats.json").read_text(encoding="utf-8"))["categories"] for e in c["exts"]})
     size = sum(p.stat().st_size for p in OUT.rglob("*") if p.is_file())
     big = [p for p in OUT.rglob("*") if p.is_file() and p.stat().st_size > 50 * 1024 * 1024]
-    import subprocess
-    r = subprocess.run(["robocopy", str(OUT), str(FINAL), "/MIR", "/R:3", "/W:2", "/NFL", "/NDL", "/NJH", "/NJS", "/NP"], capture_output=True)
-    if r.returncode >= 8:
-        raise SystemExit("Copia in docs/ non riuscita: " + r.stdout.decode("cp850", "replace")[-500:])
-    print(f"web app in {FINAL}: {n} estensioni, {size / 1048576:.0f} MB, file oltre 50 MB: {len(big)}")
+    # copia incrementale: in docs/ (su OneDrive) si scrivono solo i file cambiati
+    sys.path.insert(0, str(ROOT / "tools"))
+    from synctree import sync_tree
+    st = sync_tree(OUT, FINAL)
+    print(f"web app in {FINAL}: {n} estensioni, {size / 1048576:.0f} MB, file oltre 50 MB: {len(big)} · {st}")
 
 
 if __name__ == "__main__":
