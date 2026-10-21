@@ -225,7 +225,7 @@ table.grid tr:hover td { background: color-mix(in srgb, var(--accent-soft) 45%, 
 .statusbar #st-path { overflow: hidden; text-overflow: ellipsis; min-width: 0; color: var(--chrome-fg); }
 
 /* ---------------------------------------------------------------- overlay, finestre, avvisi */
-.overlay { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 18%, transparent); pointer-events: none; }
+.overlay { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 18%, transparent); } /* raccoglie il trascinamento anche sopra i documenti aperti (iframe) */
 .overlay div { padding: 22px 38px; border-radius: 12px; background: var(--panel-2); border: 2px dashed var(--accent); font-size: 19px; font-weight: 600; box-shadow: var(--shadow); }
 .modal-back { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; background: rgba(10, 12, 14, .42); }
 .modal { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 20px 22px; width: min(600px, 94vw); max-height: 86vh; overflow: auto; display: grid; gap: 14px; }

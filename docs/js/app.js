@@ -640,14 +640,20 @@ function setupBack() {
 
 // ------------------------------------------------------------------ trascinamento
 function setupDrop() {
-  let depth = 0;
+  // "Rilascia per aprire": acceso finche' arrivano gli eventi dragover (ogni ~50 ms mentre si trascina sopra la
+  // finestra) e spento poco dopo l'ultimo. Il vecchio conteggio entra/esci si sballava passando sopra i documenti
+  // aperti (iframe) o uscendo dalla finestra senza rilasciare, e l'avviso restava acceso.
+  let timer = 0;
   const show = v => ($("dragover").hidden = !v);
-  window.addEventListener("dragenter", e => { if (e.dataTransfer?.types?.includes("Files")) { depth++; show(true); } });
-  window.addEventListener("dragleave", () => { depth = Math.max(0, depth - 1); if (!depth) show(false); });
-  window.addEventListener("dragover", e => { e.preventDefault(); });
+  const isFiles = e => [...(e.dataTransfer?.types || [])].includes("Files");
+  const keep = () => { show(true); clearTimeout(timer); timer = setTimeout(() => show(false), 250); };
+  window.addEventListener("dragenter", e => { if (isFiles(e)) keep(); });
+  window.addEventListener("dragover", e => { e.preventDefault(); if (isFiles(e)) keep(); });
+  window.addEventListener("dragleave", e => { if (!e.relatedTarget) { clearTimeout(timer); timer = setTimeout(() => show(false), 80); } });
+  window.addEventListener("dragend", () => { clearTimeout(timer); show(false); });
   window.addEventListener("drop", async e => {
     e.preventDefault();
-    depth = 0;
+    clearTimeout(timer);
     show(false);
     if (isDesktop()) return; // nell'app desktop i percorsi arrivano dal motore (on_drop)
     // modalita' browser: carica i file in una cartella temporanea
