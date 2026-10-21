@@ -478,3 +478,5 @@ File -> Stampa (Ctrl+P, anche il pulsante/Ctrl+P di pdf.js) e Stampa a lotti (Ct
   Prove dalla console: `document.querySelector(".pr-back").__pr` (S impostazioni, addList, comp).
 - Nota prove nel browser: piu' sessioni con il server su 127.0.0.1 si sovrascrivono il cookie "mbv" (porte diverse,
   stesso host): nelle prove aggiungere `t=` alle richieste /api.
+- ezdxf tronca il foglio ai punti interi (297 mm -> 841 pt) e scala il disegno su quel valore: in compose la pagina di
+  ezdxf si posa con il fattore esatto (A0 a 1:10: 1000,003 mm invece di 999,4). Testi: chiavi `print.*` e `srv_stampa.*`.

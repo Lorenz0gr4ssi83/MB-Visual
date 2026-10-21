@@ -30,6 +30,7 @@ from ctypes import wintypes
 from pathlib import Path
 
 from .paths import TEMP_DIR
+from .i18n import t
 
 PDF_VIRTUAL = "__pdf__"
 MM = 72 / 25.4          # punti per millimetro
@@ -63,7 +64,7 @@ def printers() -> dict:
         default = win32print.GetDefaultPrinter()
     except Exception:  # noqa: BLE001
         default = names[0] if names else ""
-    lst = [{"name": PDF_VIRTUAL, "label": "PDF vettoriale (MB Visual)", "virtual": True}]
+    lst = [{"name": PDF_VIRTUAL, "label": t("srv_stampa.pdf_vettoriale_mb_visual"), "virtual": True}]
     from .cadedit import find_oda
     for n in sorted(names, key=str.lower):
         lst.append({"name": n, "label": n, "default": n == default, "plotter": bool(PLOTTER_HINTS.search(n))})
@@ -179,11 +180,11 @@ class _DevMode:
         self.name = name
         h = wintypes.HANDLE()
         if not _winspool.OpenPrinterW(name, ctypes.byref(h), None):
-            raise RuntimeError(f"Stampante non disponibile: {name}")
+            raise RuntimeError(t("srv_stampa.stampante_non_disponibile_0", name))
         try:
             size = _winspool.DocumentPropertiesW(None, h, name, None, None, 0)
             if size <= 0:
-                raise RuntimeError(f"Il driver della stampante non risponde: {name}")
+                raise RuntimeError(t("srv_stampa.driver_stampante_non_risponde_0", name))
             self.buf = ctypes.create_string_buffer(size + 1024)
             src = None
             if base64_dm:
@@ -191,7 +192,7 @@ class _DevMode:
                 src = ctypes.create_string_buffer(raw, max(len(raw), size + 1024))
             r = _winspool.DocumentPropertiesW(None, h, name, self.buf, src, DM_OUT_BUFFER | (DM_IN_BUFFER if src else 0))
             if r < 0:
-                raise RuntimeError("Impostazioni del driver non leggibili")
+                raise RuntimeError(t("srv_stampa.impostazioni_driver_non_leggibili"))
         finally:
             _winspool.ClosePrinter(h)
 
@@ -300,14 +301,14 @@ def _to_pdf(path: str, update=None) -> str:
         from . import signed
         r = signed.open_signed(path)
         if not r.get("contenuto"):
-            raise ValueError("Il documento firmato non contiene un file stampabile")
+            raise ValueError(t("srv_stampa.documento_firmato_non_contiene_file"))
         return _to_pdf(r["contenuto"], update)
     if ext in ("png", "jpg", "jpeg", "gif", "bmp", "tif", "tiff", "webp"):
         _image_pdf(path, str(out))
         return str(out)
     fam = convert.FAMILY_OF.get(ext)
     if fam in (None, "media", "audio", "archive", "font", "database"):
-        raise ValueError(f"I file .{ext} non si possono stampare direttamente: aprili e usa Stampa dalla loro scheda")
+        raise ValueError(t("srv_stampa.i_file_0_non_si", ext))
     tmp = out.with_suffix(".tmp.pdf")
     convert.convert(path, str(tmp), update=update)
     os.replace(tmp, out)
@@ -342,14 +343,14 @@ def prepare(sources: list[dict], update=None) -> dict:
     for i, s in enumerate(sources):
         path = s.get("path") or ""
         name = s.get("name") or Path(path).name
-        update(progress=i / n, message=f"Preparazione: {name}")
+        update(progress=i / n, message=t("srv_stampa.preparazione_0", name))
         item = {"path": path, "name": name}
         try:
             ext = Path(path).suffix.lower().lstrip(".")
             if ext == "dwg" and not s.get("dxf") and s.get("kind") != "pdf":
                 oda = _dwg_with_oda(path)
                 if not oda:
-                    raise ValueError("Per stampare i DWG da qui serve aprirli in MB Visual (o ODA File Converter installato)")
+                    raise ValueError(t("srv_stampa.stampare_i_dwg_qui_serve"))
                 item.update(_cad_info(oda))
                 item.update({"kind": "cad", "dxf": oda})
             elif s.get("kind") == "cad" or (s.get("dxf") or ext == "dxf") and s.get("kind") != "pdf":
@@ -359,7 +360,7 @@ def prepare(sources: list[dict], update=None) -> dict:
                 pdf = s.get("pdf") or _to_pdf(path, update=lambda **k: None)
                 with pymupdf.open(pdf) as d:
                     if d.needs_pass:
-                        raise ValueError("PDF protetto da password: sbloccalo prima di stamparlo")
+                        raise ValueError(t("srv_stampa.pdf_protetto_password_sbloccalo_prima"))
                     sizes = [[round(p.rect.width / MM, 1), round(p.rect.height / MM, 1)] for p in d]
                 item.update({"kind": "pdf", "pdf": pdf, "pages": len(sizes), "sizes": sizes})
         except Exception as e:  # noqa: BLE001
@@ -368,7 +369,7 @@ def prepare(sources: list[dict], update=None) -> dict:
     sid = uuid.uuid4().hex[:12]
     with _LOCK:
         _SOURCES[sid] = {"items": out}
-    update(progress=1, message="Pronto")
+    update(progress=1, message=t("srv_stampa.pronto"))
     return {"ok": True, "sid": sid, "items": [{k: v for k, v in it.items() if k not in ("pdf",)} for it in out]}
 
 
@@ -466,10 +467,10 @@ def _ratio(s) -> float:
         return float(s)
     m = re.match(r"^\s*([\d.,]+)\s*[:/=]\s*([\d.,]+)\s*$", str(s))
     if not m:
-        raise ValueError(f"Scala non valida: {s}")
+        raise ValueError(t("srv_stampa.scala_non_valida_0", s))
     a, b = float(m.group(1).replace(",", ".")), float(m.group(2).replace(",", "."))
     if a <= 0 or b <= 0:
-        raise ValueError(f"Scala non valida: {s}")
+        raise ValueError(t("srv_stampa.scala_non_valida_0", s))
     return a / b
 
 
@@ -492,7 +493,7 @@ class _Papers:
             return None
         f = self._form(p)
         if not f:
-            raise ValueError(f"Formato carta non disponibile su questa stampante: {p}")
+            raise ValueError(t("srv_stampa.formato_carta_non_disponibile_questa", p))
         return dict(f)
 
     def fallback(self):
@@ -521,7 +522,7 @@ class _Papers:
             length = b + 2 * margin
             if a + 2 * margin > roll:  # piu' largo del rotolo: si riduce alla sua larghezza
                 length = b * (roll - 2 * margin) / a + 2 * margin
-            return {"name": f"Rotolo {roll:g} mm x {length:.0f} mm", "id": 0, "w": roll, "h": round(length, 1), "roll": True}, False
+            return {"name": t("srv_stampa.rotolo_0_x_1", f"{roll:g}", f"{length:.0f}"), "id": 0, "w": roll, "h": round(length, 1), "roll": True}, False
         tol = lambda x, y: abs(x - y) <= max(1.5, 0.01 * y)  # noqa: E731
         for f in self.forms:
             fa, fb = sorted((f["w"], f["h"]))
@@ -534,7 +535,7 @@ class _Papers:
             return dict(min(fits, key=lambda f: (not _iso_like(f), f["w"] * f["h"], f["id"] or 0))), False
         c = self.custom
         if c and a <= c["max"][0] and b <= c["max"][1]:
-            return {"name": f"Personalizzato {a:.0f} x {b:.0f} mm", "id": 0, "w": round(a, 1), "h": round(b, 1)}, False
+            return {"name": t("srv_stampa.personalizzato_0_x_1_mm", f"{a:.0f}", f"{b:.0f}"), "id": 0, "w": round(a, 1), "h": round(b, 1)}, False
         if self.forms:
             return dict(max(self.forms, key=lambda f: f["w"] * f["h"])), True
         return {"name": "A4", "id": 0, "w": 210, "h": 297}, True
@@ -622,7 +623,7 @@ def _cad_pdf(item: dict, st: dict, papers: _Papers, margins_for) -> list[dict]:
         if box is None:
             bb = backend.player().bbox()
             if not bb.has_data:
-                raise ValueError("Il disegno e' vuoto (o i layer sono tutti spenti)")
+                raise ValueError(t("srv_stampa.disegno_vuoto_i_layer_sono"))
             box = BoundingBox2d([bb.extmin, bb.extmax])
         size = box.size
         cw, ch = size.x * unit, size.y * unit           # contenuto in mm a scala 1:1 (spazio carta) o in unita' reali
@@ -642,9 +643,9 @@ def _cad_pdf(item: dict, st: dict, papers: _Papers, margins_for) -> list[dict]:
         mg = margins_for(paper, land)
         user_m = float(st.get("margin", 5) or 0)
         fit = ratio_eff is None or reduced
-        warn = "Formato carta piu' piccolo della tavola: stampa ridotta" if reduced else None
+        warn = t("srv_stampa.formato_carta_piu_piccolo_tavola") if reduced else None
         if not fit and (rw > W_ + 1 or rh > H_ + 1):
-            warn = f"In questa scala il disegno ({rw:.0f} x {rh:.0f} mm) esce dal foglio: scegli un formato piu' grande o un'altra scala"
+            warn = t("srv_stampa.questa_scala_disegno_0_x", f"{rw:.0f}", f"{rh:.0f}")
         m = [max(x, user_m) for x in mg] if fit else [0, 0, 0, 0]
         page = layout.Page(W_, H_, layout.Units.mm, margins=layout.Margins(top=m[1], right=m[2], bottom=m[3], left=m[0]))
         settings = layout.Settings(fit_page=fit, scale=unit * (ratio_eff or 1), crop_at_margins=not fit,
@@ -655,7 +656,7 @@ def _cad_pdf(item: dict, st: dict, papers: _Papers, margins_for) -> list[dict]:
         eff = min(avail_w / cw, avail_h / ch) if fit and cw > 0 and ch > 0 else (ratio_eff or 1)
         note = _scale_note(eff, lname is not None, unit, umm)
         if fit and note:
-            note = "adattata " + ("~" if ":" in note else "") + note
+            note = t("srv_stampa.adattata_0", ("~" if ":" in note else "") + note)
         pages.append({"pdf": pdf, "w": W_, "h": H_, "landscape": land, "paper": paper, "scale": note,
                       "label": f"{item['name']}" + (f" - {lname}" if lname else ""), "styled": True, "warn": warn})
     return pages
@@ -681,7 +682,7 @@ def compose(sid: str, st: dict, update=None) -> dict:
     update = update or (lambda **k: None)
     src = _SOURCES.get(sid)
     if not src:
-        raise ValueError("Sorgenti di stampa scadute: riapri la finestra Stampa")
+        raise ValueError(t("srv_stampa.sorgenti_stampa_scadute_riapri_finestra"))
     name = st.get("printer") or PDF_VIRTUAL
     info = printer_info(name)
     papers = _Papers(info, st)
@@ -694,13 +695,18 @@ def compose(sid: str, st: dict, update=None) -> dict:
     sc = st.get("scale") or {"mode": "fit"}
     mode = sc.get("mode", "fit")
     for i, it in enumerate(items):
-        update(progress=i / max(1, len(items)), message=f"Impaginazione: {it['name']}")
+        update(progress=i / max(1, len(items)), message=t("srv_stampa.impaginazione_0", it['name']))
         try:
             if it["kind"] == "cad":
                 for p in _cad_pdf(it, st, papers, margins_for):
                     with pymupdf.open("pdf", p["pdf"]) as d:
                         pg = out.new_page(width=p["w"] * MM, height=p["h"] * MM)
-                        pg.show_pdf_page(pg.rect, d, 0)
+                        # ezdxf tronca il foglio ai punti interi (297 mm -> 841 pt) e scala il disegno su quel valore:
+                        # si riporta alla misura esatta, altrimenti la scala sbaglierebbe di circa lo 0,1%
+                        big = max(p["w"], p["h"])
+                        s = MM * big / int(big * MM)
+                        r = d[0].rect
+                        pg.show_pdf_page(pymupdf.Rect(0, 0, r.width * s, r.height * s), d, 0)
                     p.pop("pdf")
                     pages.append(p)
                 continue
@@ -717,12 +723,12 @@ def compose(sid: str, st: dict, update=None) -> dict:
                         f = papers.fixed()
                         paper, reduced = (f, False) if f else papers.choose(cw, ch)
                     W_, H_, land = _orient(paper, cw, ch, st)
-                    warn = "Formato carta piu' piccolo della pagina: stampa ridotta" if reduced else None
+                    warn = t("srv_stampa.formato_carta_piu_piccolo_pagina") if reduced else None
                     if k is not None and (cw * k > W_ + 1 or ch * k > H_ + 1):
                         if mode == "cad":  # scala dei disegni: le pagine PDF piu' grandi del foglio si riducono
-                            reduced, warn = True, "Pagina piu' grande del foglio: stampa ridotta"
+                            reduced, warn = True, t("srv_stampa.pagina_piu_grande_foglio_stampa")
                         else:
-                            warn = "La pagina esce dal foglio: i bordi non vengono stampati"
+                            warn = t("srv_stampa.pagina_esce_foglio_i_bordi")
                     fit = k is None or reduced
                     mg = margins_for(paper, land)
                     user_m = float(st.get("margin", 5) or 0)
@@ -743,12 +749,12 @@ def compose(sid: str, st: dict, update=None) -> dict:
                     rect = pymupdf.Rect(x0 * MM, y0 * MM, (x0 + pw) * MM, (y0 + ph) * MM)
                     pg.show_pdf_page(rect, d, pno)
                     pages.append({"w": W_, "h": H_, "landscape": land, "paper": paper, "scale": f"{k * 100:.0f}%" if abs(k - 1) > 0.004 else "100%",
-                                  "label": f"{it['name']} - pag. {pno + 1}" if len(d) > 1 else it["name"], "styled": False,
+                                  "label": t("srv_stampa.0_pag_1", it["name"], pno + 1) if len(d) > 1 else it["name"], "styled": False,
                                   "warn": warn})
         except Exception as e:  # noqa: BLE001
             errors.append({"name": it["name"], "errore": str(e) or e.__class__.__name__})
     if not pages:
-        raise ValueError(errors[0]["errore"] if errors else "Niente da stampare")
+        raise ValueError(errors[0]["errore"] if errors else t("srv_stampa.niente_stampare"))
     cid = uuid.uuid4().hex[:12]
     d = WORK / "lavori"
     d.mkdir(parents=True, exist_ok=True)
@@ -764,7 +770,7 @@ def compose(sid: str, st: dict, update=None) -> dict:
             except Exception:  # noqa: BLE001
                 pass
         _JOBS[cid] = {"pdf": str(path), "pages": pages, "settings": st}
-    update(progress=1, message="Pronto")
+    update(progress=1, message=t("srv_stampa.pronto"))
     return {"ok": True, "cid": cid, "pages": pages, "errori": errors}
 
 
@@ -790,7 +796,7 @@ def preview_png(cid: str, pno: int, dpi: float = 60, style: str | None = None) -
     from PIL import Image
     job = _JOBS.get(cid)
     if not job:
-        raise ValueError("Anteprima scaduta")
+        raise ValueError(t("srv_stampa.anteprima_scaduta"))
     st = job["settings"]
     info = job["pages"][pno]
     with pymupdf.open(job["pdf"]) as d:
@@ -807,7 +813,7 @@ def run(cid: str, extra: dict | None = None, update=None) -> dict:
     update = update or (lambda **k: None)
     job = _JOBS.get(cid)
     if not job:
-        raise ValueError("Lavoro di stampa scaduto: aggiorna l'anteprima e riprova")
+        raise ValueError(t("srv_stampa.lavoro_stampa_scaduto_aggiorna_l"))
     st = {**job["settings"], **{k: v for k, v in (extra or {}).items() if k in ("copies", "collate", "output", "dpi", "title", "devmode")}}
     name = st.get("printer") or PDF_VIRTUAL
     if name == PDF_VIRTUAL:
@@ -819,7 +825,7 @@ def _save_pdf(job: dict, st: dict, update) -> dict:
     import pymupdf
     out = st.get("output")
     if not out:
-        raise ValueError("Scegli dove salvare il PDF")
+        raise ValueError(t("srv_stampa.scegli_dove_salvare_pdf"))
     style = st.get("style") or "color"
     with pymupdf.open(job["pdf"]) as d:
         if style == "color" or all(p.get("styled") for p in job["pages"]):
@@ -828,7 +834,7 @@ def _save_pdf(job: dict, st: dict, update) -> dict:
             # grigi / bianco e nero sui documenti non CAD: pagine rasterizzate a 300 dpi (i CAD restano vettoriali)
             res = pymupdf.open()
             for i, (pg, info) in enumerate(zip(d, job["pages"])):
-                update(progress=i / len(job["pages"]), message=f"Pagina {i + 1} di {len(job['pages'])}")
+                update(progress=i / len(job["pages"]), message=t("srv_stampa.pagina_0_1", i + 1, len(job['pages'])))
                 if info.get("styled"):
                     res.insert_pdf(d, from_page=i, to_page=i)
                     continue
@@ -868,13 +874,13 @@ def _print_gdi(job: dict, st: dict, name: str, update) -> dict:
     dm.set(first["paper"], first["landscape"], driver_copies, color, collate)
     hdc = _gdi.CreateDCW("WINSPOOL", name, None, dm.buf)
     if not hdc:
-        raise RuntimeError(f"Impossibile aprire la stampante {name} (errore {ctypes.get_last_error()})")
+        raise RuntimeError(t("srv_stampa.impossibile_aprire_stampante_0_errore", name, ctypes.get_last_error()))
     warnings = []
     di = DOCINFOW(ctypes.sizeof(DOCINFOW), st.get("title") or "MB Visual", st.get("output") or None, None, 0)
     started = False
     try:
         if _gdi.StartDocW(hdc, ctypes.byref(di)) <= 0:
-            raise RuntimeError("La stampante ha rifiutato il lavoro (stampa annullata o coda non disponibile)")
+            raise RuntimeError(t("srv_stampa.stampante_ha_rifiutato_lavoro_stampa"))
         started = True
         _gdi.SetStretchBltMode(hdc, 4)  # HALFTONE
         cur = (first["paper"].get("id"), first["paper"].get("w"), first["paper"].get("h"), first["landscape"])
@@ -887,9 +893,9 @@ def _print_gdi(job: dict, st: dict, name: str, update) -> dict:
                     _gdi.ResetDCW(hdc, dm.buf)
                     _gdi.SetStretchBltMode(hdc, 4)
                     cur = key
-                update(progress=n / len(order), message=f"Invio alla stampante: pagina {n + 1} di {len(order)}")
+                update(progress=n / len(order), message=t("srv_stampa.invio_stampante_pagina_0_1", n + 1, len(order)))
                 if _gdi.StartPage(hdc) <= 0:
-                    raise RuntimeError("Stampa interrotta")
+                    raise RuntimeError(t("srv_stampa.stampa_interrotta"))
                 c = _caps(hdc)
                 page = d[pno]
                 # pagina del PDF (pt) -> foglio fisico (pixel del dispositivo); se il driver ha usato un altro formato si adatta
@@ -898,7 +904,7 @@ def _print_gdi(job: dict, st: dict, name: str, update) -> dict:
                 k = 1.0
                 if abs(fx - 1) > 0.02 or abs(fy - 1) > 0.02:
                     k = min(fx, fy)
-                    warnings.append(f"Pagina {pno + 1}: la stampante ha usato un formato diverso ({c['w'] / c['dpix'] * 25.4:.0f} x {c['h'] / c['dpiy'] * 25.4:.0f} mm), contenuto adattato")
+                    warnings.append(t("srv_stampa.pagina_0_stampante_ha_usato", pno + 1, f"{c['w'] / c['dpix'] * 25.4:.0f}", f"{c['h'] / c['dpiy'] * 25.4:.0f}"))
                 dpi_dev = c["dpix"] * k
                 rdpi = min(dpi_dev, quality) if quality else dpi_dev
                 big = page.rect.width * page.rect.height / MM / MM > 420 * 594 * 1.05
@@ -944,10 +950,10 @@ def _print_gdi(job: dict, st: dict, name: str, update) -> dict:
                     dh = int(round((pix.y + h) * sy - c["offy"])) - dy
                     r = _gdi.StretchDIBits(hdc, dx, dy, dw, dh, 0, 0, w, h, buf, ctypes.byref(bmi), 0, 0x00CC0020)
                     if r == 0:
-                        raise RuntimeError(f"Errore del driver durante la stampa (StretchDIBits, errore {ctypes.get_last_error()})")
+                        raise RuntimeError(t("srv_stampa.errore_driver_durante_stampa_stretchdibits", ctypes.get_last_error()))
                     y = yb
                 if _gdi.EndPage(hdc) <= 0:
-                    raise RuntimeError("Stampa interrotta dalla stampante")
+                    raise RuntimeError(t("srv_stampa.stampa_interrotta_stampante"))
         _gdi.EndDoc(hdc)
         started = False
     finally:
@@ -965,7 +971,7 @@ def scan(folder: str, exts: list[str] | None = None, sub: bool = False) -> dict:
     exts = {e.lower().lstrip(".") for e in (exts or PRINTABLE)}
     root = Path(folder)
     if not root.is_dir():
-        raise ValueError("Cartella non trovata")
+        raise ValueError(t("srv_stampa.cartella_non_trovata"))
     it = root.rglob("*") if sub else root.glob("*")
     files = []
     for p in it:
