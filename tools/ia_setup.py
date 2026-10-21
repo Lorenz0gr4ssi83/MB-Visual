@@ -7,7 +7,7 @@ PyTorch: ARM64 dall'archivio ufficiale download.pytorch.org (CPU); x64 con sched
 Modelli (licenze che permettono l'uso commerciale):
   Realistic Vision 6.0 + inpainting (CreativeML OpenRAIL-M), VAE sd-vae-ft-mse (MIT), LCM-LoRA SD1.5 (OpenRAIL++),
   BiRefNet ONNX (MIT), SegFormer-B3 abbigliamento (MIT), LaMa ONNX (Apache-2.0), Real-ESRGAN x4plus (BSD-3),
-  CLIP ViT-B/32 (MIT, controllo eta').
+  CLIP ViT-B/32 (MIT, controllo eta'), ControlNet Depth SD1.5 (OpenRAIL), Depth Anything V2 Small (Apache-2.0).
 """
 import os
 import platform
@@ -25,6 +25,8 @@ HF = [
     ("onnx-community/BiRefNet-ONNX", ["onnx/model.onnx"], None),
     ("sayeed99/segformer_b3_clothes", ["config.json", "preprocessor_config.json", "model.safetensors"], None),
     ("Carve/LaMa-ONNX", ["lama_fp32.onnx"], "lama"),
+    ("lllyasviel/control_v11f1p_sd15_depth", ["config.json", "diffusion_pytorch_model.fp16.safetensors"], "controlnet-depth"),
+    ("onnx-community/depth-anything-v2-small", ["onnx/model.onnx", "preprocessor_config.json"], "depth-anything-v2-small"),
     ("openai/clip-vit-base-patch32", ["config.json", "preprocessor_config.json", "tokenizer_config.json", "tokenizer.json", "vocab.json", "merges.txt",
                                       "special_tokens_map.json", "pytorch_model.bin"], None),
 ]

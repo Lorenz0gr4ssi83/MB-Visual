@@ -63,15 +63,18 @@ function needSel(host) { if (!host.selMask()) { toast("Prima seleziona la zona (
 
 async function promptDialog(title, label, opts = {}) {
   const ta = el("textarea", { rows: 3, class: "field", style: { width: "100%", minWidth: "420px" }, placeholder: opts.placeholder || "" }, opts.value || "");
-  const q = el("select", { class: "field" }, el("option", { value: "512" }, "Veloce (512 px)"), el("option", { value: "768", selected: opts.side === 768 || undefined }, "Qualita' (768 px, piu' lento)"));
+  const q = el("select", { class: "field" },
+    el("option", { value: "veloce" }, "Veloce (bozza)"),
+    el("option", { value: "alta", selected: true }, "Alta (consigliata)"),
+    el("option", { value: "massima" }, "Massima (piu' dettagli, molto lenta: 10-20 min su CPU)"));
   const pe = el("input", { type: "checkbox", checked: opts.persona || undefined });
   const ok = await modal(title, el("div", { style: { display: "grid", gap: "8px" } }, el("label", { style: { display: "grid", gap: "4px" } }, label, ta),
-    el("label", { style: { display: "flex", gap: "8px", alignItems: "center" } }, "Dettaglio di lavoro", q),
+    el("label", { style: { display: "flex", gap: "8px", alignItems: "center" } }, "Qualita'", q),
     opts.fill ? el("label", { style: { display: "flex", gap: "8px", alignItems: "center" } }, pe,
       "Abiti su una persona: mantieni la sagoma e le forme del corpo (si rigenera solo dentro il corpo)") : null,
     el("p", { class: "note", style: { margin: 0 } }, "Scrivi in inglese per i risultati migliori (es. \"black bikini, toned abs, studio lighting\"). Lascia vuoto per completare la scena in modo naturale.")),
   [{ label: "Annulla", value: false }, { label: "Genera", value: true, primary: true }]);
-  return ok ? { prompt: ta.value.trim(), side: +q.value, persona: pe.checked } : null;
+  return ok ? { prompt: ta.value.trim(), qualita: q.value, persona: pe.checked } : null;
 }
 
 async function genFill(host, preset = null) {
@@ -80,7 +83,7 @@ async function genFill(host, preset = null) {
   if (!p) return;
   const [W, H] = host.size();
   const image = await put(host.flatten()), mask = await put(alphaToMask(host.selMask()));
-  const r = await run(host, "Riempimento generativo", { op: "fill", image, mask, prompt: p.prompt, side: p.side, persona: !!p.persona });
+  const r = await run(host, "Riempimento generativo", { op: "fill", image, mask, prompt: p.prompt, qualita: p.qualita, persona: !!p.persona });
   if (!r) return;
   host.addLayer(toCanvas(await loadImg(r.path)), r.x, r.y, (p.prompt ? "IA: " + p.prompt.slice(0, 40) : "Riempimento generativo"));
   void W; void H;
@@ -142,7 +145,7 @@ async function expand(host) {
   const b = 8;
   g.clearRect(L + (L ? b : 0), T + (T ? b : 0), W - (L ? b : 0) - (R ? b : 0), H - (T ? b : 0) - (B ? b : 0));
   host.setSel(c, "Espansione: selezione bordi");
-  await genFill(host, { prompt: ta.value.trim(), side: 512 });
+  await genFill(host, { prompt: ta.value.trim(), qualita: "alta" });
 }
 
 async function upscale(host, scale) {
@@ -154,14 +157,14 @@ async function generate(host) {
   const p = await promptDialog("Genera immagine", "Descrivi l'immagine da creare", { placeholder: "es. RAW photo, female fitness model on competition stage, bikini, dramatic spotlights" });
   if (!p) return;
   const [W, H] = host.size();
-  const r = await run(host, "Genera immagine", { op: "generate", prompt: p.prompt, width: W, height: H, side: p.side });
+  const r = await run(host, "Genera immagine", { op: "generate", prompt: p.prompt, width: W, height: H, qualita: p.qualita });
   if (r) host.addLayer(toCanvas(await loadImg(r.path)), 0, 0, "IA: " + (p.prompt || "immagine").slice(0, 40));
 }
 
 async function engineInfo() {
   const s = await engine(true);
   const NAMES = { generativo: "Riempimento e generazione (Realistic Vision 6)", veloce_lcm: "Acceleratore LCM", soggetto: "Soggetto e sfondo (BiRefNet)",
-    parti: "Parti: abbigliamento, pelle, capelli (SegFormer)", cancella: "Rimuovi oggetti (LaMa)", risoluzione: "Aumento risoluzione (Real-ESRGAN)", controllo_eta: "Controllo eta' (CLIP)" };
+    parti: "Parti: abbigliamento, pelle, capelli (SegFormer)", cancella: "Rimuovi oggetti (LaMa)", risoluzione: "Aumento risoluzione (Real-ESRGAN)", controllo_eta: "Controllo eta' (CLIP)", forme: "Rispetto delle forme del corpo (ControlNet Depth + Depth Anything V2)" };
   const box = el("div", { style: { minWidth: "420px" } });
   if (!s?.installato) box.append(el("p", {}, "Il motore IA non e' installato su questo PC."), el("p", { class: "note" }, "Serve una cartella con l'ambiente Python e i modelli in %LOCALAPPDATA%\\MBVisual\\ia (circa 8 GB): chiedi a chi gestisce MB Visual."));
   else {

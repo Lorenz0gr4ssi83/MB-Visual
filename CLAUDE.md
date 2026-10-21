@@ -246,5 +246,9 @@ costumi (anche "meno vestiti"), pose audaci: permessi. safety_checker di diffuse
   sagoma (BiRefNet), base = colore pelle (SegFormer) x luminosita' dell'originale solo dove c'era il capo, strength 0.82:
   il corpo non cambia forma. Livelli col risultato: `with_alpha` (paste con maschera su RGBA vuoto scuriva i bordi due volte
   = la "riga/alone" attorno alle zone). MBV_IA_DEBUG=cartella salva i passaggi intermedi.
+- Forme: ControlNet Depth SD1.5 (`modelli/controlnet-depth`) guidato da Depth Anything V2 Small ONNX sul ritaglio originale
+  (`StableDiffusionControlNetInpaintPipeline.from_pipe`); dopo: `match_color` (guadagno per canale dalla pelle attorno) e
+  `match_grain` (rumore stimato con la mediana degli scarti, max 5). Qualita': veloce 512 LCM / alta 768 LCM (predefinita) /
+  massima 768 DPM++ 28 passi; LCM-LoRA NON fusa (set_mode la accende/spegne). Alta con forme: ~7-9 min su questo PC.
 - Tempi su questo PC (CPU): genera 512x768 ~5 min, cambio abito 2,5-3,5 min, soggetto 30-60 s, parti 10-30 s.
 - Altri PC: `python tools/ia_setup.py` (Python 3.13 ARM64 o x64; CUDA se c'e' nvidia-smi) in %LOCALAPPDATA%\MBVisual\ia.

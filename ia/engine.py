@@ -129,18 +129,80 @@ def _vae(torch, dt):
 
 
 def _speed(pipe, torch):
-    """LCM-LoRA se presente (4-8 passi invece di 25-30), altrimenti DPM++ 2M Karras."""
+    """LCM-LoRA (4-8 passi) per le qualita' Veloce/Alta; DPM++ 2M Karras (25-30 passi) per la Massima.
+    La LoRA non si fonde nei pesi: si accende e spegne a ogni richiesta (set_mode)."""
     from diffusers import DPMSolverMultistepScheduler, LCMScheduler
-    lcm = mpath("lcm-lora-sdv1-5", "pytorch_lora_weights.safetensors")
-    if os.path.exists(lcm):
+    pipe._mbv_dpm = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config, use_karras_sigmas=True, algorithm_type="dpmsolver++")
+    pipe._mbv_lcm = False
+    if os.path.exists(mpath("lcm-lora-sdv1-5", "pytorch_lora_weights.safetensors")):
         pipe.load_lora_weights(mpath("lcm-lora-sdv1-5"), weight_name="pytorch_lora_weights.safetensors", adapter_name="lcm")
-        pipe.fuse_lora()
-        pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
+        pipe._mbv_lcmsched = LCMScheduler.from_config(pipe.scheduler.config)
         pipe._mbv_lcm = True
-    else:
-        pipe.scheduler = DPMSolverMultistepScheduler.from_config(pipe.scheduler.config, use_karras_sigmas=True, algorithm_type="dpmsolver++")
-        pipe._mbv_lcm = False
+    pipe.scheduler = pipe._mbv_dpm
     return pipe
+
+
+def set_mode(pipe, fast, base=None):
+    """fast=True: LCM (pochi passi); False: DPM++ senza LoRA. `base` = pipeline che possiede la LoRA (per le derivate)."""
+    b = base or pipe
+    fast = bool(fast and b._mbv_lcm)
+    if b._mbv_lcm:
+        if fast:
+            pipe.enable_lora()
+            pipe.set_adapters(["lcm"], [1.0])
+        else:
+            pipe.disable_lora()
+    pipe.scheduler = b._mbv_lcmsched if fast else b._mbv_dpm
+    return fast
+
+
+QUALITY = {"veloce": {"side": 512, "fast": True}, "alta": {"side": 768, "fast": True}, "massima": {"side": 768, "fast": False}}
+REAL = ", RAW photo, dslr, detailed skin texture, skin pores, subtle film grain, sharp focus, natural colors"
+
+
+def quality(a):
+    q = a.get("qualita") or {"512": "veloce", "768": "alta"}.get(str(a.get("side") or ""), "alta")
+    return QUALITY.get(q, QUALITY["alta"])
+
+
+def realism(prompt):
+    """Il risultato deve sembrare una foto: si aggiungono le parole che Realistic Vision associa alle foto vere."""
+    p = (prompt or "").strip()
+    return (p + REAL) if p else ""
+
+
+def model_controlnet_inpaint():
+    """Inpainting guidato dalla profondita' (ControlNet Depth): stesse parti della pipeline di inpainting + ControlNet."""
+    if "cninp" not in MODELS:
+        if not have("controlnet-depth", "diffusion_pytorch_model.fp16.safetensors"):
+            return None
+        torch, dev, dt = torch_setup()
+        from diffusers import ControlNetModel, StableDiffusionControlNetInpaintPipeline
+        cn = ControlNetModel.from_pretrained(mpath("controlnet-depth"), variant="fp16", torch_dtype=dt)
+        MODELS["cninp"] = StableDiffusionControlNetInpaintPipeline.from_pipe(model_inpaint(), controlnet=cn.to(dev))
+    return MODELS["cninp"]
+
+
+def model_depth():
+    if "depth" not in MODELS:
+        if not have("depth-anything-v2-small", "onnx", "model.onnx"):
+            return None
+        import onnxruntime as ort
+        MODELS["depth"] = ort.InferenceSession(mpath("depth-anything-v2-small", "onnx", "model.onnx"), providers=["CPUExecutionProvider"])
+    return MODELS["depth"]
+
+
+def depth_map(img):
+    """Depth Anything V2 (vicino = chiaro), normalizzata 0-255, come immagine RGB per ControlNet Depth."""
+    s = model_depth()
+    W, H = img.size
+    k = 518 / max(W, H)
+    w, h = max(14, round(W * k / 14) * 14), max(14, round(H * k / 14) * 14)
+    x = np.asarray(img.convert("RGB").resize((w, h), Image.BICUBIC), dtype=np.float32) / 255.0
+    x = ((x - [0.485, 0.456, 0.406]) / [0.229, 0.224, 0.225]).transpose(2, 0, 1)[None].astype(np.float32)
+    d = s.run(None, {s.get_inputs()[0].name: x})[0].reshape(h, w)
+    d = (d - d.min()) / max(1e-6, d.max() - d.min())
+    return Image.fromarray((d * 255).astype(np.uint8)).resize((W, H), Image.BICUBIC).convert("RGB")
 
 
 def model_inpaint():
@@ -363,7 +425,9 @@ def body_base(img, ci, cm, orig, box):
         logits = m(pixel_values=seg_input(img)).logits
     lab = torch.nn.functional.interpolate(logits, size=img.size[::-1], mode="bilinear", align_corners=False).argmax(1)[0].numpy()
     px = np.asarray(img, dtype=np.float32)
-    skin = px[np.isin(lab, [11, 12, 13, 14, 15])]
+    skin = px[np.isin(lab, [12, 13, 14, 15])]  # gambe e braccia (il viso ha spesso trucco e luce diversa)
+    if len(skin) < 50:
+        skin = px[lab == 11]
     tone = np.median(skin, 0) if len(skin) > 50 else np.array([205, 160, 135], np.float32)
     c = np.asarray(ci, dtype=np.float32)
     L = c @ np.array([0.299, 0.587, 0.114], np.float32)
@@ -375,7 +439,7 @@ def body_base(img, ci, cm, orig, box):
     base = np.clip(tone * shade, 0, 255)
     za = zo[..., None]
     src = Image.fromarray((c * (1 - za) + base * za).astype(np.uint8))
-    return src, Image.fromarray((np.clip(z, 0, 1) * 255).astype(np.uint8))
+    return src, Image.fromarray((np.clip(z, 0, 1) * 255).astype(np.uint8)), sil
 
 
 def op_erase(a):
@@ -391,9 +455,60 @@ def op_erase(a):
     return {"path": save(layer), "x": x0, "y": y0}
 
 
+def match_color(out, ci, zone, sil):
+    """Il tono della pelle rigenerata si riporta a quello della pelle vera che la circonda: guadagno per canale calcolato
+    tra una fascia appena fuori dalla zona (dentro la sagoma) e una appena dentro (solo pixel di colore simile)."""
+    z = np.asarray(zone) > 127
+    r = max(5, min(ci.size) // 25) | 1
+    zi = Image.fromarray((z * 255).astype(np.uint8))
+    ring_out = (np.asarray(zi.filter(ImageFilter.MaxFilter(r))) > 127) & ~z & (sil > 0.7)
+    ring_in = z & ~(np.asarray(zi.filter(ImageFilter.MinFilter(r))) > 127)
+    c, o = np.asarray(ci, dtype=np.float32), np.asarray(out, dtype=np.float32)
+    if ring_out.sum() < 50 or ring_in.sum() < 50:
+        return out
+    ref = np.median(c[ring_out], 0)
+    pin = o[ring_in]
+    pin = pin[np.abs(pin - ref).sum(1) < 120]  # niente pixel del capo nuovo (es. bikini nero) nel confronto
+    if len(pin) < 50:
+        return out
+    gain = np.clip(ref / np.maximum(np.median(pin, 0), 1), 0.8, 1.25)
+    zs = np.asarray(zone.filter(ImageFilter.GaussianBlur(r)), dtype=np.float32)[..., None] / 255.0
+    res = o * (1 + (gain - 1) * zs)
+    return Image.fromarray(np.clip(res, 0, 255).astype(np.uint8))
+
+
+def match_grain(out, ci, zone, seed=0):
+    """Grana della foto: le zone generate sono piu' lisce (aspetto "da IA"); si aggiunge il rumore che manca rispetto
+    all'originale attorno, solo sulla luminosita'."""
+    def hp(a):
+        im = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+        return a - np.asarray(im.filter(ImageFilter.GaussianBlur(1.2)), dtype=np.float32)
+    def noise(a, m):  # stima robusta (mediana degli scarti): i contorni non contano, solo la grana delle zone uniformi
+        v = hp(a)[m]
+        return float(np.median(np.abs(v - np.median(v)))) * 1.4826 if v.size > 100 else 0.0
+    z = np.asarray(zone) > 127
+    zi = Image.fromarray((z * 255).astype(np.uint8))
+    r = max(5, min(ci.size) // 15) | 1
+    ring = (np.asarray(zi.filter(ImageFilter.MaxFilter(r))) > 127) & ~z  # dintorni della zona
+    c = np.asarray(ci.convert("L"), dtype=np.float32)
+    o3 = np.asarray(out, dtype=np.float32)
+    ol = np.asarray(out.convert("L"), dtype=np.float32)
+    so, sg = noise(c, ring), noise(ol, z)
+    add = (max(0.0, so * so - sg * sg)) ** 0.5
+    if add < 0.3:
+        return out
+    n = np.random.default_rng(seed).normal(0, min(add, 5.0), ol.shape).astype(np.float32)
+    n = np.asarray(Image.fromarray(np.clip(n * 10 + 128, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.4)), dtype=np.float32)
+    n = (n - 128) / 10  # grana appena morbida, come quella di un sensore
+    zs = np.asarray(zone.filter(ImageFilter.GaussianBlur(2)), dtype=np.float32) / 255.0
+    return Image.fromarray(np.clip(o3 + (n * zs)[..., None], 0, 255).astype(np.uint8))
+
+
 def op_fill(a):
     """Riempimento generativo: si lavora su un ritaglio attorno alla selezione (lato 512 o 768), poi il risultato torna alla
-    risoluzione originale come livello trasparente fuori dalla selezione (con bordo sfumato)."""
+    risoluzione originale come livello trasparente fuori dalla selezione (con bordo sfumato).
+    persona=True (abiti su una persona): si rigenera solo dentro la sagoma, da una base color pelle con le ombre della foto,
+    guidati dalla profondita' dell'originale (ControlNet Depth): seno, fianchi e muscoli restano quelli della foto."""
     import torch
     check_text(a.get("prompt"))
     img, mask = load(a["image"]), load(a["mask"], "L")
@@ -406,32 +521,49 @@ def op_fill(a):
     grow = max(5, min(ci.size) // 45) | 1
     cm = cm.point(lambda v: 255 if v > 40 else 0).filter(ImageFilter.MaxFilter(grow))
     strength = float(a.get("strength") or 1.0)
-    src = ci
-    if a.get("persona"):
-        # abiti su una persona: la sagoma e le forme restano quelle della foto. Si rigenera solo DENTRO il corpo, partendo
-        # da una base color pelle con le ombre dell'originale (le ombre del capo vecchio descrivono le forme del corpo).
-        src, cm = body_base(img, ci, cm, orig, (x0, y0, x1, y1))
-        strength = float(a.get("strength") or 0.82)
-    side = int(a.get("side") or 512)
-    w, h = work_size(*ci.size, side)
-    pipe = model_inpaint()
-    lcm = getattr(pipe, "_mbv_lcm", False)
-    steps = int(a.get("steps") or (6 if lcm else 25))
+    src, sil, depth = ci, None, None
+    persona = bool(a.get("persona")) and not a.get("_erase")
+    if persona:
+        src, cm, sil = body_base(img, ci, cm, orig, (x0, y0, x1, y1))
+        strength = float(a.get("strength") or 0.9)
+    q = quality(a)
+    w, h = work_size(*ci.size, q["side"])
+    base = model_inpaint()
+    pipe = base
+    if persona and model_depth() is not None:
+        progress(0.1, "Profondita' del corpo")
+        depth = depth_map(ci)
+        pipe = model_controlnet_inpaint() or base
+    lcm = set_mode(pipe, q["fast"], base)
+    steps = int(a.get("steps") or (6 if lcm else 28))
     if strength < 1:  # con strength < 1 si eseguono solo steps*strength passi
         steps = int(round(steps / strength))
     progress(0.12, "Preparazione")
-    g = torch.Generator().manual_seed(int(a.get("seed") or int(time.time()) % 100000))
-    out = pipe(a.get("prompt") or "", image=src.resize((w, h), Image.LANCZOS), mask_image=cm.resize((w, h), Image.LANCZOS),
-               negative_prompt=None if lcm else (a.get("negative") or NEG), width=w, height=h, num_inference_steps=steps,
-               guidance_scale=1.5 if lcm else float(a.get("guidance") or 6.5), strength=strength,
-               generator=g, callback_on_step_end=steps_cb(max(1, int(steps * strength)))).images[0]
+    seed = int(a.get("seed") or int(time.time()) % 100000)
+    g = torch.Generator().manual_seed(seed)
+    kw = {}
+    if pipe is not base:
+        kw = {"control_image": depth.resize((w, h), Image.BICUBIC), "controlnet_conditioning_scale": float(a.get("forme") or 0.9)}
+    prompt = a.get("prompt") or ""
+    out = pipe(realism(prompt) if not a.get("_erase") else prompt, image=src.resize((w, h), Image.LANCZOS),
+               mask_image=cm.resize((w, h), Image.LANCZOS), negative_prompt=None if lcm else (a.get("negative") or NEG),
+               width=w, height=h, num_inference_steps=steps, guidance_scale=1.5 if lcm else float(a.get("guidance") or 5.0),
+               strength=strength, generator=g, callback_on_step_end=steps_cb(max(1, int(steps * strength))), **kw).images[0]
     out = out.resize(ci.size, Image.LANCZOS)
-    dbg = os.environ.get("MBV_IA_DEBUG")  # cartella in cui salvare i passaggi intermedi (prove)
-    if dbg:
-        src.save(os.path.join(dbg, "1_base.png")); cm.save(os.path.join(dbg, "2_zona.png")); out.save(os.path.join(dbg, "3_generato.png"))
     if not a.get("_erase"):
         check_minors(out, "il risultato")
     progress(0.95, "Composizione")
+    if os.environ.get("MBV_IA_DEBUG"):
+        out.save(os.path.join(os.environ["MBV_IA_DEBUG"], "3a_grezzo.png"))
+    if persona:
+        out = match_color(out, ci, cm, sil)
+    if not a.get("_erase"):
+        out = match_grain(out, ci, cm, seed)
+    dbg = os.environ.get("MBV_IA_DEBUG")  # cartella in cui salvare i passaggi intermedi (prove)
+    if dbg:
+        src.save(os.path.join(dbg, "1_base.png")); cm.save(os.path.join(dbg, "2_zona.png")); out.save(os.path.join(dbg, "3_generato.png"))
+        if depth is not None:
+            depth.save(os.path.join(dbg, "0_profondita.png"))
     soft = cm.filter(ImageFilter.GaussianBlur(max(1.5, min(ci.size) / 200)))
     layer = with_alpha(out, soft)
     return {"path": save(layer), "x": x0, "y": y0}
@@ -441,13 +573,14 @@ def op_generate(a):
     import torch
     check_text(a.get("prompt"))
     pipe = model_txt2img()
-    lcm = getattr(pipe, "_mbv_lcm", False)
+    q = quality(a)
+    lcm = set_mode(pipe, q["fast"])
     W, H = int(a.get("width") or 512), int(a.get("height") or 768)
-    w, h = work_size(W, H, int(a.get("side") or 768))
-    steps = int(a.get("steps") or (6 if lcm else 25))
+    w, h = work_size(W, H, max(768, q["side"]))
+    steps = int(a.get("steps") or (6 if lcm else 28))
     g = torch.Generator().manual_seed(int(a.get("seed") or int(time.time()) % 100000))
-    img = pipe(a.get("prompt") or "", negative_prompt=None if lcm else (a.get("negative") or NEG), width=w, height=h,
-               num_inference_steps=steps, guidance_scale=1.5 if lcm else float(a.get("guidance") or 6.0), generator=g,
+    img = pipe(realism(a.get("prompt")), negative_prompt=None if lcm else (a.get("negative") or NEG), width=w, height=h,
+               num_inference_steps=steps, guidance_scale=1.5 if lcm else float(a.get("guidance") or 5.0), generator=g,
                callback_on_step_end=steps_cb(steps)).images[0]
     check_minors(img, "il risultato")
     if (w, h) != (W, H):
@@ -498,7 +631,8 @@ def status():
         "veloce_lcm": have("lcm-lora-sdv1-5", "pytorch_lora_weights.safetensors"),
         "soggetto": have("BiRefNet-ONNX", "onnx", "model.onnx"), "parti": have("segformer_b3_clothes", "model.safetensors"),
         "cancella": have("lama", "lama_fp32.onnx"), "risoluzione": have("realesrgan", "RealESRGAN_x4plus.pth"),
-        "controllo_eta": have("clip-vit-base-patch32", "config.json")}}
+        "controllo_eta": have("clip-vit-base-patch32", "config.json"),
+        "forme": have("controlnet-depth", "diffusion_pytorch_model.fp16.safetensors") and have("depth-anything-v2-small", "onnx", "model.onnx")}}
 
 
 # ---------------------------------------------------------------- server HTTP locale
