@@ -430,7 +430,8 @@ def body_base(img, ci, cm, orig, box):
         skin = px[lab == 11]
     tone = np.median(skin, 0) if len(skin) > 50 else np.array([205, 160, 135], np.float32)
     c = np.asarray(ci, dtype=np.float32)
-    L = c @ np.array([0.299, 0.587, 0.114], np.float32)
+    # solo le ombre larghe (volumi del corpo): bordi, cuciture e pieghe del capo vecchio restavano come una riga sulla pelle
+    L = np.asarray(ci.convert("L").filter(ImageFilter.GaussianBlur(max(2.0, min(ci.size) / 60))), dtype=np.float32)
     # la base va solo dove c'era il capo vecchio (selezione non allargata): la pelle vera attorno resta com'e'
     zo = (np.asarray(orig, dtype=np.float32) / 255.0) * np.clip((sil - 0.3) / 0.4, 0, 1)
     inside = zo > 0.5
@@ -532,7 +533,7 @@ def op_fill(a):
     pipe = base
     if persona and model_depth() is not None:
         progress(0.1, "Profondita' del corpo")
-        depth = depth_map(ci)
+        depth = depth_map(ci).filter(ImageFilter.GaussianBlur(max(1.5, min(ci.size) / 150)))  # senza lo scalino del bordo del capo
         pipe = model_controlnet_inpaint() or base
     lcm = set_mode(pipe, q["fast"], base)
     steps = int(a.get("steps") or (6 if lcm else 28))
