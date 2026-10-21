@@ -85,9 +85,7 @@ export function badgeFor(name, isDir = false) {
 function renderTabs() {
   const box = $("tabs");
   box.innerHTML = "";
-  // a sinistra: "Chiudi tutto" e la linguetta Home (pagina per trascinare e aprire i file)
-  box.append(el("button", { class: "tab-closeall", title: "Chiudi tutti i file aperti", disabled: !tabs.length || undefined, onclick: closeAll },
-    el("span", { html: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>' }), "Chiudi tutto"));
+  // la linguetta Home (pagina per trascinare e aprire i file) all'estrema sinistra, "Chiudi tutto" all'estrema destra
   box.append(el("div", { class: "tab home-tab" + (!active && $("formats").hidden ? " active" : ""), role: "tab", title: "Home: trascina qui i file da aprire", onclick: () => activate(null) },
     el("span", { html: '<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 9v12h14V9"/></svg>' }), el("span", { class: "name" }, "Home")));
   for (const t of tabs) {
@@ -99,6 +97,8 @@ function renderTabs() {
     b.addEventListener("auxclick", e => { if (e.button === 1) closeTab(t); });
     box.append(b);
   }
+  box.append(el("button", { class: "tab-closeall", title: "Chiudi tutti i file aperti", disabled: !tabs.length || undefined, onclick: closeAll },
+    el("span", { html: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>' }), "Chiudi tutto"));
   const has = !!active;
   for (const id of ["btn-as", "btn-folder", "btn-external", "btn-info"]) $(id).disabled = !has;
   $("home").hidden = has || !$("formats").hidden;
