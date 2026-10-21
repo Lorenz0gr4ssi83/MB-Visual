@@ -1,6 +1,6 @@
 // PDF con il visualizzatore di Mozilla (pdf.js): pagine, ricerca, stampa, annotazioni; firme PAdES.
 import { api, baseName, button, dirName, el, fileUrl, modal, pickFiles, pickFolder, pickSavePath, toast, waitJob, WEB } from "../core.js";
-import { createPdfEditor } from "../pdfeditor.js";
+import { createPdfEditor, PDFJS_HIDE } from "../pdfeditor.js";
 import { renderSigner } from "./signed.js";
 
 export async function mount(ctx) {
@@ -18,7 +18,8 @@ export async function mount(ctx) {
 
   frame.addEventListener("load", async () => {
     // puntatore sempre a freccia anche dentro il visualizzatore PDF (richiesta dell'utente)
-    try { const s = frame.contentDocument.createElement("style"); s.textContent = "*, *::before, *::after { cursor: default !important; }"; frame.contentDocument.head.append(s); } catch { /* */ }
+    // con l'editor dell'app per PC i pulsanti di annotazione di pdf.js si nascondono: li comanda la barra dell'editor
+    try { const s = frame.contentDocument.createElement("style"); s.textContent = "*, *::before, *::after { cursor: default !important; }" + (ed ? PDFJS_HIDE : ""); frame.contentDocument.head.append(s); } catch { /* */ }
     const a = app();
     if (!a) return;
     await a.initializedPromise;
@@ -88,16 +89,14 @@ export async function mount(ctx) {
       if (await ask("Timbro in alto a destra", [el("label", { style: { display: "grid", gap: "4px" } }, "Testo del timbro (una riga per riga)", f), p.row])) run("stamp", { text: f.value, mode: "timbro", pages: p.input.value }, stem + "_timbrato.pdf");
     }, "Riquadro di testo in alto a destra (approvazione, revisione, data)"],
   ];
-  // ---- editor completo (solo app per PC: usa il motore PyMuPDF): barra sotto la barra principale, pannello a destra
+  // ---- editor (solo app per PC: motore PyMuPDF): barra sempre visibile sotto la barra principale, pannello a destra
   let backHandler = null;
   if (ed) {
     wrap.prepend(ed.bar);
     area.append(ed.panel);
-    ed.panel.style.width = "260px";
-    const toggle = button("Modifica PDF", "edit", () => { const on = ed.toggle(); toggle.classList.toggle("on", on); ctx.status(on ? "Modifica PDF: scegli uno strumento nella barra" : ""); },
-      { title: "Testi, immagini, forme, campi modulo, caselle di spunta, menu a tendina, collegamenti, pagine" });
-    ctx.tb.append(toggle, el("span", { class: "sep" }));
-    backHandler = () => (ed.on ? (toggle.click(), true) : false);
+    ed.panel.style.width = "270px";
+    ed.panel.style.flex = "none";
+    backHandler = () => ed.escape();
   }
   for (const [label, icon, fn, title] of tools) ctx.tb.append(button(label, icon, fn, { title }));
   if (ed) {
@@ -164,7 +163,7 @@ export async function mount(ctx) {
       try { const r = await api("pdf_tool", { path: await current(), op: "images" }, { json: { folder, dpi: 150 } }); toast(`Create ${r.files.length} immagini in ${folder}`); } catch (e) { toast(e.message, true); }
     }
   }
-  ctx.tb.append(el("span", { class: "grow" }), el("span", { class: "note" }, "Annotazioni (testo, disegno, evidenziatore, immagini): strumenti in alto a destra nel documento · Ctrl+S salva"));
+  ctx.tb.append(el("span", { class: "grow" }), el("span", { class: "note" }, ed ? "Strumenti di modifica nella barra sotto · Ctrl+S salva" : "Annotazioni (testo, disegno, evidenziatore, immagini): strumenti in alto a destra nel documento · Ctrl+S salva"));
   // firme digitali nel PDF
   api("pdf_signatures", { path: ctx.path }, { allowFail: true }).then(r => {
     const sigs = (r.firme || []).filter(s => s.firmatari);

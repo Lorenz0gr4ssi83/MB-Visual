@@ -232,7 +232,9 @@ def reorder(path: str, out: str, order: list[int]) -> dict:
 
 def working_copy(path: str, folder: Path) -> str:
     folder.mkdir(parents=True, exist_ok=True)
-    dst = folder / (Path(path).stem + "_" + os.urandom(4).hex() + ".pdf")
+    # nome: originale + codice casuale (senza accumulare i codici delle copie precedenti)
+    stem = re.sub(r"(_[0-9a-f]{8})+$", "", Path(path).stem)
+    dst = folder / (stem + "_" + os.urandom(4).hex() + ".pdf")
     shutil.copyfile(path, dst)
     return str(dst)
 

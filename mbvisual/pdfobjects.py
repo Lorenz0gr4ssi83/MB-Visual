@@ -67,7 +67,7 @@ def page_objects(path: str, pno: int) -> dict:
                         "bold": bool(first["flags"] & 16) or "bold" in first["font"].lower(),
                         "italic": bool(first["flags"] & 2) or "italic" in first["font"].lower()})
         # disegni vettoriali: gruppi (tracciati vicini, come li vede l'occhio) + singoli tracciati per entrare nel gruppo
-        draws = page.get_drawings()
+        draws = _page_draws(page)
         paths = []
         for d in draws[:MAX_PATHS]:
             r = pymupdf.Rect(d["rect"])
@@ -254,9 +254,19 @@ def _draw_paths(page, paths, dx=0.0, dy=0.0, sx=1.0, sy=1.0, ox=0.0, oy=0.0, sty
     shape.commit(overlay=overlay)
 
 
+def _page_draws(page):
+    """Tracciati del contenuto della pagina. get_drawings riporta anche l'aspetto di campi modulo e annotazioni
+    (bordi, sottolineature): non sono disegni della pagina e non si toccano con le operazioni sui disegni."""
+    boxes = [pymupdf.Rect(a.rect) + (-1, -1, 1, 1) for a in page.annots()] + [pymupdf.Rect(w.rect) + (-1, -1, 1, 1) for w in page.widgets()]
+    out = page.get_drawings()
+    if boxes:
+        out = [d for d in out if not any(pymupdf.Rect(d["rect"]) in b for b in boxes)]
+    return out
+
+
 def _paths_in(page, rect, tol=0.6):
     big = rect + (-tol, -tol, tol, tol)
-    return [p for p in page.get_drawings() if pymupdf.Rect(p["rect"]) in big]
+    return [p for p in _page_draws(page) if pymupdf.Rect(p["rect"]) in big]
 
 
 def _find_widget(page, xref):
@@ -336,7 +346,33 @@ def _set_widget(w, o):
 
 # ---------------------------------------------------------------- operazioni
 def apply_ops(path: str, ops: list[dict]) -> dict:
+    """Applica le operazioni e sostituisce il file. Le operazioni girano in una funzione a parte: campi, pagine e
+    annotazioni di PyMuPDF ancora in memoria tengono aperto il file anche a documento chiuso e Windows ne rifiuta
+    la sostituzione; finita la funzione si liberano (gc) e la sostituzione si ritenta per qualche istante."""
+    import gc
+    import time
     tmp = path + ".mbv-ops.pdf"
+    try:
+        done = _apply_ops(path, tmp, ops)
+        for attempt in range(25):
+            gc.collect()
+            try:
+                os.replace(tmp, path)
+                break
+            except PermissionError:
+                if attempt == 24:
+                    raise
+                time.sleep(0.2)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+    return {"ok": True, "operazioni": done}
+
+
+def _apply_ops(path: str, tmp: str, ops: list[dict]) -> int:
     done = 0
     with pymupdf.open(path) as doc:
         for o in ops:
@@ -399,7 +435,7 @@ def apply_ops(path: str, ops: list[dict]) -> dict:
                 zone = r + (-m, -m, m, m)
                 # MuPDF non toglie i tracciati racchiusi in un altro ("coperti"): si tolgono quelli che toccano la zona
                 # e si ridisegnano identici quelli che non fanno parte del gruppo
-                touched = [p for p in page.get_drawings() if (pymupdf.Rect(p["rect"]) + (-0.05, -0.05, 0.05, 0.05)).intersects(zone)]
+                touched = [p for p in _page_draws(page) if (pymupdf.Rect(p["rect"]) + (-0.05, -0.05, 0.05, 0.05)).intersects(zone)]
                 strangers = [p for p in touched if pymupdf.Rect(p["rect"]) not in zone]
                 paths = [p for p in touched if pymupdf.Rect(p["rect"]) in zone]
                 targets = set(o["targets"]) if o.get("targets") else None
@@ -575,5 +611,4 @@ def apply_ops(path: str, ops: list[dict]) -> dict:
         except Exception:  # noqa: BLE001
             pass
         doc.save(tmp, garbage=3, deflate=True)
-    os.replace(tmp, path)
-    return {"ok": True, "operazioni": done}
+    return done
