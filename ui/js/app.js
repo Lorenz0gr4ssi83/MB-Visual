@@ -4,7 +4,7 @@ import {
   pickSavePath, toast, waitJob, WEB,
 } from "./core.js";
 import { licenseGate, showAccount } from "./license.js";
-import { t as tr, has as trHas, LANG, LANGS, LOCALE, MANUAL, keyName, setLanguage } from "./i18n.js";
+import { t as tr, tn, has as trHas, LANG, LANGS, LOCALE, MANUAL, keyName, setLanguage } from "./i18n.js";
 
 const $ = id => document.getElementById(id);
 const VIEWER_NAMES = {
@@ -703,7 +703,7 @@ function renderFormats() {
       const req = c.requires ? REG.requirements[c.requires] : null;
       const status = req ? (TOOLS[c.requires] ? el("span", { class: "chip ok" }, tr("app.0_presente", req.name)) : el("span", { class: "chip warn" }, tr("app.richiede_0_gratuito", req.name))) : null;
       list.append(el("section", { class: "fcat" },
-        el("header", {}, el("h2", {}, catText(c, "name")), el("span", { class: "n" }, tr("app.0_estensioni", c.exts.length)), status),
+        el("header", {}, el("h2", {}, catText(c, "name")), el("span", { class: "n" }, tn("app.n_estensioni", c.exts.length)), status),
         el("p", {}, el("b", {}, tr("app.visualizza")), catText(c, "view")),
         el("p", {}, el("b", {}, tr("app.modifica")), catText(c, "edit")),
         el("div", { class: "exts" }, [...new Set(c.exts)].sort().map(e => el("code", { class: q && e === q ? "hit" : "" }, "." + e)))));
