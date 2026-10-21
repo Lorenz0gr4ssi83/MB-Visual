@@ -15,7 +15,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from .paths import TEMP_DIR
+from .paths import IS_MAC, NO_WINDOW, TEMP_DIR
 
 DEG = 180 / math.pi
 # entita' i cui dati geometrici si riscrivono direttamente; le altre (quote, tratteggi, spline...) si trasformano
@@ -565,7 +565,7 @@ def _to_dwg(doc, out):
     tmp_out = Path(tempfile.mkdtemp(dir=TEMP_DIR))
     name = Path(out).stem
     doc.saveas(tmp_in / (name + ".dxf"))
-    subprocess.run([exe, str(tmp_in), str(tmp_out), "ACAD2018", "DWG", "0", "1", "*.DXF"], capture_output=True, timeout=600, creationflags=0x08000000)
+    subprocess.run([exe, str(tmp_in), str(tmp_out), "ACAD2018", "DWG", "0", "1", "*.DXF"], capture_output=True, timeout=600, creationflags=NO_WINDOW)
     res = tmp_out / (name + ".dwg")
     if not res.exists():
         raise RuntimeError("Conversione in DWG non riuscita")

@@ -8,6 +8,10 @@ Se c'e' una build piu' recente e OneDrive l'ha scaricata tutta (numero e peso de
 uno script PowerShell aspetta la chiusura dell'app, copia i file nuovi nella cartella dell'app e la riavvia.
 Chi avvia l'app direttamente dalla cartella OneDrive puo' installarla sul PC (%LOCALAPPDATA%\\Programs\\MB Visual):
 la copia installata si aggiorna da sola e non risente delle sincronizzazioni a meta'.
+
+Sul Mac l'app e' un pacchetto "MB Visual.app" e si aggiorna solo dalle release su GitHub (file MBVisual-<ver>-mac.dmg):
+il .dmg si monta con hdiutil, il pacchetto nuovo si prepara in locale e uno script sh lo mette al posto di quello
+in uso (di solito in /Applications) dopo la chiusura dell'app, poi la riapre. "Installa" copia l'app in /Applications.
 """
 import json
 import os
@@ -18,12 +22,15 @@ import tempfile
 import threading
 from pathlib import Path
 
-from .paths import APP_DIR, RES_DIR
+from .paths import APP_DIR, DATA_DIR, IS_MAC, IS_WIN, NO_WINDOW, RES_DIR
 
 FROZEN = bool(getattr(sys, "frozen", False))
 REL = Path("ai-engineering-workspace") / "MB Visual" / "App per PC"
-SETTINGS = Path(os.environ.get("LOCALAPPDATA", tempfile.gettempdir())) / "MBVisual" / "aggiornamenti.json"
+SETTINGS = DATA_DIR / "aggiornamenti.json"
 INSTALL_DIR = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "Programs" / "MB Visual"
+# Mac: pacchetto in uso (APP_DIR = .../MB Visual.app/Contents/MacOS) e posto dove si installa
+MAC_BUNDLE = APP_DIR.parent.parent if APP_DIR.parent.parent.suffix == ".app" else None
+MAC_INSTALL = Path("/Applications") / "MB Visual.app"
 LOG = Path(tempfile.gettempdir()) / "MBVisual-aggiornamento.log"
 
 
@@ -113,10 +120,12 @@ def _same(a: Path, b: Path) -> bool:
 
 def check() -> dict:
     cur = current()
-    res = {"ok": True, "attuale": cur, "stato": "aggiornato", "fonte": None, "da_onedrive": False, "installabile": FROZEN, "cartella": str(APP_DIR)}
+    res = {"ok": True, "attuale": cur, "stato": "aggiornato", "fonte": None, "da_onedrive": False, "installabile": FROZEN and IS_WIN, "cartella": str(APP_DIR)}
     if not FROZEN:
         res["stato"] = "sviluppo"
         return res
+    if not IS_WIN:
+        return _check_mac(res, cur)
     if _same(APP_DIR, INSTALL_DIR):  # copia installata: collegamenti sistemati in sottofondo
         threading.Thread(target=lambda: _safe(repair_shortcuts), daemon=True).start()
     # app avviata direttamente dalla cartella pubblicata su OneDrive
@@ -148,7 +157,19 @@ def check() -> dict:
     return res
 
 
-STAGING = Path(os.environ.get("LOCALAPPDATA", tempfile.gettempdir())) / "MBVisual" / "nuova-versione"
+def _check_mac(res: dict, cur: dict) -> dict:
+    """Mac (e altri sistemi): niente cartella OneDrive "App per PC" (contiene l'app per Windows), solo GitHub."""
+    res["cartella"] = str(MAC_BUNDLE or APP_DIR)
+    res["installabile"] = bool(IS_MAC and MAC_BUNDLE and not _same(MAC_BUNDLE, MAC_INSTALL))
+    rel = _github_latest() if IS_MAC else None
+    if rel and _vtuple(rel["versione"]) > _vtuple(cur.get("versione", "0")):
+        res.update(stato="nuova", fonte="github", github=rel, disponibile={"versione": rel["versione"], "build": rel["data"]})
+    elif not rel:
+        res["stato"] = "nessuna_fonte"
+    return res
+
+
+STAGING = DATA_DIR / "nuova-versione"
 
 
 def _log(msg: str) -> None:
@@ -233,7 +254,7 @@ def repair_shortcuts() -> dict:
     hanno un'icona propria. Trascinando la voce del menu Start sul Desktop, Windows crea un collegamento a un
     collegamento senza icona: trascinato poi sulla barra delle applicazioni mostra un quadrato grigio."""
     exe = INSTALL_DIR / "MBVisual.exe"
-    if not (FROZEN and _same(APP_DIR, INSTALL_DIR) and exe.is_file()):
+    if not (IS_WIN and FROZEN and _same(APP_DIR, INSTALL_DIR) and exe.is_file()):
         return {"riparati": 0}
     import pythoncom
     import win32com.client
@@ -268,7 +289,7 @@ def repair_shortcuts() -> dict:
         _log(f"collegamenti riparati: {fixed}")
         try:  # aggiorna la cache delle icone di Windows (solo per l'utente)
             subprocess.run([os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "ie4uinit.exe"), "-show"],
-                           timeout=20, creationflags=0x08000000, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                           timeout=20, creationflags=NO_WINDOW, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception:  # noqa: BLE001
             pass
     return {"riparati": fixed}
@@ -297,18 +318,17 @@ def _github_latest():
             rel = json.loads(r.read())
     except Exception:  # noqa: BLE001
         return None
-    asset = next((a for a in rel.get("assets", []) if re.match(r"MBVisual-Setup-.*\.exe$", a.get("name", ""))), None)
+    pattern = r"MBVisual-.*-mac\.dmg$" if IS_MAC else r"MBVisual-Setup-.*\.exe$"
+    asset = next((a for a in rel.get("assets", []) if re.match(pattern, a.get("name", ""))), None)
     if not asset:
         return None
     return {"versione": rel.get("tag_name", "").lstrip("v"), "data": (rel.get("published_at") or "")[:19].replace("T", " "),
             "url": asset["browser_download_url"], "byte": asset.get("size", 0), "note": rel.get("body", "")}
 
 
-def _apply_github(rel: dict, update=None) -> dict:
-    """Scarica il setup (con avanzamento) e lo esegue in silenzio quando l'app si e' chiusa, poi la riavvia."""
+def _download(rel: dict, setup: Path, update=None) -> None:
     import urllib.request
     STAGING.mkdir(parents=True, exist_ok=True)
-    setup = STAGING / f"MBVisual-Setup-{rel['versione']}.exe"
     total = rel.get("byte") or 1
     with urllib.request.urlopen(urllib.request.Request(rel["url"], headers={"user-agent": "MBVisual"}), timeout=60) as r, open(setup, "wb") as f:
         done = 0
@@ -322,6 +342,16 @@ def _apply_github(rel: dict, update=None) -> dict:
                 update(0.95 * done / total, f"Scaricamento: {done / 1048576:.0f} di {total / 1048576:.0f} MB")
     if rel.get("byte") and setup.stat().st_size != rel["byte"]:
         raise ValueError("Scaricamento incompleto: riprova")
+
+
+def _apply_github(rel: dict, update=None) -> dict:
+    """Scarica il setup (con avanzamento) e lo esegue in silenzio quando l'app si e' chiusa, poi la riavvia."""
+    if IS_MAC:
+        return _apply_github_mac(rel, update)
+    if not IS_WIN:
+        raise ValueError("Aggiornamento automatico non disponibile su questo sistema")
+    setup = STAGING / f"MBVisual-Setup-{rel['versione']}.exe"
+    _download(rel, setup, update)
     if update:
         update(0.97, "Installazione della nuova versione")
     exe = INSTALL_DIR / "MBVisual.exe"
@@ -340,6 +370,78 @@ def _apply_github(rel: dict, update=None) -> dict:
     return {"ok": True, "versione": rel["versione"]}
 
 
+# ---------------------------------------------------------------- Mac: sostituzione del pacchetto .app
+def _sh_quote(p) -> str:
+    return "'" + str(p).replace("'", "'\\''") + "'"
+
+
+def _mac_swap(new_app: Path, target: Path) -> None:
+    """Script sh in sottofondo: aspetta la chiusura dell'app, mette new_app al posto di target e la riapre
+    (se la copia non riesce rimette il pacchetto di prima)."""
+    q = _sh_quote
+    pid = os.getpid()
+    old = target.with_name(target.name + ".old")
+    sh = Path(tempfile.gettempdir()) / "MBVisual-aggiorna.sh"
+    sh.write_text("\n".join([
+        "#!/bin/sh",
+        f"while kill -0 {pid} 2>/dev/null; do sleep 1; done",
+        f"rm -rf {q(old)}; [ -e {q(target)} ] && mv {q(target)} {q(old)}",
+        f"if /usr/bin/ditto {q(new_app)} {q(target)} >> {q(LOG)} 2>&1; then rm -rf {q(old)} {q(new_app)}; "
+        f"else rm -rf {q(target)}; mv {q(old)} {q(target)}; fi",
+        f"/usr/bin/xattr -dr com.apple.quarantine {q(target)} 2>/dev/null",
+        f"/usr/bin/open {q(target)}",
+    ]) + "\n", encoding="utf-8")
+    subprocess.Popen(["/bin/sh", str(sh)], start_new_session=True, close_fds=True,
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    threading.Timer(1.0, lambda: os._exit(0)).start()
+
+
+def _apply_github_mac(rel: dict, update=None) -> dict:
+    """Scarica il .dmg, ne estrae "MB Visual.app" in locale e la sostituisce a quella in uso dopo la chiusura."""
+    if not MAC_BUNDLE:
+        raise ValueError("Pacchetto dell'app non riconosciuto: aggiornamento annullato per sicurezza")
+    import shutil
+    dmg = STAGING / f"MBVisual-{rel['versione']}-mac.dmg"
+    _download(rel, dmg, update)
+    if update:
+        update(0.96, "Preparazione della nuova versione")
+    mnt = Path(tempfile.mkdtemp(prefix="mbvisual-dmg-"))
+    new_app = STAGING / "MB Visual.app"
+    shutil.rmtree(new_app, ignore_errors=True)
+    subprocess.run(["/usr/bin/hdiutil", "attach", "-nobrowse", "-readonly", "-mountpoint", str(mnt), str(dmg)],
+                   check=True, capture_output=True, timeout=300)
+    try:
+        src = next(mnt.glob("*.app"), None)
+        if not src:
+            raise ValueError("Il file scaricato non contiene l'app")
+        subprocess.run(["/usr/bin/ditto", str(src), str(new_app)], check=True, capture_output=True, timeout=600)
+    finally:
+        subprocess.run(["/usr/bin/hdiutil", "detach", str(mnt), "-force"], capture_output=True, timeout=120)
+    if update:
+        update(0.98, "Riavvio di MB Visual")
+    _log(f"aggiornamento Mac -> {rel['versione']} in {MAC_BUNDLE}")
+    _mac_swap(new_app, MAC_BUNDLE)
+    return {"ok": True, "versione": rel["versione"]}
+
+
+def _install_mac(update=None) -> dict:
+    """Copia l'app in /Applications (togliendo la quarantena del download) e la riapre da li'."""
+    if not MAC_BUNDLE:
+        raise ValueError("Pacchetto dell'app non riconosciuto")
+    if _same(MAC_BUNDLE, MAC_INSTALL):
+        raise ValueError("L'app e' gia' nella cartella Applicazioni")
+    if update:
+        update(0.5, "Copia in Applicazioni")
+    _log(f"installazione Mac da {MAC_BUNDLE} in {MAC_INSTALL}")
+    import shutil
+    tmp = STAGING / "installa" / "MB Visual.app"
+    shutil.rmtree(tmp, ignore_errors=True)
+    tmp.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["/usr/bin/ditto", str(MAC_BUNDLE), str(tmp)], check=True, capture_output=True, timeout=900)
+    _mac_swap(tmp, MAC_INSTALL)
+    return {"ok": True, "cartella": str(MAC_INSTALL)}
+
+
 def apply(update=None) -> dict:
     """Prepara la nuova versione in una cartella locale (con avanzamento), poi uno script di Windows la copia
     nella cartella dell'app appena questa si chiude e la riavvia."""
@@ -350,6 +452,8 @@ def apply(update=None) -> dict:
     if r.get("github"):
         _log(f"aggiornamento da GitHub {r['attuale']} -> {r['github']['versione']}")
         return _apply_github(r["github"], update)
+    if not IS_WIN:
+        raise ValueError("Nessun aggiornamento disponibile")
     src = Path(r["fonte"])
     if _same(src, APP_DIR):
         raise ValueError("L'app e' avviata dalla cartella di OneDrive: si aggiorna con la sincronizzazione")
@@ -382,6 +486,10 @@ def install(update=None) -> dict:
     con avanzamento visibile, e la riavvia da li'."""
     if not FROZEN:
         raise ValueError("Disponibile solo nell'app per PC")
+    if IS_MAC:
+        return _install_mac(update)
+    if not IS_WIN:
+        raise ValueError("Installazione non disponibile su questo sistema")
     r = check()
     if r["stato"] == "sincronizzazione":
         raise ValueError("OneDrive sta ancora scaricando la nuova versione: riprova tra qualche minuto")

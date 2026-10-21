@@ -6,9 +6,8 @@ import os
 import subprocess
 from pathlib import Path
 
-from .paths import TEMP_DIR, find_libreoffice
+from .paths import NO_WINDOW, TEMP_DIR, find_libreoffice
 
-NO_WINDOW = 0x08000000
 EMU_PER_PX = 9525
 
 

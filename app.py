@@ -15,7 +15,7 @@ if sys.stdout is None or sys.stderr is None:
     sys.stdout = sys.stdout or _log
     sys.stderr = sys.stderr or _log
 
-from mbvisual.paths import RES_DIR
+from mbvisual.paths import DATA_DIR, RES_DIR
 from mbvisual.server import TOKEN, start_server
 
 VERSION = "1.4.10"
@@ -112,7 +112,7 @@ def main():
     window.events.closing += on_closing
     icon = str(RES_DIR / "app.ico")
     webview.start(icon=icon if os.path.exists(icon) else None, private_mode=False,
-                  storage_path=os.path.join(os.environ.get("LOCALAPPDATA", RES_DIR), "MBVisual", "webview"))
+                  storage_path=str(DATA_DIR / "webview"))
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ import urllib.request
 import uuid
 from pathlib import Path
 
-from .paths import APP_DIR, RES_DIR, TEMP_DIR
+from .paths import APP_DIR, DATA_DIR, IS_WIN, NO_WINDOW, RES_DIR, TEMP_DIR
 
 OUT = TEMP_DIR / "ia"
 _lock = threading.Lock()
@@ -26,13 +26,13 @@ _token = secrets.token_urlsafe(16)
 
 
 def _bases():
-    return [Path.home() / ".mbvisual" / "ia", Path(os.environ.get("LOCALAPPDATA", "")) / "MBVisual" / "ia"]
+    return [Path.home() / ".mbvisual" / "ia", DATA_DIR / "ia"]
 
 
 def find():
     eng = next((p for p in (RES_DIR / "ia" / "engine.py", APP_DIR / "ia" / "engine.py") if p.is_file()), None)
     for b in _bases():
-        py = b / "venv" / "Scripts" / "python.exe"
+        py = b / "venv" / ("Scripts/python.exe" if IS_WIN else "bin/python")
         if py.is_file() and (b / "modelli").is_dir():
             return {"python": str(py), "engine": str(eng) if eng else None, "modelli": str(b / "modelli")}
     return None
@@ -62,7 +62,7 @@ def _start():
     OUT.mkdir(parents=True, exist_ok=True)
     _proc = subprocess.Popen([f["python"], f["engine"], "--models", f["modelli"], "--out", str(OUT), "--token", _token, "--parent", str(os.getpid())],
                              stdout=subprocess.PIPE, stderr=open(TEMP_DIR / "ia-motore.log", "a", encoding="utf-8"), stdin=subprocess.DEVNULL,
-                             creationflags=0x08000000, text=True)
+                             creationflags=NO_WINDOW, text=True)
     t = time.time()
     while time.time() - t < 120:
         line = _proc.stdout.readline()

@@ -17,7 +17,7 @@ import zipfile
 from pathlib import Path
 
 from . import misc
-from .paths import TEMP_DIR, find_libreoffice, find_office
+from .paths import IS_WIN, NO_WINDOW, TEMP_DIR, find_libreoffice, find_office as _find_office
 
 # famiglie di formati di partenza (estensione -> famiglia)
 FAMILIES = {
@@ -101,6 +101,11 @@ def convert(src: str, out: str, update=None) -> dict:
 
 
 # ---------------------------------------------------------------- Office (COM, poi LibreOffice)
+def find_office(exe):
+    """Office utilizzabile per l'automazione COM: solo su Windows (sul Mac si converte con LibreOffice)."""
+    return _find_office(exe) if IS_WIN else None
+
+
 def _com(progid):
     import pythoncom
     import win32com.client
@@ -116,12 +121,12 @@ def _com(progid):
 def _lo(src, out, to):
     exe = find_libreoffice()
     if not exe:
-        raise RuntimeError("Per questa conversione serve Microsoft Office o LibreOffice (gratuito) installato sul PC")
+        raise RuntimeError("Per questa conversione serve " + ("Microsoft Office o " if IS_WIN else "") + "LibreOffice (gratuito) installato sul computer")
     import subprocess
     tmp = Path(tempfile.mkdtemp(dir=TEMP_DIR))
     profile = (TEMP_DIR / "lo-profile").as_uri()
     subprocess.run([exe, f"-env:UserInstallation={profile}", "--headless", "--norestore", "--convert-to", to, "--outdir", str(tmp), src],
-                   capture_output=True, timeout=900, creationflags=0x08000000)
+                   capture_output=True, timeout=900, creationflags=NO_WINDOW)
     found = list(tmp.glob("*"))
     if not found:
         raise RuntimeError("Conversione con LibreOffice non riuscita")
@@ -430,12 +435,12 @@ def _archive(src, out, ext, to, update):
         os.remove(out)
     if to in ("tgz", "txz", "tbz2"):
         tar = str(tmp.parent / (tmp.name + ".tar"))
-        subprocess.run([exe, "a", "-ttar", tar, str(tmp / "*")], capture_output=True, creationflags=0x08000000, check=True)
+        subprocess.run([exe, "a", "-ttar", tar, str(tmp / "*")], capture_output=True, creationflags=NO_WINDOW, check=True)
         kind = {"tgz": "gzip", "txz": "xz", "tbz2": "bzip2"}[to]
-        subprocess.run([exe, "a", f"-t{kind}", out, tar], capture_output=True, creationflags=0x08000000, check=True)
+        subprocess.run([exe, "a", f"-t{kind}", out, tar], capture_output=True, creationflags=NO_WINDOW, check=True)
     else:
         kind = {"zip": "zip", "7z": "7z", "tar": "tar", "wim": "wim"}[to]
-        subprocess.run([exe, "a", f"-t{kind}", "-mx=7", out, str(tmp / "*")], capture_output=True, creationflags=0x08000000, check=True)
+        subprocess.run([exe, "a", f"-t{kind}", "-mx=7", out, str(tmp / "*")], capture_output=True, creationflags=NO_WINDOW, check=True)
 
 
 def _font(src, out, ext, to, update):

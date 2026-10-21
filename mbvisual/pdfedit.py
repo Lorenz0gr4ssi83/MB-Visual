@@ -27,8 +27,33 @@ FAMILIES = [
 ]
 
 
+# fuori da Windows: famiglia del font originale -> famiglie da cercare tra i caratteri installati (mbvisual/fonts.py)
+OTHER_FAMILIES = [
+    (r"calibri", ("calibri", "carlito", "helvetica neue", "arial")),
+    (r"cambria", ("cambria", "caladea", "georgia", "times new roman")),
+    (r"arialn|arial.?narrow", ("arial narrow", "liberation sans narrow", "helvetica neue", "arial")),
+    (r"verdana", ("verdana", "dejavu sans")),
+    (r"tahoma", ("tahoma", "verdana", "dejavu sans")),
+    (r"georgia", ("georgia", "dejavu serif")),
+    (r"segoe", ("segoe ui", "helvetica neue", "arial")),
+    (r"cour|mono|consol", ("courier new", "liberation mono", "dejavu sans mono", "menlo")),
+    (r"times|serif|roman|garamond|book", ("times new roman", "liberation serif", "times", "dejavu serif")),
+    (r"", ("arial", "liberation sans", "helvetica", "dejavu sans")),
+]
+
+
 def _font_file(name: str, bold: bool, italic: bool) -> Path | None:
     n = (name or "").lower().split("+")[-1]
+    from .paths import IS_WIN
+    if not IS_WIN:
+        from . import fonts
+        for pat, fams in OTHER_FAMILIES:
+            if re.search(pat, n):
+                for fam in fams:
+                    f = fonts.find(fam, bold, italic)
+                    if f:
+                        return Path(f)
+        return None
     for pat, files in FAMILIES:
         if re.search(pat, n):
             f = FONTS_DIR / files[(2 if italic else 0) + (1 if bold else 0)]
@@ -239,20 +264,33 @@ def working_copy(path: str, folder: Path) -> str:
     return str(dst)
 
 
-# ---------------------------------------------------------------- OCR con il motore integrato di Windows
+# ---------------------------------------------------------------- OCR con il motore integrato del sistema (Windows o macOS)
+def _ocr_cmd(img: str) -> list:
+    """Comando OCR del sistema: ocr.ps1 (motore di Windows, PowerShell) oppure, sul Mac, mbvocr (framework Vision,
+    tools/mbvocr/mbvocr.swift compilato da tools/build_mac.py). Stessa uscita JSON per entrambi."""
+    from .paths import BIN_DIR, IS_MAC, IS_WIN
+    if IS_WIN:
+        script = Path(__file__).with_name("ocr.ps1")
+        return ["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(script), img, "it"]
+    if IS_MAC:
+        exe = next((p for p in (BIN_DIR / "mbvocr", Path.home() / ".mbvisual" / "mbvocr" / "mbvocr") if p.is_file()), None)
+        if exe:
+            return [str(exe), img, "it-IT"]
+    raise RuntimeError("Riconoscimento del testo non disponibile su questo sistema")
+
+
 def _ocr_png(png: bytes):
-    """Parole riconosciute in un'immagine: [[(testo, x, y, larghezza, altezza), ...] per riga]. Usa ocr.ps1 (motore di Windows)
-    in un processo PowerShell separato: nessuna libreria aggiuntiva nell'app."""
+    """Parole riconosciute in un'immagine: [[(testo, x, y, larghezza, altezza), ...] per riga]. Usa il motore OCR del
+    sistema in un processo separato (vedi _ocr_cmd): nessuna libreria aggiuntiva nell'app."""
     import json
     import subprocess
     import tempfile
-    script = Path(__file__).with_name("ocr.ps1")
+    from .paths import NO_WINDOW
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
         f.write(png)
         img = f.name
     try:
-        r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(script), img, "it"],
-                           capture_output=True, timeout=300, creationflags=0x08000000)
+        r = subprocess.run(_ocr_cmd(img), capture_output=True, timeout=300, creationflags=NO_WINDOW)
         if r.returncode != 0:
             raise RuntimeError("Riconoscimento del testo non riuscito: " + r.stderr.decode("utf-8", "replace").strip()[-300:])
         out = r.stdout.decode("utf-8-sig", "replace").strip()

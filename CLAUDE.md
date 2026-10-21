@@ -256,3 +256,28 @@ costumi (anche "meno vestiti"), pose audaci: permessi. safety_checker di diffuse
   (`_id` della richiesta): il motore si ferma al passo successivo (progress() solleva Cancelled; un calcolo ONNX o il
   caricamento di un modello non si spezzano).
 - Altri PC: `python tools/ia_setup.py` (Python 3.13 ARM64 o x64; CUDA se c'e' nvidia-smi) in %LOCALAPPDATA%\MBVisual\ia.
+
+## App per Mac (22/10/2026) - codice pronto, build da collaudare su un Mac vero
+Codice Python indipendente da Windows: ogni parte solo-Windows si spegne con garbo, nessun modulo fallisce all'import.
+- `mbvisual/paths.py`: IS_WIN/IS_MAC, NO_WINDOW (0 fuori da Windows: subprocess rifiuta creationflags), DATA_DIR
+  (Windows %LOCALAPPDATA%\MBVisual come prima; Mac ~/Library/Application Support/MBVisual), open_default/reveal/open_with
+  (Finder, `open -a` per Office per Mac), 7zz, LibreOffice.app, Office per Mac (solo "Modifica in Word/Excel").
+- `convert.py`: COM solo su Windows, sul Mac LibreOffice. `fonts.py` (nuovo): caratteri dal registro o dalle cartelle Fonts
+  del Mac (fontTools), usato da publisher.py e pdfedit.py. `license.py`: impronta da IOPlatformUUID (`ioreg`); su Windows la
+  stringa e' identica a prima (attivazioni valide). OCR sul Mac: `tools/mbvocr/mbvocr.swift` (framework Vision, stessa uscita
+  JSON di ocr.ps1) -> bin/mbvocr. `update.py` sul Mac: solo release GitHub con asset `MBVisual-<ver>-mac.dmg` (hdiutil + ditto,
+  script sh che sostituisce il pacchetto dopo la chiusura e lo riapre); "Installa" = copia in /Applications.
+- Build: `tools/build_mac.py` (solo macOS) -> "MB Visual.app" + `MBVisual-<ver>-mac.dmg` (7zz 25.01 scaricato, ffmpeg,
+  mbvocr, nwd2mbv da `tools/nwd2mbv/build_mac.sh`, ONLYOFFICE se in ~/.mbvisual/onlyoffice). Workflow
+  `.github/workflows/build-mac.yml` (macos-14 arm64, solo avvio a mano: i minuti macOS costano 10x sui repository privati):
+  prova gli import, costruisce ONLYOFFICE dallo stesso commit di ranuts/document (7bf478b), avvia l'app e chiama
+  /api/update_check, carica il .dmg come artefatto. `requirements.txt`: pywin32 solo su Windows.
+- DA FARE: (1) firma e notarizzazione Apple: serve l'Apple Developer Program (99 USD/anno) con certificato "Developer ID
+  Application"; poi `codesign --options runtime --timestamp` con entitlements (JIT per WebKit/pywebview), `xcrun notarytool
+  submit --wait` e `xcrun stapler staple` sul .dmg; segreti del certificato nei secrets di GitHub. Senza firma macOS chiede
+  conferma al primo avvio (clic destro -> Apri) e l'aggiornamento automatico puo' essere bloccato da Gatekeeper.
+  (2) Prove su un Mac vero (nessun Mac qui): finestra pywebview/WebKit, trascinamento dei file, apertura dal Finder
+  (--argv-emulation copre solo il primo file; i successivi arrivano come Apple Event non gestiti), OCR Vision, nwd2mbv,
+  ONLYOFFICE in WebKit (COOP/COEP, SharedArrayBuffer), licenza e aggiornamento da .dmg. (3) Pubblicare il .dmg nelle
+  release di MB-Visual-Rilasci accanto al setup Windows. (4) Interfaccia: testi "PC"/"Esplora file"/"Installa su questo PC"
+  da adattare al Mac; motore IA (ia_setup.py) non preparato per il Mac.

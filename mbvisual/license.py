@@ -1,7 +1,7 @@
 """Licenza dell'app per PC (server in server/, Cloudflare Worker).
 
 Ogni PC si attiva con una chiave MBV-XXXXX-...: il server restituisce un'attivazione firmata Ed25519 legata a questo PC
-(impronta = hash del MachineGuid di Windows), valida 30 giorni anche senza internet. A ogni avvio e ogni 6 ore l'app la rinnova;
+(impronta = hash del MachineGuid di Windows, sul Mac dell'IOPlatformUUID), valida 30 giorni anche senza internet. A ogni avvio e ogni 6 ore l'app la rinnova;
 se la chiave e' stata sostituita (cambio dispositivo), revocata o il PC liberato, l'app si blocca con il motivo.
 In sviluppo (non eseguibile) la licenza non e' richiesta, salvo MBV_LICENZA=1.
 """
@@ -10,7 +10,6 @@ import json
 import os
 import socket
 import sys
-import tempfile
 import threading
 import time
 import urllib.error
@@ -19,9 +18,10 @@ from base64 import urlsafe_b64decode
 from pathlib import Path
 
 from . import license_pub
+from .paths import DATA_DIR, IS_MAC, IS_WIN, NO_WINDOW
 
 FROZEN = bool(getattr(sys, "frozen", False))
-STORE = Path(os.environ.get("LOCALAPPDATA", tempfile.gettempdir())) / "MBVisual" / "licenza.json"
+STORE = DATA_DIR / "licenza.json"
 CHECK_EVERY = 6 * 3600
 _lock = threading.Lock()
 _cache = {"t": 0.0, "res": None}
@@ -46,16 +46,40 @@ def required() -> bool:
     return (FROZEN and bool(server_url())) or os.environ.get("MBV_LICENZA") == "1"
 
 
-def device_id() -> str:
-    """Impronta di questo Windows: cambia su un altro PC (o con Windows reinstallato)."""
-    guid = ""
-    try:
+def _machine_guid() -> str:
+    """Identificativo stabile del computer: MachineGuid di Windows, IOPlatformUUID del Mac, machine-id di Linux."""
+    if IS_WIN:
         import winreg
         with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Cryptography", 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as k:
-            guid = winreg.QueryValueEx(k, "MachineGuid")[0]
-    except OSError:
+            return winreg.QueryValueEx(k, "MachineGuid")[0]
+    if IS_MAC:
+        import re
+        import subprocess
+        out = subprocess.run(["/usr/sbin/ioreg", "-rd1", "-c", "IOPlatformExpertDevice"], capture_output=True, text=True,
+                             timeout=10, creationflags=NO_WINDOW).stdout
+        m = re.search(r'"IOPlatformUUID"\s*=\s*"([^"]+)"', out)
+        if not m:
+            raise OSError("IOPlatformUUID non trovato")
+        return m.group(1)
+    for f in ("/etc/machine-id", "/var/lib/dbus/machine-id"):
+        try:
+            v = Path(f).read_text(encoding="utf-8").strip()
+            if v:
+                return v
+        except OSError:
+            pass
+    raise OSError("identificativo del computer non trovato")
+
+
+def device_id() -> str:
+    """Impronta di questo computer: cambia su un altro PC/Mac (o con il sistema reinstallato)."""
+    try:
+        guid = _machine_guid()
+    except Exception:  # noqa: BLE001
         guid = socket.gethostname()
-    return hashlib.sha256(f"MBVisual|pc|{guid}".encode()).hexdigest()[:40]
+    # su Windows la stringa resta quella di sempre: le attivazioni gia' fatte restano valide
+    kind = "pc" if IS_WIN or not IS_MAC else "mac"
+    return hashlib.sha256(f"MBVisual|{kind}|{guid}".encode()).hexdigest()[:40]
 
 
 def device_name() -> str:

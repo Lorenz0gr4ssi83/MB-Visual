@@ -14,14 +14,13 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from . import archive, jobs, media, misc, office, signed
-from .paths import TEMP_DIR, UI_DIR, find_navisworks, find_nwd2mbv, find_office, find_onlyoffice, find_trueview, tools_status
+from .paths import NO_WINDOW, TEMP_DIR, UI_DIR, find_navisworks, find_nwd2mbv, find_office, find_onlyoffice, find_trueview, open_default, open_with, reveal, tools_status
 
 TOKEN = secrets.token_urlsafe(24)
 COOKIE = "mbv"
 mimetypes.add_type("application/wasm", ".wasm")
 mimetypes.add_type("text/javascript", ".mjs")
 mimetypes.add_type("application/json", ".json")
-NO_WINDOW = 0x08000000
 
 
 def _q(qs, name, default=None):
@@ -384,7 +383,7 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"ok": True, "strings": misc.strings(self._path(qs))})
 
     def api_reveal(self, qs):
-        subprocess.Popen(["explorer", "/select,", self._path(qs)])
+        reveal(self._path(qs))
         self._json({"ok": True})
 
     def api_open_external(self, qs):
@@ -393,11 +392,11 @@ class Handler(BaseHTTPRequestHandler):
         exe = {"navisworks": find_navisworks, "trueview": find_trueview, "excel": lambda: find_office("excel.exe"),
                "word": lambda: find_office("winword.exe"), "powerpoint": lambda: find_office("powerpnt.exe")}.get(app, lambda: None)()
         if app and not exe:
-            return self._json({"ok": False, "errore": "Programma non installato su questo PC"})
+            return self._json({"ok": False, "errore": "Programma non installato su questo computer"})
         if exe:
-            subprocess.Popen([exe, p])
+            open_with(exe, p)
         else:
-            os.startfile(p)  # noqa: S606 - programma predefinito di Windows
+            open_default(p)  # programma predefinito del sistema
         self._json({"ok": True})
 
     def api_job(self, qs):

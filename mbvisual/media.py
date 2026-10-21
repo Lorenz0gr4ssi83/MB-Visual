@@ -5,9 +5,8 @@ import re
 import subprocess
 from pathlib import Path
 
-from .paths import TEMP_DIR, find_ffmpeg
+from .paths import NO_WINDOW, TEMP_DIR, find_ffmpeg
 
-NO_WINDOW = 0x08000000
 CACHE = TEMP_DIR / "media"
 CACHE.mkdir(parents=True, exist_ok=True)
 

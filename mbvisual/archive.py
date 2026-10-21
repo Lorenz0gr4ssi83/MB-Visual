@@ -6,11 +6,10 @@ import uuid
 import zipfile
 from pathlib import Path
 
-from .paths import TEMP_DIR, find_7zip
+from .paths import NO_WINDOW, TEMP_DIR, find_7zip
 
 EDITABLE = {".zip", ".7z", ".tar", ".wim", ".jar", ".war", ".ear", ".xpi", ".cbz", ".cb7", ".zipx", ".apk",
             ".nupkg", ".vsix", ".whl", ".egg", ".kmz", ".ova"}
-NO_WINDOW = 0x08000000
 
 
 def _run7z(args, cwd=None):

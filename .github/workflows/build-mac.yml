@@ -1,0 +1,94 @@
+# App per Mac (Apple Silicon), NON firmata: "MB Visual.app" in un .dmg caricato come artefatto del workflow.
+# Si avvia a mano (Actions -> Build Mac -> Run workflow): i minuti dei runner macOS costano 10 volte quelli Linux
+# sui repository privati, per questo non parte a ogni push.
+name: Build Mac
+
+on:
+  workflow_dispatch:
+    inputs:
+      onlyoffice:
+        description: "Includere l'editor ONLYOFFICE (circa 500 MB, +15 minuti)"
+        type: boolean
+        default: true
+      navisworks:
+        description: "Compilare il lettore Navisworks nwd2mbv"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  mac:
+    runs-on: macos-14   # arm64
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Dipendenze Python
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Import dei moduli (nessuna dipendenza da Windows)
+        run: |
+          python - <<'PY'
+          import importlib, pkgutil, mbvisual
+          for m in pkgutil.iter_modules(mbvisual.__path__):
+              importlib.import_module(f"mbvisual.{m.name}")
+              print("ok", m.name)
+          from mbvisual import license, paths, update
+          print("impronta:", license.device_id()[:8], "dati:", paths.DATA_DIR)
+          print("strumenti:", paths.tools_status())
+          print("aggiornamento:", update.check()["stato"])
+          PY
+
+      - name: Librerie JavaScript (ui/vendor)
+        run: python tools/fetch_vendor.py
+
+      - name: Lettore Navisworks (nwd2mbv)
+        if: ${{ inputs.navisworks }}
+        continue-on-error: true
+        run: bash tools/nwd2mbv/build_mac.sh
+
+      - uses: actions/setup-node@v4
+        if: ${{ inputs.onlyoffice }}
+        with:
+          node-version: "24"
+
+      - name: ONLYOFFICE (github.com/ranuts/document, stesso commit della versione Windows)
+        if: ${{ inputs.onlyoffice }}
+        continue-on-error: true
+        run: |
+          corepack enable
+          git clone https://github.com/ranuts/document.git ~/.mbvisual/src/oo-document
+          cd ~/.mbvisual/src/oo-document
+          git checkout 7bf478b7deb10cff49bdedc1d5c6db418d3673bf
+          pnpm install
+          pnpm run build
+          rm -rf ~/.mbvisual/onlyoffice && cp -R dist ~/.mbvisual/onlyoffice
+
+      - name: App e disco
+        run: python tools/build_mac.py --out dist-mac
+
+      - name: Prova di avvio (server locale e /api/update_check)
+        run: |
+          APP="dist-mac/MB Visual.app/Contents/MacOS/MB Visual"
+          "$APP" --browser --no-open > avvio.log 2>&1 &
+          for i in $(seq 1 60); do URL=$(grep -m1 '^http' avvio.log || true); [ -n "$URL" ] && break; sleep 1; done
+          cat avvio.log
+          [ -n "$URL" ] || { echo "l'app non ha avviato il server"; exit 1; }
+          BASE="${URL%%/?t=*}"; TOKEN="${URL##*t=}"
+          curl -sf -c c.txt "$URL" > /dev/null
+          curl -sf -b c.txt -H "x-mbv-token: $TOKEN" "$BASE/api/update_check?t=$TOKEN" | tee check.json
+          kill %1 || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MBVisual-mac
+          path: dist-mac/*.dmg
+          retention-days: 14

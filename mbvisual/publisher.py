@@ -1,7 +1,7 @@
 """Pubblicazioni (editor in stile Publisher, ui/js/pubedit.js).
 
 - export_pdf: scrive il PDF dalle operazioni di disegno registrate dall'interfaccia (ui/js/pubexport.js): percorsi
-  vettoriali, testo vero con i caratteri di Windows incorporati (ridotti ai caratteri usati), immagini, collegamenti.
+  vettoriali, testo vero con i caratteri del sistema incorporati (ridotti ai caratteri usati), immagini, collegamenti.
   Coordinate in punti con origine in alto a sinistra (le stesse di PyMuPDF).
 - import_pub: apertura dei file di Microsoft Publisher (.pub). Con Publisher installato si legge tutta
   l'impaginazione tramite COM (pagine, caselle di testo collegate, forme, tabelle, immagini; il resto come immagine);
@@ -19,46 +19,12 @@ import pymupdf
 
 from .paths import TEMP_DIR
 
-FONTS_DIR = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
-_FONT_IDX = None
 
-
-# ------------------------------------------------------------------ caratteri di Windows
+# ------------------------------------------------------------------ caratteri del sistema (mbvisual/fonts.py)
 def _font_index() -> dict:
-    """famiglia (minuscolo) -> {(grassetto, corsivo): file} dal registro dei caratteri di Windows."""
-    global _FONT_IDX
-    if _FONT_IDX is not None:
-        return _FONT_IDX
-    idx: dict = {}
-    try:
-        import winreg
-        for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
-            try:
-                k = winreg.OpenKey(hive, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts")
-            except OSError:
-                continue
-            i = 0
-            while True:
-                try:
-                    name, data, _ = winreg.EnumValue(k, i)
-                except OSError:
-                    break
-                i += 1
-                f = Path(data)
-                if not f.is_absolute():
-                    f = FONTS_DIR / data
-                if f.suffix.lower() not in (".ttf", ".otf", ".ttc") or not f.exists():
-                    continue
-                name = re.sub(r"\s*\((TrueType|OpenType)\)\s*$", "", name, flags=re.I)
-                first = name.split(" & ")[0].strip()  # nei .ttc vale solo la prima famiglia (indice 0)
-                m = re.match(r"^(.*?)(?:\s+(Bold Italic|Bold Oblique|Bold|Italic|Oblique|Regular))?$", first)
-                fam, st = m.group(1).strip().lower(), (m.group(2) or "").lower()
-                key = ("bold" in st, "italic" in st or "oblique" in st)
-                idx.setdefault(fam, {}).setdefault(key, str(f))
-    except Exception:  # noqa: BLE001
-        pass
-    _FONT_IDX = idx
-    return idx
+    """famiglia (minuscolo) -> {(grassetto, corsivo): file}: registro di Windows o cartelle dei caratteri del Mac."""
+    from . import fonts
+    return fonts.index()
 
 
 def _font_file(family: str, bold: bool, italic: bool):
