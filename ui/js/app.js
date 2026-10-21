@@ -74,7 +74,7 @@ export function resolveCategory(name, sniff) {
 
 // ------------------------------------------------------------------ badge per tipo di file
 const BADGE_COLOR = { pdf: "pdf", signed: "sig", word: "doc", "office-lo": "doc", sheet: "xls", pptx: "ppt", publisher: "cad", cad2d: "cad",
-  cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", videoproject: "av", bcf: "3d",
+  cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", videoproject: "av", bcf: "3d",
   archive: "zip", email: "mail", text: "code", markdown: "code", html: "code", ebook: "code", font: "code", database: "db", gis: "img" };
 export function badgeFor(name, isDir = false) {
   if (isDir) return el("span", { class: "badge" }, "DIR");

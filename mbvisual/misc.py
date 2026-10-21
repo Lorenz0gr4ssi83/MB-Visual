@@ -305,6 +305,7 @@ def sniff(path: str) -> dict:
         (h.startswith(b"glTF"), "mesh3d", tr("srv_misc.modello_3d_gltf_binario")),
         (h.startswith(b"LASF"), "pointcloud", tr("srv_misc.nuvola_las")),
         (h.startswith(b"ASTM-E57"), "pointcloud", tr("srv_misc.nuvola_e57")),
+        (h.startswith(b"\xff\xfe\xff\x0e" + "SketchUp Model".encode("utf-16-le")), "sketchup", tr("srv_misc.modello_sketchup")),
         (b"ISO-10303-21" in h[:200] and b"IFC" in h[:4000].upper(), "ifc", tr("srv_misc.modello_bim_ifc")),
         (b"ISO-10303-21" in h[:200], "cad3d", tr("srv_misc.modello_cad_step")),
         (h.startswith(b"MZ"), "exe", tr("srv_misc.programma_windows_eseguibile")),

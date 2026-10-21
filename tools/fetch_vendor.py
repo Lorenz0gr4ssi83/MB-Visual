@@ -49,7 +49,31 @@ PACKAGES = [
      ["package/dist/proj4.js", "package/LICENSE.md"]),
     ("geotiff", "https://registry.npmjs.org/geotiff/-/geotiff-2.1.3.tgz",
      ["package/dist-browser/geotiff.js", "package/LICENSE"]),
+    # SketchUp .skp senza SketchUp: OpenSKP (MIT) e le sue dipendenze fflate (MIT), earcut (ISC), flatbuffers (Apache-2.0)
+    ("openskp", "https://registry.npmjs.org/openskp/-/openskp-1.3.0.tgz",
+     ["package/dist/index.mjs", "package/package.json"]),
+    ("fflate", "https://registry.npmjs.org/fflate/-/fflate-0.8.2.tgz",
+     ["package/esm/browser.js", "package/LICENSE"]),
+    ("earcut", "https://registry.npmjs.org/earcut/-/earcut-3.0.2.tgz",
+     ["package/src/earcut.js", "package/LICENSE"]),
+    ("flatbuffers", "https://registry.npmjs.org/flatbuffers/-/flatbuffers-25.9.23.tgz",
+     ["package/mjs/", "package/LICENSE"]),
 ]
+
+# file da aggiungere dopo l'estrazione (il pacchetto npm di openskp non contiene la licenza)
+EXTRA = {
+    "openskp": [("LICENSE", "https://raw.githubusercontent.com/iamahsanmehmood/openskp/v1.3.0/LICENSE")],
+}
+# import senza percorso (da bundler) resi relativi: cosi' il modulo si carica anche in un Worker, che non vede l'import map
+REWRITE = {
+    "openskp": ("dist/index.mjs", {'from "fflate"': 'from "../../fflate/esm/browser.js"',
+                                   'from "earcut"': 'from "../../earcut/src/earcut.js"',
+                                   'from "flatbuffers"': 'from "../../flatbuffers/mjs/flatbuffers.js"'}),
+}
+# esportazioni in piu': una sola lettura del file per modello (spigoli, scene) e scena a istanze
+APPEND = {
+    "openskp": ("dist/index.mjs", "\nexport { parseToRaw as _parseToRaw, buildInstancedSceneFromParsed as _buildInstancedSceneFromParsed };\n"),
+}
 
 
 def download(url: str) -> bytes:
@@ -89,6 +113,19 @@ def extract(name: str, url: str, prefixes: list[str]) -> None:
                     out.parent.mkdir(parents=True, exist_ok=True)
                     out.write_bytes(t.extractfile(m).read())
                     count += 1
+    for rel, extra_url in EXTRA.get(name, []):
+        (dest / rel).write_bytes(download(extra_url))
+        count += 1
+    if name in REWRITE:
+        rel, subs = REWRITE[name]
+        text = (dest / rel).read_text(encoding="utf-8")
+        for old, new in subs.items():
+            if old not in text:
+                raise SystemExit(f"{name}: '{old}' non trovato in {rel} (versione cambiata?)")
+            text = text.replace(old, new)
+        if name in APPEND and APPEND[name][0] == rel:
+            text += APPEND[name][1]
+        (dest / rel).write_text(text, encoding="utf-8")
     print(f"{name}: {count} file")
 
 

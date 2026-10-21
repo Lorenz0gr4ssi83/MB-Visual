@@ -305,6 +305,7 @@ async function loadAny(c, ld, info) {
   } else if (OCCT[c.ext]) loaded = await loadOcct(c, bytes, ld);
   else if (c.ext === "ifc") loaded = await loadIfc(c, bytes, ld, info);
   else if (NAVIS[c.ext]) { const { loadNavis } = await import("../navis.js"); loaded = await loadNavis(c, ld); if (c.navisInfo) info.status = c.navisInfo; }
+  else if (c.ext === "skp") { const { loadSkp } = await import("../sketchup.js"); loaded = await loadSkp(c, bytes, ld); if (c.skpInfo) info.status = c.skpInfo; } // SketchUp senza SketchUp (OpenSKP)
   else if (LOADERS[c.ext]) loaded = await loadMesh(c, bytes, ld);
   else throw new Error(`Il formato .${c.ext} non e' un modello 3D`);
   // asse Z verso l'alto per CAD e mesh tecniche (convenzione ingegneristica)
@@ -599,6 +600,7 @@ export async function mount(ctx) {
   const unitOf = o => {
     while (o.parent && o.parent !== model && o.userData.expressID !== undefined && o.userData.expressID === o.parent.userData.expressID) o = o.parent;
     if (o.userData.navisId !== undefined && o.parent?.userData.navisId === o.userData.navisId) o = o.parent; // Navisworks: il nodo, non la singola mesh
+    if (o.userData.pickParent && o.parent) o = o.parent; // SketchUp: il gruppo o componente, non la faccia o lo spigolo
     return o;
   };
   const band = el("div", { hidden: true, style: { position: "absolute", border: "1px dashed #ff9f1a", background: "rgba(255,159,26,.12)", pointerEvents: "none" } });
@@ -761,6 +763,12 @@ export async function mount(ctx) {
   const views = el("select", { id: "view-" + ctx.tab.name, title: "Vista", onchange: e => { const v = { iso: [1, 0.8, 1], top: [0, 1, 0.0001], front: [0, 0, 1], right: [1, 0, 0], back: [0, 0, -1], left: [-1, 0, 0] }[e.target.value]; if (v) fit(new THREE.Vector3(...v)); e.target.value = ""; } },
     el("option", { value: "" }, "Vista..."), el("option", { value: "iso" }, "Isometrica"), el("option", { value: "top" }, "Dall'alto"), el("option", { value: "front" }, "Frontale"),
     el("option", { value: "right" }, "Destra"), el("option", { value: "left" }, "Sinistra"), el("option", { value: "back" }, "Posteriore"));
+  // viste salvate nel file (scene di SketchUp)
+  const savedViews = parts.length === 1 ? first.views || [] : [];
+  if (savedViews.length) {
+    views.append(el("optgroup", { label: tr("skp.scene_modello") }, ...savedViews.map((v, i) => el("option", { value: "s" + i }, v.name))));
+    views.addEventListener("change", e => { const v = savedViews[+e.target.value.slice(1)]; if (e.target.value[0] === "s" && v) { v.apply({ camera, controls, model }); visibilityChanged(); } e.target.value = ""; }, true);
+  }
   const exp = el("select", { id: "exp-" + ctx.tab.name, title: "Esporta", onchange: e => { const v = e.target.value; e.target.value = ""; if (v) doExport(v); } },
     el("option", { value: "" }, "Esporta..."), el("option", { value: "glb" }, "GLB (glTF binario)"), el("option", { value: "stl" }, "STL"), el("option", { value: "obj" }, "OBJ"), el("option", { value: "png" }, "Immagine PNG"));
   // ---- modalita' del tasto sinistro: Ruota / Sposta / Seleziona (Maiusc tenuto premuto: Ruota e Sposta si scambiano,
@@ -922,7 +930,7 @@ export async function mount(ctx) {
       if (["stp", "step", "ifc", "3mf", "dxf", "wrl"].includes(ext)) {
         // unita' della scena secondo il formato d'origine: IFC, Navisworks e glTF in metri, CAD e mesh in millimetri
         const src = (ctx.ext || "").toLowerCase();
-        const mpu = ["ifc", "nwd", "nwc", "nwf", "glb", "gltf", "usdz", "vrm"].includes(src) ? 1 : 0.001;
+        const mpu = ["ifc", "nwd", "nwc", "nwf", "glb", "gltf", "usdz", "vrm", "skp"].includes(src) ? 1 : 0.001;
         const X = await import("../export3d.js");
         const els = X.collectElements(model, mpu);
         if (!els.length) throw new Error("Nessun oggetto visibile da salvare");

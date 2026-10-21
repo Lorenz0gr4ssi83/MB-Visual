@@ -14,7 +14,7 @@ export function collectElements(model, metersPerUnit = 1) {
     if (!m.isMesh || !m.geometry?.attributes?.position || m.userData.merged || !visible(m)) return;
     let owner = m;
     for (let x = m.parent; x && x !== model; x = x.parent) if (x.userData.expressID !== undefined || x.userData.navisId !== undefined) { owner = x; break; }
-    if (owner === m && m.userData.proxy && m.parent) owner = m.parent;
+    if (owner === m && (m.userData.proxy || m.userData.pickParent) && m.parent) owner = m.parent; // SketchUp: un elemento per gruppo/componente
     if (!owners.has(owner)) owners.set(owner, []);
     owners.get(owner).push(m);
   });

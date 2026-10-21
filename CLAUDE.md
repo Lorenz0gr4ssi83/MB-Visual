@@ -502,3 +502,27 @@ Pannello "Cerca nel progetto" (Ctrl+Maiusc+F o pulsante Cerca di Esplora; usa la
   classificazioni), STEP (PRODUCT), p7m (contenuto firmato), zip/7z (elenco), immagini (EXIF/XMP/PNG text).
 - Collaudo: `python tests/make_search_samples.py <cartella> --copie 3000` poi `python tests/test_search.py <cartella> --nuovo`
   (47/47). NOTA: nel venv e' installato pymupdf_layout (con pymupdf4llm): `import pymupdf` carica modelli ONNX (11-18 s).
+
+## SketchUp .skp senza SketchUp (22/10/2026) - FATTO
+SDK ufficiale Trimble (SketchUp C API) NON usato: si ottiene solo su richiesta con account Trimble e accettazione dei
+termini API (download dietro login), quindi non scaricabile/collaudabile qui. Al suo posto OpenSKP 1.3.0 (MIT, lettore
+reverse-engineered, non affiliato a Trimble) + fflate (MIT), earcut (ISC), flatbuffers (Apache-2.0): `tools/fetch_vendor.py`
+li mette in ui/vendor/{openskp,fflate,earcut,flatbuffers}, riscrive gli import in percorsi relativi (il Worker non vede
+l'import map) e aggiunge due esportazioni (`_parseToRaw`, `_buildInstancedSceneFromParsed`: il file si legge una volta sola).
+- `ui/js/skpworker.js` (Worker modulo): scena a istanze (geometria per definizione + matrici), spigoli visibili per
+  definizione (non nascosti/morbidi/levigati), texture associate al materiale SketchUp, tag, scene. Coordinate: pollici
+  Z-alto -> metri Y-alto = (x, z, -y) * 0.0254. Facce senza materiale: bianco SketchUp (OpenSKP userebbe il colore del tag).
+- `ui/js/sketchup.js` (`loadSkp`, chiamato da model3d.js `loadAny`): gruppi/componenti come Group con userData (Tipo,
+  Definizione, Tag, GUID, attributi dinamici e dizionari), mesh e spigoli con `pickParent` (il clic seleziona il gruppo;
+  export3d.js fa un elemento per gruppo), voce "Tag" nell'albero, scene come viste nel menu "Vista..." (`loaded.views`).
+  Insidie risolte: la texture glTF di OpenSKP e' moltiplicata per il colore medio (qui: bianco, o "colorizzata" ricalcolata),
+  l'opacita' include l'alfa del colore (qui: transparency del materiale), fronte/retro diversi = due facce a lato singolo
+  (rispettare `doubleSided`), UV con origine in basso (createImageBitmap flipY), depth buffer logaritmico = polygonOffset
+  inutile (gli spigoli si avvicinano alla camera nello shader).
+- Collaudo (campioni pubblici in %TEMP%\skp-campioni, confrontati con la miniatura salvata nel file): 22 file su 26 aperti,
+  SketchUp 8, 14-18, 20-23, 25, 26. Non si aprono: alcuni file "legacy" 2013-2020 (errore del lettore, messaggio chiaro con
+  consiglio di risalvare da SketchUp 2021+) e file molto grandi (67 MB SketchUp 2023: memoria esaurita). Scene implementate
+  ma NON verificate (nessun campione ne aveva); testi, quote e linee di costruzione non disegnati; componenti "sempre rivolti
+  alla camera" restano fermi. Web app: .skp non abilitato (WEB_EXTS/WEB_LIBS di build_web.py).
+- Prove nel browser con altre sessioni attive: il cookie `mbv` e' per host (non per porta) e le altre app su 127.0.0.1 lo
+  sovrascrivono -> usare http://localhost:<porta>/?t=<token> e rifare `fetch("/?t=" + token)` prima di aprire.
