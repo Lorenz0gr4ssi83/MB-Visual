@@ -173,7 +173,60 @@ function openMenu(anchor) {
       badgeFor(r.name), el("span", { class: "nm" }, r.name), el("span", { class: "pt" }, dirName(r.path))));
   }
   if (list.length) m.append(el("hr"), item("", "Svuota l'elenco dei recenti", "", () => { try { localStorage.removeItem("mbv-recent"); } catch { /* */ } }));
+  if (!WEB) {
+    m.append(el("hr"), item("", "Verifica aggiornamenti", "", () => checkUpdates(true)));
+    if (updInfo?.installabile && !updInfo.installata) m.append(item("", "Installa su questo PC...", "", askInstall));
+  }
   placeMenu(m, anchor);
+}
+
+// ---- aggiornamento automatico dalla cartella "App per PC" su OneDrive (mbvisual/update.py)
+let updInfo = null;
+const fmtVer = v => v ? `${v.versione}${v.build && v.build !== "sviluppo" ? " del " + v.build.slice(0, 16).split(" ").map((x, i) => i ? x : x.split("-").reverse().join("/")).join(" ") : ""}` : "";
+async function checkUpdates(manual = false) {
+  let r;
+  try { r = updInfo = await api("update_check"); } catch (e) { if (manual) toast("Controllo non riuscito: " + e.message, true); return; }
+  updInfo.installata = !r.da_onedrive && r.stato !== "sviluppo" && /\\Programs\\MB Visual\\?$/i.test(r.cartella || "");
+  $("st-version").textContent = "v" + r.attuale.versione;
+  $("st-version").title = "MB Visual " + fmtVer(r.attuale);
+  if (r.stato === "nuova") {
+    const ok = await modal("Aggiornamento disponibile", el("div", {},
+      el("p", {}, `È disponibile MB Visual ${fmtVer(r.disponibile)}.`), el("p", { class: "note" }, `In uso: ${fmtVer(r.attuale)}. L'app si chiude, si aggiorna e si riapre da sola (circa un minuto). Salva prima i file aperti.`)),
+      [{ label: "Più tardi", value: false }, { label: "Aggiorna ora", value: true, primary: true }]);
+    if (!ok) return;
+    if (tabs.some(t => t.dirty) && !(await confirmBox("File non salvati", "Ci sono modifiche non salvate che andranno perse. Aggiornare comunque?", "Aggiorna", true))) return;
+    try { await api("update_apply"); toast("Aggiornamento in corso: MB Visual si riapre tra poco", false, 60000); } catch (e) { toast(e.message, true, 8000); }
+    return;
+  }
+  if (r.stato === "sincronizzazione") {
+    if (manual || r.da_onedrive) toast(`OneDrive sta ancora scaricando MB Visual ${r.disponibile?.versione || ""}: chiudi e riapri l'app quando la sincronizzazione è finita`, true, 12000);
+    return;
+  }
+  if (r.da_onedrive && !manual) {
+    let asked = false;
+    try { asked = localStorage.getItem("mbv-install-asked") === "1"; localStorage.setItem("mbv-install-asked", "1"); } catch { /* */ }
+    if (!asked) askInstall();
+    return;
+  }
+  if (!manual) return;
+  if (r.stato === "sviluppo") return toast("Versione di sviluppo: gli aggiornamenti valgono solo per l'app per PC");
+  if (r.stato === "nessuna_fonte") {
+    const ok = await modal("Aggiornamenti", el("p", {}, "Non trovo su questo PC la cartella \"App per PC\" di MB Visual sincronizzata con OneDrive. Indicala tu: da lì arriveranno gli aggiornamenti."),
+      [{ label: "Annulla", value: false }, { label: "Scegli cartella...", value: true, primary: true }]);
+    if (!ok) return;
+    const folder = await pickFolder();
+    if (!folder) return;
+    try { await api("update_source", { folder }); return checkUpdates(true); } catch (e) { return toast(e.message, true, 8000); }
+  }
+  toast(`Hai già l'ultima versione (${fmtVer(r.attuale)})`);
+}
+async function askInstall() {
+  const ok = await modal("Installa MB Visual su questo PC", el("div", {},
+    el("p", {}, "Stai usando l'app direttamente dalla cartella di OneDrive: quando arriva una versione nuova, OneDrive la scarica un file alla volta e l'app può partire a metà aggiornamento."),
+    el("p", {}, "Installandola su questo PC (senza diritti di amministratore, nella cartella del tuo utente) avrai i collegamenti sul Desktop e nel menu Start, e ogni nuova versione ti verrà proposta all'avvio.")),
+    [{ label: "Non ora", value: false }, { label: "Installa", value: true, primary: true }]);
+  if (!ok) return;
+  try { await api("update_install"); toast("Installazione in corso: MB Visual si riapre dalla nuova posizione", false, 60000); } catch (e) { toast(e.message, true, 8000); }
 }
 
 // nuovo file vuoto (Word, Excel, PowerPoint, PDF, DXF, testo, immagini, database), aperto subito nel suo editor
@@ -637,6 +690,7 @@ async function boot() {
   setupDrop();
   setupTheme();
   setupBack();
+  if (!WEB) setTimeout(() => checkUpdates(false), 3000);
   setInterval(() => { if (!document.hidden) checkExternalChange(active); }, 2000);
   window.addEventListener("focus", () => tabs.forEach(checkExternalChange));
   $("btn-open").addEventListener("click", e => openMenu(e.currentTarget));

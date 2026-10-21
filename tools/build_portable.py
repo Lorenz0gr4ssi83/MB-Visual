@@ -4,7 +4,10 @@ Uso:  C:\\Users\\<utente>\\.mbvisual\\venv\\Scripts\\python.exe tools\\build_por
 Risultato: C:\\Users\\<utente>\\.mbvisual\\dist\\MB Visual\\  +  "MB Visual - portatile.zip" nella cartella del progetto.
 La compilazione avviene fuori da OneDrive (migliaia di file); nel progetto finisce solo lo zip.
 """
+import datetime
+import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -15,6 +18,19 @@ ROOT = Path(__file__).resolve().parent.parent
 WORK = Path.home() / ".mbvisual"
 DIST = WORK / "dist"
 NAME = "MB Visual"
+PUBLISH = ROOT / "App per PC"  # cartella su OneDrive da cui gli altri PC si aggiornano (mbvisual/update.py)
+
+
+def publish(final: Path, info: dict) -> None:
+    """Copia la build in "App per PC"; versione.json per ultimo, quando tutti i file sono gia' al loro posto."""
+    PUBLISH.mkdir(exist_ok=True)
+    (PUBLISH / "versione.json").unlink(missing_ok=True)
+    for args in ([str(final / "_internal"), str(PUBLISH / "_internal"), "/MIR"], [str(final), str(PUBLISH), "MBVisual.exe", "LEGGIMI.txt"]):
+        rc = subprocess.run(["robocopy", *args, "/R:3", "/W:2", "/NP", "/NFL", "/NDL", "/NJH"], check=False).returncode
+        if rc >= 8:
+            raise SystemExit(f"robocopy non riuscito ({rc})")
+    (PUBLISH / "versione.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
+    print("Pubblicata in", PUBLISH, info)
 
 
 def main() -> int:
@@ -40,7 +56,7 @@ def main() -> int:
         "--hidden-import", "mbvisual.convert", "--hidden-import", "win32com.client", "--hidden-import", "pythoncom",
         "--collect-submodules", "markdown", "--hidden-import", "openpyxl", "--hidden-import", "brotli",
         # editor CAD (ezdxf) e OCR con il motore di Windows (winrt)
-        "--hidden-import", "mbvisual.cadedit", "--collect-all", "ezdxf", "--exclude-module", "winrt",
+        "--hidden-import", "mbvisual.cadedit", "--hidden-import", "mbvisual.update", "--collect-all", "ezdxf", "--exclude-module", "winrt",
         "--add-data", f"{ROOT / 'mbvisual' / 'ocr.ps1'}{sep}mbvisual",
         "--exclude-module", "tkinter", "--exclude-module", "matplotlib",
         # moduli opzionali di PyMuPDF non usati (onnxruntime va in crash durante l analisi su Windows ARM)
@@ -63,6 +79,10 @@ def main() -> int:
     nav = Path.home() / ".mbvisual" / "nwd" / "nwd2mbv.exe"
     if nav.exists():
         shutil.copy2(nav, internal_bin / "nwd2mbv.exe")
+    # versione e data della build: l'app la confronta con versione.json della cartella pubblicata
+    version = re.search(r'^VERSION = "([^"]+)"', (ROOT / "app.py").read_text(encoding="utf-8"), re.M).group(1)
+    info = {"versione": version, "build": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+    (out / "_internal" / "build.json").write_text(json.dumps(info), encoding="utf-8")
     final = DIST / NAME
     if final.exists():
         shutil.rmtree(final)
@@ -75,7 +95,11 @@ def main() -> int:
         "Non serve installare nulla. Opzionali, se presenti sul PC vengono usati in automatico:\r\n"
         "- LibreOffice (doc, ppt, odt, rtf e altri formati Office meno comuni)\r\n"
         "- Autodesk Navisworks Freedom (nwd, nwc, nwf)\r\n"
-        "- Autodesk DWG TrueView (apertura esterna dei DWG)\r\n", encoding="utf-8")
+        "- Autodesk DWG TrueView (apertura esterna dei DWG)\r\n\r\n"
+        "Aggiornamenti: all'avvio l'app controlla la cartella 'App per PC' su OneDrive e propone le versioni nuove.\r\n"
+        "Consigliato: dal menu Apri scegli 'Installa su questo PC' (collegamenti su Desktop e menu Start).\r\n", encoding="utf-8")
+    files = [p for p in (final / "_internal").rglob("*") if p.is_file()]
+    info.update(file=len(files), byte=sum(p.stat().st_size for p in files))
     zpath = ROOT / f"{NAME} - portatile.zip"
     if zpath.exists():
         zpath.unlink()
@@ -86,6 +110,8 @@ def main() -> int:
     size = sum(p.stat().st_size for p in final.rglob("*") if p.is_file())
     print(f"Cartella: {final}  ({size / 1048576:.0f} MB)")
     print(f"Zip: {zpath}  ({zpath.stat().st_size / 1048576:.0f} MB)")
+    if "--no-publish" not in sys.argv:
+        publish(final, info)
     return 0
 
 

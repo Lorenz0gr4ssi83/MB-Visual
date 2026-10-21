@@ -95,5 +95,12 @@ l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.m
   spunta, opzione, firma), Collegamento, Bianchetto, Oscura, Annulla/Ripeti; menu Pagina (ruota, duplica, bianca, inserisci
   PDF, sposta, ritaglia, elimina) e Documento (proprieta', segnalibri, appiattisci). Nota: i campi creati da PyMuPDF hanno
   un /Parent con nome, flag e voci: `_sync_field` li riscrive li' (PyMuPDF aggiorna solo il widget figlio).
+- Aggiornamento automatico (21/10/2026) - FATTO: `tools/build_portable.py` scrive `_internal/build.json` (versione + data)
+  e pubblica in `App per PC` (robocopy; `versione.json` con numero/peso dei file di _internal scritto per ULTIMO;
+  `--no-publish` per non pubblicare). `mbvisual/update.py`: all'avvio l'app cerca `App per PC` nelle cartelle OneDrive del PC
+  (o quella scelta a mano, salvata in %LOCALAPPDATA%\MBVisual\aggiornamenti.json), propone la build piu' recente solo se
+  OneDrive l'ha scaricata tutta; uno script PowerShell attende la chiusura, copia (/MIR solo dentro _internal) e riavvia.
+  "Installa su questo PC" copia in %LOCALAPPDATA%\Programs\MB Visual con collegamenti Desktop e Start. Versione nella barra di stato.
+  Le copie anteriori alla 1.3.0 non hanno l'aggiornamento: vanno sostituite una volta a mano.
 - Migliorie rimandate dall'utente (21/10/2026): pulsanti "Modifica in AutoCAD/BricsCAD/Inventor"; funzioni Navisworks Manage
   (interferenze, viste salvate, annotazioni, computo); editor CAD piu' completo; motore ODA (a pagamento).

@@ -177,6 +177,23 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, data, "text/html; charset=utf-8", extra)
         self._serve_file(p)
 
+    # ------------------------------------------------------------ API: aggiornamento automatico (mbvisual/update.py)
+    def api_update_check(self, qs):
+        from . import update
+        self._json(update.check())
+
+    def api_update_apply(self, qs):
+        from . import update
+        self._json(update.apply())
+
+    def api_update_install(self, qs):
+        from . import update
+        self._json(update.install())
+
+    def api_update_source(self, qs):
+        from . import update
+        self._json(update.set_source(_q(qs, "folder") or ""))
+
     # ------------------------------------------------------------ API: file generici
     def _path(self, qs) -> str:
         p = _q(qs, "path")
