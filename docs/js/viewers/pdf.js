@@ -6,8 +6,11 @@ import { renderSigner } from "./signed.js";
 export async function mount(ctx) {
   ctx.fillBody(true);
   const src = window.MBV_ROOT + "vendor/pdfjs/web/viewer.html?file=" + encodeURIComponent(fileUrl(ctx.path)) + (innerWidth < 760 ? "#pagemode=none&zoom=page-width" : "#pagemode=thumbs");
-  const frame = el("iframe", { class: "fill", src, title: ctx.name });
-  ctx.el.append(frame);
+  const frame = el("iframe", { src, title: ctx.name, style: { width: "100%", height: "100%", border: 0, display: "block", minWidth: 0 } });
+  // area: [barra dell'editor] sopra, [documento | pannello proprieta'] sotto
+  const area = el("div", { style: { display: "grid", gridTemplateColumns: "1fr auto", gridTemplateRows: "1fr", height: "100%", minHeight: 0 } }, frame);
+  const wrap = el("div", { class: "fill", style: { display: "flex", flexDirection: "column" } }, el("div", { style: { flex: "1", minHeight: 0 } }, area));
+  ctx.el.append(wrap);
   const app = () => frame.contentWindow?.PDFViewerApplication;
 
   frame.addEventListener("load", async () => {
@@ -82,22 +85,16 @@ export async function mount(ctx) {
       if (await ask("Timbro in alto a destra", [el("label", { style: { display: "grid", gap: "4px" } }, "Testo del timbro (una riga per riga)", f), p.row])) run("stamp", { text: f.value, mode: "timbro", pages: p.input.value }, stem + "_timbrato.pdf");
     }, "Riquadro di testo in alto a destra (approvazione, revisione, data)"],
   ];
-  // ---- editor: testo esistente, oscuramento, bianchetto (solo app per PC: usa il motore PyMuPDF)
+  // ---- editor completo (solo app per PC: usa il motore PyMuPDF): barra sotto la barra principale, pannello a destra
   let backHandler = null;
   if (ed) {
-    const modeBtns = {};
-    const setMode = async m => {
-      const now = await ed.setMode(m);
-      for (const [k, b] of Object.entries(modeBtns)) b.classList.toggle("on", k === now);
-      ctx.status(now === "text" ? "Modifica testo: clic su una riga, scrivi, Invio per confermare (Esc annulla)"
-        : now === "redact" ? "Oscura: trascina un riquadro sulla zona da eliminare"
-        : now === "whiteout" ? "Bianchetto: trascina un riquadro sulla zona da coprire di bianco" : "");
-    };
-    modeBtns.text = button("Modifica testo", "edit", () => setMode("text"), { title: "Modifica il testo esistente con lo stesso carattere, dimensione e colore" });
-    modeBtns.redact = button("Oscura", "pen", () => setMode("redact"), { title: "Elimina definitivamente testo e immagini in una zona (riquadro nero)" });
-    modeBtns.whiteout = button("Bianchetto", "pen", () => setMode("whiteout"), { title: "Copre di bianco una zona eliminandone il contenuto" });
-    ctx.tb.append(...Object.values(modeBtns), button("", "undo", () => ed.undoLast(), { iconOnly: true, title: "Annulla l'ultima modifica al testo" }), el("span", { class: "sep" }));
-    backHandler = () => (ed.mode ? (setMode(ed.mode), true) : false);
+    wrap.prepend(ed.bar);
+    area.append(ed.panel);
+    ed.panel.style.width = "260px";
+    const toggle = button("Modifica PDF", "edit", () => { const on = ed.toggle(); toggle.classList.toggle("on", on); ctx.status(on ? "Modifica PDF: scegli uno strumento nella barra" : ""); },
+      { title: "Testi, immagini, forme, campi modulo, caselle di spunta, menu a tendina, collegamenti, pagine" });
+    ctx.tb.append(toggle, el("span", { class: "sep" }));
+    backHandler = () => (ed.on ? (toggle.click(), true) : false);
   }
   for (const [label, icon, fn, title] of tools) ctx.tb.append(button(label, icon, fn, { title }));
   if (ed) {

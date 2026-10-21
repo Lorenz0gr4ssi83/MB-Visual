@@ -35,7 +35,7 @@ def main() -> int:
         "--collect-data", "pptx", "--collect-data", "docx",
         "--hidden-import", "clr", "--hidden-import", "asn1crypto", "--hidden-import", "mbvisual.pdftools", "--collect-submodules", "pypdf",
         # editor PDF (PyMuPDF) e conversione PDF -> Word
-        "--hidden-import", "mbvisual.pdfedit", "--collect-all", "pymupdf", "--collect-submodules", "pdf2docx", "--collect-data", "pdf2docx",
+        "--hidden-import", "mbvisual.pdfedit", "--hidden-import", "mbvisual.pdfobjects", "--collect-all", "pymupdf", "--collect-submodules", "pdf2docx", "--collect-data", "pdf2docx",
         # convertitore universale (Office via automazione COM, markdown, openpyxl, fontTools)
         "--hidden-import", "mbvisual.convert", "--hidden-import", "win32com.client", "--hidden-import", "pythoncom",
         "--collect-submodules", "markdown", "--hidden-import", "openpyxl", "--hidden-import", "brotli",

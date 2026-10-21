@@ -87,5 +87,13 @@ l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.m
 - Crea nuovo (Ctrl+N, menu Apri, home): `ui/js/newfile.js`. Modelli vuoti in `ui/templates` creati da `tools/make_templates.py`
   (Word A4, Excel, PowerPoint 16:9, PDF A4/A3, DXF vuoto e fogli A4-A1 con squadratura e cartiglio, SQLite); testo, codice,
   CSV, SVG, PNG/JPG generati al momento. Il file nasce dove si sceglie e si apre nel suo editor (nella web app resta in memoria).
+- Editor PDF completo (21/10/2026) - FATTO: pulsante "Modifica PDF" -> barra strumenti + pannello proprieta' a destra
+  (`ui/js/pdfeditor.js`), motore `mbvisual/pdfobjects.py` (API `pdf_objects` = oggetti della pagina, `pdf_ops` = elenco operazioni).
+  Oggetti: seleziona/sposta/ridimensiona/elimina immagini, blocchi di testo (riscrittura con a capo, carattere, colore,
+  allineamento; doppio clic = modifica sul posto), disegni vettoriali, campi, collegamenti. Testo riga, Macchina da scrivere,
+  Immagine, Forme (rettangolo, arrotondato, ellisse, linea, freccia), Campi modulo (testo, piu' righe, tendina, elenco,
+  spunta, opzione, firma), Collegamento, Bianchetto, Oscura, Annulla/Ripeti; menu Pagina (ruota, duplica, bianca, inserisci
+  PDF, sposta, ritaglia, elimina) e Documento (proprieta', segnalibri, appiattisci). Nota: i campi creati da PyMuPDF hanno
+  un /Parent con nome, flag e voci: `_sync_field` li riscrive li' (PyMuPDF aggiorna solo il widget figlio).
 - Migliorie rimandate dall'utente (21/10/2026): pulsanti "Modifica in AutoCAD/BricsCAD/Inventor"; funzioni Navisworks Manage
   (interferenze, viste salvate, annotazioni, computo); editor CAD piu' completo; motore ODA (a pagamento).

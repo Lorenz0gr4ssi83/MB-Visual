@@ -431,6 +431,17 @@ class Handler(BaseHTTPRequestHandler):
         from . import pdfedit
         self._json({"ok": True, "path": pdfedit.working_copy(self._path(qs), TEMP_DIR / "pdf-modifica")})
 
+    def api_pdf_objects(self, qs):
+        from . import pdfobjects
+        self._json(pdfobjects.page_objects(self._path(qs), int(_q(qs, "page", "0"))))
+
+    def api_pdf_ops(self, qs):
+        from . import pdfobjects
+        p = self._path(qs)
+        if not str(Path(p).resolve()).startswith(str((TEMP_DIR / "pdf-modifica").resolve())):
+            raise ValueError("Le modifiche si applicano solo alla copia di lavoro")
+        self._json(pdfobjects.apply_ops(p, self._body_json().get("ops", [])))
+
     def api_pdf_lines(self, qs):
         from . import pdfedit
         self._json(pdfedit.text_lines(self._path(qs), int(_q(qs, "page", "0"))))
