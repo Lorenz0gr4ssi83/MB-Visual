@@ -674,3 +674,14 @@ function jpegToPdf(jpg, w, h) {
   for (const c of chunks) { out.set(c, o); o += c.length; }
   return out;
 }
+
+// lettura del disegno senza interfaccia: confronto tra revisioni (ui/js/compare/cadcmp.js)
+export async function readDrawing(path, ext, ld = { set() {} }) {
+  const bytes = await readBytes(path);
+  const head = new TextDecoder("latin1").decode(bytes.subarray(0, 6));
+  const dxfText = ext === "dxf" && !head.startsWith("AutoCA");
+  const db = dxfText ? parseDxf(new TextDecoder(isUtf8(bytes) ? "utf-8" : "windows-1252").decode(bytes)) : await decodeDwg(bytes, { ext, tools: {} }, ld);
+  normalize(db, dxfText ? "dxf" : "dwg");
+  return db;
+}
+export { build as buildModel, ACI };

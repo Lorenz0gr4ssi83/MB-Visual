@@ -353,3 +353,27 @@ Solo nella web app (window.MBV_WEB), tutto nel dispositivo, senza l'app per PC.
   diviso, istanze espanse, specchiature applicate ai vertici. Salva GLB/USDZ (condivisione) se l'AR non c'e'.
   Tasto indietro: `window.MBV_BACK` (app.js goBack lo chiama per primo).
 - NON provati su telefono veri: fotocamera reale, sessione WebXR e Quick Look (vanno provati dall'utente).
+
+## Confronto tra revisioni (22/10/2026) - FATTO
+Avvio: File -> "Confronta con..." (file PDF/DWG/DXF/IFC aperto, si sceglie il secondo) oppure trascinando insieme due file
+dello stesso tipo (domanda "Confronta / Apri separatamente"). Visualizzatore `compare` (`ui/js/viewers/compare.js`, scheda
+con `compareWith`; vecchia = il file salvato prima, pulsante Inverti); moduli in `ui/js/compare/`, stile `ui/css/compare.css`.
+Salva / Salva con nome = report (pdf, xlsx, csv; `noConvert` in app.js). Tutto nel browser: funziona anche nella web app.
+- `common.js`: differenze tra sequenze (Myers con limite, `diffHunks`), PDF minimo scritto a mano (JPEG + testo Helvetica
+  WinAnsi, ricercabile), tabelle del report, Excel con SheetJS (`ui/vendor/xlsx`), CSV con ";" e BOM, elenco virtuale.
+- `pdfcmp.js`: pdf.js diretto (`/vendor/pdfjs/build/pdf.mjs`, render con intent "print": con "display" pdf.js aspetta
+  requestAnimationFrame e si ferma a finestra nascosta). Sovrapposizione per pixel (grigio uguale, rosso solo vecchia, verde
+  solo nuova, tolleranza 0,6 pt), zone cambiate (celle unite) con riquadri; allineamento automatico (maschere di inchiostro,
+  ricerca grossolana + fine + piena risoluzione; scala se la larghezza pagina e' diversa) e manuale (trascina, frecce, X/Y mm,
+  %, "Tutte le pagine"); vista affiancata con scorrimento sincronizzato per pagina; differenze di testo su tutto il documento
+  (parole con posizione da getTextContent, pezzi attaccati riuniti). Le zone coperte per lo piu' da testo cambiato non si
+  ripetono nell'elenco. Pagine abbinate per numero.
+- `cadcmp.js`: `readDrawing`/`buildModel`/`ACI` esportati da cad2d.js. Abbinamento: firma (JSON canonico senza handle/owner,
+  numeri a 1e-6, contenuto dei blocchi; blocchi anonimi *D/*U per contenuto) -> handle -> stessa posizione/tipo/layer.
+  Modelli separati per uguali/eliminate/aggiunte/modificate (vecchia tratteggiata), riquadri di revisione, clic sul disegno.
+- `ifccmp.js`: web-ifc, confronto per GlobalId; proprieta' = attributi, Pset/Qto (anche del tipo), tipo, materiali,
+  contenitore; firma geometrica = triangoli + ingombro + baricentro al mm. Seconda revisione con la matrice di coordinamento
+  della prima (come i modelli federati). Dettaglio proprieta' vecchia/nuova nel pannello a destra.
+- Prove: `python tools/make_compare_samples.py` -> `tests/samples/confronto` (coppie PDF, DXF, IFC con modifiche note);
+  dalla console `MB.active.api._cmp._pc / _cc / _ic`. Nel riquadro del browser di Claude i cookie del token sono condivisi
+  con i server delle altre sessioni (403 a caso): per le prove aggiungere `t=<token>` alle fetch /api/.

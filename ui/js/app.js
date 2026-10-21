@@ -12,7 +12,7 @@ const VIEWER_NAMES = {
   office: tr("app.documento_office_libreoffice"), text: tr("app.testo_codice"), markdown: "Markdown", html: tr("app.pagina_web"),
   image: tr("app.immagine"), svg: "SVG", media: tr("app.audio_video"), cad2d: tr("app.disegno_cad_2d"), model3d: tr("app.modello_3d"),
   external: tr("app.programma_esterno"), archive: tr("app.archivio"), email: tr("app.email"), epub: "eBook", font: "Font",
-  sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"),
+  sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"), compare: tr("app.confronto_revisioni"),
 };
 // documenti che sul PC si aprono nell'editor ONLYOFFICE integrato (modifica completa come nei programmi originali)
 const OO_EXTS = new Set(["docx", "docm", "dotx", "dotm", "doc", "dot", "rtf", "odt", "ott", "fodt", "xlsx", "xlsm", "xltx", "xltm", "xls", "xlt", "ods", "fods", "csv",
@@ -227,6 +227,8 @@ function fileMenu(anchor) {
     item('<svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM6 9h2M10 9h2M14 9h2M18 9h0M6 13h12"/></svg>', tr("app.scorciatoie_tastiera"), "F1", showShortcuts),
     item('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>', tr("lang.impostazioni") + " › " + tr("lang.titolo") + "...", LANG.toUpperCase(), showLanguage));
   if (!WEB) m.append(item('<svg viewBox="0 0 24 24"><path d="M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18"/></svg>', tr("app.firma_digitale"), "", () => import("./firma.js").then(f => f.signDialog({ path: active.path, openFile })), !active?.path)); // ui/js/firma.js
+  // confronto tra revisioni (PDF, DWG/DXF, IFC): ui/js/viewers/compare.js
+  m.append(item('<svg viewBox="0 0 24 24"><path d="M4 4h7v16H4zM13 4h7v16h-7M8 9l-2 2 2 2M16 9l2 2-2 2"/></svg>', tr("app.confronta_con"), "", compareWith, !active || active.viewer === "compare" || !COMPARE_EXT.test(extOf(active.info?.nome || active.name))));
   if (WEB && window.MBV_MOBILE) m.append(el("hr"), item(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount)); // app per cellulari con licenza
   if (!WEB) {
     m.append(el("hr"), item(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount), item(ICON_UPD, tr("app.verifica_aggiornamenti"), "", () => checkUpdates(true)));
@@ -340,6 +342,21 @@ async function doScan() {
 
 async function doOpen() { const ps = await pickFiles(); if (ps?.length) openPaths(ps); }
 
+// ------------------------------------------------------------------ confronto tra due revisioni
+const COMPARE_EXT = /^(pdf|dwg|dxf|ifc)$/;
+const cmpFam = n => ({ pdf: "pdf", dwg: "cad", dxf: "cad", ifc: "ifc" })[extOf(n)];
+async function compareWith() {
+  const t = active;
+  if (!t || t.viewer === "compare") return;
+  const ps = await pickFiles();
+  if (!ps?.length) return;
+  if (cmpFam(ps[0]) !== cmpFam(t.info?.nome || t.name)) return toast(tr("app.confronto_stesso_tipo"), true, 6000);
+  openCompare(t.path, ps[0]);
+}
+function openCompare(a, b) {
+  return openFile(a, "compare", { compareWith: b, fresh: true, displayName: `${baseName(a)} ↔ ${baseName(b)}` });
+}
+
 // ------------------------------------------------------------------ esplora cartella di progetto
 let exDir = null, exItems = [];
 async function chooseExplorerFolder() {
@@ -413,6 +430,13 @@ async function openPaths(paths, fromDrop = false) {
   if (fromDrop) $("dragover").hidden = true;
   // un visualizzatore puo' accettare i file trascinati (es. aggiungerli a un archivio)
   if (fromDrop && active && $("formats").hidden && active.api?.acceptDrop && (await active.api.acceptDrop(paths))) return;
+  // due revisioni dello stesso tipo trascinate insieme: si puo' aprire subito il confronto
+  if (fromDrop && paths.length === 2 && cmpFam(paths[0]) && cmpFam(paths[0]) === cmpFam(paths[1])) {
+    const r = await modal(tr("app.confronto_due_file"), el("p", {}, tr("app.confronto_domanda", baseName(paths[0]), baseName(paths[1]))),
+      [{ label: tr("app.apri_separatamente"), value: "open" }, { label: tr("app.confronta"), value: "cmp", primary: true }]);
+    if (r === "cmp") return openCompare(paths[0], paths[1]);
+    if (!r) return;
+  }
   for (const p of paths) await openFile(p);
 }
 
@@ -442,7 +466,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   const body = el("div", { class: "body" });
   view.append(tb, body);
   $("views").append(view);
-  const tab = { path, name, viewer, forced: !!forcedViewer, info, view, dirty: false, extra: "", cat };
+  const tab = { path, name, viewer, forced: !!forcedViewer, info, view, dirty: false, extra: "", cat, compareWith: extraCtx.compareWith };
   tabs.push(tab);
   activate(tab);
   if (!extraCtx.untitled) remember(path);
@@ -535,7 +559,7 @@ async function chooseFormat(t, a) {
   const src = extOf(t.path);
   const own = [...new Set([...(a.save && (!a.saveFormats || a.saveFormats.includes(src)) ? [src] : []), ...(a.saveFormats || [])])];
   let conv = [];
-  try { const r = await api("convert_targets", { path: t.path }); conv = r.targets || []; conv.family = r.family; } catch { /* */ }
+  if (!a.noConvert) try { const r = await api("convert_targets", { path: t.path }); conv = r.targets || []; conv.family = r.family; } catch { /* */ }
   const list = el("select", { size: 14, id: "fmt-choice", class: "field", style: { width: "100%", minWidth: "340px" } });
   if (own.length) {
     const g = el("optgroup", { label: tr("app.formati_dell_editor") });
@@ -613,7 +637,7 @@ async function checkExternalChange(t) {
 async function reloadTab(t) {
   t.reloading = true;
   const before = tabs.length;
-  await openFile(t.path, t.forced ? t.viewer : null, { fresh: true });
+  await openFile(t.path, t.forced ? t.viewer : null, { fresh: true, ...(t.compareWith ? { compareWith: t.compareWith, displayName: t.name } : {}) });
   if (tabs.length === before) { t.reloading = false; return; }
   const nt = tabs[tabs.length - 1];
   tabs.splice(tabs.indexOf(nt), 1);
