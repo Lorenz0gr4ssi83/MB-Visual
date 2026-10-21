@@ -368,7 +368,7 @@ def apply(update=None) -> dict:
         ":attesa",
         rf'"%SystemRoot%\System32\tasklist.exe" /FI "PID eq {pid}" 2>nul | "%SystemRoot%\System32\find.exe" "{pid}" >nul && ("%SystemRoot%\System32\ping.exe" -n 2 127.0.0.1 >nul & goto attesa)',
         f'robocopy "{STAGING / "_internal"}" "{APP_DIR / "_internal"}" /MIR /R:5 /W:2 /NP /NFL /NDL >> "{log}"',
-        f'robocopy "{STAGING}" "{APP_DIR}" MBVisual.exe LEGGIMI.txt /R:5 /W:2 /NP /NFL /NDL >> "{log}"',
+        f'robocopy "{STAGING}" "{APP_DIR}" MBVisual.exe LEGGIMI.txt /R:90 /W:2 /NP /NFL /NDL >> "{log}"',
         f'start "" "{APP_DIR / "MBVisual.exe"}"',
     ]) + "\r\n", encoding="utf-8", newline="")
     flags = 0x00000200 | 0x08000000  # CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
