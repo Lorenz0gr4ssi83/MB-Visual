@@ -1196,6 +1196,25 @@
     "mbtiles",
     "sdb"
    ]
+  },
+  {
+   "id": "gis",
+   "name": "Dati geografici (GIS)",
+   "viewer": "gis",
+   "view": "Mappa con sfondo OpenStreetMap o ortofoto (servizi con chiave o WMS), riproiezione dei sistemi italiani (WGS84, ETRS89/RDN2008 UTM 32-33N, Gauss-Boaga Monte Mario, ED50) da .prj/EPSG, livelli con stile ed etichette, tabella attributi con ricerca e selezione collegata alla mappa, misura di distanze e aree, coordinate del cursore, valori dei raster",
+   "edit": "Salvataggio dei livelli in GeoJSON, KML/KMZ, GPX e shapefile (ZIP) con scelta del sistema di riferimento; vista in PNG, JPG e PDF",
+   "exts": [
+    "shp",
+    "geojson",
+    "topojson",
+    "kml",
+    "kmz",
+    "gpx",
+    "gpkg",
+    "tif",
+    "tiff",
+    "zip"
+   ]
   }
  ],
  "fallback": {

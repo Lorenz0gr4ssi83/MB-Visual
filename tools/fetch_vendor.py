@@ -42,6 +42,13 @@ PACKAGES = [
      [""]),
     ("ag-psd", "https://registry.npmjs.org/ag-psd/-/ag-psd-31.0.2.tgz",
      ["package/dist/bundle.js"]),
+    # visualizzatore GIS (ui/js/viewers/gis.js): OpenLayers BSD-2, proj4js MIT, geotiff.js MIT
+    ("ol", "https://registry.npmjs.org/ol/-/ol-10.2.1.tgz",
+     ["package/dist/ol.js", "package/ol.css", "package/LICENSE.md"]),
+    ("proj4", "https://registry.npmjs.org/proj4/-/proj4-2.12.1.tgz",
+     ["package/dist/proj4.js", "package/LICENSE.md"]),
+    ("geotiff", "https://registry.npmjs.org/geotiff/-/geotiff-2.1.3.tgz",
+     ["package/dist-browser/geotiff.js", "package/LICENSE"]),
 ]
 
 

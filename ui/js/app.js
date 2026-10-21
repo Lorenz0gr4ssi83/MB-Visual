@@ -1,7 +1,7 @@
 // MB Visual - guscio dell'applicazione: schede, apertura file, trascinamento, scelta del visualizzatore, pagina formati.
 import {
   api, baseName, button, confirmBox, dirName, el, extOf, fmtSize, isDesktop, modal, pickFiles, pickFolder,
-  pickSavePath, toast, waitJob, WEB,
+  pickSavePath, readRange, toast, waitJob, WEB,
 } from "./core.js";
 import { licenseGate, showAccount } from "./license.js";
 import { t as tr, tn, has as trHas, LANG, LANGS, LOCALE, MANUAL, keyName, setLanguage } from "./i18n.js";
@@ -12,7 +12,7 @@ const VIEWER_NAMES = {
   office: tr("app.documento_office_libreoffice"), text: tr("app.testo_codice"), markdown: "Markdown", html: tr("app.pagina_web"),
   image: tr("app.immagine"), svg: "SVG", media: tr("app.audio_video"), cad2d: tr("app.disegno_cad_2d"), model3d: tr("app.modello_3d"),
   external: tr("app.programma_esterno"), archive: tr("app.archivio"), email: tr("app.email"), epub: "eBook", font: "Font",
-  sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), bcf: tr("app.segnalazioni_bim_bcf"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"), compare: tr("app.confronto_revisioni"),
+  sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), gis: tr("app.mappa_gis"), bcf: tr("app.segnalazioni_bim_bcf"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"), compare: tr("app.confronto_revisioni"),
 };
 // documenti che sul PC si aprono nell'editor ONLYOFFICE integrato (modifica completa come nei programmi originali)
 const OO_EXTS = new Set(["docx", "docm", "dotx", "dotm", "doc", "dot", "rtf", "odt", "ott", "fodt", "xlsx", "xlsm", "xltx", "xltm", "xls", "xlt", "ods", "fods", "csv",
@@ -55,6 +55,9 @@ export function resolveCategory(name, sniff) {
   const cands = EXT.get(ext) || [];
   if (!cands.length) return { cat: null, ext };
   if (cands.length === 1) return { cat: cands[0], ext };
+  // dati geografici: precedenza alla mappa GIS (TIFF e ZIP solo se georeferenziati / con shapefile: vedi gisViewer)
+  const gis = cands.find(c => c.id === "gis");
+  if (gis && !["tif", "tiff", "zip"].includes(ext)) return { cat: gis, ext };
   const kind = sniff && sniff.kind;
   const fam = SNIFF_FAMILY[kind] || [];
   let best = cands[0], score = -1;
@@ -72,7 +75,7 @@ export function resolveCategory(name, sniff) {
 // ------------------------------------------------------------------ badge per tipo di file
 const BADGE_COLOR = { pdf: "pdf", signed: "sig", word: "doc", "office-lo": "doc", sheet: "xls", pptx: "ppt", publisher: "cad", cad2d: "cad",
   cad3d: "3d", mesh3d: "3d", navisworks: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", videoproject: "av", bcf: "3d",
-  archive: "zip", email: "mail", text: "code", markdown: "code", html: "code", ebook: "code", font: "code", database: "db" };
+  archive: "zip", email: "mail", text: "code", markdown: "code", html: "code", ebook: "code", font: "code", database: "db", gis: "img" };
 export function badgeFor(name, isDir = false) {
   if (isDir) return el("span", { class: "badge" }, "DIR");
   const { cat, ext } = resolveCategory(name, null);
@@ -461,6 +464,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   if (!forcedViewer && !WEB && TOOLS.onlyoffice && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
   // Navisworks senza Navisworks: NWD e NWC si aprono nel visualizzatore 3D (lettore nwd2mbv)
   if (!forcedViewer && !WEB && TOOLS.nwdreader && ["nwd", "nwc", "nwf"].includes(ext)) viewer = "model3d";
+  if (!forcedViewer) viewer = await gisViewer(path, ext, viewer);
   const view = el("div", { class: "view" });
   const tb = el("div", { class: "tb" });
   const body = el("div", { class: "body" });
@@ -487,6 +491,16 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
     console.error(e);
     showError(ctx, e);
   }
+}
+
+// GeoTIFF e zip con shapefile si aprono nella mappa GIS (ui/js/viewers/gis.js); gli altri TIFF e ZIP restano immagini e archivi
+async function gisViewer(path, ext, viewer) {
+  if (!["tif", "tiff", "zip"].includes(ext)) return viewer;
+  try {
+    const gis = await import("./gisio.js");
+    if (ext === "zip") return gis.isGisZip((await api("archive_list", { path })).items) ? "gis" : viewer;
+    return (await gis.isGeoTiff((a, b) => readRange(path, a, b))) ? "gis" : viewer;
+  } catch { return viewer; }
 }
 
 export function showError(ctx, e) {

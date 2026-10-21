@@ -626,6 +626,12 @@ class Handler(BaseHTTPRequestHandler):
         b = self._body_json()
         self._json(misc.sqlite_query(self._path(qs), b["sql"], b.get("params"), int(b.get("limit", 1000)), bool(b.get("write"))))
 
+    # ------------------------------------------------------------ GIS: tessere degli sfondi cartografici (mbvisual/gis.py)
+    def api_gis_tile(self, qs):
+        from . import gis
+        code, body, tipo = gis.fetch(qs)
+        self._send(code, body, tipo)
+
 
 # ---------------------------------------------------------------- ONLYOFFICE (editor Word/Excel/PowerPoint integrato)
 # Gira su un secondo server locale, con un indirizzo suo: il suo service worker e la sua cache restano separati da

@@ -59,7 +59,7 @@ WEB_EXTS = {
     "archive": ["zip", "zipx", "7z", "rar", "tar", "ova", "gz", "gzip", "tgz", "tpz", "bz2", "bzip2", "tbz", "tbz2", "xz", "txz", "lzma", "z", "taz",
                 "cab", "lzh", "lha", "cpio", "rpm", "deb", "ar", "a", "iso", "xar", "pkg", "xip", "jar", "war", "ear", "apk", "aab", "xapk", "ipa",
                 "appx", "msix", "appxbundle", "nupkg", "vsix", "xpi", "whl", "egg", "cbz", "cbr", "cb7"],
-    "email": ["eml", "mbox", "mbx"], "ebook": "*", "font": ["ttf", "otf", "woff", "woff2"], "database": "*",
+    "email": ["eml", "mbox", "mbx"], "ebook": "*", "font": ["ttf", "otf", "woff", "woff2"], "database": "*", "gis": "*",
 }
 WEB_NOTES = {
     "media": "Riproduzione dei formati supportati dal browser del dispositivo (la conversione di altri formati e' nella versione per PC)",

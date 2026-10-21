@@ -402,3 +402,25 @@ Formato BCF (buildingSMART) 2.0/2.1/3.0, estensioni `.bcfzip`/`.bcf` (categoria 
   validati con gli XSD ufficiali (1138 documenti, 0 errori); punti di vista confrontati con le istantanee originali (camera,
   sezione, facciata scomposta, muro nascosto); ciclo crea -> esporta -> reimporta senza perdite. Il riquadro del browser
   integrato, se nascosto, congela la pagina: per le prove si e' usato Edge senza finestra pilotato via DevTools Protocol.
+
+## Visualizzatore GIS (22/10/2026) - FATTO
+`ui/js/viewers/gis.js` (mappa OpenLayers 10.2.1 BSD-2 in EPSG:3857), `ui/js/gisio.js` (lettori/scrittori), `ui/js/giscrs.js`
+(sistemi italiani: proj4 e WKT generati dagli stessi parametri), `ui/css/gis.css`, `mbvisual/gis.py` (API gis_tile).
+Librerie in fetch_vendor.py: ol (BSD-2), proj4 2.12.1 (MIT), geotiff 2.1.3 (MIT); jszip gia' presente. Shapefile/DBF: codice proprio.
+- Formati: .shp (con .dbf/.prj/.cpg accanto; senza .cpg: UTF-8 se valido, altrimenti Windows-1252), zip con shapefile,
+  GeoJSON (anche membro "crs") / TopoJSON, KML/KMZ (stili e icone interne), GPX, GeoPackage (via api sqlite_query + hex(geom)),
+  GeoTIFF (geotiff.js con richieste a intervalli; .tfw/.prj accanto). Categoria `gis` in formats.json: in app.js
+  `resolveCategory` le da' la precedenza, mentre TIFF e ZIP vanno alla mappa solo se `gisViewer` trova chiavi GeoTIFF / shapefile.
+- Sistemi senza .prj: ipotesi dall'estensione delle coordinate (WGS84, Gauss-Boaga Ovest/Est, UTM 32) segnata "ipotizzato".
+  RDN2008: 7791-7795 = E-N, 6707-6709/6875/6876 = N-E (stessa definizione; nei .prj si scrive il codice E-N). I .prj scritti non
+  hanno TOWGS84 (come GDAL: con TOWGS84 PROJ/QGIS non riconoscono il codice). Verifica con PROJ: UTM/RDN2008/ETRS89 identici;
+  Monte Mario con i 7 parametri nazionali (in Sicilia/Sardegna PROJ usa parametri regionali: 5-7 m di differenza).
+- Sfondo: OSM via proxy locale (User-Agent dell'app, cache %TEMP%\MBVisual\gis-tessere >= 7 giorni, solo tessere guardate,
+  attribuzione sempre visibile), ortofoto Esri/MapTiler solo con chiave dell'utente, XYZ/WMS personalizzati, "Nessuno sfondo".
+  Impostazioni in localStorage "mbv-gis-sfondo". NON incluse: ortofoto PCN (limiti d'uso), EOX Sentinel-2 (commerciale a pagamento).
+  OpenLayers: zIndex negativo = livello non disegnato (lo sfondo sta a 0, i livelli da 1).
+- Salva con nome: GeoJSON/KML/KMZ/GPX (WGS84), shapefile zip (sistema a scelta; un file per tipo di geometria), PNG/JPG/PDF vista.
+- Campioni: `tests/samples/gis` da `tools/make_gis_samples.py` (Natural Earth pubblico dominio, Copernicus DEM GLO-90; fonti in FONTI.md;
+  serve un venv a parte con pyproj e pyshp, NON nell'app). Prove dalla console: `MB.active.api._gis` (map, layers, sel, addPaths, saveVector).
+- Prove nel riquadro browser: il cookie "mbv" e' per host e non per porta, quindi altre sessioni con un server di prova lo sovrascrivono
+  (403 "non autorizzato"): usare http://localhost:PORTA/?t=... oppure aggiungere ?t= alle richieste.
