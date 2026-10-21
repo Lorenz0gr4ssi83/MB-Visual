@@ -1,6 +1,7 @@
 // Scheda BIM completa di un elemento IFC: attributi, posizione nella struttura del progetto, tipo, set di proprieta'
 // e di quantita' (con le unita' del progetto), materiali, classificazioni, relazioni e dati IFC grezzi.
 import { el, saveBlobAs, toast } from "./core.js";
+import { t as tr } from "./i18n.js";
 
 const PREFIX = { EXA: "E", PETA: "P", TERA: "T", GIGA: "G", MEGA: "M", KILO: "k", HECTO: "h", DECA: "da", DECI: "d", CENTI: "c", MILLI: "m", MICRO: "µ", NANO: "n", PICO: "p" };
 const SI = {
@@ -89,12 +90,12 @@ export async function bimSheet(info, modelID, id, fmt) {
     const n = decodeIfc(l.Name?.value ?? l.LongName?.value ?? l.Identification?.value ?? l.ItemReference?.value ?? "");
     return `${typeName(l)}${n ? " «" + n + "»" : ""} #${ref}`;
   };
-  const yesNo = { T: "Si'", F: "No", U: "Sconosciuto", TRUE: "Si'", FALSE: "No" };
+  const yesNo = { T: tr("bim.si"), F: tr("common.no"), U: tr("bim.sconosciuto"), TRUE: tr("bim.si"), FALSE: tr("common.no") };
   // un valore IFC (semplice, enumerato, riferimento, lista) in testo leggibile
   const text = (v, unit = "") => {
     if (v === null || v === undefined) return "";
     if (Array.isArray(v)) return v.map(x => text(x, unit)).filter(x => x !== "").join("; ");
-    if (typeof v === "boolean") return v ? "Si'" : "No";
+    if (typeof v === "boolean") return v ? tr("bim.si") : tr("common.no");
     if (typeof v !== "object") return typeof v === "number" ? fmt(v) + (unit ? " " + unit : "") : decodeIfc(String(v));
     if (v.type === 5 && typeof v.value === "number") return describe(v.value);
     if ("value" in v) {
@@ -127,18 +128,18 @@ export async function bimSheet(info, modelID, id, fmt) {
 
   // 1. attributi diretti, tutti
   let add = section("Attributi IFC · " + typeName(direct));
-  add("Classe IFC", typeName(direct));
+  add(tr("bim.classe_ifc"), typeName(direct));
   add("ID interno", "#" + id);
   for (const [k, v] of Object.entries(direct)) if (!SKIP_ATTR.has(k)) add(k, text(v));
 
   // 2. posizione nella struttura spaziale (piano, edificio, sito, progetto)
-  add = section("Posizione nel progetto");
+  add = section(tr("bim.posizione_progetto"));
   const refsOf = x => (Array.isArray(x) ? x : x ? [x] : []).map(r => (r && typeof r === "object" ? r.value ?? r.expressID : r)).filter(n => typeof n === "number");
   const parentOf = ref => {
     const l = getLine(ref, false, true);
-    for (const rel of refsOf(l?.ContainedInStructure)) { const r = getLine(rel); if (r?.RelatingStructure) return { via: "contenuto in", ref: r.RelatingStructure.value }; }
-    for (const rel of refsOf(l?.Decomposes)) { const r = getLine(rel); if (r?.RelatingObject) return { via: "parte di", ref: r.RelatingObject.value }; }
-    for (const rel of refsOf(l?.VoidsElements)) { const r = getLine(rel); if (r?.RelatingBuildingElement) return { via: "apertura in", ref: r.RelatingBuildingElement.value }; }
+    for (const rel of refsOf(l?.ContainedInStructure)) { const r = getLine(rel); if (r?.RelatingStructure) return { via: tr("bim.contenuto"), ref: r.RelatingStructure.value }; }
+    for (const rel of refsOf(l?.Decomposes)) { const r = getLine(rel); if (r?.RelatingObject) return { via: tr("bim.parte"), ref: r.RelatingObject.value }; }
+    for (const rel of refsOf(l?.VoidsElements)) { const r = getLine(rel); if (r?.RelatingBuildingElement) return { via: tr("bim.apertura"), ref: r.RelatingBuildingElement.value }; }
     return null;
   };
   let cur = id, guard = 0;
@@ -146,7 +147,7 @@ export async function bimSheet(info, modelID, id, fmt) {
     const p = parentOf(cur);
     if (!p) break;
     const pl = getLine(p.ref);
-    add(pl ? typeName(pl).replace(/^IFC/, "") : "Contenitore", `${describe(p.ref)}${pl?.Elevation ? " · quota " + text(pl.Elevation, units.LENGTHUNIT) : ""} (${p.via})`);
+    add(pl ? typeName(pl).replace(/^IFC/, "") : tr("bim.contenitore"), `${describe(p.ref)}${pl?.Elevation ? " · quota " + text(pl.Elevation, units.LENGTHUNIT) : ""} (${p.via})`);
     cur = p.ref;
   }
 
@@ -155,19 +156,19 @@ export async function bimSheet(info, modelID, id, fmt) {
   try { typeObjs = await ifc.properties.getTypeProperties(modelID, id, true); } catch { /* */ }
   for (const t of typeObjs || []) {
     add = section("Tipo · " + (decodeIfc(t.Name?.value) || typeName(t)));
-    add("Classe del tipo", typeName(t));
+    add(tr("bim.classe_tipo"), typeName(t));
     for (const [k, v] of Object.entries(t)) if (!SKIP_ATTR.has(k) && k !== "HasPropertySets" && k !== "RepresentationMaps") add(k, text(v));
     for (const ps of t.HasPropertySets || []) psetSection(ps, "Tipo · ");
   }
 
   // 4. set di proprieta' e di quantita' dell'elemento
   let psets = [];
-  try { psets = await ifc.properties.getPropertySets(modelID, id, true); } catch (e) { section("Proprieta'")("Errore", e.message); }
+  try { psets = await ifc.properties.getPropertySets(modelID, id, true); } catch (e) { section(tr("bim.proprieta"))(tr("bim.errore"), e.message); }
   for (const ps of psets || []) psetSection(ps, "");
 
   function psetSection(ps, pre) {
     const isQ = !!ps.Quantities;
-    const a = section(pre + (decodeIfc(ps.Name?.value) || (isQ ? "Quantita'" : "Proprieta'")));
+    const a = section(pre + (decodeIfc(ps.Name?.value) || (isQ ? tr("bim.quantita") : tr("bim.proprieta"))));
     for (const p of ps.HasProperties || ps.Quantities || []) propRows(p, "", a);
   }
   function propRows(p, pre, a) {
@@ -196,27 +197,27 @@ export async function bimSheet(info, modelID, id, fmt) {
       return a(name, dv.map((d, i) => `${text(d)} → ${text(dd[i])}`).join("; "));
     }
     if (p.PropertyReference !== undefined) return a(name, text(p.PropertyReference));
-    a(name, text(p.Description) || "(senza valore)");
+    a(name, text(p.Description) || tr("bim.senza_valore"));
   }
 
   // 5. materiali (anche quelli del tipo), con strati e spessori
   let mats = [];
   try { mats = await ifc.properties.getMaterialsProperties(modelID, id, true, true); } catch { /* */ }
   if (mats?.length) {
-    add = section("Materiali");
+    add = section(tr("bim.materiali"));
     const matName = m => decodeIfc(m?.Name?.value) || describe(m?.expressID);
     const walkMat = (m, pre = "") => {
       if (!m || typeof m !== "object") return;
       const cls = typeName(m);
-      if (m.ForLayerSet) { add(pre + "Uso del pacchetto", `${text(m.LayerSetDirection)} ${text(m.DirectionSense)} · offset ${text(m.OffsetFromReferenceLine, units.LENGTHUNIT)}`); return walkMat(m.ForLayerSet, pre); }
+      if (m.ForLayerSet) { add(pre + tr("bim.uso_pacchetto"), `${text(m.LayerSetDirection)} ${text(m.DirectionSense)} · offset ${text(m.OffsetFromReferenceLine, units.LENGTHUNIT)}`); return walkMat(m.ForLayerSet, pre); }
       if (m.MaterialLayers) {
         let tot = 0;
-        m.MaterialLayers.forEach((l, i) => { const t = l.LayerThickness?.value ?? 0; tot += t; add(`${pre}Strato ${i + 1}${l.Name?.value ? " · " + decodeIfc(l.Name.value) : ""}`, `${matName(l.Material)} · spessore ${text(l.LayerThickness, units.LENGTHUNIT)}${l.IsVentilated?.value === "T" ? " · ventilato" : ""}`); });
-        return add(pre + (decodeIfc(m.LayerSetName?.value) || "Pacchetto") + " · spessore totale", text(tot, units.LENGTHUNIT));
+        m.MaterialLayers.forEach((l, i) => { const t = l.LayerThickness?.value ?? 0; tot += t; add(tr("bim.0_strato_1_2", pre, i + 1, l.Name?.value ? " · " + decodeIfc(l.Name.value) : ""), tr("bim.0_spessore_1_2", matName(l.Material), text(l.LayerThickness, units.LENGTHUNIT), l.IsVentilated?.value === "T" ? tr("bim.ventilato") : "")); });
+        return add(pre + (decodeIfc(m.LayerSetName?.value) || tr("bim.pacchetto")) + tr("bim.spessore_totale"), text(tot, units.LENGTHUNIT));
       }
       if (m.ForProfileSet) return walkMat(m.ForProfileSet, pre);
-      if (m.MaterialProfiles) return m.MaterialProfiles.forEach((p, i) => add(`${pre}Profilo ${i + 1}`, `${matName(p.Material)} · ${text(p.Profile)}`));
-      if (m.MaterialConstituents) return m.MaterialConstituents.forEach(c => add(pre + (decodeIfc(c.Name?.value) || "Componente"), `${matName(c.Material)}${c.Fraction ? " · frazione " + text(c.Fraction) : ""}`));
+      if (m.MaterialProfiles) return m.MaterialProfiles.forEach((p, i) => add(tr("bim.0_profilo_1", pre, i + 1), `${matName(p.Material)} · ${text(p.Profile)}`));
+      if (m.MaterialConstituents) return m.MaterialConstituents.forEach(c => add(pre + (decodeIfc(c.Name?.value) || tr("bim.componente")), `${matName(c.Material)}${c.Fraction ? tr("bim.frazione") + text(c.Fraction) : ""}`));
       if (m.Materials) return m.Materials.forEach(x => walkMat(x, pre));
       add(pre + cls.replace(/^IFC/, ""), matName(m) + (m.Category?.value ? " · " + decodeIfc(m.Category.value) : "") + (m.Description?.value ? " · " + decodeIfc(m.Description.value) : ""));
     };
@@ -246,23 +247,23 @@ export async function bimSheet(info, modelID, id, fmt) {
     }
   }
   if (cls.length) {
-    add = section("Classificazioni");
+    add = section(tr("bim.classificazioni"));
     for (const c of cls) {
       const code = c.Identification?.value ?? c.ItemReference?.value ?? "";
       const src = c.ReferencedSource?.Name?.value ?? c.ReferencedSource?.Source?.value ?? "";
-      add(decodeIfc(src) || "Classificazione", [code, decodeIfc(c.Name?.value), c.Location?.value].filter(Boolean).join(" · "));
+      add(decodeIfc(src) || tr("bim.classificazione"), [code, decodeIfc(c.Name?.value), c.Location?.value].filter(Boolean).join(" · "));
     }
   }
-  if (rels.length) { add = section("Relazioni", false); rels.forEach(([k, v]) => add(k, v)); }
+  if (rels.length) { add = section(tr("bim.relazioni"), false); rels.forEach(([k, v]) => add(k, v)); }
 
   // 8. dati IFC grezzi (tutto cio' che il file contiene per l'elemento)
   const rawPre = el("pre", { style: { whiteSpace: "pre-wrap", fontSize: "11px", margin: 0, userSelect: "text" } });
-  const rawDet = el("details", {}, el("summary", {}, "Dati IFC grezzi"), rawPre);
+  const rawDet = el("details", {}, el("summary", {}, tr("bim.dati_ifc_grezzi")), rawPre);
   rawDet.addEventListener("toggle", () => { if (rawDet.open && !rawPre.textContent) rawPre.textContent = JSON.stringify(line, (k, v) => (typeof v === "string" ? decodeIfc(v) : v), 1); });
   root.append(rawDet);
 
   // ricerca, copia ed esportazione
-  const filter = el("input", { type: "search", placeholder: "Cerca tra le proprieta'...", style: { flex: 1, minWidth: "120px" } });
+  const filter = el("input", { type: "search", placeholder: tr("bim.cerca_tra_proprieta"), style: { flex: 1, minWidth: "120px" } });
   filter.addEventListener("input", () => {
     const q = filter.value.trim().toLowerCase();
     for (const d of root.querySelectorAll("details")) {
@@ -275,8 +276,8 @@ export async function bimSheet(info, modelID, id, fmt) {
   });
   const tsv = () => rows.map(r => [r.sez, r.nome, r.valore].map(x => x.replace(/[\t\n]/g, " ")).join("\t")).join("\n");
   const bar = el("div", { style: { display: "flex", gap: "6px", margin: "8px 0 4px", flexWrap: "wrap" } }, filter,
-    el("button", { class: "btn", title: "Copia tutte le proprieta' (si incollano in Excel)", onclick: () => navigator.clipboard?.writeText("Sezione\tProprieta'\tValore\n" + tsv()).then(() => toast("Proprieta' copiate")) }, "Copia"),
-    el("button", { class: "btn", title: "Salva le proprieta' in un file CSV", onclick: () => {
+    el("button", { class: "btn", title: tr("bim.copia_tutte_proprieta_si_incollano"), onclick: () => navigator.clipboard?.writeText("Sezione\tProprieta'\tValore\n" + tsv()).then(() => toast(tr("bim.proprieta_copiate"))) }, tr("common.copia")),
+    el("button", { class: "btn", title: tr("bim.salva_proprieta_file_csv"), onclick: () => {
       const csv = "﻿Sezione;Proprieta';Valore\n" + rows.map(r => [r.sez, r.nome, r.valore].map(x => '"' + x.replace(/"/g, '""') + '"').join(";")).join("\n");
       saveBlobAs(`elemento_${id}.csv`, new Blob([csv], { type: "text/csv" }));
     } }, "CSV"));

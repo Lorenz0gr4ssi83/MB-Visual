@@ -4,6 +4,7 @@
 // - Brep: superfici campionate a griglia; le facce piane si ricostruiscono dai bordi reali (fori compresi)
 import * as THREE from "three";
 import { toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
+import { t as tr } from "./i18n.js";
 
 let RHINO = null;
 async function rhinoLib() {
@@ -157,7 +158,7 @@ export async function addMissingSolids(bytes, group) {
     const L = layers[at.layerIndex];
     const color = c ? new THREE.Color(c.r / 255, c.g / 255, c.b / 255) : L?.color ? new THREE.Color(L.color.r / 255, L.color.g / 255, L.color.b / 255) : new THREE.Color(0.72, 0.74, 0.76);
     const mesh = meshFromPositions(positions, color);
-    mesh.name = at.name || (g.objectType === rhino.ObjectType.Extrusion ? "Estrusione" : "Solido");
+    mesh.name = at.name || (g.objectType === rhino.ObjectType.Extrusion ? tr("rhino.estrusione") : tr("rhino.solido"));
     let userStrings = [];
     try { userStrings = at.getUserStrings(); } catch { /* */ }
     mesh.userData = { objectType: g.objectType === rhino.ObjectType.Extrusion ? "Extrusion" : "Brep", attributes: { name: at.name, id: at.id, layerIndex: at.layerIndex, userStrings, drawColor: c ? { r: c.r, g: c.g, b: c.b } : undefined } };

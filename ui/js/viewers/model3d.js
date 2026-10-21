@@ -1,11 +1,10 @@
-import { LOCALE } from "../i18n.js";
 // Modelli 3D: CAD (STEP/IGES/BREP con OpenCascade), BIM (IFC con web-ifc), mesh (STL, OBJ, GLB, FBX...).
 // Navigazione orbitale, albero parti, nascondi/isola, sezioni, misure, filo di ferro, proprieta' BIM, esportazione.
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { api, button, confirmBox, dirName, el, fileUrl, loading, pickFiles, readBytes, saveBlobAs, toast, waitJob, WEB, withExt } from "../core.js";
 import { isDark } from "../monaco.js";
-import { fmtNum, t as tr } from "../i18n.js";
+import { fmtNum, t as tr, LOCALE } from "../i18n.js";
 
 const LOADERS = {
   stl: ["STLLoader", "STLLoader"], obj: ["OBJLoader", "OBJLoader"], ply: ["PLYLoader", "PLYLoader"], gltf: ["GLTFLoader", "GLTFLoader"],
@@ -25,8 +24,8 @@ const OCCT = { step: "step", stp: "step", p21: "step", stpz: "step", iges: "iges
 function occtRead(format, buffer) {
   return new Promise((resolve, reject) => {
     const w = new Worker("/vendor/occt/dist/occt-import-js-worker.js");
-    w.onmessage = ev => { w.terminate(); ev.data && ev.data.success !== false ? resolve(ev.data) : reject(new Error("OpenCascade non e' riuscito a leggere il modello")); };
-    w.onerror = e => { w.terminate(); reject(new Error(e.message || "Errore nel lettore CAD")); };
+    w.onmessage = ev => { w.terminate(); ev.data && ev.data.success !== false ? resolve(ev.data) : reject(new Error(tr("v_model3d.opencascade_non_riuscito_leggere_modello"))); };
+    w.onerror = e => { w.terminate(); reject(new Error(e.message || tr("v_model3d.errore_lettore_cad"))); };
     w.postMessage({ format, buffer, params: { linearUnit: "millimeter", linearDeflectionType: "bounding_box_ratio", linearDeflection: 0.001, angularDeflection: 0.5 } });
   });
 }
@@ -34,7 +33,7 @@ function occtRead(format, buffer) {
 async function loadOcct(ctx, bytes, ld) {
   let buf = bytes;
   if (ctx.ext === "stpz") buf = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
-  ld.set(0.2, "Lettura del modello CAD con OpenCascade (puo' richiedere qualche secondo)");
+  ld.set(0.2, tr("v_model3d.lettura_modello_cad_opencascade_puo"));
   const res = await occtRead(OCCT[ctx.ext], buf);
   const root = new THREE.Group();
   const meshes = res.meshes.map((m, i) => {
@@ -54,17 +53,17 @@ async function loadOcct(ctx, bytes, ld) {
         g.addGroup(f.first * 3, (f.last - f.first + 1) * 3, mi);
       }
       const mesh = new THREE.Mesh(g, groupsMats);
-      mesh.name = m.name || `Parte ${i + 1}`;
+      mesh.name = m.name || tr("v_model3d.parte_0", i + 1);
       return mesh;
     }
     const mesh = new THREE.Mesh(g, mat);
-    mesh.name = m.name || `Parte ${i + 1}`;
+    mesh.name = m.name || tr("v_model3d.parte_0", i + 1);
     return mesh;
   });
   const tree = [];
   function walk(node, parent, out) {
     const grp = new THREE.Group();
-    grp.name = node.name || "Assieme";
+    grp.name = node.name || tr("v_model3d.assieme");
     parent.add(grp);
     const item = { name: grp.name, obj: grp, children: [] };
     for (const mi of node.meshes || []) { const m = meshes[mi]; grp.add(m); item.children.push({ name: m.name, obj: m, children: [] }); }
@@ -77,7 +76,7 @@ async function loadOcct(ctx, bytes, ld) {
 }
 
 async function loadIfc(ctx, bytes, ld, info) {
-  ld.set(0.15, "Apertura del modello BIM");
+  ld.set(0.15, tr("v_model3d.apertura_modello_bim"));
   let ifc = info.ifc;
   if (!ifc) {
     const WEBIFC = await import("/vendor/web-ifc/web-ifc-api.js");
@@ -89,7 +88,7 @@ async function loadIfc(ctx, bytes, ld, info) {
     await ifc.Init(undefined, true);
   }
   let modelID, shift = null;
-  ld.set(0.2, `Lettura della struttura BIM (${(bytes.length / 1048576).toFixed(0)} MB)`);
+  ld.set(0.2, tr("v_model3d.lettura_struttura_bim_0_mb", (bytes.length / 1048576).toFixed(0)));
   await new Promise(r => setTimeout(r, 30)); // lascia disegnare il messaggio prima del lavoro lungo
   if (info.coordMatrix) {
     // modelli federati: stesso spostamento verso l'origine del primo modello, cosi' restano allineati
@@ -157,7 +156,7 @@ async function loadIfc(ctx, bytes, ld, info) {
       }
       geom.delete?.();
     }
-    let tname = "Elemento";
+    let tname = tr("v_model3d.elemento");
     try { tname = ifc.GetNameFromTypeCode(ifc.GetLineType(modelID, id)); } catch { /* */ }
     grp.name = tname;
     if (!byType.has(tname)) byType.set(tname, []);
@@ -178,12 +177,12 @@ async function loadIfc(ctx, bytes, ld, info) {
     const STEP = 1500;
     for (let s = 0; s < ids.length; s += STEP) {
       ifc.StreamMeshes(modelID, ids.slice(s, s + STEP), onMesh);
-      ld.set(0.3 + 0.55 * Math.min(1, (s + STEP) / ids.length), `Geometria: ${Math.min(ids.length, s + STEP).toLocaleString(LOCALE)} di ${ids.length.toLocaleString(LOCALE)} elementi`);
+      ld.set(0.3 + 0.55 * Math.min(1, (s + STEP) / ids.length), tr("v_model3d.geometria_0_1_elementi", Math.min(ids.length, s + STEP).toLocaleString(LOCALE), ids.length.toLocaleString(LOCALE)));
       await new Promise(r => setTimeout(r, 0));
     }
   } else ifc.StreamAllMeshes(modelID, onMesh);
   if (MERGE && batches.size) {
-    ld.set(0.9, "Preparazione della vista");
+    ld.set(0.9, tr("v_model3d.preparazione_vista"));
     await new Promise(r => setTimeout(r, 0));
     const { buildBatches, sharedProxy } = await import("../navis.js");
     buildBatches(root, batches);
@@ -200,13 +199,13 @@ async function loadIfc(ctx, bytes, ld, info) {
   info.ifc = ifc;
   if (info.modelID === undefined) info.modelID = modelID;
   (info.modelIDs = info.modelIDs || []).push(modelID);
-  info.status = `${count} elementi BIM`;
+  info.status = tr("v_model3d.0_elementi_bim", count);
   return { root, tree };
 }
 
 async function loadMesh(ctx, bytes, ld) {
   const [file, cls] = LOADERS[ctx.ext];
-  ld.set(0.3, "Lettura del modello 3D");
+  ld.set(0.3, tr("v_model3d.lettura_modello_3d"));
   const mod = await import(`/vendor/three/examples/jsm/loaders/${file}.js`);
   const manager = new THREE.LoadingManager();
   const dir = dirName(ctx.path);
@@ -250,13 +249,13 @@ async function loadMesh(ctx, bytes, ld) {
     obj.add(new THREE.LineSegments(out.geometryBonds, new THREE.LineBasicMaterial({ color: 0x999999 })));
   } else if (Array.isArray(out)) { obj = new THREE.Group(); out.forEach(c => obj.add(c.isMesh || c.isObject3D ? c : new THREE.Mesh(c, std()))); }
   else if (out.chunks || out.length) { obj = new THREE.Group(); }
-  else throw new Error("Formato del modello non interpretabile");
+  else throw new Error(tr("v_model3d.formato_modello_non_interpretabile"));
   obj.name = obj.name || ctx.name;
   const root = new THREE.Group();
   root.add(obj);
   if (ctx.ext === "3dm") {
     // solidi senza mesh di visualizzazione: ricostruiti dalla geometria esatta (ui/js/rhino.js)
-    ld.set(0.6, "Ricostruzione dei solidi Rhino");
+    ld.set(0.6, tr("v_model3d.ricostruzione_solidi_rhino"));
     try {
       const { addMissingSolids } = await import("../rhino.js");
       const n = await addMissingSolids(bytes, obj);
@@ -281,12 +280,12 @@ function rhinoTree(obj) {
   for (const c of obj.children) {
     const li = c.userData.attributes?.layerIndex;
     const L = layers[li];
-    const lname = L?.fullPath || L?.name || "Senza layer";
+    const lname = L?.fullPath || L?.name || tr("v_model3d.senza_layer");
     c.userData.layerName = lname;
     if (!byLayer.has(lname)) byLayer.set(lname, []);
     byLayer.get(lname).push(c);
   }
-  const kind = { Curve: "Curva", Point: "Punto", Brep: "Solido", Extrusion: "Estrusione", Mesh: "Mesh", SubD: "SubD", InstanceReference: "Blocco", TextDot: "Etichetta", Annotation: "Quota" };
+  const kind = { Curve: tr("v_model3d.curva"), Point: tr("v_model3d.punto"), Brep: tr("v_model3d.solido"), Extrusion: tr("v_model3d.estrusione"), Mesh: "Mesh", SubD: "SubD", InstanceReference: tr("v_model3d.blocco"), TextDot: tr("v_model3d.etichetta"), Annotation: tr("v_model3d.quota") };
   return [...byLayer.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([name, list]) => ({
     name: `${name} (${list.length})`, obj: null, objs: list,
     children: list.map(c => ({ name: c.name || kind[c.userData.objectType] || c.userData.objectType || c.type, obj: c, children: [] })),
@@ -307,7 +306,7 @@ async function loadAny(c, ld, info) {
   else if (NAVIS[c.ext]) { const { loadNavis } = await import("../navis.js"); loaded = await loadNavis(c, ld); if (c.navisInfo) info.status = c.navisInfo; }
   else if (c.ext === "skp") { const { loadSkp } = await import("../sketchup.js"); loaded = await loadSkp(c, bytes, ld); if (c.skpInfo) info.status = c.skpInfo; } // SketchUp senza SketchUp (OpenSKP)
   else if (LOADERS[c.ext]) loaded = await loadMesh(c, bytes, ld);
-  else throw new Error(`Il formato .${c.ext} non e' un modello 3D`);
+  else throw new Error(tr("v_model3d.formato_0_non_modello_3d", c.ext));
   // asse Z verso l'alto per CAD e mesh tecniche (convenzione ingegneristica)
   if (OCCT[c.ext] || ["stl", "3mf", "amf", "ply", "obj", "3ds", "3dm"].includes(c.ext) || NAVIS[c.ext]) loaded.root.rotation.x = -Math.PI / 2;
   loaded.root.name = c.name;
@@ -315,13 +314,13 @@ async function loadAny(c, ld, info) {
 }
 
 export async function mount(ctx) {
-  const ld = loading(ctx.el, "Lettura del modello");
+  const ld = loading(ctx.el, tr("v_model3d.lettura_modello"));
   const info = {};
   const first = await loadAny(ctx, ld, info);
   const parts = [{ name: ctx.info?.nome || ctx.name, loaded: first }];
   for (const p of ctx.extraPaths || []) {
     const name = p.split(/[\\/]/).pop();
-    ld.set(0.5, "Lettura di " + name);
+    ld.set(0.5, tr("v_model3d.lettura") + name);
     try { parts.push({ name, loaded: await loadAny({ path: p, name, ext: name.split(".").pop().toLowerCase() }, ld, info) }); }
     catch (e) { toast(`${name}: ${e.message}`, true, 6000); }
   }
@@ -332,8 +331,8 @@ export async function mount(ctx) {
   };
   if (parts.length === 1) { loaded.root.add(first.root); loaded.tree = first.tree; }
   else parts.forEach(addPart);
-  if (parts.length > 1) info.status = `Modello federato: ${parts.length} file`;
-  ld.set(0.9, "Preparazione della scena");
+  if (parts.length > 1) info.status = tr("v_model3d.modello_federato_0_file", parts.length);
+  ld.set(0.9, tr("v_model3d.preparazione_scena"));
   ctx.el.innerHTML = "";
 
   // ---- scena
@@ -447,66 +446,66 @@ export async function mount(ctx) {
     const b = bounds(objs), s = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
     const dl = el("dl", { class: "kv stack" });
     const add = (k, v) => v !== undefined && v !== null && v !== "" && dl.append(el("dt", {}, k), el("dd", {}, String(v)));
-    if (one) add("Nome", one.name);
-    else add("Elementi selezionati", objs.length.toLocaleString(LOCALE));
+    if (one) add(tr("common.nome"), one.name);
+    else add(tr("v_model3d.elementi_selezionati"), objs.length.toLocaleString(LOCALE));
     add("Ingombro (X × Y × Z)", `${fmt(s.x)} × ${fmt(s.y)} × ${fmt(s.z)}`);
-    add("Centro", `${fmt(c.x)} ; ${fmt(c.y)} ; ${fmt(c.z)}`);
+    add(tr("v_model3d.centro"), `${fmt(c.x)} ; ${fmt(c.y)} ; ${fmt(c.z)}`);
     let tri = 0;
     for (const o of objs) o.traverse(m => { if (m.isMesh && m.geometry) tri += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
-    add("Triangoli", Math.round(tri).toLocaleString(LOCALE));
+    add(tr("v_model3d.triangoli"), Math.round(tri).toLocaleString(LOCALE));
     if (one) {
       const path = [];
       for (let p = one.parent; p && p !== model; p = p.parent) if (p.name) path.unshift(p.name);
-      add("Percorso nell'assieme", path.join(" › "));
+      add(tr("v_model3d.percorso_nell_assieme"), path.join(" › "));
       const at = one.userData.attributes;
       if (one.userData.navisProps || one.userData.navisId !== undefined) {
-        if (one.userData.classe) add("Tipo", one.userData.classe);
+        if (one.userData.classe) add(tr("v_model3d.tipo"), one.userData.classe);
       } else if (at) {
         // oggetto Rhino: layer, tipo, identificativo e testi utente (chiave = valore)
-        add("Layer", one.userData.layerName);
-        add("Tipo Rhino", one.userData.objectType);
-        add("Nome Rhino", at.name);
+        add(tr("v_model3d.layer"), one.userData.layerName);
+        add(tr("v_model3d.tipo_rhino"), one.userData.objectType);
+        add(tr("v_model3d.nome_rhino"), at.name);
         add("ID", at.id);
         const col = at.drawColor || at.objectColor;
-        if (col) add("Colore", `RGB ${col.r}, ${col.g}, ${col.b}`);
+        if (col) add(tr("common.colore"), `RGB ${col.r}, ${col.g}, ${col.b}`);
         for (const [k, v] of at.userStrings || []) add(k, v);
         const g = one.geometry;
         if (one.isLine && g?.attributes?.position) {
           const p = g.attributes.position;
           let len = 0;
           for (let i = 1; i < p.count; i++) len += Math.hypot(p.getX(i) - p.getX(i - 1), p.getY(i) - p.getY(i - 1), p.getZ(i) - p.getZ(i - 1));
-          add("Lunghezza", fmt(len));
+          add(tr("v_model3d.lunghezza"), fmt(len));
         }
-        if (one.isPoints && g?.attributes?.position) add("Coordinate", `${fmt(g.attributes.position.getX(0))} ; ${fmt(g.attributes.position.getY(0))} ; ${fmt(g.attributes.position.getZ(0))}`);
+        if (one.isPoints && g?.attributes?.position) add(tr("v_model3d.coordinate"), `${fmt(g.attributes.position.getX(0))} ; ${fmt(g.attributes.position.getY(0))} ; ${fmt(g.attributes.position.getZ(0))}`);
       } else {
         for (const [k, v] of Object.entries(one.userData || {})) if (!["expressID", "modelID"].includes(k) && (typeof v !== "object" || v === null)) add(k, v);
         if (one.userData && typeof one.userData === "object") for (const [k, v] of Object.entries(one.userData)) if (v && typeof v === "object" && !Array.isArray(v)) for (const [k2, v2] of Object.entries(v)) if (typeof v2 !== "object") add(`${k} · ${k2}`, v2);
       }
     }
-    const cpick = el("input", { type: "color", value: "#b8bcc0", title: "Colore della selezione" });
+    const cpick = el("input", { type: "color", value: "#b8bcc0", title: tr("v_model3d.colore_selezione") });
     cpick.addEventListener("input", () => {
       for (const [m] of saved) { const mk = () => new THREE.MeshStandardMaterial({ color: cpick.value, metalness: 0.15, roughness: 0.55, side: THREE.DoubleSide }); saved.set(m, Array.isArray(m.material) ? m.material.map(mk) : mk()); }
       ctx.setDirty(true);
     });
     props.append(el("div", { style: { display: "flex", gap: "6px", alignItems: "center", marginBottom: "6px", flexWrap: "wrap" } },
-      el("b", {}, "Selezione"), el("span", { style: { flex: 1 } }), cpick,
-      el("button", { class: "btn", onclick: () => { objs.forEach(o => (o.visible = false)); select([]); visibilityChanged(); } }, "Nascondi"),
-      el("button", { class: "btn", onclick: () => isolate(objs) }, "Isola"),
-      el("button", { class: "btn", onclick: () => zoomTo(objs) }, "Inquadra"),
-      el("button", { class: "btn", onclick: () => select([]) }, "Deseleziona")), dl);
+      el("b", {}, tr("v_model3d.selezione")), el("span", { style: { flex: 1 } }), cpick,
+      el("button", { class: "btn", onclick: () => { objs.forEach(o => (o.visible = false)); select([]); visibilityChanged(); } }, tr("v_model3d.nascondi")),
+      el("button", { class: "btn", onclick: () => isolate(objs) }, tr("v_model3d.isola")),
+      el("button", { class: "btn", onclick: () => zoomTo(objs) }, tr("v_model3d.inquadra")),
+      el("button", { class: "btn", onclick: () => select([]) }, tr("v_model3d.deseleziona"))), dl);
     if (one?.userData.navisProps) {
       const { navisSheet } = await import("../navis.js");
       if (token === propsToken) props.append(navisSheet(one.userData.navisProps, el, toast));
     }
     const id = one?.userData.expressID;
     if (one && info.ifc && id !== undefined) {
-      const wait = el("p", { class: "note" }, "Lettura delle informazioni BIM...");
+      const wait = el("p", { class: "note" }, tr("v_model3d.lettura_informazioni_bim"));
       props.append(wait);
       try {
         const { bimSheet } = await import("../bim.js");
         const sheet = await bimSheet(info, one.userData.modelID ?? info.modelID, id, fmt);
         if (token === propsToken) wait.replaceWith(sheet);
-      } catch (e) { if (token === propsToken) wait.textContent = "Proprieta' BIM non disponibili: " + e.message; }
+      } catch (e) { if (token === propsToken) wait.textContent = tr("v_model3d.proprieta_bim_non_disponibili") + e.message; }
     }
   }
 
@@ -547,7 +546,7 @@ export async function mount(ctx) {
       cb.addEventListener("change", () => { objs.forEach(o => (o.visible = cb.checked)); visibilityChanged(); });
       node.addEventListener("click", e => {
         if (e.target === cb || e.target === twist) return;
-        if (objs.length > 5000) return toast("Troppi elementi da selezionare insieme: apri il gruppo e scegli gli elementi", true);
+        if (objs.length > 5000) return toast(tr("v_model3d.troppi_elementi_selezionare_insieme_apri"), true);
         const multi = e.ctrlKey || e.metaKey;
         select(multi ? toggleIn(selection, objs) : objs, { scroll: false });
         if (!it.obj && objs.length) node.classList.add("sel"); // classe BIM: selezionati tutti i suoi elementi
@@ -579,7 +578,7 @@ export async function mount(ctx) {
   }
   function refreshTree() { for (const r of rows) r.cb.checked = r.objs.some(o => o.visible); }
   function addToTree(items) { indexTree(items, null); drawItems(items, 0, treeBox); }
-  treeBox.append(el("div", { style: { padding: "4px 10px 6px", display: "flex", gap: "6px" } }, el("b", {}, OCCT[ctx.ext] ? "Parti" : ctx.ext === "ifc" ? "Classi BIM" : "Oggetti"), el("span", { style: { flex: 1 } }), el("button", { class: "btn", onclick: showAll }, "Mostra tutto")));
+  treeBox.append(el("div", { style: { padding: "4px 10px 6px", display: "flex", gap: "6px" } }, el("b", {}, OCCT[ctx.ext] ? tr("v_model3d.parti") : ctx.ext === "ifc" ? tr("v_model3d.classi_bim") : tr("v_model3d.oggetti")), el("span", { style: { flex: 1 } }), el("button", { class: "btn", onclick: showAll }, tr("v_model3d.mostra_tutto"))));
   addToTree(loaded.tree);
 
   function zoomTo(objs) {
@@ -675,7 +674,7 @@ export async function mount(ctx) {
     });
     const list = [...found];
     select(multi ? [...selection, ...list] : list);
-    ctx.status(`${selection.length.toLocaleString(LOCALE)} elementi selezionati`);
+    ctx.status(tr("v_model3d.0_elementi_selezionati", selection.length.toLocaleString(LOCALE)));
   }
   // nuvole di punti: il clic prende il punto vero (non il punto del raggio) tra quelli vicini al raggio, il piu' vicino
   // al raggio tra quelli in primo piano; per le altre geometrie il punto della superficie colpita
@@ -725,9 +724,9 @@ export async function mount(ctx) {
 
   // ---- sezione
   let clipPlane = null;
-  const axisSel = el("select", { id: "sec-axis-" + ctx.tab.name, title: "Asse della sezione" }, el("option", { value: "" }, "Sezione: no"), el("option", { value: "x" }, "Sezione X"), el("option", { value: "y" }, "Sezione Y (alto)"), el("option", { value: "z" }, "Sezione Z"));
-  const slider = el("input", { type: "range", min: "0", max: "1000", value: "500", id: "sec-pos-" + ctx.tab.name, title: "Posizione della sezione" });
-  const flipBtn = button("", "flipH", () => { flip = -flip; updateClip(); }, { iconOnly: true, title: "Inverti il lato della sezione" });
+  const axisSel = el("select", { id: "sec-axis-" + ctx.tab.name, title: tr("v_model3d.asse_sezione") }, el("option", { value: "" }, tr("v_model3d.sezione_no")), el("option", { value: "x" }, tr("v_model3d.sezione_x")), el("option", { value: "y" }, tr("v_model3d.sezione_y_alto")), el("option", { value: "z" }, tr("v_model3d.sezione_z")));
+  const slider = el("input", { type: "range", min: "0", max: "1000", value: "500", id: "sec-pos-" + ctx.tab.name, title: tr("v_model3d.posizione_sezione") });
+  const flipBtn = button("", "flipH", () => { flip = -flip; updateClip(); }, { iconOnly: true, title: tr("v_model3d.inverti_lato_sezione") });
   let flip = 1;
   function updateClip() {
     const a = axisSel.value;
@@ -754,30 +753,30 @@ export async function mount(ctx) {
 
   // ---- filo di ferro, viste, esportazione
   let wire = false;
-  const wireBtn = button("Filo di ferro", "wire", () => {
+  const wireBtn = button(tr("v_model3d.filo_ferro"), "wire", () => {
     wire = !wire;
     wireBtn.classList.toggle("on", wire);
     model.traverse(m => { if (m.isMesh) (Array.isArray(m.material) ? m.material : [m.material]).forEach(mt => (mt.wireframe = wire)); });
   });
-  const mBtn = button("Misura", "ruler", () => { measure = !measure; mBtn.classList.toggle("on", measure); mpts = []; mGroup.clear(); distLabel.hidden = true; snapMark.visible = false; });
-  const views = el("select", { id: "view-" + ctx.tab.name, title: "Vista", onchange: e => { const v = { iso: [1, 0.8, 1], top: [0, 1, 0.0001], front: [0, 0, 1], right: [1, 0, 0], back: [0, 0, -1], left: [-1, 0, 0] }[e.target.value]; if (v) fit(new THREE.Vector3(...v)); e.target.value = ""; } },
-    el("option", { value: "" }, "Vista..."), el("option", { value: "iso" }, "Isometrica"), el("option", { value: "top" }, "Dall'alto"), el("option", { value: "front" }, "Frontale"),
-    el("option", { value: "right" }, "Destra"), el("option", { value: "left" }, "Sinistra"), el("option", { value: "back" }, "Posteriore"));
+  const mBtn = button(tr("v_model3d.misura"), "ruler", () => { measure = !measure; mBtn.classList.toggle("on", measure); mpts = []; mGroup.clear(); distLabel.hidden = true; snapMark.visible = false; });
+  const views = el("select", { id: "view-" + ctx.tab.name, title: tr("v_model3d.vista"), onchange: e => { const v = { iso: [1, 0.8, 1], top: [0, 1, 0.0001], front: [0, 0, 1], right: [1, 0, 0], back: [0, 0, -1], left: [-1, 0, 0] }[e.target.value]; if (v) fit(new THREE.Vector3(...v)); e.target.value = ""; } },
+    el("option", { value: "" }, tr("v_model3d.vista_2")), el("option", { value: "iso" }, tr("v_model3d.isometrica")), el("option", { value: "top" }, tr("v_model3d.dall_alto")), el("option", { value: "front" }, tr("v_model3d.frontale")),
+    el("option", { value: "right" }, tr("v_model3d.destra")), el("option", { value: "left" }, tr("v_model3d.sinistra")), el("option", { value: "back" }, tr("v_model3d.posteriore")));
   // viste salvate nel file (scene di SketchUp)
   const savedViews = parts.length === 1 ? first.views || [] : [];
   if (savedViews.length) {
     views.append(el("optgroup", { label: tr("skp.scene_modello") }, ...savedViews.map((v, i) => el("option", { value: "s" + i }, v.name))));
     views.addEventListener("change", e => { const v = savedViews[+e.target.value.slice(1)]; if (e.target.value[0] === "s" && v) { v.apply({ camera, controls, model }); visibilityChanged(); } e.target.value = ""; }, true);
   }
-  const exp = el("select", { id: "exp-" + ctx.tab.name, title: "Esporta", onchange: e => { const v = e.target.value; e.target.value = ""; if (v) doExport(v); } },
-    el("option", { value: "" }, "Esporta..."), el("option", { value: "glb" }, "GLB (glTF binario)"), el("option", { value: "stl" }, "STL"), el("option", { value: "obj" }, "OBJ"), el("option", { value: "png" }, "Immagine PNG"));
+  const exp = el("select", { id: "exp-" + ctx.tab.name, title: tr("v_model3d.esporta"), onchange: e => { const v = e.target.value; e.target.value = ""; if (v) doExport(v); } },
+    el("option", { value: "" }, tr("v_model3d.esporta_2")), el("option", { value: "glb" }, tr("v_model3d.glb_gltf_binario")), el("option", { value: "stl" }, "STL"), el("option", { value: "obj" }, "OBJ"), el("option", { value: "png" }, tr("v_model3d.immagine_png")));
   // ---- modalita' del tasto sinistro: Ruota / Sposta / Seleziona (Maiusc tenuto premuto: Ruota e Sposta si scambiano,
   // in Seleziona si ruota; Ctrl non cambia la navigazione ma aggiunge o toglie elementi dalla selezione)
   let navMode = "rotate";
-  const rotBtn = el("button", { type: "button", title: "Tasto sinistro ruota il modello" }, "Ruota");
-  const panBtn = el("button", { type: "button", title: "Tasto sinistro sposta il modello" }, "Sposta");
-  const selBtn = el("button", { type: "button", title: "Tasto sinistro seleziona: clic su un elemento o trascina un riquadro (Ctrl aggiunge o toglie)" }, "Seleziona");
-  const seg = el("span", { class: "seg", title: "Tieni premuto Maiusc per passare temporaneamente a un'altra modalita'" }, rotBtn, panBtn, selBtn);
+  const rotBtn = el("button", { type: "button", title: tr("v_model3d.tasto_sinistro_ruota_modello") }, tr("v_model3d.ruota"));
+  const panBtn = el("button", { type: "button", title: tr("v_model3d.tasto_sinistro_sposta_modello") }, tr("v_model3d.sposta"));
+  const selBtn = el("button", { type: "button", title: tr("v_model3d.tasto_sinistro_seleziona_clic_elemento") }, tr("v_model3d.seleziona"));
+  const seg = el("span", { class: "seg", title: tr("v_model3d.tieni_premuto_maiusc_passare_temporaneamente") }, rotBtn, panBtn, selBtn);
   let shiftDown = false;
   function effectiveNav() { return shiftDown ? (navMode === "rotate" ? "pan" : "rotate") : navMode; }
   const applyNav = () => {
@@ -809,11 +808,11 @@ export async function mount(ctx) {
   window.addEventListener("blur", onBlur);
 
   // ---- modello federato: aggiunta di altri file nella stessa scena (stesse coordinate per i file IFC)
-  const addBtn = button("Aggiungi modello", "plus", async () => {
+  const addBtn = button(tr("v_model3d.aggiungi_modello"), "plus", async () => {
     const ps = await pickFiles();
     for (const p of ps || []) {
       const name = p.split(/[\\/]/).pop();
-      toast("Caricamento di " + name + "...");
+      toast(tr("v_model3d.caricamento") + name + "...");
       try {
         const part = await loadAny({ path: p, name, ext: name.split(".").pop().toLowerCase() }, { set() {} }, info);
         model.add(part.root);
@@ -821,10 +820,10 @@ export async function mount(ctx) {
         addToTree([{ name, obj: part.root, children: part.tree }]);
         cloudUi();
         fit();
-        ctx.status(`Modello federato · aggiunto ${name}`);
+        ctx.status(tr("v_model3d.modello_federato_aggiunto_0", name));
       } catch (e) { toast(`${name}: ${e.message}`, true, 6000); }
     }
-  }, { title: "Carica un altro modello (IFC, STEP, STL...) nella stessa scena" });
+  }, { title: tr("v_model3d.carica_altro_modello_ifc_step") });
 
   // controlli delle nuvole di punti (colori, dimensione, dettaglio) quando nella scena ce n'e' almeno una
   const cloudBox = el("span", { style: { display: "contents" } });
@@ -834,8 +833,8 @@ export async function mount(ctx) {
     cloudBox.append(el("span", { class: "sep" }), cloudControls(info, () => {}));
   }
   cloudUi();
-  ctx.tb.append(seg, el("span", { class: "sep" }), addBtn, button("Adatta", "fit", () => fit()), views, el("span", { class: "sep" }), wireBtn, mBtn, axisSel, slider, flipBtn, cloudBox,
-    el("span", { class: "sep" }), exp, el("span", { class: "grow" }), el("span", { class: "note" }, "Maiusc: cambia modalita' · destro: sposta · rotella: zoom · clic: seleziona · Ctrl+clic: aggiungi · Esc: deseleziona"));
+  ctx.tb.append(seg, el("span", { class: "sep" }), addBtn, button(tr("v_model3d.adatta"), "fit", () => fit()), views, el("span", { class: "sep" }), wireBtn, mBtn, axisSel, slider, flipBtn, cloudBox,
+    el("span", { class: "sep" }), exp, el("span", { class: "grow" }), el("span", { class: "note" }, tr("v_model3d.maiusc_cambia_modalita_destro_sposta")));
   // app per telefono: realta' aumentata (WebXR su Android, Quick Look su iPhone) - ui/js/ar.js
   if (window.MBV_WEB) ctx.tb.prepend(button(tr("ar.vedi"), '<svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>', async () => {
     try { (await import("../ar.js")).openAR({ model, ext: ctx.ext, name: ctx.name }); } catch (e) { toast(tr("ar.errore", e.message), true); }
@@ -876,7 +875,7 @@ export async function mount(ctx) {
   requestAnimationFrame(() => { resize(); fit(); });
   let tri = 0;
   model.traverse(m => { if (m.isMesh && m.geometry && !m.userData.merged) tri += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
-  ctx.status((info.status ? info.status + (tri || !info.clouds ? " · " : "") : "") + (tri || !info.clouds ? Math.round(tri).toLocaleString(LOCALE) + " triangoli" : ""));
+  ctx.status((info.status ? info.status + (tri || !info.clouds ? " · " : "") : "") + (tri || !info.clouds ? tr("v_model3d.0_triangoli", Math.round(tri).toLocaleString(LOCALE)) : ""));
   const disposeAll = () => { bcfUi?.dispose(); running = false; window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onKey); window.removeEventListener("blur", onBlur); (info.clouds || []).forEach(c => c.dispose()); renderer.dispose(); (info.modelIDs || []).forEach(m => info.ifc?.CloseModel?.(m)); };
   // nuvola di punti aperta come documento: Salva con nome nei formati delle nuvole (tutti i punti, non solo quelli mostrati)
   const firstCloud = first.cloud;
@@ -919,21 +918,21 @@ export async function mount(ctx) {
     saveInPlace: false,
     // formati tecnici (ui/js/export3d.js) + formati mesh di three.js
     saveFormats: ["stp", "step", "ifc", "glb", "gltf", "stl", "obj", "3mf", "dxf", "ply", "wrl", "usdz"],
-    saveLabels: { stp: "STEP per CAD (SolidWorks, Inventor, Creo, Rhino...)", step: "STEP per CAD", ifc: "IFC 4 per BIM (Revit, Archicad, Navisworks...)", glb: "glTF binario (web, realta' aumentata)",
-      gltf: "glTF testo", stl: "STL per stampa 3D", obj: "OBJ mesh universale", "3mf": "3MF per stampa 3D (con colori)", dxf: "DXF 3D (facce su layer, AutoCAD)", ply: "PLY nuvola/mesh",
-      wrl: "VRML", usdz: "USDZ (Apple, realta' aumentata)" },
-    saveNote: "STEP e IFC contengono superfici a facce piane ricavate dal modello visualizzato: geometria e nomi degli oggetti si conservano, le superfici curve esatte e i parametri del modello originale no.",
+    saveLabels: { stp: tr("v_model3d.step_cad_solidworks_inventor_creo"), step: tr("v_model3d.step_cad"), ifc: tr("v_model3d.ifc_4_bim_revit_archicad"), glb: tr("v_model3d.gltf_binario_web_realta_aumentata"),
+      gltf: tr("v_model3d.gltf_testo"), stl: tr("v_model3d.stl_stampa_3d"), obj: tr("v_model3d.obj_mesh_universale"), "3mf": tr("v_model3d.3mf_stampa_3d_colori"), dxf: tr("v_model3d.dxf_3d_facce_layer_autocad"), ply: tr("v_model3d.ply_nuvola_mesh"),
+      wrl: "VRML", usdz: tr("v_model3d.usdz_apple_realta_aumentata") },
+    saveNote: tr("v_model3d.step_ifc_contengono_superfici_facce"),
     saveAsName: () => withExt(ctx.name, "glb"),
     async save(target) {
       const ext = target.split(".").pop().toLowerCase();
-      if (!this.saveFormats.includes(ext)) throw new Error("Formati del modello 3D: " + this.saveFormats.join(", ").toUpperCase());
+      if (!this.saveFormats.includes(ext)) throw new Error(tr("v_model3d.formati_modello_3d") + this.saveFormats.join(", ").toUpperCase());
       if (["stp", "step", "ifc", "3mf", "dxf", "wrl"].includes(ext)) {
         // unita' della scena secondo il formato d'origine: IFC, Navisworks e glTF in metri, CAD e mesh in millimetri
         const src = (ctx.ext || "").toLowerCase();
         const mpu = ["ifc", "nwd", "nwc", "nwf", "glb", "gltf", "usdz", "vrm", "skp"].includes(src) ? 1 : 0.001;
         const X = await import("../export3d.js");
         const els = X.collectElements(model, mpu);
-        if (!els.length) throw new Error("Nessun oggetto visibile da salvare");
+        if (!els.length) throw new Error(tr("v_model3d.nessun_oggetto_visibile_salvare"));
         const stem = ctx.name.replace(/\.[^.]+$/, "");
         let out;
         if (ext === "stp" || ext === "step") out = X.toSTEP(els, stem);

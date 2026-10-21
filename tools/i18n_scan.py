@@ -477,7 +477,12 @@ def apply_plan(plan: Path) -> None:
             mm = re.match(r"((?://[^\n]*\n)+)", out)
             pos = mm.end() if mm else 0
             out = out[:pos] + imp + out[pos:]
-    path.write_text(out, encoding="utf-8", newline="")
+    # fine riga come nel file originale (molti sorgenti sono CRLF: niente diff di tutto il file)
+    raw = path.read_bytes()
+    out = out.replace("\r\n", "\n")
+    if raw.count(b"\r\n") * 2 > raw.count(b"\n"):
+        out = out.replace("\n", "\r\n")
+    path.write_bytes(out.encode("utf-8"))
     save_lang("it", it)
     print(f"{count} testi sostituiti in {path.name}")
 

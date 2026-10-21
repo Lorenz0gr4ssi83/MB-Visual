@@ -1,4 +1,3 @@
-import { LOCALE } from "./i18n.js";
 // Pubblicazioni: motore del testo. Impaginazione di una storia in una catena di contenitori (caselle di testo
 // collegate, ciascuna con le sue colonne), a capo automatico, allineamenti (anche giustificato), rientri, elenchi,
 // spazi prima/dopo, interlinea, testo che gira attorno agli oggetti (quadrato / sopra e sotto), campi (numero di pagina,
@@ -7,6 +6,7 @@ import { LOCALE } from "./i18n.js";
 // Le larghezze si misurano carattere per carattere con la crenatura disattivata: la stessa misura vale per il
 // disegno sullo schermo, per il cursore e per l'esportazione PDF (PyMuPDF non applica la crenatura).
 import { S, FIELD, fontName } from "./pubmodel.js";
+import { LOCALE } from "./i18n.js";
 
 const LS = "\u2028"; // a capo manuale (Maiusc+Invio)
 const mctx = (() => { const c = document.createElement("canvas"); const g = c.getContext("2d"); try { g.fontKerning = "none"; } catch { /* */ } return g; })();

@@ -1,4 +1,3 @@
-import { LOCALE } from "./i18n.js";
 // Barra multifunzione dell'editor di pubblicazioni, con le stesse schede e gli stessi gruppi di Publisher:
 // Home, Inserisci, Progettazione pagina, Mailing, Revisione, Visualizza e le schede contestuali "Formato"
 // (casella di testo, immagine, disegno, WordArt, tabella) e "Pagina master". Qui anche menu, gallerie e finestre.
@@ -9,6 +8,7 @@ import { SHAPES, shapeCmds, computeLayouts, drawPage, CanvasPainter, aabb, isLin
 import { caretPos, paraBounds, insertText, deleteRange, setParaStyle } from "./pubtext.js";
 import { TEMPLATES } from "./pubtemplates.js";
 import { exportPdfFile, exportMergedPdf } from "./pubexport.js";
+import { LOCALE } from "./i18n.js";
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const cm = v => +(v / CM).toFixed(2);

@@ -1,9 +1,9 @@
-import { t, LOCALE } from "../i18n.js";
 // PDF con il visualizzatore di Mozilla (pdf.js): pagine, ricerca, stampa, annotazioni; firme PAdES.
 import { api, baseName, button, dirName, el, fileUrl, modal, pickFiles, pickFolder, pickSavePath, toast, waitJob, WEB } from "../core.js";
 import { createPdfEditor, PDFJS_HIDE } from "../pdfeditor.js";
 import { describeKeys } from "../shortcuts.js";
 import { renderSigner } from "./signed.js";
+import { t, LOCALE } from "../i18n.js";
 
 export async function mount(ctx) {
   ctx.fillBody(true);

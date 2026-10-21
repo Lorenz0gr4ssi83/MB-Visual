@@ -1,7 +1,7 @@
-import { LOCALE } from "../i18n.js";
 // Fogli di calcolo (SheetJS): tutti i fogli, modifica celle e formule, righe/colonne; salvataggio nel formato originale.
 import { api, button, el, extOf, loadScript, readBytes, toast, withExt } from "../core.js";
 import { describeKeys } from "../shortcuts.js";
+import { LOCALE } from "../i18n.js";
 
 const MAX_R = 3000, MAX_C = 200;
 const WRITE = { xlsx: "xlsx", xlsm: "xlsm", xlsb: "xlsb", xls: "biff8", xltx: "xlsx", xltm: "xlsm", xlt: "biff8", ods: "ods",

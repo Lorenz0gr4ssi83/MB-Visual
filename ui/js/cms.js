@@ -1,6 +1,6 @@
-import { LOCALE } from "./i18n.js";
 // Firme digitali nel browser (web app): lettura BER/DER, buste CMS/PKCS#7 (CAdES), TSD, M7M, firme PAdES nei PDF.
 // Verifica integrita' (impronta) e firma crittografica con WebCrypto; catena di fiducia AgID e revoca non verificate.
+import { LOCALE } from "./i18n.js";
 
 // ---------------------------------------------------------------- lettore ASN.1 BER/DER
 function readNode(b, pos) {

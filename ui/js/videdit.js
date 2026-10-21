@@ -1,4 +1,3 @@
-import { LOCALE } from "./i18n.js";
 // Montaggio video e audio con la disposizione di Adobe Premiere Pro (area di lavoro "Montaggio"):
 //   in alto a sinistra Sorgente / Controlli effetti / Mixer tracce audio, in alto a destra Monitor programma,
 //   in basso Progetto / Effetti, barra strumenti verticale, Timeline multitraccia e misuratori audio.
@@ -13,6 +12,7 @@ import {
   AUDIO_TRANSITIONS, BLENDS, EFFECTS, FONTS, PRESETS, RATES, TRANSITIONS, clamp, dbToLin, defaultTitle, layout,
   parseTc, propAt, renderTitle, tc, uid, validateTransitions,
 } from "./vidmodel.js";
+import { LOCALE } from "./i18n.js";
 
 const RULER = 26;
 const HEAD_W = 172;
