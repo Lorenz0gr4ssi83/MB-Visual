@@ -303,6 +303,8 @@ def sniff(path: str) -> dict:
         (h.startswith(b"SQLite format 3\x00"), "sqlite", tr("srv_misc.database_sqlite")),
         (h[:4] == b"AC10" or h[:6] == b"AC1.40", "cad2d", tr("srv_misc.disegno_autocad_dwg")),
         (h.startswith(b"glTF"), "mesh3d", tr("srv_misc.modello_3d_gltf_binario")),
+        (h.startswith(b"LASF"), "pointcloud", tr("srv_misc.nuvola_las")),
+        (h.startswith(b"ASTM-E57"), "pointcloud", tr("srv_misc.nuvola_e57")),
         (b"ISO-10303-21" in h[:200] and b"IFC" in h[:4000].upper(), "ifc", tr("srv_misc.modello_bim_ifc")),
         (b"ISO-10303-21" in h[:200], "cad3d", tr("srv_misc.modello_cad_step")),
         (h.startswith(b"MZ"), "exe", tr("srv_misc.programma_windows_eseguibile")),
@@ -329,6 +331,8 @@ def sniff(path: str) -> dict:
                 return {"kind": "html", "descr": tr("srv_misc.pagina_web_html")}
             if re.match(rb"\s*0\s*\r?\n\s*section", sample[:100].lower()):
                 return {"kind": "cad2d", "descr": tr("srv_misc.disegno_dxf")}
+            if re.match(rb"\s*\d+\s*\r?\n\s*\d+\s*\r?\n(\s*-?[\d.]+(e[-+]?\d+)?\s+){2}-?[\d.]+", sample[:400], re.I):
+                return {"kind": "pointcloud", "descr": tr("srv_misc.nuvola_ptx")}
             if s.startswith(b"solid"):
                 return {"kind": "text", "descr": tr("srv_misc.testo_forse_stl_ascii")}
             return {"kind": "text", "descr": tr("srv_misc.file_testo")}

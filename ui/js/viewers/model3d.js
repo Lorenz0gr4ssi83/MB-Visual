@@ -3,9 +3,9 @@ import { LOCALE } from "../i18n.js";
 // Navigazione orbitale, albero parti, nascondi/isola, sezioni, misure, filo di ferro, proprieta' BIM, esportazione.
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { api, button, dirName, el, fileUrl, loading, pickFiles, readBytes, saveBlobAs, toast, withExt } from "../core.js";
+import { api, button, confirmBox, dirName, el, fileUrl, loading, pickFiles, readBytes, saveBlobAs, toast, waitJob, WEB, withExt } from "../core.js";
 import { isDark } from "../monaco.js";
-import { t as tr } from "../i18n.js";
+import { fmtNum, t as tr } from "../i18n.js";
 
 const LOADERS = {
   stl: ["STLLoader", "STLLoader"], obj: ["OBJLoader", "OBJLoader"], ply: ["PLYLoader", "PLYLoader"], gltf: ["GLTFLoader", "GLTFLoader"],
@@ -17,6 +17,8 @@ const LOADERS = {
   "3dm": ["3DMLoader", "Rhino3dmLoader"],
 };
 const NAVIS = { nwd: 1, nwc: 1, nwf: 1 }; // Navisworks letto da nwd2mbv (senza Navisworks)
+// nuvole di punti da rilievo (ui/js/pointcloud.js); i PLY si aprono come nuvola se non hanno facce
+const PCLOUD = { las: 1, laz: 1, e57: 1, pts: 1, ptx: 1, xyz: 1, txt: 1, asc: 1, csv: 1, ply: 1 };
 const OCCT = { step: "step", stp: "step", p21: "step", stpz: "step", iges: "iges", igs: "iges", brep: "brep", brp: "brep" };
 
 // ---------------------------------------------------------------- caricamento
@@ -293,9 +295,14 @@ function rhinoTree(obj) {
 
 // ---------------------------------------------------------------- visualizzatore
 async function loadAny(c, ld, info) {
-  const bytes = NAVIS[c.ext] ? null : await readBytes(c.path); // Navisworks: lo legge il motore nativo
+  const bytes = NAVIS[c.ext] || PCLOUD[c.ext] ? null : await readBytes(c.path); // Navisworks e nuvole: li legge il motore nativo
   let loaded;
-  if (OCCT[c.ext]) loaded = await loadOcct(c, bytes, ld);
+  if (PCLOUD[c.ext]) {
+    const { loadPointCloud } = await import("../pointcloud.js");
+    loaded = await loadPointCloud(c, ld, info);
+    if (loaded) { loaded.root.name = c.name; return loaded; }
+    loaded = await loadMesh(c, await readBytes(c.path), ld); // PLY con facce
+  } else if (OCCT[c.ext]) loaded = await loadOcct(c, bytes, ld);
   else if (c.ext === "ifc") loaded = await loadIfc(c, bytes, ld, info);
   else if (NAVIS[c.ext]) { const { loadNavis } = await import("../navis.js"); loaded = await loadNavis(c, ld); if (c.navisInfo) info.status = c.navisInfo; }
   else if (LOADERS[c.ext]) loaded = await loadMesh(c, bytes, ld);
@@ -346,7 +353,7 @@ export async function mount(ctx) {
   const model = loaded.root;
   scene.add(model);
   model.updateMatrixWorld(true);
-  ctx.tab.three = { THREE, scene, model, camera }; // per diagnostica
+  ctx.tab.three = { THREE, scene, model, camera, renderer, controls, info }; // per diagnostica
 
   const setBg = () => { scene.background = new THREE.Color(isDark() ? 0x1e2021 : 0xeef0ed); };
   setBg();
@@ -396,12 +403,14 @@ export async function mount(ctx) {
   new ResizeObserver(resize).observe(host);
 
   let running = true;
+  const tmpSize = new THREE.Vector2();
   const clock = new THREE.Clock();
   (function loop() {
     if (!running) return;
     requestAnimationFrame(loop);
     if (ctx.tab.view.hidden) return;
     controls.update();
+    if (info.clouds) { const h = renderer.getSize(tmpSize).y; for (const cl of info.clouds) cl.update(camera, h, renderer.clippingPlanes); }
     if (mixer) mixer.update(clock.getDelta());
     renderer.render(scene, camera);
   })();
@@ -622,10 +631,10 @@ export async function mount(ctx) {
     if (measure) {
       if (!hit) return;
       if (mpts.length === 2) { mpts = []; mGroup.clear(); }
-      mpts.push(hit.point.clone());
+      mpts.push(snapOf(hits));
       const size = bounds([model]).getSize(new THREE.Vector3()).length() / 250;
       const dot = new THREE.Mesh(new THREE.SphereGeometry(size, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff9f1a, depthTest: false }));
-      dot.position.copy(hit.point);
+      dot.position.copy(mpts[mpts.length - 1]);
       dot.renderOrder = 10;
       mGroup.add(dot);
       if (mpts.length === 2) {
@@ -633,12 +642,16 @@ export async function mount(ctx) {
         line.renderOrder = 10;
         mGroup.add(line);
         const d = mpts[0].distanceTo(mpts[1]);
-        ctx.status(`Distanza: ${fmt(d)} (unita' del modello${OCCT[ctx.ext] ? ": mm" : ""})`);
-        distLabel.textContent = "Distanza: " + fmt(d) + (OCCT[ctx.ext] ? " mm" : "");
+        // scena con Y verso l'alto: dislivello e distanza in pianta (utili sui rilievi)
+        const dv = Math.abs(mpts[1].y - mpts[0].y), dh = Math.hypot(mpts[1].x - mpts[0].x, mpts[1].z - mpts[0].z);
+        const u = OCCT[ctx.ext] ? " mm" : info.clouds ? " m" : "";
+        ctx.status(tr("v_model3d.distanza_stato", fmt(d), OCCT[ctx.ext] ? ": mm" : "", fmt(dh), fmt(dv)));
+        distLabel.textContent = tr("v_model3d.distanza_etichetta", fmt(d) + u, fmt(dh) + u, fmt(dv) + u);
         distLabel.hidden = false;
       }
       return;
     }
+    if (hit?.object.userData.pcCloud) return showPoint(hits);
     const pick = hit?.object.userData.merged ? hit.object.parent?.userData.pick : null;
     const fi = hit ? (hit.faceIndex ?? (hit.index != null ? Math.floor(hit.index / (hit.object.userData.merged?.per || 1)) : null)) : null;
     const target = pick ? pick(hit.object, fi) : hit ? unitOf(hit.object) : null;
@@ -652,7 +665,7 @@ export async function mount(ctx) {
     const [ax, bx] = [nx(Math.min(x0, x1)), nx(Math.max(x0, x1))], [by, ay] = [ny(Math.max(y0, y1)), ny(Math.min(y0, y1))];
     const found = new Set(), v = new THREE.Vector3(), bb = new THREE.Box3();
     model.traverse(m => {
-      if (!(m.isMesh || m.isPoints) || m.userData.merged || !isVisibleChain(m.userData.proxy ? m.parent : m)) return;
+      if (!(m.isMesh || m.isPoints) || m.userData.merged || m.userData.pcNode || m.userData.pcHelper || !isVisibleChain(m.userData.proxy ? m.parent : m)) return;
       bb.setFromObject(m).getCenter(v);
       if (clippedOut(v)) return;
       v.project(camera);
@@ -661,6 +674,48 @@ export async function mount(ctx) {
     const list = [...found];
     select(multi ? [...selection, ...list] : list);
     ctx.status(`${selection.length.toLocaleString(LOCALE)} elementi selezionati`);
+  }
+  // nuvole di punti: il clic prende il punto vero (non il punto del raggio) tra quelli vicini al raggio, il piu' vicino
+  // al raggio tra quelli in primo piano; per le altre geometrie il punto della superficie colpita
+  const nearHits = hits => hits.filter(h => h.distance <= hits[0].distance + (ray.params.Points.threshold || 0) * 3);
+  function bestPoint(hits) {
+    let best = hits[0];
+    for (const h of nearHits(hits)) if (h.object.isPoints && h.index != null && h.distanceToRay < best.distanceToRay) best = h;
+    return best;
+  }
+  function snapOf(hits) {
+    if (!hits[0].object.isPoints || hits[0].index == null) return hits[0].point.clone();
+    const b = bestPoint(hits);
+    return new THREE.Vector3().fromBufferAttribute(b.object.geometry.attributes.position, b.index).applyMatrix4(b.object.matrixWorld);
+  }
+  const snapMark = new THREE.Points(new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0], 3)),
+    new THREE.PointsMaterial({ color: 0xff9f1a, size: 11, sizeAttenuation: false, depthTest: false }));
+  snapMark.renderOrder = 11;
+  snapMark.visible = false;
+  snapMark.raycast = () => {};
+  scene.add(snapMark);
+  // misura sulle nuvole: il punto agganciato si vede gia' passando con il mouse
+  let snapT = 0;
+  renderer.domElement.addEventListener("pointermove", e => {
+    if (!measure || e.buttons || !info.clouds || performance.now() - snapT < 80) return;
+    snapT = performance.now();
+    const r = renderer.domElement.getBoundingClientRect();
+    ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+    ray.params.Line.threshold = ray.params.Points.threshold = 2 * camera.position.distanceTo(controls.target) * Math.tan((camera.fov * Math.PI) / 360) / r.height * 8;
+    const hs = ray.intersectObject(model, true).filter(h => isVisibleChain(h.object) && (!clipPlane || clipPlane.distanceToPoint(h.point) >= 0));
+    snapMark.visible = !!hs.length;
+    if (hs.length) snapMark.position.copy(snapOf(hs));
+  });
+  // clic su un punto della nuvola: coordinate e attributi nel pannello
+  function showPoint(hits) {
+    const best = bestPoint(hits), cl = best.object.userData.pcCloud;
+    select([]);
+    snapMark.position.copy(snapOf(hits));
+    snapMark.visible = true;
+    const dl = el("dl", { class: "kv stack" });
+    for (const [k, v] of cl.pointInfo(best.object, best.index)) dl.append(el("dt", {}, k), el("dd", {}, v));
+    props.innerHTML = "";
+    props.append(el("div", { style: { marginBottom: "6px" } }, el("b", {}, tr("pc.punto_di", cl.name))), dl);
   }
   const isVisibleChain = o => { while (o) { if (!o.visible) return false; o = o.parent; } return true; };
   const distLabel = el("div", { hidden: true, style: { position: "absolute", left: "12px", bottom: "12px", padding: "6px 12px", background: "rgba(0,0,0,.75)", color: "#fff", borderRadius: "6px", fontWeight: 600 } });
@@ -702,7 +757,7 @@ export async function mount(ctx) {
     wireBtn.classList.toggle("on", wire);
     model.traverse(m => { if (m.isMesh) (Array.isArray(m.material) ? m.material : [m.material]).forEach(mt => (mt.wireframe = wire)); });
   });
-  const mBtn = button("Misura", "ruler", () => { measure = !measure; mBtn.classList.toggle("on", measure); mpts = []; mGroup.clear(); distLabel.hidden = true; });
+  const mBtn = button("Misura", "ruler", () => { measure = !measure; mBtn.classList.toggle("on", measure); mpts = []; mGroup.clear(); distLabel.hidden = true; snapMark.visible = false; });
   const views = el("select", { id: "view-" + ctx.tab.name, title: "Vista", onchange: e => { const v = { iso: [1, 0.8, 1], top: [0, 1, 0.0001], front: [0, 0, 1], right: [1, 0, 0], back: [0, 0, -1], left: [-1, 0, 0] }[e.target.value]; if (v) fit(new THREE.Vector3(...v)); e.target.value = ""; } },
     el("option", { value: "" }, "Vista..."), el("option", { value: "iso" }, "Isometrica"), el("option", { value: "top" }, "Dall'alto"), el("option", { value: "front" }, "Frontale"),
     el("option", { value: "right" }, "Destra"), el("option", { value: "left" }, "Sinistra"), el("option", { value: "back" }, "Posteriore"));
@@ -756,13 +811,22 @@ export async function mount(ctx) {
         model.add(part.root);
         model.updateMatrixWorld(true);
         addToTree([{ name, obj: part.root, children: part.tree }]);
+        cloudUi();
         fit();
         ctx.status(`Modello federato · aggiunto ${name}`);
       } catch (e) { toast(`${name}: ${e.message}`, true, 6000); }
     }
   }, { title: "Carica un altro modello (IFC, STEP, STL...) nella stessa scena" });
 
-  ctx.tb.append(seg, el("span", { class: "sep" }), addBtn, button("Adatta", "fit", () => fit()), views, el("span", { class: "sep" }), wireBtn, mBtn, axisSel, slider, flipBtn,
+  // controlli delle nuvole di punti (colori, dimensione, dettaglio) quando nella scena ce n'e' almeno una
+  const cloudBox = el("span", { style: { display: "contents" } });
+  async function cloudUi() {
+    if (!info.clouds || cloudBox.childNodes.length) return;
+    const { cloudControls } = await import("../pointcloud.js");
+    cloudBox.append(el("span", { class: "sep" }), cloudControls(info, () => {}));
+  }
+  cloudUi();
+  ctx.tb.append(seg, el("span", { class: "sep" }), addBtn, button("Adatta", "fit", () => fit()), views, el("span", { class: "sep" }), wireBtn, mBtn, axisSel, slider, flipBtn, cloudBox,
     el("span", { class: "sep" }), exp, el("span", { class: "grow" }), el("span", { class: "note" }, "Maiusc: cambia modalita' · destro: sposta · rotella: zoom · clic: seleziona · Ctrl+clic: aggiungi · Esc: deseleziona"));
   // app per telefono: realta' aumentata (WebXR su Android, Quick Look su iPhone) - ui/js/ar.js
   if (window.MBV_WEB) ctx.tb.prepend(button(tr("ar.vedi"), '<svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>', async () => {
@@ -804,7 +868,32 @@ export async function mount(ctx) {
   requestAnimationFrame(() => { resize(); fit(); });
   let tri = 0;
   model.traverse(m => { if (m.isMesh && m.geometry && !m.userData.merged) tri += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
-  ctx.status((info.status ? info.status + " · " : "") + Math.round(tri).toLocaleString(LOCALE) + " triangoli");
+  ctx.status((info.status ? info.status + (tri || !info.clouds ? " · " : "") : "") + (tri || !info.clouds ? Math.round(tri).toLocaleString(LOCALE) + " triangoli" : ""));
+  const disposeAll = () => { bcfUi?.dispose(); running = false; window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onKey); window.removeEventListener("blur", onBlur); (info.clouds || []).forEach(c => c.dispose()); renderer.dispose(); (info.modelIDs || []).forEach(m => info.ifc?.CloseModel?.(m)); };
+  // nuvola di punti aperta come documento: Salva con nome nei formati delle nuvole (tutti i punti, non solo quelli mostrati)
+  const firstCloud = first.cloud;
+  if (firstCloud && !WEB) {
+    const fmts = ["las", "laz", "e57", "ply", "pts", "xyz", "txt"];
+    return {
+      onShow() { resize(); },
+      saveInPlace: false,
+      saveFormats: fmts,
+      saveLabels: Object.fromEntries(fmts.map(f => [f, tr("v_model3d.pc_" + f)])),
+      saveNote: tr("v_model3d.pc_nota"),
+      saveAsName: () => withExt(ctx.name, ctx.ext === "las" ? "laz" : "las"),
+      async save(target) {
+        const ext = target.split(".").pop().toLowerCase();
+        if (!fmts.includes(ext)) throw new Error(tr("v_model3d.pc_formati", fmts.join(", ").toUpperCase()));
+        let clip = null;
+        if (clipPlane && await confirmBox(tr("v_model3d.sezione_attiva"), tr("v_model3d.pc_solo_sezione"), tr("v_model3d.solo_parte_visibile"))) clip = [firstCloud.planeToFile(clipPlane)];
+        const { job } = await api("pc_export", { path: ctx.path }, { json: { out: target, clip } });
+        const r = await waitJob(job, (p, m) => ctx.status(tr("v_model3d.pc_salvataggio", Math.round(p * 100), m || "")));
+        ctx.status(tr("v_model3d.pc_salvati", fmtNum(r.n), target));
+        return { switchTo: false };
+      },
+      dispose: disposeAll,
+    };
+  }
 
   return {
     onShow() { resize(); },
@@ -851,7 +940,7 @@ export async function mount(ctx) {
       await api("save", { path: target }, { body: new Uint8Array(data.buffer ? data.buffer : data) });
       return { switchTo: false };
     },
-    dispose() { bcfUi?.dispose(); running = false; window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onKey); window.removeEventListener("blur", onBlur); renderer.dispose(); (info.modelIDs || []).forEach(m => info.ifc?.CloseModel?.(m)); },
+    dispose: disposeAll,
   };
 }
 

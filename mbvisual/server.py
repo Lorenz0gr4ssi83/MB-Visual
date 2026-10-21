@@ -322,6 +322,21 @@ class Handler(BaseHTTPRequestHandler):
                 raise RuntimeError(t("srv_server.lettura_file_navisworks_non_riuscita") + (msg or f"codice {r.returncode}"))
         self._json({"ok": True, "json": str(prefix.with_suffix(".json")), "bin": str(prefix.with_suffix(".bin"))})
 
+    # ------------------------------------------------------------ nuvole di punti (mbvisual/pointcloud.py)
+    def api_pc_open(self, qs):
+        from . import pointcloud
+        self._json({"ok": True, "job": jobs.start(pointcloud.open_cloud, self._path(qs))})
+
+    def api_pc_data(self, qs):
+        from . import pointcloud
+        self._send(200, pointcloud.node_data(_q(qs, "key", ""), int(_q(qs, "start", "0")), int(_q(qs, "count", "0"))),
+                   "application/octet-stream")
+
+    def api_pc_export(self, qs):
+        from . import pointcloud
+        b = self._body_json()
+        self._json({"ok": True, "job": jobs.start(pointcloud.export, self._path(qs), b["out"], b.get("clip"))})
+
     def api_onlyoffice(self, qs):
         self._json({"ok": True, "url": onlyoffice_url()})
 

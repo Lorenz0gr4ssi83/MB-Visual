@@ -425,3 +425,28 @@ Librerie in fetch_vendor.py: ol (BSD-2), proj4 2.12.1 (MIT), geotiff 2.1.3 (MIT)
   serve un venv a parte con pyproj e pyshp, NON nell'app). Prove dalla console: `MB.active.api._gis` (map, layers, sel, addPaths, saveVector).
 - Prove nel riquadro browser: il cookie "mbv" e' per host e non per porta, quindi altre sessioni con un server di prova lo sovrascrivono
   (403 "non autorizzato"): usare http://localhost:PORTA/?t=... oppure aggiungere ?t= alle richieste.
+## Nuvole di punti da rilievo (22/10/2026) - FATTO
+LAS, LAZ, E57, PTS, PTX (Leica), XYZ e PLY a soli punti (categoria `pointcloud` in formats.json, visualizzatore model3d;
+LAS resta anche tra i testi e PTX tra i RAW Pentax: decide `misc.sniff` dal contenuto, `LASF` / `ASTM-E57` / due interi in testa).
+- Motore `mbvisual/pointcloud.py` (laspy BSD-2 + lazrs MIT, pye57 MIT con libE57Format BSL-1.0 e Xerces Apache-2.0, numpy):
+  lettura a blocchi di 2 M punti (E57: pose delle scansioni, coordinate sferiche, punti non validi; PTX: matrice per scansione),
+  poi ottree con livelli di dettaglio stile Potree (codici di Morton 21 bit/asse con tabella, un punto per cella di una griglia
+  128^3 per nodo, nodi con <= 6000 punti presi interi) salvato in cache `%TEMP%\MBVisual\nuvole\<sha1 percorso|dimensione|data>`
+  (pos.f32 relativi a `offset`, rgb.u8, int.u16 normalizzata su `i_range` a percentili, cls.u8, meta.json con i nodi; max 20 GB,
+  si cancellano le meno recenti). API: `pc_open` (job), `pc_data?key&start&count` (binario di un nodo), `pc_export` (job, `clip` =
+  piani [nx,ny,nz,d] in coordinate del file). Tempi su questo PC: LAZ 19,5 M punti ~50-60 s la prima volta, poi immediato.
+- Interfaccia `ui/js/pointcloud.js` (classe Cloud): ogni fotogramma sceglie i nodi per priorita' (dimensione a schermo) entro il
+  budget (Dettaglio 1-20 M, predefinito 3 M), carica 4 nodi alla volta, scarica i meno usati oltre 1,5x il budget; colori
+  RGB/intensita'/quota (percentili del nodo radice)/classificazione ASPRS/unico con alfa = classi nascoste (alphaTest; righe per
+  classe nell'albero); raycast solo sui nodi visibili. In model3d: misura con aggancio al punto vero (marcatore anche al passaggio
+  del mouse) + in pianta e dislivello; clic = coordinate/attributi del punto; Salva con nome LAS/LAZ/E57/PLY/PTS/XYZ/TXT (tutti i
+  punti o solo la parte visibile della sezione). Web app: LAS non compresso/XYZ/PTS/PLY letti nel browser (max 5 M punti).
+- Testi tradotti: chiavi `pc.*` (interfaccia), `v_model3d.pc_*` / `v_model3d.distanza_*`, `srv_pointcloud.*` (motore), `fmt.pointcloud.*`.
+- Federazione: coordinate del file (Z in alto) -> scena con `info.coordMatrix` (stessa matrice dei modelli IFC); se la nuvola e'
+  il primo modello crea lei la traslazione comune. Verificato con un IFC di prova a coordinate UTM: angoli coincidenti nei due ordini.
+- File di prova pubblici (non nel repo): USGS 3DEP LiDAR (pubblico dominio) `USGS_LPC_ARRA_CA_GOLDENGATE_2010_000982.laz`
+  (9,4 M punti) e `USGS_LPC_NY_New_York_CMGP_SANDY_LiDAR_15_18TWL850045.laz` (19,5 M) da rockyweb.usgs.gov (ricerca con
+  tnmaccess.nationalmap.gov); E57/PTS/PTX di esempio di libE57 (e57-3d-imgfmt.sourceforge.net/data.html: bunny, pump, Station018).
+- Prove con il riquadro del browser nascosto: requestAnimationFrame e i timer sono fermi, quindi `MB.active.three`
+  (renderer, camera, controls, info.clouds) + `cloud.update(...)` e `renderer.render` a mano; il cookie `mbv` e' comune a tutti i
+  server locali (stesso host, porte diverse): con piu' sessioni aperte aggiungere `t=<token>` alle chiamate /api.
