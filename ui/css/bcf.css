@@ -15,7 +15,7 @@
 .bcf-frow { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 .bcf-frow select { max-width: 48%; font-size: 12px; }
 .bcf-chk { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
-.bcf-body { flex: 1; min-height: 0; overflow: auto; padding: 6px 8px 12px; }
+.bcf-body { flex: 1; min-height: 0; overflow: auto; overflow-x: hidden; padding: 6px 8px 12px; }
 .bcf-empty { padding: 14px 6px; line-height: 1.45; }
 .bcf-card { display: grid; grid-template-columns: 92px 1fr; gap: 8px; padding: 6px; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 6px; background: var(--panel-2); }
 .bcf-card:hover { border-color: var(--accent); }
