@@ -84,3 +84,8 @@ l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.m
   (colori dagli asset Autodesk `generic_diffuse`) e geometria in metri; `ui/js/navis.js` la carica (oltre 3000 mesh: blocchi
   uniti per colore + copie invisibili per selezione). NWF: resta il modello federato dai file sorgente.
 - Puntatore sempre a freccia (richiesta esplicita): regola globale in app.css e negli iframe (pdf.js, ONLYOFFICE).
+- Crea nuovo (Ctrl+N, menu Apri, home): `ui/js/newfile.js`. Modelli vuoti in `ui/templates` creati da `tools/make_templates.py`
+  (Word A4, Excel, PowerPoint 16:9, PDF A4/A3, DXF vuoto e fogli A4-A1 con squadratura e cartiglio, SQLite); testo, codice,
+  CSV, SVG, PNG/JPG generati al momento. Il file nasce dove si sceglie e si apre nel suo editor (nella web app resta in memoria).
+- Migliorie rimandate dall'utente (21/10/2026): pulsanti "Modifica in AutoCAD/BricsCAD/Inventor"; funzioni Navisworks Manage
+  (interferenze, viste salvate, annotazioni, computo); editor CAD piu' completo; motore ODA (a pagamento).

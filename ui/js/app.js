@@ -144,6 +144,7 @@ function remember(path) {
 }
 
 const ICON_FILE = '<svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg>';
+const ICON_NEW = '<svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M12 11v6M9 14h6"/></svg>';
 const ICON_FOLDER = '<svg viewBox="0 0 24 24"><path d="M3 4h7v16H3zM14 4h7v7h-7zM14 14h7v6h-7z"/></svg>';
 
 function closeMenus() { $("menu-open").hidden = true; $("menu-as").hidden = true; }
@@ -160,18 +161,25 @@ function openMenu(anchor) {
   closeMenus();
   m.innerHTML = "";
   const item = (icon, text, hint, fn) => { const b = el("button", { onclick: () => { m.hidden = true; fn(); } }); b.insertAdjacentHTML("beforeend", icon); b.append(el("span", {}, text)); if (hint) b.append(el("span", { class: "hint" }, hint)); return b; };
-  m.append(item(ICON_FILE, "Nuovo file...", "Ctrl+O", doOpen));
+  m.append(item(ICON_NEW, "Crea nuovo...", "Ctrl+N", doNew));
+  m.append(item(ICON_FILE, "Apri file...", "Ctrl+O", doOpen));
   if (!WEB) m.append(item(ICON_FOLDER, "Cartella di progetto...", "", chooseExplorerFolder));
   m.append(el("hr"), el("div", { class: "sec label" }, "Recenti"));
   // nella web app i file non restano disponibili dopo la chiusura: i recenti non si possono riaprire
   const list = WEB ? [] : recentList();
-  if (!list.length) m.append(el("div", { class: "empty" }, WEB ? "Nella web app i file restano solo sul dispositivo: riaprili con Nuovo file" : "Nessun file aperto di recente"));
+  if (!list.length) m.append(el("div", { class: "empty" }, WEB ? "Nella web app i file restano solo sul dispositivo: riaprili con Apri file" : "Nessun file aperto di recente"));
   for (const r of list) {
     m.append(el("button", { class: "rec", title: r.path, onclick: () => { m.hidden = true; openPaths([r.path]); } },
       badgeFor(r.name), el("span", { class: "nm" }, r.name), el("span", { class: "pt" }, dirName(r.path))));
   }
   if (list.length) m.append(el("hr"), item("", "Svuota l'elenco dei recenti", "", () => { try { localStorage.removeItem("mbv-recent"); } catch { /* */ } }));
   placeMenu(m, anchor);
+}
+
+// nuovo file vuoto (Word, Excel, PowerPoint, PDF, DXF, testo, immagini, database), aperto subito nel suo editor
+async function doNew() {
+  const { createNew } = await import("./newfile.js");
+  await createNew({ dir: exDir || "", openFile: p => openFile(p) });
 }
 
 async function doOpen() { const ps = await pickFiles(); if (ps?.length) openPaths(ps); }
@@ -633,6 +641,7 @@ async function boot() {
   window.addEventListener("focus", () => tabs.forEach(checkExternalChange));
   $("btn-open").addEventListener("click", e => openMenu(e.currentTarget));
   $("home-open").addEventListener("click", doOpen);
+  $("home-new").addEventListener("click", doNew);
   $("home-folder").addEventListener("click", chooseExplorerFolder);
   $("btn-explorer").addEventListener("click", toggleExplorer);
   $("btn-info").addEventListener("click", showProperties);
@@ -649,6 +658,7 @@ async function boot() {
   document.addEventListener("keydown", e => {
     const k = e.key.toLowerCase();
     if (e.ctrlKey && k === "o") { e.preventDefault(); doOpen(); }
+    else if (e.ctrlKey && k === "n") { e.preventDefault(); doNew(); }
     else if (e.ctrlKey && k === "s") { e.preventDefault(); save(e.shiftKey); }
     else if (e.ctrlKey && k === "w") { e.preventDefault(); if (active) closeTab(active); }
     else if (e.ctrlKey && k === "tab" && tabs.length) { e.preventDefault(); activate(tabs[(tabs.indexOf(active) + (e.shiftKey ? -1 : 1) + tabs.length) % tabs.length]); }
