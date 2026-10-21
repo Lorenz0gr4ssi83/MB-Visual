@@ -468,7 +468,7 @@
    "name": "Immagini",
    "viewer": "image",
    "view": "Zoom, adatta, pixel reali, informazioni (dimensioni, EXIF)",
-   "edit": "Zoom, rotazione, ritaglio, regolazioni, disegno e testo; salvataggio in PNG, JPG, WEBP o TIFF",
+   "edit": "Editor in stile Photoshop: livelli, maschere, regolazioni, filtri, pennelli, testo e forme; salvataggio in PSD e ORA con i livelli o in PNG, JPG, WEBP, TIFF",
    "exts": [
     "png",
     "apng",
@@ -487,6 +487,8 @@
     "avif",
     "tif",
     "tiff",
+    "psd",
+    "ora",
     "heic",
     "heif",
     "hif",

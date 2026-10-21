@@ -11,7 +11,7 @@ const VIEWER_NAMES = {
   office: "Documento Office (LibreOffice)", text: "Testo / codice", markdown: "Markdown", html: "Pagina web",
   image: "Immagine", svg: "SVG", media: "Audio / video", cad2d: "Disegno CAD 2D", model3d: "Modello 3D",
   external: "Programma esterno", archive: "Archivio", email: "Email", epub: "eBook", font: "Font",
-  sqlite: "Database SQLite", hex: "Esadecimale (byte grezzi)", oo: "Word / Excel / PowerPoint (ONLYOFFICE)",
+  sqlite: "Database SQLite", video: "Montaggio video", publisher: "Pubblicazione (Publisher)", hex: "Esadecimale (byte grezzi)", oo: "Word / Excel / PowerPoint (ONLYOFFICE)",
 };
 // documenti che sul PC si aprono nell'editor ONLYOFFICE integrato (modifica completa come nei programmi originali)
 const OO_EXTS = new Set(["docx", "docm", "dotx", "dotm", "doc", "dot", "rtf", "odt", "ott", "fodt", "xlsx", "xlsm", "xltx", "xltm", "xls", "xlt", "ods", "fods", "csv",
@@ -19,8 +19,8 @@ const OO_EXTS = new Set(["docx", "docm", "dotx", "dotm", "doc", "dot", "rtf", "o
 const TEXT_VIEWERS = new Set(["text", "markdown", "html", "svg"]);
 const SNIFF_FAMILY = {
   pdf: ["pdf"], signed: ["signed"], media: ["media", "audio"], archive: ["archive"], image: ["image", "image-raw"],
-  zip: ["word", "sheet", "pptx", "office-lo", "archive", "mesh3d", "ebook"], sqlite: ["database"],
-  ole: ["office-lo", "sheet", "email", "archive", "image"], cad2d: ["cad2d"], ifc: ["mesh3d"], cad3d: ["cad3d"],
+  zip: ["word", "sheet", "pptx", "publisher", "office-lo", "archive", "mesh3d", "ebook"], sqlite: ["database"],
+  ole: ["publisher", "office-lo", "sheet", "email", "archive", "image"], cad2d: ["cad2d"], ifc: ["mesh3d"], cad3d: ["cad3d"],
   mesh3d: ["mesh3d"], font: ["font"], svg: ["svg"], html: ["html"], email: ["email"],
 };
 const NAME_AS_EXT = { makefile: "makefile", dockerfile: "dockerfile", containerfile: "containerfile", license: "txt", readme: "txt",
@@ -69,8 +69,8 @@ export function resolveCategory(name, sniff) {
 }
 
 // ------------------------------------------------------------------ badge per tipo di file
-const BADGE_COLOR = { pdf: "pdf", signed: "sig", word: "doc", "office-lo": "doc", sheet: "xls", pptx: "ppt", cad2d: "cad",
-  cad3d: "3d", mesh3d: "3d", navisworks: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av",
+const BADGE_COLOR = { pdf: "pdf", signed: "sig", word: "doc", "office-lo": "doc", sheet: "xls", pptx: "ppt", publisher: "cad", cad2d: "cad",
+  cad3d: "3d", mesh3d: "3d", navisworks: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", videoproject: "av",
   archive: "zip", email: "mail", text: "code", markdown: "code", html: "code", ebook: "code", font: "code", database: "db" };
 export function badgeFor(name, isDir = false) {
   if (isDir) return el("span", { class: "badge" }, "DIR");

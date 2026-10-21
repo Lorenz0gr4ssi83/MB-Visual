@@ -79,6 +79,7 @@ export async function mount(ctx) {
     button("Azzera", null, () => { inP = outP = null; showMarks(); }), marks,
     el("span", { class: "sep" }),
     button("Esporta / converti", "download", () => exportDialog()),
+    button("Apri nel montaggio", "edit", () => openInEditor(), { title: "Crea un progetto di montaggio video (stile Premiere Pro) con questo file" }),
     isVideo ? button("Fotogramma", "camera", async () => {
       const out = await pickSavePath(withExt(ctx.name.replace(/\.[^.]+$/, "") + "_" + Math.round(media.currentTime) + "s.x", "png"), dirName(ctx.path));
       if (!out) return;
@@ -111,6 +112,22 @@ export async function mount(ctx) {
     { keys: "Ctrl+Shift+X", desc: "Azzera i punti di taglio", run: () => { inP = outP = null; showMarks(); }, group: "Taglio" },
     { keys: "Ctrl+M", desc: "Esporta / converti", run: () => exportDialog(), group: "Taglio" },
   ]);
+
+  // nuovo progetto di montaggio (.mbvid) con questo file gia' in timeline, adattato alle sue dimensioni
+  async function openInEditor() {
+    const { newProject, uid } = await import("../vidmodel.js");
+    const i = await api("video_info", { path: ctx.path });
+    const P = newProject({ w: i.w || 1920, h: i.h || 1080, fps: i.fps ? [23.976, 24, 25, 29.97, 30, 50, 59.94, 60].reduce((b, r) => (Math.abs(r - i.fps) < Math.abs(b - i.fps) ? r : b), 25) : 25 });
+    const m = { id: uid("m"), path: ctx.path, name: ctx.name, kind: i.video ? "video" : "audio", dur: i.dur, w: i.w, h: i.h, fps: i.fps, audio: !!i.audio };
+    P.media.push(m);
+    const link = m.kind === "video" && m.audio ? uid("l") : null;
+    const fr = 1 / P.settings.fps, dur = Math.max(fr, Math.floor((i.dur || 1) / fr) * fr);
+    if (m.kind === "video") P.clips.push({ id: uid("c"), kind: "video", track: "V1", media: m.id, start: 0, dur, in: 0, speed: 1, link, name: m.name, motion: { x: P.settings.w / 2, y: P.settings.h / 2, scale: 100, rot: 0 }, opacity: 100, blend: "normal", fx: [], kf: {} });
+    if (m.audio) P.clips.push({ id: uid("c"), kind: "audio", track: "A1", media: m.id, start: 0, dur, in: 0, speed: 1, link, name: m.name, volume: 0, gain: 0, fx: [], kf: {} });
+    const path = (await api("temp_path", { name: ctx.name.replace(/\.[^.]+$/, "") + " - montaggio.mbvid" })).path;
+    await api("save", { path }, { body: new TextEncoder().encode(JSON.stringify(P, null, 1)) });
+    ctx.openFile(path, null, { untitled: true });
+  }
 
   async function exportDialog(defaultExt) {
     const fmtSel = el("select", { id: "exp-fmt-" + ctx.tab.name, class: "field" },
