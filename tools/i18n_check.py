@@ -55,6 +55,23 @@ def placeholders(s: str) -> list[str]:
 
 
 def main(argv):
+    if argv and argv[0] == "--resolve":
+        # conflitti di git (merge/rebase) nei file di lingua: unione delle chiavi delle due versioni
+        import subprocess
+        for code in ["it"] + LANGS:
+            rel = f"ui/i18n/{code}.json"
+            sides = []
+            for stage in (2, 3):
+                r = subprocess.run(["git", "show", f":{stage}:{rel}"], cwd=ROOT, capture_output=True)
+                if r.returncode == 0:
+                    sides.append(json.loads(r.stdout.decode("utf-8")))
+            if len(sides) < 2:
+                continue
+            merged = {**sides[0], **sides[1]}
+            save(code, merged)
+            subprocess.run(["git", "add", rel], cwd=ROOT)
+            print(f"{rel}: unite {len(merged)} chiavi")
+        return
     it = load("it")
     if argv and argv[0] == "--missing":
         pre = argv[1] if len(argv) > 1 else ""

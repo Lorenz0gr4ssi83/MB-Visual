@@ -2,6 +2,7 @@
 // I file aperti restano nella memoria del dispositivo (nessun invio a server); il salvataggio avviene scaricando il file.
 // Espone window.MBV_API, usato da core.js quando window.MBV_WEB e' attivo.
 import { loadScript } from "./core.js";
+import { LOCALE } from "./i18n.js";
 
 const V = p => window.MBV_ROOT + "vendor/" + p;
 const files = new Map(); // id -> { name, blob, mtime }
@@ -217,7 +218,7 @@ async function archiveList(path, password) {
   if (password) await a.usePassword(password);
   const list = await a.getFilesArray();
   const items = list.map(x => ({ path: (x.path || "") + x.file.name, dir: false, size: x.file.size || 0, packed: x.file.size || 0,
-    modified: x.file.lastModified ? new Date(x.file.lastModified).toLocaleString("it-IT") : "", encrypted: false, _f: x.file }));
+    modified: x.file.lastModified ? new Date(x.file.lastModified).toLocaleString(LOCALE) : "", encrypted: false, _f: x.file }));
   archCache.set(path, items);
   return { ok: true, items: items.map(({ _f, ...i }) => i), type: nameOf(path).split(".").pop(), editable: ZIP_EDIT.test(nameOf(path)) };
 }

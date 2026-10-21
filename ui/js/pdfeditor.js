@@ -6,6 +6,7 @@
 // barra, nota), Testo, Macchina da scrivere, Immagine, Forme, un pulsante per ogni tipo di campo modulo (campi standard
 // AcroForm: restano compilabili in Acrobat e negli altri programmi), Collegamento, Bianchetto, Oscura; menu Pagina e
 // Documento. Le modifiche vanno su una copia di lavoro; l'originale cambia solo con Salva. Annulla / Ripeti per ogni passo.
+import { t as tr } from "./i18n.js";
 import { api, askText, confirmBox, el, fileUrl, modal, pickFiles, toast } from "./core.js";
 
 const CSS = `
@@ -32,23 +33,23 @@ export const PDFJS_HIDE = "#editorModeButtons, #editorModeSeparator { display: n
 
 const FONTS = ["Helvetica", "Arial", "Calibri", "Cambria", "Times New Roman", "Courier New", "Verdana", "Georgia", "Tahoma", "Segoe UI"];
 const cssFont = f => (/times|serif|roman|cambria|georgia/i.test(f) ? `"${f}", "Times New Roman", serif` : /cour|mono/i.test(f) ? '"Courier New", monospace' : `"${f}", Arial, sans-serif`);
-const SHAPES = [["rect", "Rettangolo"], ["rounded", "Rettangolo arrotondato"], ["ellipse", "Ellisse / cerchio"], ["line", "Linea"], ["arrow", "Freccia"]];
+const SHAPES = [["rect", tr("pdfeditor.rettangolo")], ["rounded", tr("pdfeditor.rettangolo_arrotondato")], ["ellipse", tr("pdfeditor.ellisse_cerchio")], ["line", tr("pdfeditor.linea")], ["arrow", tr("pdfeditor.freccia")]];
 const FIELDS = {
-  "f-text": ["text", "Campo di testo", "Una riga: nome, cognome, data, codice..."],
-  "f-multiline": ["multiline", "Area di testo", "Piu' righe: note, indirizzo, descrizione"],
-  "f-combo": ["combo", "Menu a tendina", "Una scelta da un elenco a discesa"],
-  "f-list": ["list", "Elenco", "Elenco sempre visibile con una o piu' voci"],
-  "f-check": ["check", "Casella di spunta", "Si'/No"],
-  "f-radio": ["radio", "Pulsante di opzione", "Scelta esclusiva: stesso gruppo = una sola opzione attiva"],
-  "f-signature": ["signature", "Campo firma", "Spazio per la firma digitale"],
+  "f-text": ["text", tr("pdfeditor.campo_testo"), tr("pdfeditor.riga_nome_cognome_data_codice")],
+  "f-multiline": ["multiline", tr("pdfeditor.area_testo"), tr("pdfeditor.piu_righe_note_indirizzo_descrizione")],
+  "f-combo": ["combo", tr("pdfeditor.menu_tendina"), tr("pdfeditor.scelta_elenco_discesa")],
+  "f-list": ["list", tr("pdfeditor.elenco"), tr("pdfeditor.elenco_sempre_visibile_piu_voci")],
+  "f-check": ["check", tr("pdfeditor.casella_spunta"), tr("pdfeditor.si_no")],
+  "f-radio": ["radio", tr("pdfeditor.pulsante_opzione"), tr("pdfeditor.scelta_esclusiva_stesso_gruppo_sola")],
+  "f-signature": ["signature", tr("pdfeditor.campo_firma"), tr("pdfeditor.spazio_firma_digitale")],
 };
 const PJ = { // strumenti di pdf.js: modalita' e parametri (AnnotationEditorType / AnnotationEditorParamsType)
-  "pj-highlight": { mode: 9, label: "Evidenzia" },
-  "pj-freetext": { mode: 3, label: "Testo libero" },
-  "pj-ink": { mode: 15, label: "Penna" },
+  "pj-highlight": { mode: 9, label: tr("pdfeditor.evidenzia") },
+  "pj-freetext": { mode: 3, label: tr("pdfeditor.testo_libero") },
+  "pj-ink": { mode: 15, label: tr("pdfeditor.penna") },
 };
-const ANNOT_TOOLS = { underline: "Sottolinea", strikeout: "Barra", squiggly: "Ondulato", note: "Nota" };
-const KIND_NAMES = { text: "Testi", image: "Immagini", group: "Disegni", annot: "Annotazioni", field: "Campi", link: "Collegamenti" };
+const ANNOT_TOOLS = { underline: tr("pdfeditor.sottolinea"), strikeout: tr("pdfeditor.barra"), squiggly: tr("pdfeditor.ondulato"), note: tr("pdfeditor.nota") };
+const KIND_NAMES = { text: tr("pdfeditor.testi"), image: tr("pdfeditor.immagini"), group: tr("pdfeditor.disegni"), annot: tr("pdfeditor.annotazioni"), field: tr("pdfeditor.campi"), link: tr("pdfeditor.collegamenti") };
 const I = { // icone 24x24 a tratto
   select: '<path d="M5 3l14 8-6 2-2 6z"/>',
   highlight: '<path d="M4 20h16M7 16l3-9 7 7-9 3zM10 7l4-4 7 7-4 4"/>',
@@ -89,7 +90,7 @@ export function createPdfEditor(ctx, frame, setBusy) {
     font: "Helvetica", size: 11, color: "#000000", bold: false, italic: false,
     shape: "rect", stroke: "#d32f2f", fill: "", width: 1.5, dashed: false,
     hlColor: "#fff066", hlThick: 12, ftColor: "#000000", ftSize: 12, inkColor: "#1e5bc6", inkThick: 2, inkOpacity: 1,
-    annotColor: "", fieldNo: 1, fieldName: "", fieldOptions: "Opzione 1\nOpzione 2\nOpzione 3", fieldRequired: false, fieldFont: 0,
+    annotColor: "", fieldNo: 1, fieldName: "", fieldOptions: tr("pdfeditor.opzione_1_opzione_2_opzione"), fieldRequired: false, fieldFont: 0,
     filter: { text: true, image: true, group: true, annot: true, field: true, link: true },
   };
   let meta = { title: "", author: "", subject: "", keywords: "" }, toc = [];
@@ -138,19 +139,19 @@ export function createPdfEditor(ctx, frame, setBusy) {
       await reload();
       return true;
     } catch (e) {
-      toast("Modifica non riuscita: " + e.message, true, 7000);
+      toast(tr("pdfeditor.modifica_non_riuscita") + e.message, true, 7000);
       return false;
     } finally { setBusy(false); }
   }
   const ops = list => run("pdf_ops", { ops: list });
   async function undoLast() {
-    if (!undo.length) return toast("Nessuna modifica da annullare");
+    if (!undo.length) return toast(tr("pdfeditor.nessuna_modifica_annullare"));
     redo.push(work);
     work = undo.pop();
     await reload();
   }
   async function redoLast() {
-    if (!redo.length) return toast("Niente da ripetere");
+    if (!redo.length) return toast(tr("pdfeditor.niente_ripetere"));
     undo.push(work);
     work = redo.pop();
     await reload();
@@ -243,7 +244,7 @@ export function createPdfEditor(ctx, frame, setBusy) {
     }
     if (ANNOT_TOOLS[mode]) {
       if (mode === "note") return dragLayer(pv, async box => {
-        const t = await askText("Nota", "Testo della nota", "");
+        const t = await askText(tr("pdfeditor.nota"), tr("pdfeditor.testo_nota"), "");
         if (t !== null) await ops([{ kind: "annot_add", page: pno, type: "note", box, text: t, color: opt.annotColor || "#ffcc00" }]);
       }, false, [20, 20]);
       return dragLayer(pv, box => ops([{ kind: "annot_add", page: pno, type: mode, box, color: opt.annotColor || undefined }]));
@@ -255,14 +256,14 @@ export function createPdfEditor(ctx, frame, setBusy) {
       return dragLayer(pv, box => addField(pno, box, t), false, t === "check" || t === "radio" ? [14, 14] : [180, t === "multiline" || t === "list" ? 60 : 20]);
     }
     if (mode === "link") return dragLayer(pv, async box => {
-      const v = await askText("Collegamento", "Indirizzo web (https://...) oppure numero di pagina", "https://");
+      const v = await askText(tr("pdfeditor.collegamento"), tr("pdfeditor.indirizzo_web_https_oppure_numero"), "https://");
       if (!v) return;
       const n = parseInt(v, 10);
       await ops([String(n) === v.trim() ? { kind: "link_add", page: pno, box, target: n } : { kind: "link_add", page: pno, box, uri: v.trim() }]);
     });
-    if (mode === "redact") return dragLayer(pv, async box => { if (await confirmBox("Oscura", "Oscurare definitivamente la zona? Testo, immagini e disegni sotto il riquadro vengono eliminati dal file.", "Oscura", true)) await ops([{ kind: "redact", page: pno, box }]); }, true);
+    if (mode === "redact") return dragLayer(pv, async box => { if (await confirmBox(tr("pdfeditor.oscura"), tr("pdfeditor.oscurare_definitivamente_zona_testo_immagini"), tr("pdfeditor.oscura"), true)) await ops([{ kind: "redact", page: pno, box }]); }, true);
     if (mode === "whiteout") return dragLayer(pv, box => ops([{ kind: "whiteout", page: pno, box }]));
-    if (mode === "crop") return dragLayer(pv, async box => { if (await confirmBox("Ritaglia", "Ritagliare la pagina al riquadro disegnato?")) await ops([{ kind: "crop", page: pno, box }]); });
+    if (mode === "crop") return dragLayer(pv, async box => { if (await confirmBox(tr("pdfeditor.ritaglia"), tr("pdfeditor.ritagliare_pagina_riquadro_disegnato"))) await ops([{ kind: "crop", page: pno, box }]); });
   }
 
   // ---- Seleziona: oggetti, selezione multipla, riquadro, gruppi
@@ -350,8 +351,8 @@ export function createPdfEditor(ctx, frame, setBusy) {
     });
   }
   function describe(o) {
-    return { image: "Immagine", text: "Blocco di testo (doppio clic per riscriverlo)", group: `Gruppo di disegni (${o.n} tracciati, doppio clic per entrare)`, drawing: "Tracciato",
-      field: "Campo modulo: " + (o.name || ""), link: "Collegamento", annot: "Annotazione: " + (o.type || "") }[o.kind] || o.kind;
+    return { image: tr("pdfeditor.immagine"), text: tr("pdfeditor.blocco_testo_doppio_clic_riscriverlo"), group: tr("pdfeditor.gruppo_disegni_0_tracciati_doppio", o.n), drawing: tr("pdfeditor.tracciato"),
+      field: tr("pdfeditor.campo_modulo") + (o.name || ""), link: tr("pdfeditor.collegamento"), annot: tr("pdfeditor.annotazione") + (o.type || "") }[o.kind] || o.kind;
   }
   const sameObj = (a, b) => a === b || (a.kind === b.kind && (a.xref ? a.xref === b.xref : a.seqno != null ? a.seqno === b.seqno : a.box.join() === b.box.join()));
   function restoreSel(pno, layer, vp) {
@@ -473,7 +474,7 @@ export function createPdfEditor(ctx, frame, setBusy) {
       const fn = picker;
       picker = null;
       fn(hex);
-    } catch (err) { picker = null; toast("Colore non leggibile: " + err.message, true); }
+    } catch (err) { picker = null; toast(tr("pdfeditor.colore_non_leggibile") + err.message, true); }
   }
   let preview = null;
   function clearPreview() { preview?.remove(); preview = null; }
@@ -518,7 +519,7 @@ export function createPdfEditor(ctx, frame, setBusy) {
       const r = rectToCss(vp, ln.box);
       const d = doc().createElement("div");
       d.className = "mbv-line";
-      d.title = `${ln.font} · ${ln.size} pt — clic per modificare`;
+      d.title = tr("pdfeditor.0_1_pt_clic_modificare", ln.font, ln.size);
       place(d, r);
       d.addEventListener("click", () => editLine(d, ln, pno, r));
       layer.append(d);
@@ -598,7 +599,7 @@ export function createPdfEditor(ctx, frame, setBusy) {
     const options = t === "combo" || t === "list" ? opt.fieldOptions.split(/\r?\n/).map(s => s.trim()).filter(Boolean) : undefined;
     await ops([{ kind: "field_add", page: pno, box, type: t === "multiline" ? "text" : t, multiline: t === "multiline", name, group: t === "radio" ? (opt.radioGroup || "opzioni") : undefined,
       required: opt.fieldRequired, fontsize: opt.fieldFont, options }]);
-    toast(`Campo "${name}" creato`);
+    toast(tr("pdfeditor.campo_0_creato", name));
   }
 
   // ---------------------------------------------------------------- pannello (a destra, non copre la pagina)
@@ -621,10 +622,10 @@ export function createPdfEditor(ctx, frame, setBusy) {
   }
   function textStyleControls(o) {
     return [
-      row("Carattere", sel_(FONTS, o.font, v => (o.font = v))),
-      row("Dimensione (pt)", inp_("number", o.size, v => (o.size = +v), { min: 4, max: 200, step: 0.5 })),
-      row("Colore", inp_("color", o.color, v => (o.color = v))),
-      chk("Grassetto", o.bold, v => (o.bold = v)), chk("Corsivo", o.italic, v => (o.italic = v)),
+      row(tr("pdfeditor.carattere"), sel_(FONTS, o.font, v => (o.font = v))),
+      row(tr("pdfeditor.dimensione_pt"), inp_("number", o.size, v => (o.size = +v), { min: 4, max: 200, step: 0.5 })),
+      row(tr("common.colore"), inp_("color", o.color, v => (o.color = v))),
+      chk(tr("pdfeditor.grassetto"), o.bold, v => (o.bold = v)), chk(tr("pdfeditor.corsivo"), o.italic, v => (o.italic = v)),
     ];
   }
   function renderPanel() {
@@ -633,89 +634,89 @@ export function createPdfEditor(ctx, frame, setBusy) {
     panel.style.display = show ? "" : "none";
     if (!show) return;
     if (PJ[mode]) return panelPdfjs();
-    if (mode === "typewriter") panel.append(h("Macchina da scrivere"), note("Clic sulla pagina e scrivi. Invio va a capo; Ctrl+Invio o clic fuori conferma; Esc annulla."), ...textStyleControls(opt));
-    else if (mode === "shape") panel.append(h("Forme"), row("Forma", sel_(SHAPES, opt.shape, v => (opt.shape = v))), colorRow("Bordo", opt.stroke, v => (opt.stroke = v)),
-      colorRow("Riempimento", opt.fill, v => (opt.fill = v)), row("Spessore (pt)", inp_("number", opt.width, v => (opt.width = +v), { min: 0.25, max: 20, step: 0.25 })),
-      chk("Tratteggiato", opt.dashed, v => (opt.dashed = v)), note("Trascina sulla pagina per disegnare."));
+    if (mode === "typewriter") panel.append(h(tr("pdfeditor.macchina_scrivere")), note(tr("pdfeditor.clic_pagina_scrivi_invio_va")), ...textStyleControls(opt));
+    else if (mode === "shape") panel.append(h(tr("pdfeditor.forme")), row(tr("pdfeditor.forma"), sel_(SHAPES, opt.shape, v => (opt.shape = v))), colorRow(tr("pdfeditor.bordo"), opt.stroke, v => (opt.stroke = v)),
+      colorRow(tr("pdfeditor.riempimento"), opt.fill, v => (opt.fill = v)), row(tr("pdfeditor.spessore_pt"), inp_("number", opt.width, v => (opt.width = +v), { min: 0.25, max: 20, step: 0.25 })),
+      chk(tr("pdfeditor.tratteggiato"), opt.dashed, v => (opt.dashed = v)), note(tr("pdfeditor.trascina_pagina_disegnare")));
     else if (FIELDS[mode]) panelField();
-    else if (ANNOT_TOOLS[mode]) panel.append(h(ANNOT_TOOLS[mode]), colorRow("Colore", opt.annotColor || (mode === "note" ? "#ffcc00" : mode === "underline" ? "#1565c0" : "#d32f2f"), v => (opt.annotColor = v)),
-      note(mode === "note" ? "Clic dove mettere la nota, poi scrivi il testo." : "Trascina un riquadro sopra le parole da segnare."));
-    else if (mode === "image") panel.append(h("Immagine"), note("Trascina un riquadro (o fai clic) dove inserire l'immagine, poi scegli il file. Per spostare, ridimensionare, rendere trasparenti o sostituire immagini esistenti usa Seleziona."));
-    else if (mode === "line") panel.append(h("Testo"), note("Clic su una riga, scrivi e premi Invio: la riga si riscrive con lo stesso carattere, dimensione e colore. Per paragrafi interi: Seleziona, poi doppio clic sul blocco."));
-    else if (["redact", "whiteout", "crop", "link"].includes(mode)) panel.append(h({ redact: "Oscura", whiteout: "Bianchetto", crop: "Ritaglia pagina", link: "Collegamento" }[mode]),
-      note({ redact: "Trascina sulla zona da eliminare definitivamente (riquadro nero).", whiteout: "Trascina sulla zona da coprire di bianco (il contenuto sotto viene eliminato).", crop: "Trascina il riquadro della parte di pagina da tenere.", link: "Trascina il riquadro cliccabile, poi indica l'indirizzo web o il numero di pagina." }[mode]));
+    else if (ANNOT_TOOLS[mode]) panel.append(h(ANNOT_TOOLS[mode]), colorRow(tr("common.colore"), opt.annotColor || (mode === "note" ? "#ffcc00" : mode === "underline" ? "#1565c0" : "#d32f2f"), v => (opt.annotColor = v)),
+      note(mode === "note" ? tr("pdfeditor.clic_dove_mettere_nota_poi") : tr("pdfeditor.trascina_riquadro_sopra_parole_segnare")));
+    else if (mode === "image") panel.append(h(tr("pdfeditor.immagine")), note(tr("pdfeditor.trascina_riquadro_fai_clic_dove")));
+    else if (mode === "line") panel.append(h(tr("pdfeditor.testo")), note(tr("pdfeditor.clic_riga_scrivi_premi_invio")));
+    else if (["redact", "whiteout", "crop", "link"].includes(mode)) panel.append(h({ redact: tr("pdfeditor.oscura"), whiteout: tr("pdfeditor.bianchetto"), crop: tr("pdfeditor.ritaglia_pagina"), link: tr("pdfeditor.collegamento") }[mode]),
+      note({ redact: tr("pdfeditor.trascina_zona_eliminare_definitivamente_riquadro"), whiteout: tr("pdfeditor.trascina_zona_coprire_bianco_contenuto"), crop: tr("pdfeditor.trascina_riquadro_parte_pagina_tenere"), link: tr("pdfeditor.trascina_riquadro_cliccabile_poi_indica") }[mode]));
     else if (mode === "select") panelSelect();
   }
   function panelPdfjs() {
     const m = PJ[mode].mode;
     panel.append(h(PJ[mode].label));
-    if (m === 9) panel.append(row("Colore", inp_("color", opt.hlColor, v => { opt.hlColor = v; pjParam(32, v); pjParam(31, v); })),
-      row("Spessore a mano libera", inp_("range", opt.hlThick, v => { opt.hlThick = +v; pjParam(33, +v); }, { min: 8, max: 24 })),
-      note("Seleziona il testo da evidenziare, oppure trascina a mano libera dove non c'e' testo."));
-    if (m === 3) panel.append(row("Colore", inp_("color", opt.ftColor, v => { opt.ftColor = v; pjParam(12, v); })),
-      row("Dimensione", inp_("number", opt.ftSize, v => { opt.ftSize = +v; pjParam(11, +v); }, { min: 5, max: 100 })), note("Clic sulla pagina e scrivi. Il riquadro si sposta trascinandolo."));
-    if (m === 15) panel.append(row("Colore", inp_("color", opt.inkColor, v => { opt.inkColor = v; pjParam(21, v); })),
-      row("Spessore", inp_("range", opt.inkThick, v => { opt.inkThick = +v; pjParam(22, +v); }, { min: 1, max: 20 })),
-      row("Opacita'", inp_("range", Math.round(opt.inkOpacity * 100), v => { opt.inkOpacity = v / 100; pjParam(23, v / 100); }, { min: 5, max: 100 })), note("Disegna a mano libera sulla pagina."));
-    panel.append(note("Le annotazioni si salvano con Salva e restano modificabili anche negli altri programmi PDF."));
+    if (m === 9) panel.append(row(tr("common.colore"), inp_("color", opt.hlColor, v => { opt.hlColor = v; pjParam(32, v); pjParam(31, v); })),
+      row(tr("pdfeditor.spessore_mano_libera"), inp_("range", opt.hlThick, v => { opt.hlThick = +v; pjParam(33, +v); }, { min: 8, max: 24 })),
+      note(tr("pdfeditor.seleziona_testo_evidenziare_oppure_trascina")));
+    if (m === 3) panel.append(row(tr("common.colore"), inp_("color", opt.ftColor, v => { opt.ftColor = v; pjParam(12, v); })),
+      row(tr("pdfeditor.dimensione"), inp_("number", opt.ftSize, v => { opt.ftSize = +v; pjParam(11, +v); }, { min: 5, max: 100 })), note(tr("pdfeditor.clic_pagina_scrivi_riquadro_si")));
+    if (m === 15) panel.append(row(tr("common.colore"), inp_("color", opt.inkColor, v => { opt.inkColor = v; pjParam(21, v); })),
+      row(tr("pdfeditor.spessore"), inp_("range", opt.inkThick, v => { opt.inkThick = +v; pjParam(22, +v); }, { min: 1, max: 20 })),
+      row(tr("pdfeditor.opacita"), inp_("range", Math.round(opt.inkOpacity * 100), v => { opt.inkOpacity = v / 100; pjParam(23, v / 100); }, { min: 5, max: 100 })), note(tr("pdfeditor.disegna_mano_libera_pagina")));
+    panel.append(note(tr("pdfeditor.annotazioni_si_salvano_salva_restano")));
   }
   function panelField() {
     const [t, label, hint] = FIELDS[mode];
     const name = inp_("text", opt.fieldName, v => (opt.fieldName = v), { placeholder: `${fieldBase(t)}_${opt.fieldNo} (automatico)` });
-    panel.append(h(label), note(hint), row("Nome del prossimo campo", name));
+    panel.append(h(label), note(hint), row(tr("pdfeditor.nome_prossimo_campo"), name));
     if (t === "radio") panel.append(row("Gruppo (stesso gruppo = scelta esclusiva)", inp_("text", opt.radioGroup || "opzioni", v => (opt.radioGroup = v))));
-    if (t === "combo" || t === "list") { const ta = el("textarea", { rows: 6, class: "field", style: { width: "100%" } }, opt.fieldOptions); ta.addEventListener("input", () => (opt.fieldOptions = ta.value)); panel.append(row("Voci (una per riga)", ta)); }
-    if (t === "text" || t === "multiline" || t === "combo") panel.append(row("Dimensione del testo (0 = automatica)", inp_("number", opt.fieldFont, v => (opt.fieldFont = +v), { min: 0, max: 72 })));
-    if (t !== "signature") panel.append(chk("Obbligatorio", opt.fieldRequired, v => (opt.fieldRequired = v)));
-    panel.append(note("Trascina un riquadro (o fai clic) dove deve stare il campo. Lo strumento resta attivo per crearne altri."),
-      note("Sono campi modulo PDF standard: restano compilabili in Acrobat, Edge, Chrome e negli altri programmi. Per provarli, spegni lo strumento e compila. Nome, voci e proprieta' si cambiano con Seleziona."));
+    if (t === "combo" || t === "list") { const ta = el("textarea", { rows: 6, class: "field", style: { width: "100%" } }, opt.fieldOptions); ta.addEventListener("input", () => (opt.fieldOptions = ta.value)); panel.append(row(tr("pdfeditor.voci_riga"), ta)); }
+    if (t === "text" || t === "multiline" || t === "combo") panel.append(row(tr("pdfeditor.dimensione_testo_0_automatica"), inp_("number", opt.fieldFont, v => (opt.fieldFont = +v), { min: 0, max: 72 })));
+    if (t !== "signature") panel.append(chk(tr("pdfeditor.obbligatorio"), opt.fieldRequired, v => (opt.fieldRequired = v)));
+    panel.append(note(tr("pdfeditor.trascina_riquadro_fai_clic_dove_2")),
+      note(tr("pdfeditor.sono_campi_modulo_pdf_standard")));
   }
   function panelSelect() {
-    if (inGroup) panel.append(el("div", { style: { background: "var(--accent-soft)", padding: "6px 8px", borderRadius: "5px", marginBottom: "10px" } }, "Dentro il gruppo: selezioni i singoli tracciati. ", btn("Esci dal gruppo", () => { inGroup = null; setSel([]); decorateAll(); })));
+    if (inGroup) panel.append(el("div", { style: { background: "var(--accent-soft)", padding: "6px 8px", borderRadius: "5px", marginBottom: "10px" } }, tr("pdfeditor.dentro_gruppo_selezioni_i_singoli"), btn(tr("pdfeditor.esci_gruppo"), () => { inGroup = null; setSel([]); decorateAll(); })));
     if (!sel.length) {
-      panel.append(h("Seleziona"), note("Clic su un oggetto per selezionarlo; Maiusc o Ctrl+clic per aggiungerne altri; trascina sul vuoto per selezionare a riquadro. Trascina per spostare, angoli per ridimensionare (Maiusc: proporzioni bloccate). Doppio clic: riscrive un testo o entra in un gruppo di disegni. Canc elimina, Esc deseleziona."));
+      panel.append(h(tr("pdfeditor.seleziona")), note(tr("pdfeditor.clic_oggetto_selezionarlo_maiusc_ctrl")));
       if (!inGroup) {
-        panel.append(el("span", { class: "note" }, "Oggetti selezionabili"));
+        panel.append(el("span", { class: "note" }, tr("pdfeditor.oggetti_selezionabili")));
         for (const [k, l] of Object.entries(KIND_NAMES)) panel.append(chk(l, opt.filter[k], v => { opt.filter[k] = v; decorateAll(); }));
       }
       return;
     }
     if (sel.length > 1) {
-      panel.append(h(`${sel.length} oggetti selezionati`), note("Trascina uno di essi per spostarli tutti insieme."), btn("Elimina tutti", deleteSel, "btn danger"));
+      panel.append(h(tr("pdfeditor.0_oggetti_selezionati", sel.length)), note(tr("pdfeditor.trascina_essi_spostarli_tutti_insieme")), btn(tr("pdfeditor.elimina_tutti"), deleteSel, "btn danger"));
       const groups = sel.filter(s => s.o.kind === "group" || s.o.kind === "drawing");
       if (groups.length === sel.length) panel.append(...drawStyle(null));
       return;
     }
     const { o, pno } = sel[0];
-    const del = btn("Elimina", deleteSel, "btn danger");
+    const del = btn(tr("common.elimina"), deleteSel, "btn danger");
     if (o.kind === "text") {
       const ta = el("textarea", { rows: 7, class: "field", style: { width: "100%", fontFamily: cssFont(o.font) } }, o.text);
       const st = { font: FONTS.find(f => o.font.toLowerCase().includes(f.split(" ")[0].toLowerCase())) || "Helvetica", size: o.size, color: o.color || "#000000", bold: o.bold, italic: o.italic, align: 0 };
-      panel.append(h("Blocco di testo"), row("Testo", ta), ...textStyleControls(st), row("Allineamento", sel_([[0, "Sinistra"], [1, "Centro"], [2, "Destra"], [3, "Giustificato"]], 0, v => (st.align = +v))),
-        el("div", {}, btn("Applica", () => ops([{ kind: "text_block", page: pno, box: o.box, text: ta.value, ...st }]), "btn primary"), del));
+      panel.append(h(tr("pdfeditor.blocco_testo")), row(tr("pdfeditor.testo"), ta), ...textStyleControls(st), row(tr("pdfeditor.allineamento"), sel_([[0, tr("pdfeditor.sinistra")], [1, tr("pdfeditor.centro")], [2, tr("pdfeditor.destra")], [3, tr("pdfeditor.giustificato")]], 0, v => (st.align = +v))),
+        el("div", {}, btn(tr("common.applica"), () => ops([{ kind: "text_block", page: pno, box: o.box, text: ta.value, ...st }]), "btn primary"), del));
     } else if (o.kind === "image") panelImage(sel[0], del);
     else if (o.kind === "group" || o.kind === "drawing") {
-      panel.append(h(o.kind === "group" ? `Gruppo di disegni (${o.n} tracciati)` : "Tracciato"), ...drawStyle(o), el("div", {}, del));
-      if (o.kind === "group") panel.append(btn("Entra nel gruppo", () => { inGroup = { pno, box: o.box }; setSel([]); decorateAll(); }));
+      panel.append(h(o.kind === "group" ? tr("pdfeditor.gruppo_disegni_0_tracciati", o.n) : tr("pdfeditor.tracciato")), ...drawStyle(o), el("div", {}, del));
+      if (o.kind === "group") panel.append(btn(tr("pdfeditor.entra_gruppo"), () => { inGroup = { pno, box: o.box }; setSel([]); decorateAll(); }));
     } else if (o.kind === "annot") {
       const p = {};
       const ta = el("textarea", { rows: 4, class: "field", style: { width: "100%" } }, o.contents || "");
-      panel.append(h("Annotazione · " + o.type), colorRow("Colore", o.stroke, v => (p.stroke = v)));
-      if (["Square", "Circle", "FreeText", "Polygon"].includes(o.type)) panel.append(colorRow("Riempimento", o.fill, v => (p.fill = v)));
-      panel.append(row("Opacita'", inp_("range", Math.round((o.opacity ?? 1) * 100), v => (p.opacity = v / 100), { min: 5, max: 100 })),
-        row("Spessore", inp_("number", o.width || 1, v => (p.width = +v), { min: 0, max: 20, step: 0.5 })), row("Contenuto / commento", ta),
-        el("div", {}, btn("Applica", () => { p.contents = ta.value; return ops([{ kind: "annot_update", page: pno, xref: o.xref, props: p }]); }, "btn primary"), del));
+      panel.append(h(tr("pdfeditor.annotazione_2") + o.type), colorRow(tr("common.colore"), o.stroke, v => (p.stroke = v)));
+      if (["Square", "Circle", "FreeText", "Polygon"].includes(o.type)) panel.append(colorRow(tr("pdfeditor.riempimento"), o.fill, v => (p.fill = v)));
+      panel.append(row(tr("pdfeditor.opacita"), inp_("range", Math.round((o.opacity ?? 1) * 100), v => (p.opacity = v / 100), { min: 5, max: 100 })),
+        row(tr("pdfeditor.spessore"), inp_("number", o.width || 1, v => (p.width = +v), { min: 0, max: 20, step: 0.5 })), row(tr("pdfeditor.contenuto_commento"), ta),
+        el("div", {}, btn(tr("common.applica"), () => { p.contents = ta.value; return ops([{ kind: "annot_update", page: pno, xref: o.xref, props: p }]); }, "btn primary"), del));
     } else if (o.kind === "field") {
       const p = { name: o.name, tooltip: o.tooltip, value: o.value, fontsize: o.fontsize, required: o.required, readonly: o.readonly, multiline: o.multiline };
       const optsTa = el("textarea", { rows: 6, class: "field", style: { width: "100%" } }, (o.options || []).join("\n"));
       const tname = Object.values(FIELDS).find(f => f[0] === o.type || (o.type === "text" && o.multiline && f[0] === "multiline"))?.[1] || o.label;
-      panel.append(h("Campo modulo · " + tname), row("Nome", inp_("text", o.name, v => (p.name = v))), row("Descrizione (aiuto)", inp_("text", o.tooltip, v => (p.tooltip = v))),
-        o.type === "combo" || o.type === "list" ? row("Voci (una per riga)", optsTa) : "",
-        o.type !== "check" && o.type !== "radio" && o.type !== "signature" ? row("Valore", inp_("text", o.value, v => (p.value = v))) : "",
-        o.type === "text" || o.type === "combo" ? row("Dimensione testo (0 = automatica)", inp_("number", o.fontsize, v => (p.fontsize = +v), { min: 0, max: 72 })) : "",
-        chk("Obbligatorio", o.required, v => (p.required = v)), chk("Sola lettura", o.readonly, v => (p.readonly = v)), o.type === "text" ? chk("Piu' righe", o.multiline, v => (p.multiline = v)) : "",
-        el("div", {}, btn("Applica", () => { if (o.type === "combo" || o.type === "list") p.options = optsTa.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean); return ops([{ kind: "field_update", page: pno, xref: o.xref, props: p }]); }, "btn primary"), del));
-    } else if (o.kind === "link") panel.append(h("Collegamento"), el("p", {}, o.uri || `Pagina ${(o.page ?? 0) + 1}`), del);
+      panel.append(h(tr("pdfeditor.campo_modulo_2") + tname), row(tr("common.nome"), inp_("text", o.name, v => (p.name = v))), row(tr("pdfeditor.descrizione_aiuto"), inp_("text", o.tooltip, v => (p.tooltip = v))),
+        o.type === "combo" || o.type === "list" ? row(tr("pdfeditor.voci_riga"), optsTa) : "",
+        o.type !== "check" && o.type !== "radio" && o.type !== "signature" ? row(tr("pdfeditor.valore"), inp_("text", o.value, v => (p.value = v))) : "",
+        o.type === "text" || o.type === "combo" ? row(tr("pdfeditor.dimensione_testo_0_automatica_2"), inp_("number", o.fontsize, v => (p.fontsize = +v), { min: 0, max: 72 })) : "",
+        chk(tr("pdfeditor.obbligatorio"), o.required, v => (p.required = v)), chk(tr("pdfeditor.sola_lettura"), o.readonly, v => (p.readonly = v)), o.type === "text" ? chk(tr("pdfeditor.piu_righe"), o.multiline, v => (p.multiline = v)) : "",
+        el("div", {}, btn(tr("common.applica"), () => { if (o.type === "combo" || o.type === "list") p.options = optsTa.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean); return ops([{ kind: "field_update", page: pno, xref: o.xref, props: p }]); }, "btn primary"), del));
+    } else if (o.kind === "link") panel.append(h(tr("pdfeditor.collegamento")), el("p", {}, o.uri || tr("pdfeditor.pagina_0", (o.page ?? 0) + 1)), del);
   }
   // aspetto di gruppi e tracciati (o = null: tutti quelli selezionati)
   function drawStyle(o) {
@@ -723,15 +724,15 @@ export function createPdfEditor(ctx, frame, setBusy) {
     const apply = () => {
       const list = sel.filter(s => s.o.kind === "group" || s.o.kind === "drawing").map(s => s.o.kind === "group"
         ? { kind: "draw_edit", page: s.pno, box: s.o.box, style: st } : { kind: "draw_edit", page: s.pno, box: s.o.box, targets: [s.o.seqno], style: st });
-      return Object.keys(st).length ? ops(list) : toast("Nessuna modifica impostata");
+      return Object.keys(st).length ? ops(list) : toast(tr("pdfeditor.nessuna_modifica_impostata"));
     };
     return [
-      colorRow("Bordo" + (o?.kind === "group" ? " (tutto il gruppo)" : ""), o?.stroke ?? "#000000", v => (st.stroke = v)),
-      colorRow("Riempimento", o?.fill ?? "", v => (st.fill = v)),
-      row("Spessore (pt)", inp_("number", o?.width || 1, v => (st.width = +v), { min: 0, max: 30, step: 0.25 })),
-      row("Opacita'", inp_("range", Math.round((o?.opacity ?? 1) * 100), v => (st.opacity = v / 100), { min: 5, max: 100 })),
-      chk("Tratteggiato", o?.dashed, v => (st.dashed = v)),
-      el("div", {}, btn("Applica", apply, "btn primary")),
+      colorRow(tr("pdfeditor.bordo") + (o?.kind === "group" ? tr("pdfeditor.tutto_gruppo") : ""), o?.stroke ?? "#000000", v => (st.stroke = v)),
+      colorRow(tr("pdfeditor.riempimento"), o?.fill ?? "", v => (st.fill = v)),
+      row(tr("pdfeditor.spessore_pt"), inp_("number", o?.width || 1, v => (st.width = +v), { min: 0, max: 30, step: 0.25 })),
+      row(tr("pdfeditor.opacita"), inp_("range", Math.round((o?.opacity ?? 1) * 100), v => (st.opacity = v / 100), { min: 5, max: 100 })),
+      chk(tr("pdfeditor.tratteggiato"), o?.dashed, v => (st.dashed = v)),
+      el("div", {}, btn(tr("common.applica"), apply, "btn primary")),
     ];
   }
   // immagine: sostituisci, trasparenze (piu' colori, contagocce, anteprima), opacita', rotazione, specchio, b/n
@@ -743,28 +744,28 @@ export function createPdfEditor(ctx, frame, setBusy) {
       chips.innerHTML = "";
       st.transparent.forEach((c, i) => chips.append(el("span", { style: { display: "inline-flex", alignItems: "center", gap: "4px", border: "1px solid var(--line)", borderRadius: "12px", padding: "2px 6px 2px 2px" } },
         el("span", { style: { width: "16px", height: "16px", borderRadius: "50%", background: c, border: "1px solid #888" } }), c,
-        el("button", { type: "button", class: "btn", style: { height: "18px", padding: "0 4px" }, title: "Togli", onclick: () => { st.transparent.splice(i, 1); upd(); } }, "×"))));
-      if (!st.transparent.length) chips.append(el("span", { class: "note" }, "Nessun colore trasparente"));
+        el("button", { type: "button", class: "btn", style: { height: "18px", padding: "0 4px" }, title: tr("pdfeditor.togli"), onclick: () => { st.transparent.splice(i, 1); upd(); } }, "×"))));
+      if (!st.transparent.length) chips.append(el("span", { class: "note" }, tr("pdfeditor.nessun_colore_trasparente")));
       if (st.transparent.length || st.opacity < 1 || st.gray) showPreview(s, st); else clearPreview();
     };
     const add = c => { if (c && !st.transparent.includes(c)) st.transparent.push(c); upd(); };
     const manual = inp_("color", "#ffffff", () => {});
     manual.style.width = "54px";
-    panel.append(h("Immagine"), note(`${o.px?.[0] || "?"} × ${o.px?.[1] || "?"} pixel`),
-      el("div", {}, btn("Sostituisci...", async () => { const data = await pickImage(); if (data) await ops([{ kind: "image_replace", page: pno, xref: o.xref, box: o.box, data }]); }), del),
+    panel.append(h(tr("pdfeditor.immagine")), note(`${o.px?.[0] || "?"} × ${o.px?.[1] || "?"} pixel`),
+      el("div", {}, btn(tr("pdfeditor.sostituisci"), async () => { const data = await pickImage(); if (data) await ops([{ kind: "image_replace", page: pno, xref: o.xref, box: o.box, data }]); }), del),
       el("hr", { style: { border: 0, borderTop: "1px solid var(--line)", margin: "10px 0" } }),
-      el("b", { style: { display: "block", marginBottom: "6px" } }, "Colori trasparenti"), chips,
+      el("b", { style: { display: "block", marginBottom: "6px" } }, tr("pdfeditor.colori_trasparenti")), chips,
       el("div", { style: { display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap", marginBottom: "8px" } },
-        btn("Preleva dall'immagine", () => { picker = add; toast("Clic sul colore da rendere trasparente"); }),
-        manual, btn("Aggiungi", () => add(manual.value))),
-      row("Tolleranza (colori simili)", inp_("range", st.tol, v => { st.tol = +v; upd(); }, { min: 0, max: 60 })),
-      row("Opacita' dell'immagine", inp_("range", 100, v => { st.opacity = v / 100; upd(); }, { min: 5, max: 100 })),
-      el("div", {}, btn("Ruota 90°", () => { st.rotate = (st.rotate + 90) % 360; toast(`Rotazione impostata: ${st.rotate}°`); }),
-        btn("Specchia ↔", () => { st.flip_h = !st.flip_h; toast(st.flip_h ? "Specchio orizzontale attivo" : "Specchio orizzontale tolto"); }),
-        btn("Specchia ↕", () => { st.flip_v = !st.flip_v; toast(st.flip_v ? "Specchio verticale attivo" : "Specchio verticale tolto"); })),
-      chk("Bianco e nero", false, v => { st.gray = v; upd(); }),
-      note("L'anteprima a scacchi mostra le parti che diventano trasparenti."),
-      el("div", {}, btn("Applica", () => ops([{ kind: "image_edit", page: pno, xref: o.xref, box: o.box, ...st }]), "btn primary")));
+        btn(tr("pdfeditor.preleva_dall_immagine"), () => { picker = add; toast(tr("pdfeditor.clic_colore_rendere_trasparente")); }),
+        manual, btn(tr("common.aggiungi"), () => add(manual.value))),
+      row(tr("pdfeditor.tolleranza_colori_simili"), inp_("range", st.tol, v => { st.tol = +v; upd(); }, { min: 0, max: 60 })),
+      row(tr("pdfeditor.opacita_dell_immagine"), inp_("range", 100, v => { st.opacity = v / 100; upd(); }, { min: 5, max: 100 })),
+      el("div", {}, btn(tr("pdfeditor.ruota_90"), () => { st.rotate = (st.rotate + 90) % 360; toast(tr("pdfeditor.rotazione_impostata_0", st.rotate)); }),
+        btn("Specchia ↔", () => { st.flip_h = !st.flip_h; toast(st.flip_h ? tr("pdfeditor.specchio_orizzontale_attivo") : tr("pdfeditor.specchio_orizzontale_tolto")); }),
+        btn("Specchia ↕", () => { st.flip_v = !st.flip_v; toast(st.flip_v ? tr("pdfeditor.specchio_verticale_attivo") : tr("pdfeditor.specchio_verticale_tolto")); })),
+      chk(tr("pdfeditor.bianco_nero"), false, v => { st.gray = v; upd(); }),
+      note(tr("pdfeditor.l_anteprima_scacchi_mostra_parti")),
+      el("div", {}, btn(tr("common.applica"), () => ops([{ kind: "image_edit", page: pno, xref: o.xref, box: o.box, ...st }]), "btn primary")));
     upd();
   }
 
@@ -778,30 +779,30 @@ export function createPdfEditor(ctx, frame, setBusy) {
   };
   const grp = (title, ...items) => el("span", { style: { display: "inline-flex", alignItems: "center", gap: "2px", flexWrap: "wrap" } },
     el("span", { class: "note", style: { padding: "0 4px 0 2px", fontSize: "10.5px", textTransform: "uppercase", letterSpacing: ".04em" } }, title), ...items);
-  const pageMenu = el("select", { class: "field", title: "Operazioni sulla pagina corrente", onchange: async e => { const v = e.target.value; e.target.value = ""; if (v) await pageOp(v); } },
-    el("option", { value: "" }, "Pagina..."), el("option", { value: "rotate" }, "Ruota di 90°"), el("option", { value: "dup" }, "Duplica"), el("option", { value: "blank" }, "Inserisci pagina bianca dopo"),
-    el("option", { value: "insert" }, "Inserisci un PDF dopo questa pagina"), el("option", { value: "move" }, "Sposta in un'altra posizione"), el("option", { value: "crop" }, "Ritaglia..."), el("option", { value: "delete" }, "Elimina pagina"));
-  const docMenu = el("select", { class: "field", title: "Operazioni sul documento", onchange: async e => { const v = e.target.value; e.target.value = ""; if (v) await docOp(v); } },
-    el("option", { value: "" }, "Documento..."), el("option", { value: "meta" }, "Proprieta' (titolo, autore...)"), el("option", { value: "toc" }, "Segnalibri"), el("option", { value: "flatten" }, "Appiattisci moduli e annotazioni"));
+  const pageMenu = el("select", { class: "field", title: tr("pdfeditor.operazioni_pagina_corrente"), onchange: async e => { const v = e.target.value; e.target.value = ""; if (v) await pageOp(v); } },
+    el("option", { value: "" }, tr("pdfeditor.pagina")), el("option", { value: "rotate" }, tr("pdfeditor.ruota_90_2")), el("option", { value: "dup" }, tr("pdfeditor.duplica")), el("option", { value: "blank" }, tr("pdfeditor.inserisci_pagina_bianca_dopo")),
+    el("option", { value: "insert" }, tr("pdfeditor.inserisci_pdf_dopo_questa_pagina")), el("option", { value: "move" }, tr("pdfeditor.sposta_altra_posizione")), el("option", { value: "crop" }, tr("pdfeditor.ritaglia_2")), el("option", { value: "delete" }, tr("pdfeditor.elimina_pagina")));
+  const docMenu = el("select", { class: "field", title: tr("pdfeditor.operazioni_documento"), onchange: async e => { const v = e.target.value; e.target.value = ""; if (v) await docOp(v); } },
+    el("option", { value: "" }, tr("pdfeditor.documento")), el("option", { value: "meta" }, tr("pdfeditor.proprieta_titolo_autore")), el("option", { value: "toc" }, tr("pdfeditor.segnalibri")), el("option", { value: "flatten" }, tr("pdfeditor.appiattisci_moduli_annotazioni")));
   const iconBtn = (k, title, fn) => { const b = el("button", { type: "button", title, onclick: fn }); b.insertAdjacentHTML("beforeend", svg(k)); b.classList.add("icon"); return b; };
   const sep = () => el("span", { class: "sep" });
   const bar = el("div", { class: "tb", style: { display: "flex", flexWrap: "wrap", gap: "2px 4px", borderTop: "1px solid var(--line)" } },
-    tool("select", "Seleziona", "Seleziona, sposta, ridimensiona, modifica ed elimina testi, immagini, disegni, campi, annotazioni (Esc per uscire)"), sep(),
-    grp("Annota", tool("pj-highlight", "Evidenzia", "Evidenzia il testo"), tool("pj-freetext", "Testo libero", "Casella di testo sopra la pagina"), tool("pj-ink", "Penna", "Disegno a mano libera"),
-      tool("underline", "Sottolinea", "Sottolinea le parole nel riquadro"), tool("strikeout", "Barra", "Barra le parole nel riquadro"), tool("note", "Nota", "Nota adesiva")), sep(),
-    grp("Modifica", tool("line", "Testo", "Riscrive una riga di testo con lo stesso carattere"), tool("typewriter", "Macchina da scrivere", "Scrivi in qualsiasi punto della pagina"),
-      tool("image", "Immagine", "Inserisci un'immagine"), tool("shape", "Forme", "Rettangoli, ellissi, linee, frecce")), sep(),
-    grp("Moduli", ...Object.entries(FIELDS).map(([k, [, label, hint]]) => tool(k, label, label + ": " + hint))), sep(),
-    grp("Altro", tool("link", "Collegamento", "Area cliccabile verso un sito o una pagina"), tool("whiteout", "Bianchetto", "Copre di bianco una zona"), tool("redact", "Oscura", "Elimina definitivamente una zona (riquadro nero)")), sep(),
-    iconBtn("undo", "Annulla l'ultima modifica (Ctrl+Z)", () => undoLast()), iconBtn("redo", "Ripeti (Ctrl+Y)", () => redoLast()), sep(), pageMenu, docMenu);
+    tool("select", tr("pdfeditor.seleziona"), tr("pdfeditor.seleziona_sposta_ridimensiona_modifica_ed")), sep(),
+    grp(tr("pdfeditor.annota"), tool("pj-highlight", tr("pdfeditor.evidenzia"), tr("pdfeditor.evidenzia_testo")), tool("pj-freetext", tr("pdfeditor.testo_libero"), tr("pdfeditor.casella_testo_sopra_pagina")), tool("pj-ink", tr("pdfeditor.penna"), tr("pdfeditor.disegno_mano_libera")),
+      tool("underline", tr("pdfeditor.sottolinea"), tr("pdfeditor.sottolinea_parole_riquadro")), tool("strikeout", tr("pdfeditor.barra"), tr("pdfeditor.barra_parole_riquadro")), tool("note", tr("pdfeditor.nota"), tr("pdfeditor.nota_adesiva"))), sep(),
+    grp(tr("pdfeditor.modifica"), tool("line", tr("pdfeditor.testo"), tr("pdfeditor.riscrive_riga_testo_stesso_carattere")), tool("typewriter", tr("pdfeditor.macchina_scrivere"), tr("pdfeditor.scrivi_qualsiasi_punto_pagina")),
+      tool("image", tr("pdfeditor.immagine"), tr("pdfeditor.inserisci_immagine")), tool("shape", tr("pdfeditor.forme"), tr("pdfeditor.rettangoli_ellissi_linee_frecce"))), sep(),
+    grp(tr("pdfeditor.moduli"), ...Object.entries(FIELDS).map(([k, [, label, hint]]) => tool(k, label, label + ": " + hint))), sep(),
+    grp(tr("pdfeditor.altro"), tool("link", tr("pdfeditor.collegamento"), tr("pdfeditor.area_cliccabile_verso_sito_pagina")), tool("whiteout", tr("pdfeditor.bianchetto"), tr("pdfeditor.copre_bianco_zona")), tool("redact", tr("pdfeditor.oscura"), tr("pdfeditor.elimina_definitivamente_zona_riquadro_nero"))), sep(),
+    iconBtn("undo", tr("pdfeditor.annulla_l_ultima_modifica_ctrl"), () => undoLast()), iconBtn("redo", tr("pdfeditor.ripeti_ctrl_y"), () => redoLast()), sep(), pageMenu, docMenu);
 
   async function pageOp(v) {
     const p = curPage(), n = app()?.pagesCount || 1;
     if (v === "rotate") return ops([{ kind: "page_rotate", page: p, angle: 90 }]);
     if (v === "dup") return ops([{ kind: "page_duplicate", page: p }]);
     if (v === "blank") return ops([{ kind: "page_blank", at: p + 1 }]);
-    if (v === "delete") { if (n < 2) return toast("Il documento ha una sola pagina", true); if (await confirmBox("Elimina pagina", `Eliminare la pagina ${p + 1}?`, "Elimina", true)) return ops([{ kind: "page_delete", page: p }]); return; }
-    if (v === "move") { const s = await askText("Sposta pagina", `Nuova posizione della pagina ${p + 1} (1-${n})`, String(n)); const to = parseInt(s, 10); if (to >= 1 && to <= n) return ops([{ kind: "page_move", page: p, to_page: to > p + 1 ? to : to - 1 }]); return; }
+    if (v === "delete") { if (n < 2) return toast(tr("pdfeditor.documento_ha_sola_pagina"), true); if (await confirmBox(tr("pdfeditor.elimina_pagina"), tr("pdfeditor.eliminare_pagina_0", p + 1), tr("common.elimina"), true)) return ops([{ kind: "page_delete", page: p }]); return; }
+    if (v === "move") { const s = await askText(tr("pdfeditor.sposta_pagina"), tr("pdfeditor.nuova_posizione_pagina_0_1", p + 1, n), String(n)); const to = parseInt(s, 10); if (to >= 1 && to <= n) return ops([{ kind: "page_move", page: p, to_page: to > p + 1 ? to : to - 1 }]); return; }
     if (v === "insert") { const fs = await pickFiles(); const f = fs?.find(x => /\.pdf$/i.test(x)); if (f) return ops([{ kind: "page_insert_pdf", file: f, at: p + 1 }]); return; }
     if (v === "crop") return setMode("crop");
   }
@@ -809,19 +810,19 @@ export function createPdfEditor(ctx, frame, setBusy) {
     try { await pageData(0); } catch { /* */ }
     if (v === "meta") {
       const f = {};
-      const rows = ["title", "author", "subject", "keywords"].map(k => row({ title: "Titolo", author: "Autore", subject: "Oggetto", keywords: "Parole chiave" }[k], (f[k] = el("input", { type: "text", class: "field", value: meta[k] || "", style: { width: "100%" } }))));
-      if (await modal("Proprieta' del documento", el("div", { style: { minWidth: "360px" } }, ...rows), [{ label: "Annulla", value: false }, { label: "Salva", value: true, primary: true }]))
+      const rows = ["title", "author", "subject", "keywords"].map(k => row({ title: tr("pdfeditor.titolo"), author: tr("pdfeditor.autore"), subject: tr("pdfeditor.oggetto"), keywords: tr("pdfeditor.parole_chiave") }[k], (f[k] = el("input", { type: "text", class: "field", value: meta[k] || "", style: { width: "100%" } }))));
+      if (await modal(tr("pdfeditor.proprieta_documento"), el("div", { style: { minWidth: "360px" } }, ...rows), [{ label: tr("common.annulla"), value: false }, { label: tr("common.salva"), value: true, primary: true }]))
         return ops([{ kind: "metadata", ...Object.fromEntries(Object.entries(f).map(([k, i]) => [k, i.value])) }]);
       return;
     }
     if (v === "toc") {
       const ta = el("textarea", { rows: 14, class: "field", style: { width: "100%", fontFamily: "Consolas, monospace" } }, toc.map(([l, t, p]) => "  ".repeat(l - 1) + `${t} | ${p}`).join("\n"));
-      if (!(await modal("Segnalibri", el("div", { style: { minWidth: "420px", display: "grid", gap: "6px" } }, el("p", { class: "note", style: { margin: 0 } }, "Una riga per segnalibro: Titolo | pagina. Rientra di due spazi per i sottolivelli."), ta),
-        [{ label: "Annulla", value: false }, { label: "Salva", value: true, primary: true }]))) return;
+      if (!(await modal(tr("pdfeditor.segnalibri"), el("div", { style: { minWidth: "420px", display: "grid", gap: "6px" } }, el("p", { class: "note", style: { margin: 0 } }, tr("pdfeditor.riga_segnalibro_titolo_pagina_rientra")), ta),
+        [{ label: tr("common.annulla"), value: false }, { label: tr("common.salva"), value: true, primary: true }]))) return;
       const items = ta.value.split(/\r?\n/).filter(s => s.trim()).map(s => { const lvl = Math.floor((s.match(/^ */)[0].length) / 2) + 1; const [t, p] = s.trim().split("|").map(x => x.trim()); return [lvl, t, parseInt(p, 10) || 1]; });
       return ops([{ kind: "toc", items }]);
     }
-    if (v === "flatten" && await confirmBox("Appiattisci", "Appiattire moduli e annotazioni? Diventano parte fissa della pagina e non saranno piu' modificabili.")) return ops([{ kind: "flatten" }]);
+    if (v === "flatten" && await confirmBox(tr("pdfeditor.appiattisci"), tr("pdfeditor.appiattire_moduli_annotazioni_diventano_parte"))) return ops([{ kind: "flatten" }]);
   }
 
   function decorateAll() {
@@ -884,16 +885,16 @@ export function createPdfEditor(ctx, frame, setBusy) {
     else if (wasPj || mode) pjMode(0);
     decorateAll();
     renderPanel();
-    ctx.status(mode ? `Modifica: ${btns[mode]?.textContent || mode} · Esc o clic sul pulsante per uscire` : "");
+    ctx.status(mode ? tr("pdfeditor.modifica_0_esc_clic_pulsante", btns[mode]?.textContent || mode) : "");
     return mode;
   }
 
-  const KEYS = [["V", "Seleziona oggetti", "Strumenti"], ["T", "Modifica testo (riga)", "Strumenti"], ["W", "Macchina da scrivere", "Strumenti"], ["I", "Inserisci immagine", "Strumenti"],
-    ["U", "Evidenzia (Maiusc+U: evidenzia / sottolinea / barra)", "Strumenti"], ["S", "Nota adesiva", "Strumenti"], ["D", "Penna (disegno)", "Strumenti"], ["R", "Forme", "Strumenti"],
-    ["Q", "Campo di testo del modulo", "Strumenti"], ["H", "Nessuno strumento (scorri e compila i moduli)", "Strumenti"], ["Esc", "Deseleziona / esci dallo strumento", "Strumenti"],
-    ["Frecce", "Sposta gli oggetti selezionati di 1 pt (Maiusc: 10 pt)", "Oggetti"], ["Canc", "Elimina gli oggetti selezionati", "Oggetti"],
-    ["Ctrl+A", "Seleziona tutti gli oggetti della pagina", "Oggetti"], ["Maiusc+clic / Ctrl+clic", "Aggiungi o togli dalla selezione", "Oggetti"],
-    ["Doppio clic", "Riscrivi un testo / entra in un gruppo di disegni", "Oggetti"], ["Ctrl+Z / Ctrl+Y", "Annulla / Ripeti", "Modifica"], ["Ctrl+S", "Salva", "Modifica"]];
+  const KEYS = [["V", tr("pdfeditor.seleziona_oggetti"), tr("pdfeditor.strumenti")], ["T", tr("pdfeditor.modifica_testo_riga"), tr("pdfeditor.strumenti")], ["W", tr("pdfeditor.macchina_scrivere"), tr("pdfeditor.strumenti")], ["I", tr("pdfeditor.inserisci_immagine_2"), tr("pdfeditor.strumenti")],
+    ["U", tr("pdfeditor.evidenzia_maiusc_u_evidenzia_sottolinea"), tr("pdfeditor.strumenti")], ["S", tr("pdfeditor.nota_adesiva"), tr("pdfeditor.strumenti")], ["D", tr("pdfeditor.penna_disegno"), tr("pdfeditor.strumenti")], ["R", tr("pdfeditor.forme"), tr("pdfeditor.strumenti")],
+    ["Q", tr("pdfeditor.campo_testo_modulo"), tr("pdfeditor.strumenti")], ["H", tr("pdfeditor.nessuno_strumento_scorri_compila_i"), tr("pdfeditor.strumenti")], ["Esc", tr("pdfeditor.deseleziona_esci_dallo_strumento"), tr("pdfeditor.strumenti")],
+    ["Frecce", tr("pdfeditor.sposta_oggetti_selezionati_1_pt"), tr("pdfeditor.oggetti")], ["Canc", tr("pdfeditor.elimina_oggetti_selezionati"), tr("pdfeditor.oggetti")],
+    ["Ctrl+A", tr("pdfeditor.seleziona_tutti_oggetti_pagina"), tr("pdfeditor.oggetti")], ["Maiusc+clic / Ctrl+clic", tr("pdfeditor.aggiungi_togli_selezione"), tr("pdfeditor.oggetti")],
+    ["Doppio clic", tr("pdfeditor.riscrivi_testo_entra_gruppo_disegni"), tr("pdfeditor.oggetti")], ["Ctrl+Z / Ctrl+Y", tr("pdfeditor.annulla_ripeti"), tr("pdfeditor.modifica")], ["Ctrl+S", tr("common.salva"), tr("pdfeditor.modifica")]];
   return {
     bar, panel,
     keys: KEYS,

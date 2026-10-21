@@ -184,7 +184,7 @@ def is_ui_text(s: str) -> bool:
         return False
     if NOT_UI.match(t):
         return False
-    if CSS_LIKE.search(t) and not re.search(r"[a-zà-ù]{3,} [a-zà-ù]{3,}", t):
+    if CSS_LIKE.search(t) and not re.search(r"[a-zà-ù]{3,} [a-zà-ù]{3,}", t) and not (" " in t and any(w in IT_WORDS for w in re.findall(r"[a-zà-ù']+", t.lower()))):
         return False
     if re.fullmatch(r"[A-Z0-9_]+", t) or re.fullmatch(r"[a-z]+[A-Z]\w*", t):  # COSTANTI, camelCase
         return False

@@ -1,3 +1,4 @@
+import { LOCALE } from "./i18n.js";
 // Navisworks (NWD/NWC) senza Navisworks: il lettore nwd2mbv (libreria open source nwd-reader) converte il file in
 // gerarchia + proprieta' (json) e geometria (bin, coordinate di mondo in metri); qui si costruisce la scena three.js.
 import * as THREE from "three";
@@ -81,7 +82,7 @@ export async function loadNavis(ctx, ld) {
   const item = i => (items[i] ??= { name: groups[i].name + (kids[i].length ? ` (${kids[i].length})` : ""), obj: groups[i], children: [] });
   for (let i = 0; i < groups.length; i++) if (hasGeom[i]) item(i).children = kids[i].map(item);
   const tree = tops.map(item);
-  ctx.navisInfo = `Navisworks: ${meta.nodes.length.toLocaleString("it-IT")} nodi, ${Math.round(tri).toLocaleString("it-IT")} triangoli` + (meta.skipped ? ` · ${meta.skipped} elementi non disegnabili (testi, nuvole di punti esterne)` : "");
+  ctx.navisInfo = `Navisworks: ${meta.nodes.length.toLocaleString(LOCALE)} nodi, ${Math.round(tri).toLocaleString(LOCALE)} triangoli` + (meta.skipped ? ` · ${meta.skipped} elementi non disegnabili (testi, nuvole di punti esterne)` : "");
   return { root, tree };
 }
 

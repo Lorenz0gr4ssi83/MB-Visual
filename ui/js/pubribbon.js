@@ -1,3 +1,4 @@
+import { LOCALE } from "./i18n.js";
 // Barra multifunzione dell'editor di pubblicazioni, con le stesse schede e gli stessi gruppi di Publisher:
 // Home, Inserisci, Progettazione pagina, Mailing, Revisione, Visualizza e le schede contestuali "Formato"
 // (casella di testo, immagine, disegno, WordArt, tabella) e "Pagina master". Qui anche menu, gallerie e finestre.
@@ -481,7 +482,7 @@ export function buildRibbon(E, ctx, host) {
   };
   const dateMenu = () => {
     const d = new Date();
-    const fm = [d.toLocaleDateString("it-IT"), d.toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" }), d.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" }), d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })];
+    const fm = [d.toLocaleDateString(LOCALE), d.toLocaleDateString(LOCALE, { day: "numeric", month: "long", year: "numeric" }), d.toLocaleDateString(LOCALE, { weekday: "long", day: "numeric", month: "long", year: "numeric" }), d.toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit" })];
     return [...fm.map(t => ({ label: t, run: () => (edit() ? E.typeText(t) : toast("Fai clic nel testo dove inserire la data", true)) })), "-", { label: "Campo data (si aggiorna da solo)", run: () => E.insertField("date") }];
   };
   const pageNumMenu = () => [
@@ -698,7 +699,7 @@ export function buildRibbon(E, ctx, host) {
         ["Citazione", () => [shapeBox(D, "round", 0, 0, 220, 110, "s1", null, { wrap: "none" }), textBox(D, 10, 10, 200, 90, [["“Una frase che merita attenzione.”", "Citazione", { c: "s5" }]], { valign: "m" })]],
         ["Articolo a due colonne", () => [textBox(D, 0, 0, 360, 36, [["Titolo dell'articolo", "Titolo 1", { sb: 0 }]]), textBox(D, 0, 40, 360, 220, [["Scrivete qui il testo dell'articolo. Il testo si distribuisce sulle due colonne della casella.", "Corpo del testo"], ["Aggiungete paragrafi, elenchi e immagini: il testo gira attorno agli oggetti che hanno la disposizione \"Quadrato\".", "Corpo del testo"]], { cols: 2, gap: 12 })]],
         ["Informazioni di contatto", () => [textBox(D, 0, 0, 200, 80, [["Azienda Esempio S.r.l.", "Indirizzo", { b: true }], ["Via Esempio 1 · 00000 Citta'", "Indirizzo"], ["Tel. +39 000 000 0000", "Indirizzo"], ["info@azienda.it · www.azienda.it", "Indirizzo"]])]]],
-      calendari: [0, 1, 2].map(k => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + k); return [d.toLocaleDateString("it-IT", { month: "long", year: "numeric" }), () => calendar(D, d)]; }),
+      calendari: [0, 1, 2].map(k => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + k); return [d.toLocaleDateString(LOCALE, { month: "long", year: "numeric" }), () => calendar(D, d)]; }),
       bordi: [["Barra di accento", () => [shapeBox(D, "rect", 0, 0, 360, 8, "s1", null, { wrap: "none" })]],
         ["Doppia linea", () => [shapeBox(D, "line", 0, 0, 360, 0, "none", { c: "s1", w: 2.25 }, { wrap: "none" }), shapeBox(D, "line", 0, 5, 360, 0, "none", { c: "s1", w: 0.75 }, { wrap: "none" })]],
         ["Cornice pagina", () => { const M = D.margins; return [shapeBox(D, "rect", M.l, M.t, D.w - M.l - M.r, D.h - M.t - M.b, "none", { c: "s1", w: 2.25 }, { wrap: "none" })]; }],
@@ -719,7 +720,7 @@ export function buildRibbon(E, ctx, host) {
     ["L", "M", "M", "G", "V", "S", "D"].forEach((n, c) => set(0, c, n, { b: true, c: "s5" }));
     for (let k = 0; k < days; k++) { const pos = first + k; set(1 + Math.floor(pos / 7), pos % 7, String(k + 1), (pos % 7) === 6 ? { c: "s1", b: true } : {}); }
     for (let r = 1; r < rows; r++) for (let c = 0; c < 7; c++) t.cells[r][c].fill = "none";
-    const title = textBox(D, 0, 0, 280, 28, [[d.toLocaleDateString("it-IT", { month: "long", year: "numeric" }).replace(/^./, x => x.toUpperCase()), "Titolo 2", { a: "c", sb: 0 }]]);
+    const title = textBox(D, 0, 0, 280, 28, [[d.toLocaleDateString(LOCALE, { month: "long", year: "numeric" }).replace(/^./, x => x.toUpperCase()), "Titolo 2", { a: "c", sb: 0 }]]);
     return [title, t];
   }
 

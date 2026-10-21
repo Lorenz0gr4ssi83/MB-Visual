@@ -1,4 +1,4 @@
-import { LOCALE } from "../i18n.js";
+import { t, LOCALE } from "../i18n.js";
 // PDF con il visualizzatore di Mozilla (pdf.js): pagine, ricerca, stampa, annotazioni; firme PAdES.
 import { api, baseName, button, dirName, el, fileUrl, modal, pickFiles, pickFolder, pickSavePath, toast, waitJob, WEB } from "../core.js";
 import { createPdfEditor, PDFJS_HIDE } from "../pdfeditor.js";
@@ -32,7 +32,7 @@ export async function mount(ctx) {
       store.onResetModified = () => ctx.setDirty(false);
       ctx.status(`${a.pagesCount} pagine`);
     });
-    a.eventBus.on("pagechanging", e => ctx.status(`Pagina ${e.pageNumber} di ${a.pagesCount}`));
+    a.eventBus.on("pagechanging", e => ctx.status(t("v_pdf.pagina_0_1", e.pageNumber, a.pagesCount)));
   });
 
   // ---- strumenti PDF (creano sempre un nuovo file, l'originale resta intatto)
@@ -46,7 +46,7 @@ export async function mount(ctx) {
     if (!out) return;
     try {
       const r = await api("pdf_tool", { path: await current(), op }, { json: { ...json, out } });
-      toast(`Creato ${baseName(out)}${r.pagine ? ` (${r.pagine} pagine)` : ""}${r.dopo ? ` · da ${(r.prima / 1048576).toFixed(1)} a ${(r.dopo / 1048576).toFixed(1)} MB` : ""}`);
+      toast(t("v_pdf.creato_0_1_2", baseName(out), r.pagine ? t("v_pdf.0_pagine", r.pagine) : "", r.dopo ? t("v_pdf.0_1_mb", (r.prima / 1048576).toFixed(1), (r.dopo / 1048576).toFixed(1)) : ""));
       ctx.openFile(out);
     } catch (e) { toast(e.message, true, 6000); }
   };
@@ -54,45 +54,45 @@ export async function mount(ctx) {
     const input = el("input", { type: "text", value, id: id + "-" + ctx.tab.name });
     return { input, row: el("label", { style: { display: "grid", gap: "4px" } }, label, input, hint ? el("span", { class: "note", style: { color: "var(--muted)", fontSize: "12px" } }, hint) : null) };
   };
-  const ask = async (title, rows) => modal(title, el("div", { style: { display: "grid", gap: "12px" } }, ...rows), [{ label: "Annulla", value: false }, { label: "Continua", value: true, primary: true }]);
-  const PG_HINT = "Esempi: 1-3, 5, 8-  (il documento ha " + "{n} pagine)";
+  const ask = async (title, rows) => modal(title, el("div", { style: { display: "grid", gap: "12px" } }, ...rows), [{ label: t("common.annulla"), value: false }, { label: t("v_pdf.continua"), value: true, primary: true }]);
+  const PG_HINT = t("v_pdf.esempi_1_3_5_8");
   const tools = [
-    ["Unisci", "plus", async () => {
+    [t("v_pdf.unisci"), "plus", async () => {
       const others = await pickFiles();
       if (!others?.length) return;
       run("merge", { others }, stem + "_unito.pdf");
-    }, "Accoda altri PDF a questo documento"],
-    ["Estrai pagine", "download", async () => {
-      const f = field("Pagine da estrarre", "1", "pdf-ex", PG_HINT.replace("{n}", pages()));
-      if (await ask("Estrai pagine", [f.row])) run("extract", { pages: f.input.value }, stem + "_estratto.pdf");
-    }, "Crea un nuovo PDF con le pagine scelte"],
-    ["Elimina pagine", "trash", async () => {
-      const f = field("Pagine da eliminare", "", "pdf-del", PG_HINT.replace("{n}", pages()));
-      if (await ask("Elimina pagine", [f.row])) run("delete", { pages: f.input.value }, stem + "_ridotto.pdf");
-    }, "Crea un nuovo PDF senza le pagine scelte"],
-    ["Ruota", "rotate", async () => {
-      const f = field("Pagine da ruotare (vuoto = tutte)", "", "pdf-rot", PG_HINT.replace("{n}", pages()));
-      const ang = el("select", { class: "field", id: "pdf-ang-" + ctx.tab.name }, el("option", { value: 90 }, "90° in senso orario"), el("option", { value: 180 }, "180°"), el("option", { value: 270 }, "90° in senso antiorario"));
-      if (await ask("Ruota pagine", [f.row, el("label", { style: { display: "grid", gap: "4px" } }, "Rotazione", ang)])) run("rotate", { pages: f.input.value, angle: +ang.value }, stem + "_ruotato.pdf");
-    }, "Ruota tutte o alcune pagine"],
-    ["Dividi", "scissors", async () => {
+    }, t("v_pdf.accoda_altri_pdf_questo_documento")],
+    [t("v_pdf.estrai_pagine"), "download", async () => {
+      const f = field(t("v_pdf.pagine_estrarre"), "1", "pdf-ex", PG_HINT.replace("{n}", pages()));
+      if (await ask(t("v_pdf.estrai_pagine"), [f.row])) run("extract", { pages: f.input.value }, stem + "_estratto.pdf");
+    }, t("v_pdf.crea_nuovo_pdf_pagine_scelte")],
+    [t("v_pdf.elimina_pagine"), "trash", async () => {
+      const f = field(t("v_pdf.pagine_eliminare"), "", "pdf-del", PG_HINT.replace("{n}", pages()));
+      if (await ask(t("v_pdf.elimina_pagine"), [f.row])) run("delete", { pages: f.input.value }, stem + "_ridotto.pdf");
+    }, t("v_pdf.crea_nuovo_pdf_senza_pagine")],
+    [t("v_pdf.ruota"), "rotate", async () => {
+      const f = field(t("v_pdf.pagine_ruotare_vuoto_tutte"), "", "pdf-rot", PG_HINT.replace("{n}", pages()));
+      const ang = el("select", { class: "field", id: "pdf-ang-" + ctx.tab.name }, el("option", { value: 90 }, t("v_pdf.90_senso_orario")), el("option", { value: 180 }, "180°"), el("option", { value: 270 }, t("v_pdf.90_senso_antiorario")));
+      if (await ask(t("v_pdf.ruota_pagine"), [f.row, el("label", { style: { display: "grid", gap: "4px" } }, t("v_pdf.rotazione"), ang)])) run("rotate", { pages: f.input.value, angle: +ang.value }, stem + "_ruotato.pdf");
+    }, t("v_pdf.ruota_tutte_alcune_pagine")],
+    [t("v_pdf.dividi"), "scissors", async () => {
       const folder = await pickFolder();
       if (!folder) return;
-      try { const r = await api("pdf_tool", { path: await current(), op: "split" }, { json: { folder } }); toast(`Creati ${r.files.length} file in ${folder}`); } catch (e) { toast(e.message, true); }
-    }, "Un file PDF per ogni pagina"],
-    ["Filigrana", "text", async () => {
-      const f = field("Testo della filigrana", "BOZZA", "pdf-wm");
-      const p = field("Pagine (vuoto = tutte)", "", "pdf-wmp");
-      if (await ask("Filigrana diagonale", [f.row, p.row])) run("stamp", { text: f.input.value, mode: "filigrana", pages: p.input.value }, stem + "_filigrana.pdf");
-    }, "Testo diagonale semitrasparente su ogni pagina"],
-    ["Timbro", "sign", async () => {
+      try { const r = await api("pdf_tool", { path: await current(), op: "split" }, { json: { folder } }); toast(t("v_pdf.creati_0_file_1", r.files.length, folder)); } catch (e) { toast(e.message, true); }
+    }, t("v_pdf.file_pdf_ogni_pagina")],
+    [t("v_pdf.filigrana"), "text", async () => {
+      const f = field(t("v_pdf.testo_filigrana"), "BOZZA", "pdf-wm");
+      const p = field(t("v_pdf.pagine_vuoto_tutte"), "", "pdf-wmp");
+      if (await ask(t("v_pdf.filigrana_diagonale"), [f.row, p.row])) run("stamp", { text: f.input.value, mode: "filigrana", pages: p.input.value }, stem + "_filigrana.pdf");
+    }, t("v_pdf.testo_diagonale_semitrasparente_ogni_pagina")],
+    [t("v_pdf.timbro"), "sign", async () => {
       const today = new Date().toLocaleDateString(LOCALE);
-      const f = el("textarea", { id: "pdf-st-" + ctx.tab.name, rows: 3, class: "field", style: { width: "100%", fontFamily: "var(--ui)" } }, `APPROVATO\nMB Engineering srl\n${today}`);
-      const p = field("Pagine (vuoto = tutte)", "1", "pdf-stp");
-      if (await ask("Timbro in alto a destra", [el("label", { style: { display: "grid", gap: "4px" } }, "Testo del timbro (una riga per riga)", f), p.row])) run("stamp", { text: f.value, mode: "timbro", pages: p.input.value }, stem + "_timbrato.pdf");
-    }, "Riquadro di testo in alto a destra (approvazione, revisione, data)"],
+      const f = el("textarea", { id: "pdf-st-" + ctx.tab.name, rows: 3, class: "field", style: { width: "100%", fontFamily: "var(--ui)" } }, t("v_pdf.approvato_mb_engineering_srl_0", today));
+      const p = field(t("v_pdf.pagine_vuoto_tutte"), "1", "pdf-stp");
+      if (await ask(t("v_pdf.timbro_alto_destra"), [el("label", { style: { display: "grid", gap: "4px" } }, t("v_pdf.testo_timbro_riga_riga"), f), p.row])) run("stamp", { text: f.value, mode: "timbro", pages: p.input.value }, stem + "_timbrato.pdf");
+    }, t("v_pdf.riquadro_testo_alto_destra_approvazione")],
   ];
-  if (!WEB) tools.push(["Firma", "sign", () => import("../firma.js").then(m => m.signDialog({ path: ctx.path, openFile: ctx.openFile })), "Firma digitale PAdES o CAdES con smart card, CNS, token USB o file .p12 (si firma il file salvato)"]);
+  if (!WEB) tools.push([t("v_pdf.firma"), "sign", () => import("../firma.js").then(m => m.signDialog({ path: ctx.path, openFile: ctx.openFile })), t("v_pdf.firma_digitale_pades_cades_smart")]);
   // ---- editor (solo app per PC: motore PyMuPDF): barra sempre visibile sotto la barra principale, pannello a destra
   let backHandler = null;
   if (ed) {
@@ -105,10 +105,10 @@ export async function mount(ctx) {
   }
   for (const [label, icon, fn, title] of tools) ctx.tb.append(button(label, icon, fn, { title }));
   if (ed) {
-    const more = el("select", { class: "field", title: "Altre operazioni sul PDF", id: "pdf-more-" + ctx.tab.name, onchange: async e => { const v = e.target.value; e.target.value = ""; if (v) await extra(v); } },
-      el("option", { value: "" }, "Altro..."), el("option", { value: "ocr" }, "Rendi ricercabile (OCR dei documenti scansionati)"), el("option", { value: "compress" }, "Comprimi (riduce le dimensioni)"), el("option", { value: "numbers" }, "Numeri di pagina"),
-      el("option", { value: "protect" }, "Proteggi con password"), el("option", { value: "unlock" }, "Togli la password"), el("option", { value: "blank" }, "Inserisci pagina bianca"),
-      el("option", { value: "reorder" }, "Riordina le pagine"), el("option", { value: "word" }, "Converti in Word (.docx)"), el("option", { value: "images" }, "Esporta pagine come immagini"));
+    const more = el("select", { class: "field", title: t("v_pdf.altre_operazioni_pdf"), id: "pdf-more-" + ctx.tab.name, onchange: async e => { const v = e.target.value; e.target.value = ""; if (v) await extra(v); } },
+      el("option", { value: "" }, t("v_pdf.altro")), el("option", { value: "ocr" }, t("v_pdf.rendi_ricercabile_ocr_documenti_scansionati")), el("option", { value: "compress" }, t("v_pdf.comprimi_riduce_dimensioni")), el("option", { value: "numbers" }, t("v_pdf.numeri_pagina")),
+      el("option", { value: "protect" }, t("v_pdf.proteggi_password")), el("option", { value: "unlock" }, t("v_pdf.togli_password")), el("option", { value: "blank" }, t("v_pdf.inserisci_pagina_bianca")),
+      el("option", { value: "reorder" }, t("v_pdf.riordina_pagine")), el("option", { value: "word" }, t("v_pdf.converti_word_docx")), el("option", { value: "images" }, t("v_pdf.esporta_pagine_come_immagini")));
     ctx.tb.append(more);
   }
   const lbl = (text, input) => el("label", { style: { display: "grid", gap: "4px" } }, text, input);
@@ -119,67 +119,67 @@ export async function mount(ctx) {
       try {
         const { job } = await api("pdf_tool", { path: await current(), op: "ocr" }, { json: { out } });
         const r = await waitJob(job, (p, m) => ctx.status(`${m} (${Math.round(p * 100)}%)`));
-        toast(r.pagine ? `Testo riconosciuto su ${r.pagine} pagine (${r.parole} parole)` : "Il documento aveva gia' il testo in tutte le pagine");
+        toast(r.pagine ? t("v_pdf.testo_riconosciuto_0_pagine_1", r.pagine, r.parole) : t("v_pdf.documento_aveva_gia_testo_tutte"));
         ctx.openFile(out);
       } catch (e) { toast(e.message, true, 8000); }
       return;
     }
     if (v === "compress") {
-      const q = el("select", { class: "field", id: "pdf-cq-" + ctx.tab.name }, el("option", { value: "150|75" }, "Equilibrata (150 dpi)"), el("option", { value: "110|60" }, "Massima riduzione (110 dpi)"), el("option", { value: "220|85" }, "Alta qualita' (220 dpi)"));
-      if (!(await ask("Comprimi PDF", [lbl("Qualita' delle immagini", q)]))) return;
+      const q = el("select", { class: "field", id: "pdf-cq-" + ctx.tab.name }, el("option", { value: "150|75" }, t("v_pdf.equilibrata_150_dpi")), el("option", { value: "110|60" }, t("v_pdf.massima_riduzione_110_dpi")), el("option", { value: "220|85" }, t("v_pdf.alta_qualita_220_dpi")));
+      if (!(await ask(t("v_pdf.comprimi_pdf"), [lbl(t("v_pdf.qualita_immagini"), q)]))) return;
       const [dpi, quality] = q.value.split("|");
       return run("compress", { dpi: +dpi, quality: +quality }, stem + "_compresso.pdf");
     }
     if (v === "numbers") {
-      const f = field("Formato ({n} = pagina, {tot} = totale)", "Pagina {n} di {tot}", "pdf-num");
+      const f = field(t("v_pdf.formato_n_pagina_tot_totale"), t("v_pdf.pagina_n_tot"), "pdf-num");
       const pos = el("select", { class: "field", id: "pdf-pos-" + ctx.tab.name }, ...["basso-destra", "basso-centro", "basso-sinistra", "alto-destra", "alto-centro", "alto-sinistra"].map(p => el("option", { value: p }, p.replace("-", " "))));
-      if (await ask("Numeri di pagina", [f.row, lbl("Posizione", pos)])) run("numbers", { format: f.input.value, pos: pos.value }, stem + "_numerato.pdf");
+      if (await ask(t("v_pdf.numeri_pagina"), [f.row, lbl(t("v_pdf.posizione"), pos)])) run("numbers", { format: f.input.value, pos: pos.value }, stem + "_numerato.pdf");
       return;
     }
     if (v === "protect") {
       const pw = el("input", { type: "password", id: "pdf-pw-" + ctx.tab.name, class: "field" });
       const cp = el("input", { type: "checkbox", id: "pdf-cp-" + ctx.tab.name }), pr = el("input", { type: "checkbox", checked: true, id: "pdf-pr-" + ctx.tab.name });
-      if (!(await ask("Proteggi con password", [lbl("Password per aprire il documento", pw), el("label", {}, pr, " Consenti la stampa"), el("label", {}, cp, " Consenti di copiare il testo")]))) return;
-      if (!pw.value) return toast("Password vuota: nessuna protezione applicata", true);
+      if (!(await ask(t("v_pdf.proteggi_password"), [lbl(t("v_pdf.password_aprire_documento"), pw), el("label", {}, pr, t("v_pdf.consenti_stampa")), el("label", {}, cp, t("v_pdf.consenti_copiare_testo"))]))) return;
+      if (!pw.value) return toast(t("v_pdf.password_vuota_nessuna_protezione_applicata"), true);
       return run("protect", { password: pw.value, print: pr.checked, copy: cp.checked }, stem + "_protetto.pdf");
     }
     if (v === "unlock") {
       const pw = el("input", { type: "password", id: "pdf-upw-" + ctx.tab.name, class: "field" });
-      if (await ask("Togli la password", [lbl("Password attuale", pw)])) run("unlock", { password: pw.value }, stem + "_sbloccato.pdf");
+      if (await ask(t("v_pdf.togli_password"), [lbl(t("v_pdf.password_attuale"), pw)])) run("unlock", { password: pw.value }, stem + "_sbloccato.pdf");
       return;
     }
     if (v === "blank") {
-      const f = field("Inserire dopo la pagina (0 = all'inizio)", String(app()?.page || 1), "pdf-blank");
-      if (await ask("Pagina bianca", [f.row])) run("blank", { after: parseInt(f.input.value, 10) || 0 }, stem + "_con_pagina.pdf");
+      const f = field(t("v_pdf.inserire_dopo_pagina_0_all"), String(app()?.page || 1), "pdf-blank");
+      if (await ask(t("v_pdf.pagina_bianca"), [f.row])) run("blank", { after: parseInt(f.input.value, 10) || 0 }, stem + "_con_pagina.pdf");
       return;
     }
     if (v === "reorder") {
       const n = app()?.pagesCount || 1;
-      const f = field("Nuovo ordine delle pagine", Array.from({ length: n }, (_, i) => i + 1).join(", "), "pdf-ord", "Scrivi i numeri nell'ordine voluto: le pagine omesse vengono tolte, quelle ripetute duplicate");
-      if (!(await ask("Riordina le pagine", [f.row]))) return;
+      const f = field(t("v_pdf.nuovo_ordine_pagine"), Array.from({ length: n }, (_, i) => i + 1).join(", "), "pdf-ord", t("v_pdf.scrivi_i_numeri_nell_ordine"));
+      if (!(await ask(t("v_pdf.riordina_pagine"), [f.row]))) return;
       const order = f.input.value.split(/[,;\s]+/).map(x => parseInt(x, 10) - 1).filter(x => x >= 0 && x < n);
-      if (!order.length) return toast("Ordine non valido", true);
+      if (!order.length) return toast(t("v_pdf.ordine_non_valido"), true);
       return run("reorder", { order }, stem + "_riordinato.pdf");
     }
     if (v === "word") return run("word", {}, stem + ".docx");
     if (v === "images") {
       const folder = await pickFolder();
       if (!folder) return;
-      try { const r = await api("pdf_tool", { path: await current(), op: "images" }, { json: { folder, dpi: 150 } }); toast(`Create ${r.files.length} immagini in ${folder}`); } catch (e) { toast(e.message, true); }
+      try { const r = await api("pdf_tool", { path: await current(), op: "images" }, { json: { folder, dpi: 150 } }); toast(t("v_pdf.create_0_immagini_1", r.files.length, folder)); } catch (e) { toast(e.message, true); }
     }
   }
-  ctx.tb.append(el("span", { class: "grow" }), el("span", { class: "note" }, ed ? "Strumenti di modifica nella barra sotto · Ctrl+S salva" : "Annotazioni (testo, disegno, evidenziatore, immagini): strumenti in alto a destra nel documento · Ctrl+S salva"));
+  ctx.tb.append(el("span", { class: "grow" }), el("span", { class: "note" }, ed ? t("v_pdf.strumenti_modifica_barra_sotto_ctrl") : t("v_pdf.annotazioni_testo_disegno_evidenziatore_immagini")));
   // firme digitali nel PDF
   api("pdf_signatures", { path: ctx.path }, { allowFail: true }).then(r => {
     const sigs = (r.firme || []).filter(s => s.firmatari);
     if (!sigs.length) return;
     const all = sigs.flatMap(s => s.firmatari);
     const ok = all.every(s => s.firma_valida && s.integrita);
-    const b = button(`Firme digitali (${all.length})`, "sign", async () => {
+    const b = button(t("v_pdf.firme_digitali_0", all.length), "sign", async () => {
       const box = el("div", { style: { display: "grid", gap: "10px" } });
       sigs.forEach(s => s.firmatari.forEach(f => box.append(renderSigner(f, box.childElementCount))));
-      if (sigs.some(s => !s.copre_intero_file)) box.append(el("p", { class: "note" }, "Una o piu' firme non coprono l'intero file: il PDF e' stato modificato dopo la firma (es. firme successive o annotazioni)."));
-      await modal("Firme digitali del PDF", box);
+      if (sigs.some(s => !s.copre_intero_file)) box.append(el("p", { class: "note" }, t("v_pdf.piu_firme_non_coprono_l")));
+      await modal(t("v_pdf.firme_digitali_pdf"), box);
     });
     b.prepend(el("span", { class: "chip " + (ok ? "ok" : "bad"), style: { marginRight: "4px" } }, ok ? "valide" : "verificare"));
     ctx.tb.prepend(b, el("span", { class: "sep" }));

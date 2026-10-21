@@ -1,3 +1,4 @@
+import { LOCALE } from "./i18n.js";
 // Pubblicazioni: motore del testo. Impaginazione di una storia in una catena di contenitori (caselle di testo
 // collegate, ciascuna con le sue colonne), a capo automatico, allineamenti (anche giustificato), rientri, elenchi,
 // spazi prima/dopo, interlinea, testo che gira attorno agli oggetti (quadrato / sopra e sotto), campi (numero di pagina,
@@ -35,7 +36,7 @@ export function textWidth(doc, s, str, scale = 1) {
 export function fieldText(f, env) {
   if (f === "page") return String((env.pageNo ?? 0) + 1);
   if (f === "pages") return String(env.pageCount || 1);
-  if (f === "date") return new Date().toLocaleDateString("it-IT");
+  if (f === "date") return new Date().toLocaleDateString(LOCALE);
   if (f && f.startsWith("merge:")) {
     const name = f.slice(6);
     if (env.record) return String(env.record[name] ?? "");

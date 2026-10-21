@@ -9,6 +9,7 @@ import { askText, el, modal, toast } from "./core.js";
 import * as G from "./cadgeom.js";
 import { cadIcon } from "./cadicons.js";
 import { describeKeys } from "./shortcuts.js";
+import { LOCALE } from "./i18n.js";
 
 // copia profonda (i DWG possono contenere interi BigInt nei dati estesi)
 const plain = (k, v) => (typeof v === "bigint" ? Number(v) : v);
@@ -25,7 +26,7 @@ let CLIP = null;
 const CANCEL = new Error("annullato");
 const num = v => { const n = parseFloat(String(v).trim().replace(",", ".")); return isFinite(n) ? n : null; };
 const f4 = v => (typeof v === "number" ? +v.toFixed(4) : v);
-const fmt = v => (typeof v === "number" ? v.toLocaleString("it-IT", { maximumFractionDigits: 4 }) : String(v));
+const fmt = v => (typeof v === "number" ? v.toLocaleString(LOCALE, { maximumFractionDigits: 4 }) : String(v));
 const P = ([x, y]) => ({ x, y, z: 0 });
 const XY = p => [p.x, p.y];
 const dist = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);

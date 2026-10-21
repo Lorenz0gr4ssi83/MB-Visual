@@ -24,7 +24,7 @@ export async function mount(ctx) {
     view.innerHTML = "";
     const head = el("div", { style: { padding: "14px 18px", borderBottom: "1px solid var(--line)", display: "grid", gap: "4px" } },
       el("div", { style: { fontSize: "17px", fontWeight: 600 } }, m.oggetto || t("v_email.senza_oggetto")),
-      el("dl", { class: "kv" }, el("dt", {}, t("v_email.testo")), el("dd", {}, m.da), el("dt", {}, "A"), el("dd", {}, m.a),
+      el("dl", { class: "kv" }, el("dt", {}, t("v_email.testo")), el("dd", {}, m.da), el("dt", {}, t("v_email.a")), el("dd", {}, m.a),
         m.cc ? el("dt", {}, "Cc") : null, m.cc ? el("dd", {}, m.cc) : null, el("dt", {}, t("v_email.data")), el("dd", {}, m.data)));
     const att = el("div", { style: { padding: m.allegati.length ? "8px 18px" : "0", display: "flex", gap: "6px", flexWrap: "wrap", borderBottom: m.allegati.length ? "1px solid var(--line)" : "0" } });
     for (const a of m.allegati) {

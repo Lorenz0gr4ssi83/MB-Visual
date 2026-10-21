@@ -9,7 +9,7 @@ export function renderSigner(s, i) {
   const c = s.certificato || {};
   const box = el("div", { class: "panel", style: { display: "grid", gap: "10px" } });
   box.append(el("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" } },
-    el("b", { style: { fontSize: "15px" } }, (i !== undefined ? `Firma ${i + 1}: ` : "") + (c.nome || t("v_signed.firmatario_sconosciuto"))),
+    el("b", { style: { fontSize: "15px" } }, (i !== undefined ? t("v_signed.firma_0", i + 1) : "") + (c.nome || t("v_signed.firmatario_sconosciuto"))),
     yes(s.firma_valida, t("v_signed.firma_valida"), t("v_signed.firma_non_valida")),
     yes(s.integrita, t("v_signed.documento_integro"), t("v_signed.documento_alterato")),
     c.scaduto ? el("span", { class: "chip warn" }, t("v_signed.certificato_scaduto")) : c.non_ancora_valido ? el("span", { class: "chip warn" }, t("v_signed.certificato_non_ancora_valido")) : el("span", { class: "chip ok" }, t("v_signed.certificato_periodo_validita"))));

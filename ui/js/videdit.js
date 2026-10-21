@@ -1,3 +1,4 @@
+import { LOCALE } from "./i18n.js";
 // Montaggio video e audio con la disposizione di Adobe Premiere Pro (area di lavoro "Montaggio"):
 //   in alto a sinistra Sorgente / Controlli effetti / Mixer tracce audio, in alto a destra Monitor programma,
 //   in basso Progetto / Effetti, barra strumenti verticale, Timeline multitraccia e misuratori audio.
@@ -760,7 +761,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
   function scrub(get, set, o = {}) {
     // valore trascinabile (come i numeri blu di Premiere): trascina a destra/sinistra, clic per digitare
     const s = el("span", { class: "ve-scrub", tabindex: "0", title: "Trascina per cambiare, clic per digitare" + (o.title ? "\n" + o.title : "") });
-    const fmt = v => (o.fmt ? o.fmt(v) : (Math.round(v * 100) / 100).toLocaleString("it-IT")) + (o.unit || "");
+    const fmt = v => (o.fmt ? o.fmt(v) : (Math.round(v * 100) / 100).toLocaleString(LOCALE)) + (o.unit || "");
     const show = () => { s.textContent = fmt(get()); };
     show();
     s.addEventListener("pointerdown", e => {
@@ -977,7 +978,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
     const strip = (name, getDb, setDb, extra) => {
       const val = el("span", { class: "ve-mxval" });
       const sl = el("input", { type: "range", class: "ve-fader", min: -60, max: 12, step: 0.1, value: getDb(), id: "ve-fader-" + name.replace(/\W/g, "") });
-      const show = () => { val.textContent = (getDb() <= -60 ? "-∞" : (Math.round(getDb() * 10) / 10).toLocaleString("it-IT")) + " dB"; };
+      const show = () => { val.textContent = (getDb() <= -60 ? "-∞" : (Math.round(getDb() * 10) / 10).toLocaleString(LOCALE)) + " dB"; };
       show();
       sl.addEventListener("input", () => { setDb(+sl.value); show(); player.dirty = true; });
       sl.addEventListener("change", () => commit("Volume traccia"));
