@@ -339,7 +339,7 @@ def load_lang(code: str) -> dict:
 def save_lang(code: str, data: dict) -> None:
     I18N.mkdir(parents=True, exist_ok=True)
     f = I18N / f"{code}.json"
-    f.write_text(json.dumps(dict(sorted(data.items())), ensure_ascii=False, indent=0).replace('\n"', '\n"') + "\n", encoding="utf-8", newline="")
+    f.write_text(json.dumps(dict(sorted(data.items())), ensure_ascii=False, indent=1).replace('\n"', '\n"') + "\n", encoding="utf-8", newline="")
 
 
 def unescape_js(s: str, q: str) -> str:

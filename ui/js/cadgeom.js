@@ -1,6 +1,7 @@
 // Geometria dei disegni CAD 2D condivisa da visualizzatore (viewers/cad2d.js) ed editor (cadedit.js):
 // matrici affini, archi e bulge, spline, impaginazione dei testi (stessa per disegno e selezione), curve analitiche
 // (distanze, punti piu' vicini, intersezioni), retini a tratteggio e geometria delle quote nuove.
+import { t as tr } from "./i18n.js";
 export const TAU = Math.PI * 2;
 export const R2D = 180 / Math.PI;
 export const EPS = 1e-9;
@@ -294,7 +295,7 @@ export const PATTERNS = {
   DOTS: [[0, 0, 0, 0.79375, 1.5875, 0, -1.5875]],
   CROSS: [[0, 0, 0, 6.35, 6.35, 3.175, -9.525], [90, 1.5875, -1.5875, 6.35, 6.35, 3.175, -9.525]],
 };
-export const PATTERN_IT = { SOLID: "Pieno", ANSI31: "ANSI31 (45°)", ANSI32: "ANSI32 (acciaio)", ANSI37: "ANSI37 (rete 45°)", LINE: "Linee", NET: "Griglia", DASH: "Tratteggi", BRICK: "Mattoni", DOTS: "Punti", CROSS: "Croci" };
+export const PATTERN_IT = { SOLID: tr("cadgeom.pieno"), ANSI31: "ANSI31 (45°)", ANSI32: tr("cadgeom.ansi32_acciaio"), ANSI37: tr("cadgeom.ansi37_rete_45"), LINE: tr("cadgeom.linee"), NET: tr("cadgeom.griglia"), DASH: tr("cadgeom.tratteggi"), BRICK: tr("cadgeom.mattoni"), DOTS: tr("cadgeom.punti"), CROSS: tr("cadgeom.croci") };
 // righe di definizione nel formato del lettore DWG/DXF: {angle, base, offset, dashLengths} gia' ruotate e scalate
 export function patternDefLines(name, scale = 1, angle = 0) {
   const P = PATTERNS[String(name || "").toUpperCase()];
@@ -355,7 +356,7 @@ export function hatchSegments(loops, defs, limit = 30000) {
 }
 
 // ---------------------------------------------------------------- quote nuove (anteprima fino al salvataggio: poi le disegna ezdxf)
-export const DIM_KIND_IT = { linear: "Quota lineare", aligned: "Quota allineata", angular: "Quota angolare", radius: "Quota raggio", diameter: "Quota diametro", ordinate: "Quota coordinata" };
+export const DIM_KIND_IT = { linear: tr("cadgeom.quota_lineare"), aligned: tr("cadgeom.quota_allineata"), angular: tr("cadgeom.quota_angolare"), radius: tr("cadgeom.quota_raggio"), diameter: tr("cadgeom.quota_diametro"), ordinate: tr("cadgeom.quota_coordinata") };
 export function fmtNum(v, dec = 2, sep = ",") {
   let s = (Math.round(v * 10 ** dec) / 10 ** dec).toFixed(dec);
   if (s.includes(".")) s = s.replace(/0+$/, "").replace(/\.$/, "");
@@ -466,7 +467,7 @@ export function dimTextEntity(t) {
 }
 
 // ---------------------------------------------------------------- aggancio ai punti notevoli (osnap)
-export const SNAP_IT = { end: "Fine", mid: "Medio", cen: "Centro", int: "Intersezione", per: "Perpendicolare", nea: "Vicino", qua: "Quadrante", ins: "Inserimento", nod: "Nodo" };
+export const SNAP_IT = { end: tr("cadgeom.fine"), mid: tr("cadgeom.medio"), cen: tr("cadgeom.centro"), int: tr("cadgeom.intersezione"), per: tr("cadgeom.perpendicolare"), nea: tr("cadgeom.vicino"), qua: tr("cadgeom.quadrante"), ins: tr("cadgeom.inserimento"), nod: tr("cadgeom.nodo") };
 // model: risultato di build (items, query); modes: {end, mid, ...}; from: ultimo punto (per Perpendicolare); skip(item) -> true se da ignorare
 export function osnap(model, x, y, tol, modes, from = null, skip = null) {
   const ids = model.query(x - tol, y - tol, x + tol, y + tol);
