@@ -25,6 +25,8 @@ export async function mount(ctx) {
     const a = app();
     if (!a) return;
     await a.initializedPromise;
+    // pulsante Stampa e Ctrl+P di pdf.js -> finestra Stampa di MB Visual (ui/js/print.js)
+    if (!WEB) try { frame.contentWindow.print = () => window.MB?.print?.(); } catch { /* */ }
     a.eventBus.on("documentloaded", () => {
       ed?.attach(); // tasti dell'editor attivi subito, anche prima di scegliere uno strumento
       const store = a.pdfDocument.annotationStorage;
@@ -187,6 +189,16 @@ export async function mount(ctx) {
 
   return {
     onBack() { return backHandler ? backHandler() : false; },
+    // finestra Stampa: il documento come appare ora (modifiche e annotazioni non ancora salvate comprese)
+    async printSource() {
+      const a = app();
+      if (a?.pdfDocument && a.pdfDocument.annotationStorage.size > 0) {
+        const { path } = await api("temp_path", { name: ctx.name });
+        await api("save", { path }, { body: await a.pdfDocument.saveDocument() });
+        return { path, name: ctx.name };
+      }
+      return { path: await current(), name: ctx.name };
+    },
     async save(target) {
       const a = app();
       const data = await a.pdfDocument.saveDocument();

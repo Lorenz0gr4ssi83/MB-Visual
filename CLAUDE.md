@@ -450,3 +450,31 @@ LAS resta anche tra i testi e PTX tra i RAW Pentax: decide `misc.sniff` dal cont
 - Prove con il riquadro del browser nascosto: requestAnimationFrame e i timer sono fermi, quindi `MB.active.three`
   (renderer, camera, controls, info.clouds) + `cloud.update(...)` e `renderer.render` a mano; il cookie `mbv` e' comune a tutti i
   server locali (stesso host, porte diverse): con piu' sessioni aperte aggiungere `t=<token>` alle chiamate /api.
+
+
+## Stampa professionale (22/10/2026) - FATTO (prova sul plotter vero: la fa l'utente)
+File -> Stampa (Ctrl+P, anche il pulsante/Ctrl+P di pdf.js) e Stampa a lotti (Ctrl+Maiusc+P). Solo app per PC.
+- `mbvisual/stampa.py` (API print_*): sorgente -> PDF di stampa (una pagina per foglio, gia' alla dimensione della carta,
+  contenuto vettoriale con show_pdf_page) -> anteprima PNG con lo stesso stile -> stampante o PDF. Office/immagini/testo via
+  convert.py (cache in TEMP/stampa/pdf), p7m via signed.open_signed. CAD: ezdxf disegna sul foglio (Settings.scale =
+  mm per unita' x rapporto; estensioni/limiti/vista/finestra/layout, unita' da $INSUNITS, ColorPolicy per grigi/nero,
+  tabelle .ctb di AutoCAD con RenderContext(ctb=...), spessori ABSOLUTE). Layout: foglio dal LAYOUT, 1:1.
+- Stampanti: win32print.DeviceCapabilities (formati in decimi di mm, risoluzioni, copie, DC_MAXEXTENT = formati
+  personalizzati/rotoli); stampa GDI via ctypes: DEVMODE da DocumentPropertiesW (formato, DMPAPER_USER per rotoli,
+  orientamento, copie, colore), CreateDCW, ResetDCW tra pagine di formato diverso, bande rasterizzate con PyMuPDF alla
+  risoluzione del dispositivo (max 600 dpi fino ad A2, 300 oltre, o quella scelta) e StretchDIBits. "Proprieta'..." apre
+  la finestra del driver (DM_IN_PROMPT) e il DEVMODE scelto vale per quella stampa. "PDF vettoriale (MB Visual)" salva il
+  PDF di stampa (grigi/nero dei documenti non CAD: pagine rasterizzate a 300 dpi; i CAD restano vettoriali).
+- Formato automatico: stesso formato (tolleranza 1%), poi il piu' piccolo formato "da disegno" (ISO prima di ANSI/ARCH,
+  mai buste/cartoline), poi personalizzato se il driver lo consente, altrimenti il piu' grande ridotto (avviso).
+  Lotti: scala documenti "Dimensione reale" (A1 su A1), disegni "Automatica" (tavola 1:1 sul suo formato, disegno al
+  vero adattato al formato scelto) o "In scala 1:N"; area "Layout o estensioni".
+- `ui/js/print.js` + `ui/css/print.css`. Agganci: cad2d.js `printSource()` (modifiche + layer spenti -> cad_save in un
+  DXF temporaneo, vista, limiti, toWorld per "Finestra" con due clic), pdf.js `printSource()` (annotazioni non salvate)
+  e window.print dell'iframe; publisher con pubexport.exportPdfFile; model3d = immagine del canvas. DWG nei lotti: letti
+  con libredwg nell'interfaccia e passati come DXF (con ODA File Converter installato li converte il motore, layout compresi).
+- Collaudo su "Microsoft Print to PDF" (PDF misurati a 254 dpi): quadrato 100 mm -> 100,4 mm (contorno compreso),
+  pianta 10 m a 1:100 -> 100,5 mm, a 1:50 -> 200,6 mm, fogli A1/A4/A3 misti nello stesso lavoro con le misure esatte.
+  Prove dalla console: `document.querySelector(".pr-back").__pr` (S impostazioni, addList, comp).
+- Nota prove nel browser: piu' sessioni con il server su 127.0.0.1 si sovrascrivono il cookie "mbv" (porte diverse,
+  stesso host): nelle prove aggiungere `t=` alle richieste /api.

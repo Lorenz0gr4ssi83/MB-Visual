@@ -584,6 +584,48 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": True, "job": jobs.start(fn, b["path"], b["out"], b)})
         self._json(firma.run(op, b))
 
+    # ------------------------------------------------------------ stampa (mbvisual/stampa.py)
+    def api_print_printers(self, qs):
+        from . import stampa
+        self._json(stampa.printers())
+
+    def api_print_printer(self, qs):
+        from . import stampa
+        self._json(stampa.printer_info(_q(qs, "name", "")))
+
+    def api_print_dialog(self, qs):
+        from . import stampa
+        b = self._body_json()
+        self._json(stampa.printer_dialog(b["name"], b.get("devmode")))
+
+    def api_print_prepare(self, qs):
+        from . import stampa
+        self._json({"ok": True, "job": jobs.start(stampa.prepare, self._body_json()["sources"])})
+
+    def api_print_compose(self, qs):
+        from . import stampa
+        b = self._body_json()
+        self._json({"ok": True, "job": jobs.start(stampa.compose, b["sid"], b["settings"])})
+
+    def api_print_preview(self, qs):
+        from . import stampa
+        png = stampa.preview_png(_q(qs, "cid", ""), int(_q(qs, "page", "0")), float(_q(qs, "dpi", "60")))
+        self._send(200, png, "image/png", {"Cache-Control": "no-store"})
+
+    def api_print_run(self, qs):
+        from . import stampa
+        b = self._body_json()
+        self._json({"ok": True, "job": jobs.start(stampa.run, b["cid"], b.get("extra") or {})})
+
+    def api_print_scan(self, qs):
+        from . import stampa
+        b = self._body_json()
+        self._json(stampa.scan(b["folder"], b.get("exts"), bool(b.get("sub"))))
+
+    def api_print_ctb(self, qs):
+        from . import stampa
+        self._json(stampa.ctb_files())
+
     # ------------------------------------------------------------ pubblicazioni (editor in stile Publisher)
     def api_pub_pdf(self, qs):
         from . import publisher

@@ -217,6 +217,15 @@ const ICON_SAVEAS = '<svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v6M5 3v18h7M8 
 const ICON_UPD = '<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>';
 // menu File: nuovo, salva, salva con nome, aggiornamenti (le voci di apertura stanno nel menu Apri)
 const ICON_ACCOUNT = '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>';
+// stampa professionale (ui/js/print.js, mbvisual/stampa.py): solo app per PC
+const ICON_PRINT = '<svg viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-8h16v8h-3M7 14h10v7H7z"/></svg>';
+async function doPrint(batch = false) {
+  if (WEB) return toast(tr("app.stampa_solo_pc"), true);
+  const m = await import("./print.js");
+  if (batch) m.openBatchPrint();
+  else if (active) m.openPrint(active);
+  else m.openBatchPrint();
+}
 function fileMenu(anchor) {
   const m = $("menu-file");
   if (!m.hidden) { m.hidden = true; return; }
@@ -227,6 +236,7 @@ function fileMenu(anchor) {
     item(ICON_SAVE, tr("common.salva"), "Ctrl+S", () => save(false), !active),
     item(ICON_SAVEAS, tr("app.salva_nome"), keysText("Ctrl+Shift+S"), () => save(true), !active),
     ...(window.MBCloud ? [item('<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/></svg>', tr("cloud.salva_nel_cloud"), "", () => window.MBCloud.saveToCloud(), !active)] : []), // ui/js/cloud.js
+    ...(WEB ? [] : [item(ICON_PRINT, tr("app.stampa"), "Ctrl+P", () => doPrint(), !active), item(ICON_PRINT, tr("app.stampa_lotti"), keysText("Ctrl+Shift+P"), () => doPrint(true))]),
     item('<svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM6 9h2M10 9h2M14 9h2M18 9h0M6 13h12"/></svg>', tr("app.scorciatoie_tastiera"), "F1", showShortcuts),
     item('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>', tr("lang.impostazioni") + " › " + tr("lang.titolo") + "...", LANG.toUpperCase(), showLanguage));
   if (!WEB) m.append(item('<svg viewBox="0 0 24 24"><path d="M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18"/></svg>', tr("app.firma_digitale"), "", () => import("./firma.js").then(f => f.signDialog({ path: active.path, openFile })), !active?.path)); // ui/js/firma.js
@@ -829,6 +839,7 @@ function showShortcuts() {
   box.append(el("hr", { style: { border: 0, borderTop: "1px solid var(--line)", margin: "12px 0 0" } }), table([
     { group: "MB Visual", keys: "Ctrl+O", desc: tr("app.apri_file_2") }, { group: "MB Visual", keys: "Ctrl+N", desc: tr("app.crea_nuovo_2") },
     { group: "MB Visual", keys: "Ctrl+S", desc: tr("common.salva") }, { group: "MB Visual", keys: "Ctrl+Shift+S", desc: tr("app.salva_nome_anche_altri_formati") },
+    { group: "MB Visual", keys: "Ctrl+P", desc: tr("app.stampa_desc") }, { group: "MB Visual", keys: "Ctrl+Shift+P", desc: tr("app.stampa_lotti_desc") },
     { group: "MB Visual", keys: "Ctrl+W", desc: tr("app.chiudi_file") }, { group: "MB Visual", keys: "Ctrl+Tab", desc: tr("app.file_successivo") }, { group: "MB Visual", keys: "F1", desc: tr("app.questo_elenco") },
   ]));
   modal(tr("app.scorciatoie_tastiera"), box);
@@ -936,6 +947,7 @@ async function boot() {
     if (e.ctrlKey && k === "o") { e.preventDefault(); doOpen(); }
     else if (e.ctrlKey && k === "n") { e.preventDefault(); doNew(); }
     else if (e.ctrlKey && k === "s") { e.preventDefault(); save(e.shiftKey); }
+    else if (e.ctrlKey && k === "p" && !WEB) { e.preventDefault(); doPrint(e.shiftKey); }
     else if (e.ctrlKey && k === "w") { e.preventDefault(); if (active) closeTab(active); }
     else if (e.ctrlKey && k === "tab" && tabs.length) { e.preventDefault(); activate(tabs[(tabs.indexOf(active) + (e.shiftKey ? -1 : 1) + tabs.length) % tabs.length]); }
     else if (e.key === "F1") { e.preventDefault(); showShortcuts(); }
@@ -944,5 +956,5 @@ async function boot() {
   renderTabs();
 }
 
-window.MB = { openPaths, openFile, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, activate, modal, askQuit };
+window.MB = { openPaths, openFile, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, activate, modal, askQuit, print: doPrint };
 const READY = boot();

@@ -625,6 +625,13 @@ export async function mount(ctx) {
   return {
     onShow() { resize(); draw(); },
     onBack() { return false; },
+    // finestra Stampa (ui/js/print.js): modifiche e layer accesi/spenti, vista attuale, limiti, clic -> coordinate
+    printSource() {
+      const H = db.header || {}, pt = v => (v ? (Array.isArray(v) ? v : [v.x, v.y]) : null);
+      const lo = pt(H.LIMMIN || H.$LIMMIN), hi = pt(H.LIMMAX || H.$LIMMAX);
+      return { kind: dxfText ? "dxf" : "dwg", edits: editor ? editor.payload() : null, canvas, toWorld,
+        view: [...toWorld(0, canvas.height), ...toWorld(canvas.width, 0)], limits: lo && hi && hi[0] > lo[0] && hi[1] > lo[1] ? [...lo, ...hi] : null };
+    },
     saveInPlace: ctx.ext === "dxf",
     saveFormats: editor ? ["dxf", "dwg", "pdf", "svg", "png"] : ["png", "svg", "pdf"],
     saveAsName: () => withExt(ctx.name, "dxf"),
