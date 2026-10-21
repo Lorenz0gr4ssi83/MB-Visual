@@ -182,7 +182,7 @@ def is_ui_text(s: str) -> bool:
     t = s.strip()
     if len(t) < 2 or not re.search(r"[A-Za-zÀ-ÿ]{2}", t):
         return False
-    if NOT_UI.match(t):
+    if NOT_UI.match(t) or re.fullmatch(r"[a-z0-9_]+(?:\.[\w-]+)+", t):  # anche chiavi di traduzione e nomi di file
         return False
     if CSS_LIKE.search(t) and not re.search(r"[a-zà-ù]{3,} [a-zà-ù]{3,}", t) and not (" " in t and any(w in IT_WORDS for w in re.findall(r"[a-zà-ù']+", t.lower()))):
         return False
@@ -209,7 +209,7 @@ def is_ui_text(s: str) -> bool:
 
 SKIP_BEFORE = re.compile(r"(===?|!==?|\bcase|\bimport|\bfrom|\brequire\(|\bin\s*$|querySelector(All)?\(|getElementById\(|"
                          r"console\.\w+\(|addEventListener\(|removeEventListener\(|classList\.\w+\(|setAttribute\(|"
-                         r"dataset\.\w+\s*=|\btr?\(|\bhas\(|\bkey\s*:|\bid\s*:|\bclass\s*:|\btype\s*:|\bkind\s*:|\bviewer\s*:|"
+                         r"dataset\.\w+\s*=|(?<![\w.$])(?:tr?|_t|tn)\(|\bhas\(|\bkey\s*:|\bid\s*:|\bclass\s*:|\btype\s*:|\bkind\s*:|\bviewer\s*:|"
                          r"\bmode\s*:|\bvalue\s*:|\bfont(Family)?\s*[:=])\s*$")
 
 
