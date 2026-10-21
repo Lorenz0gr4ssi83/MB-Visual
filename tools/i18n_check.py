@@ -5,6 +5,7 @@
   python tools/i18n_check.py --missing [prefisso] -> chiavi senza traduzione (in almeno una lingua) con il testo italiano,
                                                     in JSON: {"chiave": "testo italiano", ...}
   python tools/i18n_check.py --merge file.json   -> unisce traduzioni nel formato {"chiave": ["en", "es", "fr", "de"]}
+                                                    o, per chiavi nuove, {"chiave": ["it", "en", "es", "fr", "de"]}
                                                     (oppure {"en": {...}, "es": {...}} per lingua)
   python tools/i18n_check.py --unused            -> chiavi di it.json non piu' usate nel codice (da togliere a mano)
 
@@ -70,6 +71,9 @@ def main(argv):
                 per[c].update(data[c])
         else:
             for k, vals in data.items():
+                if isinstance(vals, list) and len(vals) == len(LANGS) + 1:  # chiave nuova: [it, en, es, fr, de]
+                    it[k] = vals[0]
+                    vals = vals[1:]
                 if k not in it:
                     print("chiave sconosciuta:", k)
                     bad += 1
@@ -82,6 +86,7 @@ def main(argv):
                     per[c][k] = v
         for c in LANGS:
             save(c, per[c])
+        save("it", it)
         print(f"{len(data)} voci unite" + (f", {bad} scartate" if bad else ""))
         return
     used = code_keys()
