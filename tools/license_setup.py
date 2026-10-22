@@ -5,6 +5,9 @@
                                             e scrive la chiave pubblica in mbvisual/license_pub.py
   python tools/license_setup.py server      prepara la copia di lavoro del server in %USERPROFILE%\\.mbvisual\\server
                                             (wrangler.toml con chiave pubblica, .dev.vars con i segreti per le prove locali)
+  python tools/license_setup.py telefono    app per telefono di MB Visual Admin: crea (una volta sola) il percorso segreto
+                                            dell'app e le chiavi VAPID delle notifiche in chiavi.json e li carica come
+                                            segreti del Worker (ADMIN_PATH, VAPID_JWK) con wrangler
 
 La chiave PRIVATA firma le attivazioni: chi la possiede puo' creare licenze valide. Resta solo sul PC del proprietario
 (e nei segreti del server). Va conservata anche una copia di sicurezza, per esempio in un gestore di password.
@@ -67,5 +70,27 @@ def server() -> None:
     print("Copia di lavoro del server pronta in", SERVER_WORK)
 
 
+def telefono() -> None:
+    import os
+    import subprocess
+    from cryptography.hazmat.primitives.asymmetric import ec
+    f = VAULT / "chiavi.json"
+    data = json.loads(f.read_text(encoding="utf-8"))
+    if not data.get("admin_path"):
+        data["admin_path"] = secrets.token_urlsafe(18)  # 24 caratteri: indirizzo non indovinabile
+    if not data.get("vapid_jwk"):
+        k = ec.generate_private_key(ec.SECP256R1())
+        n = k.private_numbers()
+        data["vapid_jwk"] = {"d": b64u(n.private_value.to_bytes(32, "big")), "x": b64u(n.public_numbers.x.to_bytes(32, "big")),
+                             "y": b64u(n.public_numbers.y.to_bytes(32, "big"))}
+    f.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    node = Path.home() / ".mbvisual" / "node-x64"  # wrangler non gira con Node per ARM64
+    env = {**os.environ, "PATH": f"{node}{os.pathsep}{os.environ.get('PATH', '')}"}
+    for name, value in (("ADMIN_PATH", data["admin_path"]), ("VAPID_JWK", json.dumps(data["vapid_jwk"]))):
+        subprocess.run([str(node / "npx.cmd"), "wrangler", "secret", "put", name], input=value.encode(), cwd=SERVER_WORK, env=env, check=True)
+    url = (VAULT / "server_url.txt").read_text().strip() if (VAULT / "server_url.txt").exists() else "<server>"
+    print("App per telefono di MB Visual Admin:", f"{url}/{data['admin_path']}/", "(indirizzo da non diffondere)")
+
+
 if __name__ == "__main__":
-    {"chiavi": keys, "server": server}[sys.argv[1] if len(sys.argv) > 1 else "chiavi"]()
+    {"chiavi": keys, "server": server, "telefono": telefono}[sys.argv[1] if len(sys.argv) > 1 else "chiavi"]()

@@ -1,7 +1,7 @@
 # Server delle licenze MB Visual su Cloudflare Workers (piano gratuito)
 # Messa online:  npx wrangler@4 deploy   (dalla copia in %USERPROFILE%\.mbvisual\server, vedi tools/license_setup.py)
 # Segreti (mai nel repository): SIGNING_KEY (chiave privata Ed25519), ADMIN_TOKEN (accesso dell'app di gestione)
-name = "mbvisual-licenze"
+name = "mbvisual"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
 
@@ -10,6 +10,10 @@ compatibility_date = "2026-09-01"
 directory = "./public"
 binding = "ASSETS"
 run_worker_first = true
+
+# controllo giornaliero delle licenze in scadenza o scadute (avvisi e notifiche)
+[triggers]
+crons = ["0 6 * * *"]
 
 [vars]
 PUBLIC_KEY = "__PUBLIC_KEY__"

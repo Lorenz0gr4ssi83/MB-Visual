@@ -59,6 +59,8 @@ def main() -> int:
         "--collect-all", "extract_msg", "--collect-all", "html2docx", "--collect-submodules", "pptx",
         "--collect-data", "pptx", "--collect-data", "docx",
         "--hidden-import", "clr", "--hidden-import", "asn1crypto", "--hidden-import", "mbvisual.pdftools", "--collect-submodules", "pypdf",
+        # firma digitale PAdES/CAdES (pyHanko, MIT) con smart card via CNG (winsign.py)
+        "--hidden-import", "mbvisual.firma", "--hidden-import", "mbvisual.winsign", "--hidden-import", "mbvisual.csc", "--hidden-import", "mbvisual.firmaponte", "--collect-submodules", "pyhanko.sign", "--collect-submodules", "pyhanko.pdf_utils", "--collect-submodules", "pyhanko.stamp", "--collect-data", "pyhanko", "--collect-submodules", "pyhanko_certvalidator", "--hidden-import", "win32crypt",
         # editor PDF (PyMuPDF) e conversione PDF -> Word
         "--hidden-import", "mbvisual.pdfedit", "--hidden-import", "mbvisual.pdfobjects", "--collect-all", "pymupdf", "--collect-submodules", "pdf2docx", "--collect-data", "pdf2docx",
         # convertitore universale (Office via automazione COM, markdown, openpyxl, fontTools)
@@ -67,8 +69,14 @@ def main() -> int:
         # editor CAD (ezdxf) e OCR con il motore di Windows (winrt)
         "--hidden-import", "mbvisual.cadedit", "--hidden-import", "mbvisual.update", "--collect-all", "ezdxf", "--exclude-module", "winrt",
         "--add-data", f"{ROOT / 'mbvisual' / 'ocr.ps1'}{sep}mbvisual",
-        # motore IA: script eseguito dal Python dedicato (ambiente e modelli in %LOCALAPPDATA%\MBVisual\ia), non dall'exe
-        "--add-data", f"{ROOT / 'ia' / 'engine.py'}{sep}ia", "--hidden-import", "mbvisual.ia",
+        # nuvole di punti: LAS/LAZ (laspy + lazrs, caricato da laspy solo al bisogno) ed E57 (pye57 con la DLL di Xerces)
+        "--hidden-import", "mbvisual.pointcloud", "--collect-submodules", "laspy", "--hidden-import", "lazrs",
+        "--collect-all", "pye57", "--hidden-import", "pyquaternion",
+        "--hidden-import", "mbvisual.search", "--hidden-import", "mbvisual.search_extract", "--hidden-import", "olefile",  # ricerca nel progetto
+        # formati aggiuntivi (mbvisual/formati.py): DICOM (pydicom + GDCM), HDF5 (h5py), Parquet/Arrow (pyarrow), Revit (olefile)
+        "--hidden-import", "mbvisual.formati", "--hidden-import", "mbvisual.fx_dicom", "--hidden-import", "mbvisual.fx_cert",
+        "--hidden-import", "mbvisual.fx_sci", "--hidden-import", "mbvisual.fx_iwork", "--hidden-import", "mbvisual.fx_revit",
+        "--collect-submodules", "pydicom", "--collect-all", "gdcm", "--collect-submodules", "h5py", "--collect-submodules", "pyarrow", "--hidden-import", "olefile",
         "--exclude-module", "tkinter", "--exclude-module", "matplotlib",
         # moduli opzionali di PyMuPDF non usati (onnxruntime va in crash durante l analisi su Windows ARM)
         "--exclude-module", "onnxruntime", "--exclude-module", "pymupdf4llm", "--exclude-module", "pymupdf.layout", "--exclude-module", "pymupdf_layout",

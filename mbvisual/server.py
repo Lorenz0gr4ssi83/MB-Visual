@@ -13,14 +13,16 @@ from http.server import BaseHTTPRequestHandler, SimpleHTTPRequestHandler, Thread
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import archive, jobs, media, misc, office, signed
+from . import archive, i18n, jobs, media, misc, office, signed
+from .i18n import t
 from .paths import NO_WINDOW, TEMP_DIR, UI_DIR, find_navisworks, find_nwd2mbv, find_office, find_onlyoffice, find_trueview, open_default, open_with, reveal, tools_status
 
 TOKEN = secrets.token_urlsafe(24)
-COOKIE = "mbv"
+COOKIE = "mbv"  # + porta: ogni copia aperta di MB Visual ha il suo (il cookie di 127.0.0.1 vale per tutte le porte)
 mimetypes.add_type("application/wasm", ".wasm")
 mimetypes.add_type("text/javascript", ".mjs")
 mimetypes.add_type("application/json", ".json")
+mimetypes.add_type("font/woff2", ".woff2")  # caratteri dell'interfaccia (ui/fonts)
 
 
 def _q(qs, name, default=None):
@@ -52,7 +54,7 @@ class Handler(BaseHTTPRequestHandler):
     # ------------------------------------------------------------ helpers
     def _authorized(self, qs) -> bool:
         cookie = self.headers.get("Cookie", "")
-        if f"{COOKIE}={TOKEN}" in cookie:
+        if f"{COOKIE}{self.server.server_address[1]}={TOKEN}" in cookie:
             return True
         return _q(qs, "t") == TOKEN
 
@@ -80,12 +82,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def _serve_file(self, path: Path, ctype=None):
         if not path.is_file():
-            return self._json({"ok": False, "errore": "File non trovato"}, 404)
+            return self._json({"ok": False, "errore": t("srv_server.file_non_trovato")}, 404)
         # il file si apre prima di rispondere: se non e' leggibile (es. download da OneDrive annullato) arriva un errore chiaro
         try:
             f = open(path, "rb")
         except OSError as e:
-            return self._json({"ok": False, "errore": f"File non leggibile: {e.strerror or e}"}, 409)
+            return self._json({"ok": False, "errore": t("srv_server.file_non_leggibile_0", e.strerror or e)}, 409)
         with f:
             self._send_file(f, path, ctype)
 
@@ -144,19 +146,22 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         qs = parse_qs(u.query)
         route = u.path
+        # lingua dell'interfaccia: vale per i messaggi di questa richiesta e dei lavori che avvia (mbvisual/i18n.py)
+        i18n.set_language(self.headers.get("X-MBV-Lang"))
         try:
             if not route.startswith("/api/"):
                 return self._static(route, qs)
             if not self._authorized(qs):
-                return self._json({"ok": False, "errore": "non autorizzato"}, 403)
+                self.close_connection = True  # corpo della POST non letto: la connessione non si riusa (prima la richiesta dopo dava 501)
+                return self._json({"ok": False, "errore": t("srv_server.non_autorizzato")}, 403)
             fn = getattr(self, "api_" + route[5:].replace("/", "_").replace("-", "_"), None)
             if fn is None:
-                return self._json({"ok": False, "errore": "API sconosciuta"}, 404)
+                return self._json({"ok": False, "errore": t("srv_server.api_sconosciuta")}, 404)
             # licenza: senza attivazione valida rispondono solo licenza e aggiornamenti (mbvisual/license.py)
             if not route.startswith(("/api/license", "/api/update", "/api/job")):
                 from . import license as lic
                 if lic.required() and not lic.status().get("attiva"):
-                    return self._json({"ok": False, "errore": "Licenza non attiva", "licenza": True}, 402)
+                    return self._json({"ok": False, "errore": t("srv_server.licenza_non_attiva"), "licenza": True}, 402)
             fn(qs)
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
@@ -169,7 +174,7 @@ class Handler(BaseHTTPRequestHandler):
         extra = {}
         if route in ("/", "/index.html"):
             if _q(qs, "t") == TOKEN:
-                extra["Set-Cookie"] = f"{COOKIE}={TOKEN}; Path=/; SameSite=Strict; HttpOnly"
+                extra["Set-Cookie"] = f"{COOKIE}{self.server.server_address[1]}={TOKEN}; Path=/; SameSite=Strict; HttpOnly"
             elif not self._authorized(qs):
                 return self._send(403, b"Accesso negato", "text/plain")
             route = "/index.html"
@@ -181,6 +186,23 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, data, "text/html; charset=utf-8", extra)
         self._serve_file(p)
 
+    # ------------------------------------------------------------ API: finestre Apri/Salva/Cartella di Windows (mbvisual/windialog.py)
+    # per quando l'app gira nel ripiego in Edge, senza la finestra nativa di pywebview
+    def api_dialog(self, qs):
+        from . import windialog
+        kind = _q(qs, "kind", "open")
+        if kind == "save":
+            res = windialog.save_as(_q(qs, "suggested", ""), _q(qs, "dir", ""))
+        elif kind == "folder":
+            res = windialog.choose_folder()
+        else:
+            res = windialog.open_files(_q(qs, "multiple", "1") != "0")
+        self._json({"ok": True, "result": res})
+
+    # ------------------------------------------------------------ API: lingua (ui/js/i18n.js)
+    def api_lang(self, qs):
+        self._json({"ok": True, "windows": i18n.windows_language(), "lingua": i18n.language()})
+
     # ------------------------------------------------------------ API: aggiornamento automatico (mbvisual/update.py)
     # ------------------------------------------------------------ API: licenza (mbvisual/license.py)
     def api_license_status(self, qs):
@@ -191,6 +213,10 @@ class Handler(BaseHTTPRequestHandler):
         from . import license as lic
         self._json(lic.activate(str(self._body_json().get("key", ""))))
 
+    def api_license_mobile(self, qs):
+        from . import license as lic
+        self._json(lic.mobile_link())
+
     def api_license_account(self, qs):
         from . import license as lic
         self._json(lic.account())
@@ -200,27 +226,11 @@ class Handler(BaseHTTPRequestHandler):
         b = self._body_json()
         self._json(lic.request(b.get("type", "report"), str(b.get("message", "")), str(b.get("key", ""))))
 
-    # ------------------------------------------------------------ API: motore IA (mbvisual/ia.py -> ia/engine.py)
-    def api_ia_status(self, qs):
-        from . import ia
-        self._json(ia.status())
-
-    def api_ia_put(self, qs):
-        from . import ia
-        self._json({"ok": True, "path": ia.put(self._body())})
-
-    def api_ia_cancel(self, qs):
-        from . import ia
-        ia.cancel(_q(qs, "id", ""))
-        self._json({"ok": True})
-
-    def api_ia_run(self, qs):
-        from . import ia
-        b = self._body_json()
-        for k in ("image", "mask"):  # solo file passati dall'app (cartella temporanea dell'IA)
-            if b.get(k) and not str(Path(b[k]).resolve()).startswith(str(ia.OUT.resolve())):
-                raise ValueError("Percorso non consentito")
-        self._json({"ok": True, "job": jobs.start(ia.run, b)})
+    # ------------------------------------------------------------ API: archivi cloud (mbvisual/cloud.py, ui/js/cloud.js)
+    def api_cloud(self, qs):
+        from . import cloud
+        b = self._body_json() if self.command == "POST" else {}
+        self._json(cloud.handle(_q(qs, "op", ""), {k: v[0] for k, v in qs.items()}, b))
 
     def api_update_check(self, qs):
         from . import update
@@ -232,7 +242,21 @@ class Handler(BaseHTTPRequestHandler):
 
     def api_update_install(self, qs):
         from . import update
-        self._json({"ok": True, "job": jobs.start(update.install)})
+        self._json({"ok": True, "job": jobs.start(update.install, integrazione=_q(qs, "integrazione") == "1")})
+
+    # ------------------------------------------------------------ API: integrazione con Esplora risorse (mbvisual/shellint.py)
+    def api_shell_status(self, qs):
+        from . import shellint
+        self._json(shellint.status())
+
+    def api_shell_set(self, qs):
+        from . import shellint
+        b = self._body_json()
+        if b.get("pulisci_cache"):
+            return self._json(shellint.clear_cache())
+        if not b.get("attiva"):
+            return self._json({"ok": True, "job": jobs.start(lambda update: shellint.disable())})
+        self._json({"ok": True, "job": jobs.start(lambda update: shellint.enable(anteprime=b.get("anteprime", True), libere=b.get("libere", True), update=update))})
 
     def api_update_source(self, qs):
         from . import update
@@ -242,7 +266,7 @@ class Handler(BaseHTTPRequestHandler):
     def _path(self, qs) -> str:
         p = _q(qs, "path")
         if not p:
-            raise ValueError("percorso mancante")
+            raise ValueError(t("srv_server.percorso_mancante"))
         return os.path.abspath(p)
 
     def api_file(self, qs):
@@ -262,8 +286,42 @@ class Handler(BaseHTTPRequestHandler):
                 with open(p, "rb") as f:
                     f.read(1)
             except OSError:
-                return self._json({"ok": False, "errore": "Download da OneDrive annullato o non riuscito: il file non e' stato aperto."}, 409)
+                return self._json({"ok": False, "errore": t("srv_server.download_onedrive_annullato_non_riuscito")}, 409)
         self._json({**base, "sniff": misc.sniff(str(p))})
+
+    # ------------------------------------------------------------ ricerca nel progetto (mbvisual/search.py, ui/js/search.js)
+    def api_search_status(self, qs):
+        from . import search
+        self._json(search.status(self._path(qs)))
+
+    def api_search_update(self, qs):
+        from . import search
+        self._json(search.update(self._path(qs)))
+
+    def api_search_query(self, qs):
+        from . import search
+        b = self._body_json()
+        self._json(search.search(self._path(qs), b.get("q", ""), b.get("kind", ""), b.get("sub", ""), b.get("from"), b.get("to")))
+
+    def api_search_folders(self, qs):
+        from . import search
+        self._json(search.folders(self._path(qs)))
+
+    def api_search_files(self, qs):
+        from . import search
+        self._json(search.files_in_state(self._path(qs), _q(qs, "state", "nuvola")))
+
+    def api_search_rebuild(self, qs):
+        from . import search
+        self._json(search.rebuild(self._path(qs)))
+
+    def api_search_dwg_pending(self, qs):
+        from . import search
+        self._json(search.dwg_pending(self._path(qs)))
+
+    def api_search_dwg_put(self, qs):
+        from . import search
+        self._json(search.dwg_put(self._path(qs), self._body_json()))
 
     # ------------------------------------------------------------ disegni CAD modificati
     def api_cad_save(self, qs):
@@ -281,6 +339,11 @@ class Handler(BaseHTTPRequestHandler):
         out = self._body_json()["out"]
         self._json({"ok": True, "job": jobs.start(convert.convert, self._path(qs), out)})
 
+    def api_batch(self, qs):
+        # conversione a lotti (mbvisual/batch.py): scan, start, status, cancel, list, take/client (compiti della pagina)
+        from . import batch
+        self._json(batch.handle(_q(qs, "op", ""), self._body_json(), lambda k: _q(qs, k)))
+
     def api_temp_path(self, qs):
         # percorso temporaneo per salvare lo stato attuale di un documento prima di convertirlo
         d = TEMP_DIR / "conversioni" / uuid.uuid4().hex[:8]
@@ -293,7 +356,7 @@ class Handler(BaseHTTPRequestHandler):
         p = self._path(qs)
         exe = find_nwd2mbv()
         if not exe:
-            raise RuntimeError("Il lettore Navisworks non e' incluso in questa installazione")
+            raise RuntimeError(t("srv_server.lettore_navisworks_non_incluso_questa"))
         st = os.stat(p)
         # nella chiave anche la data del lettore: un lettore aggiornato rifa' la conversione
         key = hashlib.sha1(f"{p}|{st.st_size}|{st.st_mtime}|{os.path.getmtime(exe)}".encode()).hexdigest()[:16]
@@ -304,8 +367,55 @@ class Handler(BaseHTTPRequestHandler):
             r = subprocess.run([exe, p, str(prefix)], capture_output=True, timeout=1800, creationflags=NO_WINDOW)
             if r.returncode != 0 or not prefix.with_suffix(".json").exists():
                 msg = (r.stderr or r.stdout).decode("utf-8", "replace").strip()[-400:]
-                raise RuntimeError("Lettura del file Navisworks non riuscita: " + (msg or f"codice {r.returncode}"))
+                raise RuntimeError(t("srv_server.lettura_file_navisworks_non_riuscita") + (msg or f"codice {r.returncode}"))
         self._json({"ok": True, "json": str(prefix.with_suffix(".json")), "bin": str(prefix.with_suffix(".bin"))})
+
+    # ------------------------------------------------------------ nuvole di punti (mbvisual/pointcloud.py)
+    def api_pc_open(self, qs):
+        from . import pointcloud
+        self._json({"ok": True, "job": jobs.start(pointcloud.open_cloud, self._path(qs))})
+
+    def api_pc_data(self, qs):
+        from . import pointcloud
+        self._send(200, pointcloud.node_data(_q(qs, "key", ""), int(_q(qs, "start", "0")), int(_q(qs, "count", "0"))),
+                   "application/octet-stream")
+
+    def api_pc_export(self, qs):
+        from . import pointcloud
+        b = self._body_json()
+        self._json({"ok": True, "job": jobs.start(pointcloud.export, self._path(qs), b["out"], b.get("clip"))})
+
+    def api_model_cache(self, qs):
+        # cache delle conversioni 3D fatte nell'interfaccia (JT, U3D): mbvisual/model3dcache.py
+        from . import model3dcache
+        p, kind, ver = self._path(qs), _q(qs, "kind", ""), _q(qs, "ver", "")
+        if self.command == "POST":
+            self._json(model3dcache.put(p, kind, ver, _q(qs, "part", ""), self._body()))
+        else:
+            self._json(model3dcache.get(p, kind, ver))
+
+    def api_pdf3d(self, qs):
+        # modelli U3D / PRC contenuti nelle annotazioni 3D di un PDF: mbvisual/pdf3d.py
+        from . import pdf3d
+        self._json(pdf3d.extract(self._path(qs)))
+
+    def api_solid_info(self, qs):
+        # SolidWorks / Solid Edge / Parasolid senza i programmi originali: anteprima, proprieta', componenti
+        from . import solidcad
+        self._json({"ok": True, **solidcad.info(self._path(qs))})
+
+    def api_solid_step(self, qs):
+        # geometria Parasolid del file convertita in STEP (lavoro con avanzamento, risultato in cache)
+        from . import solidcad
+        cfg = _q(qs, "config")
+        self._json({"ok": True, "job": jobs.start(solidcad.to_step, self._path(qs), int(cfg) if cfg not in (None, "") else None)})
+
+    def api_inventor(self, qs):
+        # Inventor senza Inventor: parti convertite in STEP (cache in TEMP_DIR/inventor), assiemi descritti
+        # con occorrenze e matrici; lavoro in background perche' un assieme grande richiede tempo
+        from . import inventor
+        p = self._path(qs)
+        self._json({"ok": True, "job": jobs.start(inventor.convert, p, str(TEMP_DIR / "inventor"))})
 
     def api_onlyoffice(self, qs):
         self._json({"ok": True, "url": onlyoffice_url()})
@@ -392,7 +502,7 @@ class Handler(BaseHTTPRequestHandler):
         exe = {"navisworks": find_navisworks, "trueview": find_trueview, "excel": lambda: find_office("excel.exe"),
                "word": lambda: find_office("winword.exe"), "powerpoint": lambda: find_office("powerpnt.exe")}.get(app, lambda: None)()
         if app and not exe:
-            return self._json({"ok": False, "errore": "Programma non installato su questo computer"})
+            return self._json({"ok": False, "errore": t("srv_server.programma_non_installato_questo_pc")})
         if exe:
             open_with(exe, p)
         else:
@@ -401,7 +511,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def api_job(self, qs):
         j = jobs.get(_q(qs, "id", ""))
-        self._json({"ok": j is not None, **(j or {"errore": "lavoro sconosciuto"})})
+        self._json({"ok": j is not None, **(j or {"errore": t("srv_server.lavoro_sconosciuto")})})
 
     # ------------------------------------------------------------ testo
     def api_text(self, qs):
@@ -502,7 +612,7 @@ class Handler(BaseHTTPRequestHandler):
         elif op == "unlock":
             r = pdfedit.unlock(p, b["out"], b.get("password", ""))
         elif op == "numbers":
-            r = pdfedit.page_numbers(p, b["out"], b.get("format", "Pagina {n} di {tot}"), b.get("pos", "basso-destra"), int(b.get("start", 1)))
+            r = pdfedit.page_numbers(p, b["out"], b.get("format", t("srv_server.pagina_n_tot")), b.get("pos", "basso-destra"), int(b.get("start", 1)))
         elif op == "word":
             r = pdfedit.to_word(p, b["out"])
         elif op == "images":
@@ -512,7 +622,7 @@ class Handler(BaseHTTPRequestHandler):
         elif op == "reorder":
             r = pdfedit.reorder(p, b["out"], b["order"])
         else:
-            raise ValueError("operazione sconosciuta")
+            raise ValueError(t("srv_server.operazione_sconosciuta"))
         self._json(r)
 
     # ------------------------------------------------------------ editor PDF (copia di lavoro modificabile)
@@ -528,8 +638,22 @@ class Handler(BaseHTTPRequestHandler):
         from . import pdfobjects
         p = self._path(qs)
         if not str(Path(p).resolve()).startswith(str((TEMP_DIR / "pdf-modifica").resolve())):
-            raise ValueError("Le modifiche si applicano solo alla copia di lavoro")
+            raise ValueError(t("srv_server.modifiche_si_applicano_solo_copia"))
         self._json(pdfobjects.apply_ops(p, self._body_json().get("ops", [])))
+
+    def api_pdf_annots(self, qs):
+        from . import pdfobjects
+        self._json(pdfobjects.annots_list(self._path(qs)))
+
+    def api_pdf_hit(self, qs):
+        from . import pdfobjects
+        b = self._body_json()
+        self._json(pdfobjects.paths_hit(self._path(qs), int(b.get("page", 0)), b.get("point"), b.get("box"), float(b.get("tol", 3))))
+
+    def api_pdf_image_export(self, qs):
+        from . import pdfobjects
+        b = self._body_json()
+        self._json(pdfobjects.image_export(self._path(qs), int(b.get("page", 0)), int(b.get("xref") or 0), b.get("box"), b["out"]))
 
     def api_pdf_lines(self, qs):
         from . import pdfedit
@@ -539,11 +663,62 @@ class Handler(BaseHTTPRequestHandler):
         from . import pdfedit
         p = self._path(qs)
         if not str(Path(p).resolve()).startswith(str((TEMP_DIR / "pdf-modifica").resolve())):
-            raise ValueError("Le modifiche si applicano solo alla copia di lavoro")
+            raise ValueError(t("srv_server.modifiche_si_applicano_solo_copia"))
         self._json(pdfedit.apply_edits(p, self._body_json().get("edits", [])))
 
     def api_pdf_signatures(self, qs):
         self._json(signed.pdf_signatures(self._path(qs)))
+
+    def api_firma(self, qs):
+        # firma digitale (mbvisual/firma.py, ui/js/firma.js): certificati, impostazioni, anteprima; firma = lavoro in background
+        from . import firma
+        op, b = _q(qs, "op"), self._body_json()
+        if op in ("pades", "cades"):
+            fn = firma.sign_pdf if op == "pades" else firma.sign_cades
+            return self._json({"ok": True, "job": jobs.start(fn, b["path"], b["out"], b)})
+        self._json(firma.run(op, b))
+
+    # ------------------------------------------------------------ stampa (mbvisual/stampa.py)
+    def api_print_printers(self, qs):
+        from . import stampa
+        self._json(stampa.printers())
+
+    def api_print_printer(self, qs):
+        from . import stampa
+        self._json(stampa.printer_info(_q(qs, "name", "")))
+
+    def api_print_dialog(self, qs):
+        from . import stampa
+        b = self._body_json()
+        self._json(stampa.printer_dialog(b["name"], b.get("devmode")))
+
+    def api_print_prepare(self, qs):
+        from . import stampa
+        self._json({"ok": True, "job": jobs.start(stampa.prepare, self._body_json()["sources"])})
+
+    def api_print_compose(self, qs):
+        from . import stampa
+        b = self._body_json()
+        self._json({"ok": True, "job": jobs.start(stampa.compose, b["sid"], b["settings"])})
+
+    def api_print_preview(self, qs):
+        from . import stampa
+        png = stampa.preview_png(_q(qs, "cid", ""), int(_q(qs, "page", "0")), float(_q(qs, "dpi", "60")))
+        self._send(200, png, "image/png", {"Cache-Control": "no-store"})
+
+    def api_print_run(self, qs):
+        from . import stampa
+        b = self._body_json()
+        self._json({"ok": True, "job": jobs.start(stampa.run, b["cid"], b.get("extra") or {})})
+
+    def api_print_scan(self, qs):
+        from . import stampa
+        b = self._body_json()
+        self._json(stampa.scan(b["folder"], b.get("exts"), bool(b.get("sub"))))
+
+    def api_print_ctb(self, qs):
+        from . import stampa
+        self._json(stampa.ctb_files())
 
     # ------------------------------------------------------------ pubblicazioni (editor in stile Publisher)
     def api_pub_pdf(self, qs):
@@ -553,6 +728,19 @@ class Handler(BaseHTTPRequestHandler):
     def api_pub_import(self, qs):
         from . import publisher
         self._json({"ok": True, "job": jobs.start(publisher.import_pub, self._path(qs))})
+
+    # ------------------------------------------------------------ diagrammi di Visio (ui/js/vsdedit.js)
+    def api_visio_metafile(self, qs):
+        from . import visio
+        self._send(200, visio.metafile_png(self._body()), "image/png")
+
+    def api_visio_pdf(self, qs):
+        from . import visio
+        self._json(visio.export_pdf(self._body(), self._path(qs)))
+
+    def api_visio_vsd(self, qs):
+        from . import visio
+        self._json({"ok": True, "job": jobs.start(visio.open_vsd, self._path(qs))})
 
     # ------------------------------------------------------------ archivi
     def api_archive_list(self, qs):
@@ -591,6 +779,15 @@ class Handler(BaseHTTPRequestHandler):
         b = self._body_json()
         self._json(office.save_docx_from_html(b["html"], self._path(qs), b.get("title", "")))
 
+    # ------------------------------------------------------------ formati aggiuntivi (DICOM, certificati, dati scientifici, iWork, Revit): mbvisual/formati.py
+    def api_fx(self, qs):
+        from . import formati
+        r = formati.handle(_q(qs, "op", ""), self._path(qs) if _q(qs, "path") else None, qs, self._body())
+        if isinstance(r, tuple):
+            data, hdr = r
+            return self._send(200, data, hdr.pop("Content-Type", "application/octet-stream"), {**hdr, "Access-Control-Expose-Headers": "*"})
+        self._json(r)
+
     # ------------------------------------------------------------ email / sqlite
     def api_email(self, qs):
         self._json(misc.read_email(self._path(qs)))
@@ -601,6 +798,12 @@ class Handler(BaseHTTPRequestHandler):
     def api_sqlite_query(self, qs):
         b = self._body_json()
         self._json(misc.sqlite_query(self._path(qs), b["sql"], b.get("params"), int(b.get("limit", 1000)), bool(b.get("write"))))
+
+    # ------------------------------------------------------------ GIS: tessere degli sfondi cartografici (mbvisual/gis.py)
+    def api_gis_tile(self, qs):
+        from . import gis
+        code, body, tipo = gis.fetch(qs)
+        self._send(code, body, tipo)
 
 
 # ---------------------------------------------------------------- ONLYOFFICE (editor Word/Excel/PowerPoint integrato)
@@ -674,7 +877,7 @@ edits=0;try{e.setDocumentModified?e.setDocumentModified(false):e.asc_setDocument
 def onlyoffice_url() -> str:
     d = find_onlyoffice()
     if not d:
-        raise RuntimeError("L'editor ONLYOFFICE non e' incluso in questa installazione")
+        raise RuntimeError(t("srv_server.l_editor_onlyoffice_non_incluso"))
     with _OO["lock"]:
         if not _OO["port"]:
             srv = ThreadingHTTPServer(("127.0.0.1", 0), partial(OOHandler, directory=str(d)))

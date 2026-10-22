@@ -23,6 +23,7 @@ import threading
 from pathlib import Path
 
 from .paths import APP_DIR, DATA_DIR, IS_MAC, IS_WIN, NO_WINDOW, RES_DIR
+from .i18n import t
 
 FROZEN = bool(getattr(sys, "frozen", False))
 REL = Path("ai-engineering-workspace") / "MB Visual" / "App per PC"
@@ -57,7 +58,7 @@ def _settings() -> dict:
 def set_source(folder: str) -> dict:
     p = Path(folder)
     if not (p / "versione.json").is_file():
-        raise ValueError("In questa cartella non c'e' una versione pubblicata di MB Visual (manca versione.json)")
+        raise ValueError(t("srv_update.questa_cartella_non_c_versione"))
     SETTINGS.parent.mkdir(parents=True, exist_ok=True)
     SETTINGS.write_text(json.dumps({**_settings(), "fonte": str(p)}), encoding="utf-8")
     return check()
@@ -212,12 +213,12 @@ def _copy_app(src: Path, dst: Path, update=None) -> None:
                     break
                 except OSError as e:
                     if attempt == 2:
-                        raise OSError(f"Copia non riuscita di {rel}: {e}") from e
+                        raise OSError(t("srv_update.copia_non_riuscita_0_1", rel, e)) from e
                     import time
                     time.sleep(1.5)
         done += st.st_size
         if update and (k % 25 == 0 or k == len(files) - 1):
-            update(0.97 * done / total, f"Copia dei file: {done / 1048576:.0f} di {total / 1048576:.0f} MB")
+            update(0.97 * done / total, t("srv_update.copia_file_0_1_mb", f"{done / 1048576:.0f}", f"{total / 1048576:.0f}"))
     for dp, _dn, fn in os.walk(dst / "_internal", topdown=False):
         for n in fn:
             rel = (Path(dp) / n).relative_to(dst).as_posix()
@@ -326,6 +327,31 @@ def _github_latest():
             "url": asset["browser_download_url"], "byte": asset.get("size", 0), "note": rel.get("body", "")}
 
 
+def _relaunch_lines(exe, log) -> list:
+    """Righe finali dello script di aggiornamento: riavvio dell'app con registro dei passi. Prima "start", poi, se dopo
+    20 s MB Visual non e' partita, un secondo tentativo tramite Esplora risorse (processo del desktop, fuori da ogni
+    gruppo di processi o job dell'app vecchia)."""
+    name = os.path.basename(str(exe))
+    return [
+        f'echo %date% %time% riavvio di "{exe}" >> "{log}"',
+        f'start "" "{exe}"',
+        r'"%SystemRoot%\System32\ping.exe" -n 21 127.0.0.1 >nul',
+        rf'"%SystemRoot%\System32\tasklist.exe" /FI "IMAGENAME eq {name}" 2>nul | "%SystemRoot%\System32\find.exe" /I "{name}" >nul '
+        rf'|| (echo %date% %time% secondo tentativo con Esplora >> "{log}" & "%SystemRoot%\explorer.exe" "{exe}")',
+    ]
+
+
+def _run_detached(cmd) -> None:
+    """Script di aggiornamento staccato dall'app (che si chiude): senza finestra, nuovo gruppo di processi e, se il
+    job dell'app lo consente, fuori dal job (altrimenti chiudendo l'app Windows chiuderebbe anche lo script)."""
+    base = 0x00000200 | 0x08000000  # CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
+    kw = dict(close_fds=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        subprocess.Popen(["cmd", "/c", str(cmd)], creationflags=base | 0x01000000, **kw)  # CREATE_BREAKAWAY_FROM_JOB
+    except OSError:
+        subprocess.Popen(["cmd", "/c", str(cmd)], creationflags=base, **kw)
+
+
 def _download(rel: dict, setup: Path, update=None) -> None:
     import urllib.request
     STAGING.mkdir(parents=True, exist_ok=True)
@@ -339,9 +365,9 @@ def _download(rel: dict, setup: Path, update=None) -> None:
             f.write(chunk)
             done += len(chunk)
             if update:
-                update(0.95 * done / total, f"Scaricamento: {done / 1048576:.0f} di {total / 1048576:.0f} MB")
+                update(0.95 * done / total, t("srv_update.scaricamento_mb", f"{done / 1048576:.0f}", f"{total / 1048576:.0f}"))
     if rel.get("byte") and setup.stat().st_size != rel["byte"]:
-        raise ValueError("Scaricamento incompleto: riprova")
+        raise ValueError(t("srv_update.scaricamento_incompleto_riprova"))
 
 
 def _apply_github(rel: dict, update=None) -> dict:
@@ -349,11 +375,11 @@ def _apply_github(rel: dict, update=None) -> dict:
     if IS_MAC:
         return _apply_github_mac(rel, update)
     if not IS_WIN:
-        raise ValueError("Aggiornamento automatico non disponibile su questo sistema")
+        raise ValueError(t("srv_update.non_disponibile_su_questo_sistema"))
     setup = STAGING / f"MBVisual-Setup-{rel['versione']}.exe"
     _download(rel, setup, update)
     if update:
-        update(0.97, "Installazione della nuova versione")
+        update(0.97, t("srv_update.installazione_nuova_versione"))
     exe = INSTALL_DIR / "MBVisual.exe"
     cmd = Path(tempfile.gettempdir()) / "MBVisual-aggiorna.cmd"
     pid = os.getpid()
@@ -362,10 +388,9 @@ def _apply_github(rel: dict, update=None) -> dict:
         ":attesa",
         rf'"%SystemRoot%\System32\tasklist.exe" /FI "PID eq {pid}" 2>nul | "%SystemRoot%\System32\find.exe" "{pid}" >nul && ("%SystemRoot%\System32\ping.exe" -n 2 127.0.0.1 >nul & goto attesa)',
         f'"{setup}" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /LOG="{LOG}"',
-        f'start "" "{exe}"',
+        *_relaunch_lines(exe, str(LOG)),
     ]) + "\r\n", encoding="utf-8", newline="")
-    subprocess.Popen(["cmd", "/c", str(cmd)], creationflags=0x00000200 | 0x08000000, close_fds=True,
-                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    _run_detached(cmd)
     threading.Timer(1.0, lambda: os._exit(0)).start()
     return {"ok": True, "versione": rel["versione"]}
 
@@ -447,8 +472,8 @@ def apply(update=None) -> dict:
     nella cartella dell'app appena questa si chiude e la riavvia."""
     r = check()
     if r["stato"] != "nuova":
-        raise ValueError({"sincronizzazione": "OneDrive sta ancora scaricando la nuova versione: riprova tra qualche minuto",
-                          "aggiornato": "Hai gia' l'ultima versione"}.get(r["stato"], "Nessun aggiornamento disponibile"))
+        raise ValueError({"sincronizzazione": t("srv_update.onedrive_sta_ancora_scaricando_nuova"),
+                          "aggiornato": t("srv_update.hai_gia_l_ultima_versione")}.get(r["stato"], t("srv_update.nessun_aggiornamento_disponibile")))
     if r.get("github"):
         _log(f"aggiornamento da GitHub {r['attuale']} -> {r['github']['versione']}")
         return _apply_github(r["github"], update)
@@ -456,13 +481,13 @@ def apply(update=None) -> dict:
         raise ValueError("Nessun aggiornamento disponibile")
     src = Path(r["fonte"])
     if _same(src, APP_DIR):
-        raise ValueError("L'app e' avviata dalla cartella di OneDrive: si aggiorna con la sincronizzazione")
+        raise ValueError(t("srv_update.l_app_avviata_cartella_onedrive"))
     if not ((APP_DIR / "_internal").is_dir() and (APP_DIR / "MBVisual.exe").is_file()):
-        raise ValueError("Cartella dell'app non riconosciuta: aggiornamento annullato per sicurezza")
+        raise ValueError(t("srv_update.cartella_dell_app_non_riconosciuta"))
     _log(f"aggiornamento {r['attuale']} -> {r['disponibile']} da {src}")
     _copy_app(src, STAGING, update)
     if update:
-        update(0.98, "Riavvio di MB Visual")
+        update(0.98, t("srv_update.riavvio_mb_visual"))
     # .cmd e robocopy: niente PowerShell (puo' essere bloccato dai criteri aziendali); file gia' tutti in locale
     log = str(LOG)
     cmd = Path(tempfile.gettempdir()) / "MBVisual-aggiorna.cmd"
@@ -473,41 +498,47 @@ def apply(update=None) -> dict:
         rf'"%SystemRoot%\System32\tasklist.exe" /FI "PID eq {pid}" 2>nul | "%SystemRoot%\System32\find.exe" "{pid}" >nul && ("%SystemRoot%\System32\ping.exe" -n 2 127.0.0.1 >nul & goto attesa)',
         f'robocopy "{STAGING / "_internal"}" "{APP_DIR / "_internal"}" /MIR /R:5 /W:2 /NP /NFL /NDL >> "{log}"',
         f'robocopy "{STAGING}" "{APP_DIR}" MBVisual.exe LEGGIMI.txt /R:90 /W:2 /NP /NFL /NDL >> "{log}"',
-        f'start "" "{APP_DIR / "MBVisual.exe"}"',
+        *_relaunch_lines(APP_DIR / "MBVisual.exe", log),
     ]) + "\r\n", encoding="utf-8", newline="")
-    flags = 0x00000200 | 0x08000000  # CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
-    subprocess.Popen(["cmd", "/c", str(cmd)], creationflags=flags, close_fds=True)
+    _run_detached(cmd)
     threading.Timer(1.0, lambda: os._exit(0)).start()
     return {"ok": True, "versione": r["disponibile"]}
 
 
-def install(update=None) -> dict:
+def install(update=None, integrazione=False) -> dict:
     """Installa l'app su questo PC (%LOCALAPPDATA%/Programs/MB Visual + collegamenti su Desktop e menu Start),
     con avanzamento visibile, e la riavvia da li'."""
     if not FROZEN:
-        raise ValueError("Disponibile solo nell'app per PC")
+        raise ValueError(t("srv_update.disponibile_solo_nell_app_pc"))
     if IS_MAC:
         return _install_mac(update)
     if not IS_WIN:
-        raise ValueError("Installazione non disponibile su questo sistema")
+        raise ValueError(t("srv_update.non_disponibile_su_questo_sistema"))
     r = check()
     if r["stato"] == "sincronizzazione":
-        raise ValueError("OneDrive sta ancora scaricando la nuova versione: riprova tra qualche minuto")
+        raise ValueError(t("srv_update.onedrive_sta_ancora_scaricando_nuova"))
     src = Path(r["fonte"]) if r.get("fonte") and r["stato"] in ("nuova", "aggiornato") else APP_DIR
     if not (src / "_internal").is_dir():
         src = APP_DIR
     if _same(src, INSTALL_DIR):
-        raise ValueError("L'app e' gia' installata su questo PC")
+        raise ValueError(t("srv_update.l_app_gia_installata_questo"))
     _log(f"installazione da {src} in {INSTALL_DIR}")
     try:
         _copy_app(src, INSTALL_DIR, update)
         if update:
-            update(0.98, "Collegamenti sul Desktop e nel menu Start")
+            update(0.98, t("srv_update.collegamenti_desktop_menu_start"))
         exe = INSTALL_DIR / "MBVisual.exe"
         try:
             _shortcuts(exe)
         except Exception as e:  # noqa: BLE001
             _log(f"collegamenti non creati: {e}")
+        if integrazione:  # miniature, anteprime e "Apri con" in Esplora (mbvisual/shellint.py) con l'exe installato
+            if update:
+                update(0.99, t("srv_update.integrazione_esplora"))
+            try:
+                subprocess.run([str(exe), "--integrazione", "attiva"], timeout=300, creationflags=0x08000000)
+            except Exception as e:  # noqa: BLE001
+                _log(f"integrazione con Esplora non attivata: {e}")
         _restart(exe)
     except Exception as e:
         _log(f"installazione non riuscita: {e}")

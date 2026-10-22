@@ -3,6 +3,7 @@ import { api, button, el, loading, readBytes, saveBlobAs, toast, withExt, WEB } 
 import { createCadEditor } from "../cadedit.js";
 import { parseDxf } from "../dxf.js";
 import { I, TAU, R2D, mul, ap, apv, det, similar, arcPts, sweepPts, bulgeArc, bulgePts, splinePts, textLayout, patternDefLines, hatchSegments, dimGeom, dimTextEntity, osnap, drawSnapMarker } from "../cadgeom.js";
+import { t as tr, LOCALE } from "../i18n.js";
 
 
 // ---------------------------------------------------------------- colori ACI
@@ -196,6 +197,7 @@ function build(db) {
               for (let i = 1; i < v.length; i++) bulgePts(v[i - 1], v[i], v[i - 1].bulge, pts);
               bulgePts(v[v.length - 1], v[0], v[v.length - 1].bulge || 0, pts);
             } else for (const ed of path.edges || []) {
+              if (!ed) continue; // DWG reali: bordi vuoti nei contorni dei retini (libredwg)
               if (ed.type === 1) pts.push([ed.start.x, ed.start.y], [ed.end.x, ed.end.y]);
               else if (ed.type === 2) pts.push(...arcPts(ed.center.x, ed.center.y, ed.radius, ed.radius, 0, ed.isCCW === false ? -ed.startAngle : ed.startAngle, ed.isCCW === false ? -ed.endAngle : ed.endAngle, ed.isCCW !== false));
               else if (ed.type === 3) { const r = Math.hypot(ed.end.x, ed.end.y); pts.push(...arcPts(ed.center.x, ed.center.y, r, ed.lengthOfMinorAxis * (ed.lengthOfMinorAxis < 1.0001 ? r : 1), Math.atan2(ed.end.y, ed.end.x), ed.startAngle, ed.endAngle, ed.isCCW !== false)); }
@@ -314,15 +316,15 @@ function ptsBB(P) { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity
 // ---------------------------------------------------------------- decodifica DWG
 // Un motore nuovo per ogni disegno: la sua memoria si libera quando il disegno e' letto. Con un motore condiviso
 // la memoria cresceva a ogni file aperto fino a esaurirsi ("out of WASM memory").
-async function decodeDwg(bytes, ctx, ld) {
+export async function decodeDwg(bytes, ctx, ld) { // usata anche dalla conversione a lotti (ui/js/batch.js)
   const m = await import("/vendor/libredwg/dist/libredwg-web.js");
   const type = ctx.ext === "dxf" ? m.Dwg_File_Type.DXF : m.Dwg_File_Type.DWG;
   for (let attempt = 1; ; attempt++) {
-    ld.set(0.3, attempt === 1 ? "Decodifica DWG" : "Decodifica DWG (secondo tentativo con memoria libera)");
+    ld.set(0.3, attempt === 1 ? tr("v_cad2d.decodifica_dwg") : tr("v_cad2d.decodifica_dwg_secondo_tentativo_memoria"));
     let lib = await m.LibreDwg.create("/vendor/libredwg/wasm");
     try {
       const data = lib.dwg_read_data(bytes.buffer, type);
-      if (data === undefined || data === null) throw new Error("Il file DWG non e' leggibile (versione non supportata o file danneggiato). Prova \"Apri come\" > DWG TrueView.");
+      if (data === undefined || data === null) throw new Error(tr("v_cad2d.file_dwg_non_leggibile_versione"));
       const db = lib.convert(data);
       try { lib.dwg_free(data); } catch { /* */ }
       return db;
@@ -330,7 +332,7 @@ async function decodeDwg(bytes, ctx, ld) {
       lib = null;
       if (/out of WASM memory/i.test(e.message)) {
         if (attempt < 2) { await new Promise(r => setTimeout(r, 500)); continue; }
-        throw new Error(`Il disegno e' troppo grande per il lettore interno (${(bytes.length / 1048576).toFixed(1)} MB). Chiudi gli altri disegni aperti e riprova${ctx.tools?.trueview ? ", oppure usa \"Apri come\" > DWG TrueView" : ""}.`);
+        throw new Error(tr("v_cad2d.disegno_troppo_grande_lettore_interno", (bytes.length / 1048576).toFixed(1), ctx.tools?.trueview ? tr("v_cad2d.oppure_usa_apri_come_dwg") : ""));
       }
       throw e;
     }
@@ -339,7 +341,7 @@ async function decodeDwg(bytes, ctx, ld) {
 
 // ---------------------------------------------------------------- visualizzatore
 export async function mount(ctx) {
-  const ld = loading(ctx.el, "Lettura del disegno");
+  const ld = loading(ctx.el, tr("v_cad2d.lettura_disegno"));
   const bytes = await readBytes(ctx.path);
   let db;
   const head = new TextDecoder("latin1").decode(bytes.subarray(0, 6));
@@ -351,7 +353,7 @@ export async function mount(ctx) {
     db = await decodeDwg(bytes, ctx, ld);
   }
   normalize(db, dxfText ? "dxf" : "dwg");
-  ld.set(0.7, "Preparazione del disegno");
+  ld.set(0.7, tr("v_cad2d.preparazione_disegno"));
   await new Promise(r => setTimeout(r, 0));
   let model = build(db);
   ctx.el.innerHTML = "";
@@ -360,8 +362,8 @@ export async function mount(ctx) {
   // ---- interfaccia
   const canvas = el("canvas", { class: "fill", style: { touchAction: "none" } });
   const layerList = el("div", { class: "tree" });
-  const side = el("div", {}, el("div", { style: { padding: "8px 10px", display: "flex", gap: "6px", alignItems: "center" } }, el("b", {}, "Layer"), el("span", { class: "note" }, String(model.layers.size)),
-    el("span", { style: { flex: 1 } }), el("button", { class: "btn", onclick: () => setAll(true) }, "Tutti"), el("button", { class: "btn", onclick: () => setAll(false) }, "Nessuno")), layerList);
+  const side = el("div", {}, el("div", { style: { padding: "8px 10px", display: "flex", gap: "6px", alignItems: "center" } }, el("b", {}, tr("v_cad2d.layer")), el("span", { class: "note" }, String(model.layers.size)),
+    el("span", { style: { flex: 1 } }), el("button", { class: "btn", onclick: () => setAll(true) }, tr("v_cad2d.tutti")), el("button", { class: "btn", onclick: () => setAll(false) }, tr("v_cad2d.nessuno"))), layerList);
   // editor del disegno (solo app per PC: il salvataggio usa il motore ezdxf)
   const editor = WEB ? null : createCadEditor({
     ctx, db, sourceKind: dxfText ? "dxf" : "dwg", ACI, getModel: () => model,
@@ -379,19 +381,19 @@ export async function mount(ctx) {
   let dark = true, measure = false, mpts = [], showText = true, showLw = false, msnap = null;
   const lineScale = { v: 1 };
 
-  const bgBtn = button("Sfondo chiaro", "sun", () => { dark = !dark; bgBtn.lastChild.textContent = dark ? "Sfondo chiaro" : "Sfondo scuro"; draw(); });
-  const mBtn = button("Misura", "ruler", () => { measure = !measure; mBtn.classList.toggle("on", measure); mpts = []; draw(); }, { title: "Distanza tra due punti (con aggancio a fine, medio, centro, intersezione)" });
-  const tBtn = button("Testi", "text", () => { showText = !showText; tBtn.classList.toggle("on", showText); draw(); });
-  const lwBtn = button("Spessori", "", () => { showLw = !showLw; lwBtn.classList.toggle("on", showLw); draw(); }, { title: "Mostra lo spessore delle linee" });
+  const bgBtn = button(tr("v_cad2d.sfondo_chiaro"), "sun", () => { dark = !dark; bgBtn.lastChild.textContent = dark ? tr("v_cad2d.sfondo_chiaro") : tr("v_cad2d.sfondo_scuro"); draw(); });
+  const mBtn = button(tr("v_cad2d.misura"), "ruler", () => { measure = !measure; mBtn.classList.toggle("on", measure); mpts = []; draw(); }, { title: tr("v_cad2d.distanza_tra_due_punti_aggancio") });
+  const tBtn = button(tr("v_cad2d.testi"), "text", () => { showText = !showText; tBtn.classList.toggle("on", showText); draw(); });
+  const lwBtn = button(tr("v_cad2d.spessori"), "", () => { showLw = !showLw; lwBtn.classList.toggle("on", showLw); draw(); }, { title: tr("v_cad2d.mostra_spessore_linee") });
   tBtn.classList.add("on");
   // nell'app per PC gli strumenti di modifica (barra come AutoCAD + riga di comando) sono sempre visibili, come aprendo
   // un disegno in AutoCAD: niente pulsante "Modifica disegno"; la misura e' nel pannello Utilita' (Distanza, Area)
-  ctx.tb.append(...[button("Adatta", "fit", fit), button("", "zoomIn", () => zoomAt(1.4), { iconOnly: true, title: "Ingrandisci" }), button("", "zoomOut", () => zoomAt(1 / 1.4), { iconOnly: true, title: "Riduci" }),
+  ctx.tb.append(...[button(tr("v_cad2d.adatta"), "fit", fit), button("", "zoomIn", () => zoomAt(1.4), { iconOnly: true, title: tr("v_cad2d.ingrandisci") }), button("", "zoomOut", () => zoomAt(1 / 1.4), { iconOnly: true, title: tr("v_cad2d.riduci") }),
     el("span", { class: "sep" }), editor ? null : mBtn, tBtn, lwBtn, bgBtn, el("span", { class: "sep" }),
     button("PNG", "download", () => exportPng()), button("SVG", "download", () => exportSvg()), button("PDF", "download", () => exportPdf()),
-    ctx.ext === "dxf" ? button("Modifica DXF (testo)", "code", () => ctx.openAs("text")) : null,
-    ctx.tools.trueview ? button("Apri in DWG TrueView", "open", () => api("open_external", { path: ctx.path, app: "trueview" })) : null,
-    el("span", { class: "grow" }), el("span", { class: "note" }, "Rotella: zoom · trascina (o tasto centrale): sposta · doppio clic: adatta")].filter(Boolean));
+    ctx.ext === "dxf" ? button(tr("v_cad2d.modifica_dxf_testo"), "code", () => ctx.openAs("text")) : null,
+    ctx.tools.trueview ? button(tr("v_cad2d.apri_dwg_trueview"), "open", () => api("open_external", { path: ctx.path, app: "trueview" })) : null,
+    el("span", { class: "grow" }), el("span", { class: "note" }, tr("v_cad2d.rotella_zoom_trascina_tasto_centrale"))].filter(Boolean));
 
   // ---- elenco layer
   let sortedLayers = [];
@@ -511,7 +513,7 @@ export async function mount(ctx) {
       if (msnap) { const [x, y] = toScreen(msnap.x, msnap.y); drawSnapMarker(g2, x, y, msnap.k, dpr); }
     }
   }
-  const fmt = v => v.toLocaleString("it-IT", { maximumFractionDigits: 4 });
+  const fmt = v => v.toLocaleString(LOCALE, { maximumFractionDigits: 4 });
 
   function zoomAt(f, px = canvas.width / 2, py = canvas.height / 2) {
     view.tx = px - (px - view.tx) * f;
@@ -538,7 +540,7 @@ export async function mount(ctx) {
       if (mpts.length === 2) mpts = [];
       const s = snapM(px, py);
       mpts.push(s ? [s.x, s.y] : toWorld(px, py));
-      if (mpts.length === 2) ctx.status("Distanza: " + fmt(Math.hypot(mpts[1][0] - mpts[0][0], mpts[1][1] - mpts[0][1])));
+      if (mpts.length === 2) ctx.status(tr("v_cad2d.distanza") + fmt(Math.hypot(mpts[1][0] - mpts[0][0], mpts[1][1] - mpts[0][1])));
       draw();
       return;
     }
@@ -619,11 +621,18 @@ export async function mount(ctx) {
     await saveBlobAs(withExt(ctx.name, "svg"), new Blob([parts.join("")], { type: "image/svg+xml" }), ctx.path.replace(/[\\/][^\\/]*$/, ""));
   }
 
-  ctx.status(`${model.groups.reduce((n, g) => n + g.lines.length, 0).toLocaleString("it-IT")} elementi · ${model.texts.length} testi`);
+  ctx.status(tr("v_cad2d.0_elementi_1_testi", model.groups.reduce((n, g) => n + g.lines.length, 0).toLocaleString(LOCALE), model.texts.length));
   if (editor && !editor.on) editor.toggle(); // strumenti di modifica visibili da subito, come in AutoCAD
   return {
     onShow() { resize(); draw(); },
     onBack() { return false; },
+    // finestra Stampa (ui/js/print.js): modifiche e layer accesi/spenti, vista attuale, limiti, clic -> coordinate
+    printSource() {
+      const H = db.header || {}, pt = v => (v ? (Array.isArray(v) ? v : [v.x, v.y]) : null);
+      const lo = pt(H.LIMMIN || H.$LIMMIN), hi = pt(H.LIMMAX || H.$LIMMAX);
+      return { kind: dxfText ? "dxf" : "dwg", edits: editor ? editor.payload() : null, canvas, toWorld,
+        view: [...toWorld(0, canvas.height), ...toWorld(canvas.width, 0)], limits: lo && hi && hi[0] > lo[0] && hi[1] > lo[1] ? [...lo, ...hi] : null };
+    },
     saveInPlace: ctx.ext === "dxf",
     saveFormats: editor ? ["dxf", "dwg", "pdf", "svg", "png"] : ["png", "svg", "pdf"],
     saveAsName: () => withExt(ctx.name, "dxf"),
@@ -631,11 +640,11 @@ export async function mount(ctx) {
       const ext = target.split(".").pop().toLowerCase();
       if (editor && ["dxf", "dwg", "pdf", "svg", "png"].includes(ext)) {
         const r = await api("cad_save", { path: ctx.path }, { json: { out: target, edits: editor.payload() } });
-        if (r.non_scritti) toast(`${r.non_scritti} elementi di tipo non supportato non sono stati scritti`, true, 6000);
+        if (r.non_scritti) toast(tr("v_cad2d.0_elementi_tipo_non_supportato", r.non_scritti), true, 6000);
         return { switchTo: ext === ctx.ext };
       }
       if (ext === "png") { const c = offscreen(); await api("save", { path: target }, { body: new Uint8Array(await (await new Promise(r => c.toBlob(r, "image/png"))).arrayBuffer()) }); return { switchTo: false }; }
-      throw new Error("Usa i pulsanti PNG / SVG / PDF per esportare il disegno");
+      throw new Error(tr("v_cad2d.usa_i_pulsanti_png_svg"));
     },
     dispose() { window.removeEventListener("keydown", onKey); },
   };
@@ -673,3 +682,14 @@ function jpegToPdf(jpg, w, h) {
   for (const c of chunks) { out.set(c, o); o += c.length; }
   return out;
 }
+
+// lettura del disegno senza interfaccia: confronto tra revisioni (ui/js/compare/cadcmp.js)
+export async function readDrawing(path, ext, ld = { set() {} }) {
+  const bytes = await readBytes(path);
+  const head = new TextDecoder("latin1").decode(bytes.subarray(0, 6));
+  const dxfText = ext === "dxf" && !head.startsWith("AutoCA");
+  const db = dxfText ? parseDxf(new TextDecoder(isUtf8(bytes) ? "utf-8" : "windows-1252").decode(bytes)) : await decodeDwg(bytes, { ext, tools: {} }, ld);
+  normalize(db, dxfText ? "dxf" : "dwg");
+  return db;
+}
+export { build as buildModel, ACI };

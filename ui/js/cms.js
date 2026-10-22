@@ -1,5 +1,6 @@
 // Firme digitali nel browser (web app): lettura BER/DER, buste CMS/PKCS#7 (CAdES), TSD, M7M, firme PAdES nei PDF.
 // Verifica integrita' (impronta) e firma crittografica con WebCrypto; catena di fiducia AgID e revoca non verificate.
+import { LOCALE } from "./i18n.js";
 
 // ---------------------------------------------------------------- lettore ASN.1 BER/DER
 function readNode(b, pos) {
@@ -59,7 +60,7 @@ function time(n) {
   if (n.tag === 23) { y = +s.slice(0, 2); y += y < 50 ? 2000 : 1900; rest = s.slice(2); } else { y = +s.slice(0, 4); rest = s.slice(4); }
   return new Date(Date.UTC(y, +rest.slice(0, 2) - 1, +rest.slice(2, 4), +rest.slice(4, 6), +rest.slice(6, 8), +(rest.slice(8, 10) || 0)));
 }
-const fmtDate = d => (d ? d.toLocaleString("it-IT") : null);
+const fmtDate = d => (d ? d.toLocaleString(LOCALE) : null);
 const hex = u => [...u].map(x => x.toString(16).padStart(2, "0")).join("").toUpperCase();
 
 // ---------------------------------------------------------------- certificati

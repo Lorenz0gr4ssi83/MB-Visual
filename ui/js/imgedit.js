@@ -6,12 +6,12 @@
 // mask: { c, x, y, on } | null, props }. I canvas non si modificano mai sul posto: ogni modifica crea un canvas nuovo,
 // cosi' la cronologia (annulla multiplo, pannello Cronologia) conserva solo riferimenti. Le maschere usano l'alfa
 // (opaco = visibile). La selezione e' un canvas alfa grande quanto il documento con il suo contorno (formiche).
+import { t as tr, tn } from "./i18n.js";
 import { api, el, toast, modal, pickFiles, fileUrl, extOf, withExt, WEB } from "./core.js";
 import { keymap, describeKeys } from "./shortcuts.js";
 import { psIcon } from "./psicons.js";
 import { ADJ, FILTERS, makeAdjust, autoAdjust, histogram, adjustControls, filterControls, blurCanvas, mkCanvas, hexToRgb, rgbToHex, lum } from "./imgadjust.js";
 import { BLENDS, readPsd, writePsd, readOra, writeOra } from "./imgfile.js";
-import { aiMenu, genFill, removeObj } from "./aiedit.js";
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const g2 = c => c.getContext("2d");
@@ -20,21 +20,21 @@ const readData = c => c.getContext("2d", { willReadFrequently: true }).getImageD
 
 // strumenti: stesso ordine, gruppi e lettere della barra di Photoshop
 const TOOLS = {
-  move: { name: "Strumento Sposta", key: "V" },
-  marqueeRect: { name: "Strumento Selezione rettangolare", key: "M" }, marqueeEllipse: { name: "Strumento Selezione ellittica", key: "M" },
-  lasso: { name: "Strumento Lazo", key: "L" }, lassoPoly: { name: "Strumento Lazo poligonale", key: "L" },
-  wand: { name: "Strumento Bacchetta magica", key: "W" },
-  crop: { name: "Strumento Taglierina", key: "C" },
-  eyedropper: { name: "Strumento Contagocce", key: "I" },
-  brush: { name: "Strumento Pennello", key: "B" }, pencil: { name: "Strumento Matita", key: "B" },
-  stamp: { name: "Strumento Timbro clone", key: "S" },
-  eraser: { name: "Strumento Gomma", key: "E" },
-  gradient: { name: "Strumento Sfumatura", key: "G" }, bucket: { name: "Strumento Secchiello", key: "G" },
-  type: { name: "Strumento Testo orizzontale", key: "T" },
-  shapeRect: { name: "Strumento Rettangolo", key: "U" }, shapeRound: { name: "Strumento Rettangolo arrotondato", key: "U" },
-  shapeEllipse: { name: "Strumento Ellisse", key: "U" }, shapeLine: { name: "Strumento Linea", key: "U" },
-  hand: { name: "Strumento Mano", key: "H" },
-  zoom: { name: "Strumento Zoom", key: "Z" },
+  move: { name: tr("imgedit.strumento_sposta"), key: "V" },
+  marqueeRect: { name: tr("imgedit.strumento_selezione_rettangolare"), key: "M" }, marqueeEllipse: { name: tr("imgedit.strumento_selezione_ellittica"), key: "M" },
+  lasso: { name: tr("imgedit.strumento_lazo"), key: "L" }, lassoPoly: { name: tr("imgedit.strumento_lazo_poligonale"), key: "L" },
+  wand: { name: tr("imgedit.strumento_bacchetta_magica"), key: "W" },
+  crop: { name: tr("imgedit.strumento_taglierina"), key: "C" },
+  eyedropper: { name: tr("imgedit.strumento_contagocce"), key: "I" },
+  brush: { name: tr("imgedit.strumento_pennello"), key: "B" }, pencil: { name: tr("imgedit.strumento_matita"), key: "B" },
+  stamp: { name: tr("imgedit.strumento_timbro_clone"), key: "S" },
+  eraser: { name: tr("imgedit.strumento_gomma"), key: "E" },
+  gradient: { name: tr("imgedit.strumento_sfumatura"), key: "G" }, bucket: { name: tr("imgedit.strumento_secchiello"), key: "G" },
+  type: { name: tr("imgedit.strumento_testo_orizzontale"), key: "T" },
+  shapeRect: { name: tr("imgedit.strumento_rettangolo"), key: "U" }, shapeRound: { name: tr("imgedit.strumento_rettangolo_arrotondato"), key: "U" },
+  shapeEllipse: { name: tr("imgedit.strumento_ellisse"), key: "U" }, shapeLine: { name: tr("imgedit.strumento_linea"), key: "U" },
+  hand: { name: tr("imgedit.strumento_mano"), key: "H" },
+  zoom: { name: tr("imgedit.strumento_zoom"), key: "Z" },
 };
 const GROUPS = [["move"], ["marqueeRect", "marqueeEllipse"], ["lasso", "lassoPoly"], ["wand"], ["crop"], ["eyedropper"], ["brush", "pencil"], ["stamp"], ["eraser"],
   ["gradient", "bucket"], ["type"], ["shapeRect", "shapeRound", "shapeEllipse", "shapeLine"], ["hand"], ["zoom"]];
@@ -46,7 +46,7 @@ const FONTS = ["Arial", "Arial Black", "Bahnschrift", "Calibri", "Cambria", "Can
 
 export function createEditor(ctx, init) {
   let W = init.W, H = init.H, uid = 1;
-  const mkLayer = o => ({ id: uid++, name: "Livello", kind: "pixel", c: null, x: 0, y: 0, visible: true, opacity: 100, blend: "source-over", mask: null, props: null, ...o });
+  const mkLayer = o => ({ id: uid++, name: tr("imgedit.livello"), kind: "pixel", c: null, x: 0, y: 0, visible: true, opacity: 100, blend: "source-over", mask: null, props: null, ...o });
   let layers = init.layers.map(mkLayer);
   let act = layers.length - 1, target = "pixels", sel = null, lastSel = null;
   let fg = "#000000", bg = "#ffffff", tool = "brush", showExtras = true, maskView = false, curExt = ctx.ext;
@@ -168,6 +168,9 @@ export function createEditor(ctx, init) {
   const fgIn = el("input", { type: "color", class: "ps-hidden-color", id: "ps-fg-" + ctx.tab.name });
   const bgIn = el("input", { type: "color", class: "ps-hidden-color", id: "ps-bg-" + ctx.tab.name });
   root.append(fgIn, bgIn);
+  // telefono: i pannelli coprirebbero tutta l'immagine -> partono chiusi e si aprono come foglio in basso (pulsante Livelli)
+  if (matchMedia("(max-width: 760px)").matches) { panels.hidden = true; root.classList.add("ps-nopanels"); }
+  root.append(el("button", { type: "button", class: "ps-mpanels", onclick: () => togglePanels() }, tr("imgedit.livelli")));
 
   // ------------------------------------------------------------ vista: zoom e spostamento
   let zoom = 1, panX = 0, panY = 0, autoFit = true, hover = null, antPhase = 0, cssW = 0, cssH = 0;
@@ -303,13 +306,13 @@ export function createEditor(ctx, init) {
   }
   const selMode = e => (e.shiftKey && e.altKey ? "int" : e.shiftKey ? "add" : e.altKey ? "sub" : opt.sel.mode);
   function shapeMask(fn) { const c = mkCanvas(W, H), g = g2(c); g.fillStyle = "#fff"; fn(g); return c; }
-  function selectAll() { const p = new Path2D(); p.rect(0, 0, W, H); sel = makeSel(shapeMask(g => g.fillRect(0, 0, W, H)), p); lastSel = sel; invalidate(); commit("Seleziona tutto"); }
-  function deselect() { if (!sel) return; sel = null; invalidate(); commit("Deseleziona"); }
-  function reselect() { if (lastSel) { sel = lastSel; invalidate(); commit("Riseleziona"); } }
+  function selectAll() { const p = new Path2D(); p.rect(0, 0, W, H); sel = makeSel(shapeMask(g => g.fillRect(0, 0, W, H)), p); lastSel = sel; invalidate(); commit(tr("imgedit.seleziona_tutto")); }
+  function deselect() { if (!sel) return; sel = null; invalidate(); commit(tr("imgedit.deseleziona")); }
+  function reselect() { if (lastSel) { sel = lastSel; invalidate(); commit(tr("imgedit.riseleziona")); } }
   function invertSel() {
     const c = shapeMask(g => g.fillRect(0, 0, W, H));
     if (sel) { const g = g2(c); g.globalCompositeOperation = "destination-out"; g.drawImage(sel.c, 0, 0); }
-    sel = makeSel(c); invalidate(); commit("Inversa");
+    sel = makeSel(c); invalidate(); commit(tr("imgedit.inversa"));
   }
   function modifySel(kind, r) {
     if (!sel || !(r > 0)) return;
@@ -326,13 +329,13 @@ export function createEditor(ctx, init) {
       if (inv) c = shapeMask(gg => { gg.fillRect(0, 0, W, H); gg.globalCompositeOperation = "destination-out"; gg.drawImage(c, 0, 0); });
     }
     sel = makeSel(c); if (sel) lastSel = sel;
-    invalidate(); commit({ feather: "Sfuma", expand: "Espandi", contract: "Contrai" }[kind]);
+    invalidate(); commit({ feather: tr("imgedit.sfuma"), expand: tr("imgedit.espandi"), contract: tr("imgedit.contrai") }[kind]);
   }
   function selFromLayer(L) {
     if (!L?.c) return;
     const c = mkCanvas(W, H); g2(c).drawImage(L.c, L.x, L.y);
     sel = makeSel(c); if (sel) lastSel = sel;
-    invalidate(); commit("Carica selezione");
+    invalidate(); commit(tr("imgedit.carica_selezione"));
   }
   // risultato di un filtro/regolazione limitato alla selezione (anche sfumata)
   function mergeSel(orig, res, lx, ly) {
@@ -381,7 +384,7 @@ export function createEditor(ctx, init) {
     L.c = c; L.x = Math.round(Math.min(p.x, p.x + p.w) - pad); L.y = Math.round(Math.min(p.y, p.y + p.h) - pad);
   }
   const rerender = L => (L.kind === "text" ? renderText(L) : L.kind === "shape" ? renderShape(L) : null);
-  function rasterize(L, quiet) { if (L.kind !== "text" && L.kind !== "shape") return; L.kind = "pixel"; L.props = null; if (!quiet) { invalidate(); commit("Rasterizza livello"); } }
+  function rasterize(L, quiet) { if (L.kind !== "text" && L.kind !== "shape") return; L.kind = "pixel"; L.props = null; if (!quiet) { invalidate(); commit(tr("imgedit.rasterizza_livello")); } }
   function selectLayer(i, tgt) {
     if (i < 0 || i >= layers.length) return;
     endText(true);
@@ -392,8 +395,8 @@ export function createEditor(ctx, init) {
     renderLayers(); renderProps(); status(); schedule();
   }
   function nameNew(base) { let n = 1; while (layers.some(l => l.name === `${base} ${n}`)) n++; return `${base} ${n}`; }
-  function addLayer(o = {}, at = act + 1, name = "Nuovo livello") {
-    const L = mkLayer({ name: nameNew("Livello"), c: mkCanvas(W, H), ...o });
+  function addLayer(o = {}, at = act + 1, name = tr("imgedit.nuovo_livello")) {
+    const L = mkLayer({ name: nameNew(tr("imgedit.livello")), c: mkCanvas(W, H), ...o });
     layers.splice(at, 0, L); act = at; target = L.kind === "adjust" ? "mask" : "pixels";
     invalidate(); commit(name);
     return L;
@@ -401,16 +404,16 @@ export function createEditor(ctx, init) {
   function duplicateLayer() {
     const L = cur(); if (!L) return;
     const n = copyLayer(L); n.id = uid++; n.name = L.name + " copia";
-    layers.splice(act + 1, 0, n); act++; invalidate(); commit("Duplica livello");
+    layers.splice(act + 1, 0, n); act++; invalidate(); commit(tr("imgedit.duplica_livello"));
   }
   function deleteLayer() {
-    if (layers.length < 2) return toast("Un'immagine deve avere almeno un livello", true);
-    layers.splice(act, 1); act = Math.min(act, layers.length - 1); target = "pixels"; invalidate(); commit("Elimina livello");
+    if (layers.length < 2) return toast(tr("imgedit.immagine_deve_avere_almeno_livello"), true);
+    layers.splice(act, 1); act = Math.min(act, layers.length - 1); target = "pixels"; invalidate(); commit(tr("imgedit.elimina_livello"));
   }
   function moveLayer(to) {
     to = clamp(to, 0, layers.length - 1);
     if (to === act) return;
-    const [L] = layers.splice(act, 1); layers.splice(to, 0, L); act = to; invalidate(); commit("Disponi");
+    const [L] = layers.splice(act, 1); layers.splice(to, 0, L); act = to; invalidate(); commit(tr("imgedit.disponi"));
   }
   // livello tramite copia/taglio (Ctrl+J / Ctrl+Maiusc+J)
   function layerVia(cut) {
@@ -419,15 +422,15 @@ export function createEditor(ctx, init) {
     const piece = cloneC(L.c), g = g2(piece);
     g.globalCompositeOperation = "destination-in"; g.drawImage(sel.c, -L.x, -L.y);
     if (cut) { const h = cloneC(L.c), hg = g2(h); hg.globalCompositeOperation = "destination-out"; hg.drawImage(sel.c, -L.x, -L.y); L.c = h; rasterize(L, true); }
-    const n = mkLayer({ name: nameNew("Livello"), c: piece, x: L.x, y: L.y });
+    const n = mkLayer({ name: nameNew(tr("imgedit.livello")), c: piece, x: L.x, y: L.y });
     layers.splice(act + 1, 0, n); act++; target = "pixels";
-    invalidate(); commit(cut ? "Livello tramite taglio" : "Livello tramite copia");
+    invalidate(); commit(cut ? tr("imgedit.livello_tramite_taglio") : tr("imgedit.livello_tramite_copia"));
   }
   // unisci sotto: il livello di sopra (con maschera, opacita' e fusione) finisce nei pixel di quello sotto
   function mergeDown() {
     if (act < 1) return;
     const up = layers[act], lo = layers[act - 1];
-    if (lo.kind === "adjust") return toast("Non si puo' unire su un livello di regolazione", true);
+    if (lo.kind === "adjust") return toast(tr("imgedit.non_si_puo_unire_livello"), true);
     const rects = [[lo.x, lo.y, lo.c.width, lo.c.height], [0, 0, W, H]];
     if (up.c) rects.push([up.x, up.y, up.c.width, up.c.height]);
     const x0 = Math.min(...rects.map(r => r[0])), y0 = Math.min(...rects.map(r => r[1])), x1 = Math.max(...rects.map(r => r[0] + r[2])), y1 = Math.max(...rects.map(r => r[1] + r[3]));
@@ -436,20 +439,20 @@ export function createEditor(ctx, init) {
     renderLayer(g, { ...up, visible: up.visible }, x0, y0);
     Object.assign(lo, { c, x: x0, y: y0, mask: null, kind: "pixel", props: null });
     layers.splice(act, 1); act--; target = "pixels";
-    invalidate(); commit("Unisci sotto");
+    invalidate(); commit(tr("imgedit.unisci_sotto"));
   }
   function mergeVisible(flat) {
     const vis = layers.filter(l => l.visible);
     if (!vis.length) return;
     const c = flatten(flat ? bg : null);
-    const L = mkLayer({ name: flat ? "Sfondo" : vis[vis.length - 1].name, c });
+    const L = mkLayer({ name: flat ? tr("imgedit.sfondo") : vis[vis.length - 1].name, c });
     if (flat) layers = [L]; else { const idx = layers.indexOf(vis[0]); layers = layers.filter(l => !l.visible); layers.splice(idx, 0, L); }
     act = layers.indexOf(L); target = "pixels";
-    invalidate(); commit(flat ? "Unico livello" : "Unisci visibili");
+    invalidate(); commit(flat ? tr("imgedit.unico_livello") : tr("imgedit.unisci_visibili"));
   }
   function addMask(kind) {
     const L = cur(); if (!L) return;
-    if (L.mask) return toast("Il livello ha gia' una maschera", true);
+    if (L.mask) return toast(tr("imgedit.livello_ha_gia_maschera"), true);
     const r = L.c ? expanded(L.c, L.x, L.y) : { x: 0, y: 0, c: mkCanvas(W, H) };
     const c = mkCanvas(r.c.width, r.c.height), g = g2(c);
     g.fillStyle = "#fff";
@@ -459,7 +462,7 @@ export function createEditor(ctx, init) {
     L.mask = { c, x: r.x, y: r.y, on: true };
     target = "mask";
     if (kind === "revealSel" || kind === "hideSel") sel = null;
-    invalidate(); commit("Aggiungi maschera");
+    invalidate(); commit(tr("imgedit.aggiungi_maschera"));
   }
   function maskOp(op) {
     const L = cur(); if (!L?.mask) return;
@@ -470,7 +473,7 @@ export function createEditor(ctx, init) {
       const c = cloneC(L.c), g = g2(c); g.globalCompositeOperation = "destination-in"; g.drawImage(L.mask.c, L.mask.x - L.x, L.mask.y - L.y);
       rasterize(L, true); L.c = c; L.mask = null; target = "pixels";
     }
-    invalidate(); commit({ delete: "Elimina maschera", toggle: "Disattiva/attiva maschera", invert: "Inverti maschera", apply: "Applica maschera" }[op]);
+    invalidate(); commit({ delete: tr("imgedit.elimina_maschera"), toggle: tr("imgedit.disattiva_attiva_maschera"), invert: tr("imgedit.inverti_maschera"), apply: tr("imgedit.applica_maschera") }[op]);
   }
   function addAdjustLayer(type) {
     endText(true);
@@ -478,7 +481,7 @@ export function createEditor(ctx, init) {
     if (sel) g.drawImage(sel.c, 0, 0); else g.fillRect(0, 0, W, H);
     const L = mkLayer({ name: nameNew(ADJ[type].name), kind: "adjust", c: null, mask: { c, x: 0, y: 0, on: true }, props: { type, p: ADJ[type].def() } });
     layers.splice(act + 1, 0, L); act++; target = "mask"; sel = null;
-    invalidate(); commit("Nuovo livello di regolazione");
+    invalidate(); commit(tr("imgedit.nuovo_livello_regolazione"));
     dock1Show("props");
   }
   async function placeImage(path) {
@@ -486,11 +489,11 @@ export function createEditor(ctx, init) {
       const ext = extOf(path);
       let src = fileUrl(path);
       if (!/^(png|apng|jpe?g|jpe|jfif|gif|webp|bmp|ico|avif)$/.test(ext)) src = fileUrl((await api("image", { path })).path);
-      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("Immagine non leggibile")); i.src = src; });
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error(tr("imgedit.immagine_non_leggibile"))); i.src = src; });
       const c = mkCanvas(img.naturalWidth, img.naturalHeight); g2(c).drawImage(img, 0, 0);
       const L = mkLayer({ name: path.split(/[\\/]/).pop().replace(/\.[^.]+$/, ""), c, x: Math.round((W - c.width) / 2), y: Math.round((H - c.height) / 2) });
       layers.splice(act + 1, 0, L); act++; target = "pixels";
-      invalidate(); commit("Inserisci");
+      invalidate(); commit(tr("imgedit.inserisci"));
     } catch (e) { toast(e.message, true); }
   }
 
@@ -528,14 +531,14 @@ export function createEditor(ctx, init) {
     layers.forEach(L => xformLayer(L, m, smooth));
     W = nw; H = nh; comp = mkCanvas(W, H); sel = null; lastSel = null;
     fit(); invalidate();
-    commit({ cw: "Ruota 90° orario", ccw: "Ruota 90° antiorario", "180": "Ruota 180°", fh: "Rifletti quadro orizzontale", fv: "Rifletti quadro verticale" }[kind] || "Ruota immagine");
+    commit({ cw: tr("imgedit.ruota_90_orario"), ccw: tr("imgedit.ruota_90_antiorario"), "180": tr("imgedit.ruota_180"), fh: tr("imgedit.rifletti_quadro_orizzontale"), fv: tr("imgedit.rifletti_quadro_verticale") }[kind] || tr("imgedit.ruota_immagine"));
   }
   function layerXform(kind) {
     const L = cur(); if (!L?.c) return;
     const b = { x: L.x, y: L.y, w: L.c.width, h: L.c.height }, cx = b.x + b.w / 2, cy = b.y + b.h / 2;
     const M = { cw: [0, 1, -1, 0, cx + cy, cy - cx], ccw: [0, -1, 1, 0, cx - cy, cy + cx], "180": [-1, 0, 0, -1, 2 * cx, 2 * cy], fh: [-1, 0, 0, 1, 2 * cx, 0], fv: [1, 0, 0, -1, 0, 2 * cy] }[kind];
     xformLayer(L, M, false);
-    invalidate(); commit({ cw: "Ruota 90° orario", ccw: "Ruota 90° antiorario", "180": "Ruota 180°", fh: "Rifletti orizzontale", fv: "Rifletti verticale" }[kind]);
+    invalidate(); commit({ cw: tr("imgedit.ruota_90_orario"), ccw: tr("imgedit.ruota_90_antiorario"), "180": tr("imgedit.ruota_180"), fh: tr("imgedit.rifletti_orizzontale"), fv: tr("imgedit.rifletti_verticale") }[kind]);
   }
   function scaleCanvas(c, w, h, smooth = true) {
     w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h));
@@ -556,7 +559,7 @@ export function createEditor(ctx, init) {
       if (L.mask) L.mask = { ...L.mask, c: scaleCanvas(L.mask.c, L.mask.c.width * kx, L.mask.c.height * ky, smooth), x: Math.round(L.mask.x * kx), y: Math.round(L.mask.y * ky) };
     }
     W = nw; H = nh; comp = mkCanvas(W, H); sel = null; lastSel = null;
-    fit(); invalidate(); commit("Dimensione immagine");
+    fit(); invalidate(); commit(tr("imgedit.dimensione_immagine"));
   }
   function canvasSize(nw, nh, ax, ay, fillColor) {
     endText(true);
@@ -576,9 +579,9 @@ export function createEditor(ctx, init) {
       Object.assign(bot, { c, x: x0, y: y0 });
     }
     W = nw; H = nh; comp = mkCanvas(W, H); sel = null; lastSel = null;
-    fit(); invalidate(); commit("Dimensione quadro");
+    fit(); invalidate(); commit(tr("imgedit.dimensione_quadro"));
   }
-  function cropDoc(r, del = true, name = "Ritaglia") {
+  function cropDoc(r, del = true, name = tr("imgedit.ritaglia")) {
     endText(true);
     r = { x: Math.round(r.x), y: Math.round(r.y), w: Math.max(1, Math.round(r.w)), h: Math.max(1, Math.round(r.h)) };
     for (const L of layers) {
@@ -600,8 +603,8 @@ export function createEditor(ctx, init) {
     const d = readData(flatten()).data;
     let x0 = W, y0 = H, x1 = -1, y1 = -1;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (d[(y * W + x) * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-    if (x1 < 0) return toast("L'immagine e' completamente trasparente", true);
-    cropDoc({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }, true, "Rifila");
+    if (x1 < 0) return toast(tr("imgedit.l_immagine_completamente_trasparente"), true);
+    cropDoc({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }, true, tr("imgedit.rifila"));
   }
 
   // ------------------------------------------------------------ pittura (pennello, matita, gomma, timbro)
@@ -629,18 +632,18 @@ export function createEditor(ctx, init) {
   function paintTarget(kind) {
     const L = cur();
     if (!L) return null;
-    if (!L.visible) { toast("Il livello attivo e' nascosto: rendilo visibile per modificarlo", true); return null; }
+    if (!L.visible) { toast(tr("imgedit.livello_attivo_nascosto_rendilo_visibile"), true); return null; }
     if (target === "mask" && L.mask) return { L, mask: true };
-    if (L.kind === "adjust") { toast("Su un livello di regolazione si dipinge solo nella maschera", true); return null; }
-    if (L.kind === "text" || L.kind === "shape") { rasterize(L, true); toast("Livello rasterizzato per poterlo modificare", false, 2000); }
+    if (L.kind === "adjust") { toast(tr("imgedit.livello_regolazione_si_dipinge_solo"), true); return null; }
+    if (L.kind === "text" || L.kind === "shape") { rasterize(L, true); toast(tr("imgedit.livello_rasterizzato_poterlo_modificare"), false, 2000); }
     void kind;
     return { L, mask: false };
   }
   function beginStroke(p, e, kind) {
     const T = paintTarget(kind);
     if (!T) return null;
-    if (kind === "stamp" && T.mask) { toast("Il timbro clone lavora sui pixel, non sulla maschera", true); return null; }
-    if (kind === "stamp" && !cloneSrc) { toast("Timbro clone: prima Alt+clic sul punto da copiare", true); return null; }
+    if (kind === "stamp" && T.mask) { toast(tr("imgedit.timbro_clone_lavora_sui_pixel"), true); return null; }
+    if (kind === "stamp" && !cloneSrc) { toast(tr("imgedit.timbro_clone_prima_alt_clic"), true); return null; }
     const o = opt[kind], src = T.mask ? T.L.mask : T.L;
     const base = expanded(src.c, src.x, src.y);
     const white = T.mask || kind === "eraser" || kind === "stamp";
@@ -699,7 +702,7 @@ export function createEditor(ctx, init) {
     if (S.T.mask) S.T.L.mask = { ...S.T.L.mask, c: S.pv, x: S.base.x, y: S.base.y };
     else Object.assign(S.T.L, { c: S.pv, x: S.base.x, y: S.base.y });
     preview = null; stroke = null; lastPaint = p;
-    invalidate(); commit({ brush: "Pennello", pencil: "Matita", eraser: "Gomma", stamp: "Timbro clone" }[S.kind]);
+    invalidate(); commit({ brush: tr("imgedit.pennello"), pencil: tr("imgedit.matita"), eraser: tr("imgedit.gomma"), stamp: tr("imgedit.timbro_clone") }[S.kind]);
   }
   // applica un canvas grande quanto il documento (riempimento, sfumatura, secchiello, traccia) al livello attivo
   function applyDocBuffer(buf, opacity, name) {
@@ -721,14 +724,14 @@ export function createEditor(ctx, init) {
     }
     invalidate(); commit(name);
   }
-  function fillWith(color, opacity = 100, name = "Riempi") { const c = mkCanvas(W, H), g = g2(c); g.fillStyle = color; g.fillRect(0, 0, W, H); applyDocBuffer(c, opacity, name); }
+  function fillWith(color, opacity = 100, name = tr("imgedit.riempi")) { const c = mkCanvas(W, H), g = g2(c); g.fillStyle = color; g.fillRect(0, 0, W, H); applyDocBuffer(c, opacity, name); }
   function clearSel() {
     const L = cur(); if (!L) return;
-    if (!sel) return toast("Nessuna selezione: con Canc si cancella l'area selezionata", true);
+    if (!sel) return toast(tr("imgedit.nessuna_selezione_canc_si_cancella"), true);
     const T = paintTarget(); if (!T) return;
-    if (T.mask) return fillWith("#000", 100, "Cancella");
+    if (T.mask) return fillWith("#000", 100, tr("imgedit.cancella"));
     const c = cloneC(L.c), g = g2(c); g.globalCompositeOperation = "destination-out"; g.drawImage(sel.c, -L.x, -L.y);
-    L.c = c; invalidate(); commit("Cancella");
+    L.c = c; invalidate(); commit(tr("imgedit.cancella"));
   }
   // riempimento a macchia (secchiello e bacchetta magica): tolleranza sul canale con la differenza maggiore
   function flood(d, w, h, x0, y0, tol, contig) {
@@ -781,9 +784,9 @@ export function createEditor(ctx, init) {
   function beginTransform(silent) {
     endText(true);
     const L = cur();
-    if (!L || L.kind === "adjust") { toast("Seleziona un livello con dei pixel da trasformare", true); return false; }
-    if (!L.visible) { toast("Il livello attivo e' nascosto", true); return false; }
-    if (L.kind === "text" || L.kind === "shape") { rasterize(L, true); if (!silent) toast("Livello rasterizzato per la trasformazione", false, 2000); }
+    if (!L || L.kind === "adjust") { toast(tr("imgedit.seleziona_livello_pixel_trasformare"), true); return false; }
+    if (!L.visible) { toast(tr("imgedit.livello_attivo_nascosto"), true); return false; }
+    if (L.kind === "text" || L.kind === "shape") { rasterize(L, true); if (!silent) toast(tr("imgedit.livello_rasterizzato_trasformazione"), false, 2000); }
     let src, ox, oy, hole = null, selPiece = null;
     if (sel) {
       const b = sel.bounds;
@@ -797,7 +800,7 @@ export function createEditor(ctx, init) {
       const d = readData(L.c).data, w = L.c.width, h = L.c.height;
       let x0 = w, y0 = h, x1 = -1, y1 = -1;
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-      if (x1 < 0) { toast("Il livello e' vuoto", true); return false; }
+      if (x1 < 0) { toast(tr("imgedit.livello_vuoto"), true); return false; }
       src = mkCanvas(x1 - x0 + 1, y1 - y0 + 1); g2(src).drawImage(L.c, -x0, -y0);
       ox = L.x + x0; oy = L.y + y0;
     }
@@ -870,7 +873,7 @@ export function createEditor(ctx, init) {
     Object.assign(L, { c, x: x0, y: y0 });
     if (t.float && t.selPiece) { const s = xform(t.selPiece, 0, 0, m, true), sc = mkCanvas(W, H); g2(sc).drawImage(s.c, s.x, s.y); sel = makeSel(sc); if (sel) lastSel = sel; }
     tf = null; preview = null;
-    invalidate(); commit(name || "Trasformazione libera"); renderOptions();
+    invalidate(); commit(name || tr("imgedit.trasformazione_libera")); renderOptions();
   }
   function cancelTransform() { tf = null; setPreview(null); invalidate(); renderOptions(); }
 
@@ -964,7 +967,7 @@ export function createEditor(ctx, init) {
     renderText(L);
     if (idx >= 0 && L.props.text.slice(0, 30)) L.name = L.props.text.split("\n")[0].slice(0, 30);
     invalidate();
-    if (isNew || L.props.text !== before) commit(isNew ? "Livello di testo" : "Modifica testo"); else refreshPanels();
+    if (isNew || L.props.text !== before) commit(isNew ? tr("imgedit.livello_testo") : tr("imgedit.modifica_testo")); else refreshPanels();
     renderOptions();
   }
   function textAt(p) {
@@ -1006,7 +1009,7 @@ export function createEditor(ctx, init) {
       case "move": {
         if (e.ctrlKey || opt.move.auto) { const i = layerAt(p); if (i >= 0 && i !== act) selectLayer(i); }
         const L = cur(); if (!L) return;
-        if (sel && L.c) { if (!beginTransform(true)) return; const h = tfDrag(p, { type: "move" }, e); drag = { move: h, up: () => commitTransform("Sposta") }; return; }
+        if (sel && L.c) { if (!beginTransform(true)) return; const h = tfDrag(p, { type: "move" }, e); drag = { move: h, up: () => commitTransform(tr("imgedit.sposta")) }; return; }
         if (L.kind === "adjust" && !L.mask) return;
         const sx = L.x, sy = L.y, mx = L.mask?.x, my = L.mask?.y, props = L.props ? structuredClone(L.props) : null;
         let moved = false;
@@ -1021,7 +1024,7 @@ export function createEditor(ctx, init) {
             if (L.kind === "shape") { const P = L.props; if (P.type === "line") { P.x1 = props.x1 + dx; P.x2 = props.x2 + dx; P.y1 = props.y1 + dy; P.y2 = props.y2 + dy; } else { P.x = props.x + dx; P.y = props.y + dy; } }
             invalidate();
           },
-          up: () => { if (moved) commit("Sposta"); },
+          up: () => { if (moved) commit(tr("imgedit.sposta")); },
         };
         return;
       }
@@ -1041,7 +1044,7 @@ export function createEditor(ctx, init) {
             if (!r || r.w < 1 || r.h < 1) { if (mode === "new" && sel) deselect(); return; }
             const pa = new Path2D();
             if (t === "marqueeRect") pa.rect(r.x, r.y, r.w, r.h); else pa.ellipse(r.x + r.w / 2, r.y + r.h / 2, r.w / 2, r.h / 2, 0, 0, Math.PI * 2);
-            applySelection(shapeMask(g => g.fill(pa)), mode, t === "marqueeRect" ? "Selezione rettangolare" : "Selezione ellittica", pa);
+            applySelection(shapeMask(g => g.fill(pa)), mode, t === "marqueeRect" ? tr("imgedit.selezione_rettangolare") : tr("imgedit.selezione_ellittica"), pa);
           },
         };
         return;
@@ -1055,7 +1058,7 @@ export function createEditor(ctx, init) {
             const pts = lassoPts; lassoPts = [];
             if (pts.length < 3) { if (mode === "new" && sel) deselect(); schedule(); return; }
             const pa = new Path2D(); pts.forEach(([x, y], i) => (i ? pa.lineTo(x, y) : pa.moveTo(x, y))); pa.closePath();
-            applySelection(shapeMask(g => g.fill(pa)), mode, "Lazo", pa);
+            applySelection(shapeMask(g => g.fill(pa)), mode, tr("imgedit.lazo"), pa);
           },
         };
         return;
@@ -1069,7 +1072,7 @@ export function createEditor(ctx, init) {
       }
       case "wand": {
         const mode = selMode(e), c = floodCanvas(p, opt.wand.tol, opt.wand.contig, opt.wand.all, "#ffffff");
-        if (c) applySelection(c, mode, "Bacchetta magica");
+        if (c) applySelection(c, mode, tr("imgedit.bacchetta_magica"));
         return;
       }
       case "crop": {
@@ -1085,7 +1088,7 @@ export function createEditor(ctx, init) {
         return;
       }
       case "brush": case "pencil": case "eraser": case "stamp": {
-        if (t === "stamp" && e.altKey) { cloneSrc = { x: p.x, y: p.y }; cloneOff = null; toast("Origine del timbro clone impostata", false, 1500); schedule(); return; }
+        if (t === "stamp" && e.altKey) { cloneSrc = { x: p.x, y: p.y }; cloneOff = null; toast(tr("imgedit.origine_timbro_clone_impostata"), false, 1500); schedule(); return; }
         stroke = beginStroke(p, e, t);
         if (!stroke) return;
         drag = {
@@ -1106,14 +1109,14 @@ export function createEditor(ctx, init) {
       case "bucket": {
         const T = paintTarget(); if (!T) return;
         const c = floodCanvas(p, opt.bucket.tol, opt.bucket.contig, opt.bucket.all, fg);
-        if (c) applyDocBuffer(c, opt.bucket.opacity, "Secchiello");
+        if (c) applyDocBuffer(c, opt.bucket.opacity, tr("imgedit.secchiello"));
         return;
       }
       case "type": {
         const i = textAt(p);
         if (i >= 0) { selectLayer(i); startText(layers[i], false); return; }
         if (textEd) { endText(true); return; }
-        const o = opt.type, L = mkLayer({ name: "Testo", kind: "text", props: { text: "", font: o.font, size: o.size, bold: o.bold, italic: o.italic, align: o.align, color: fg, lead: 1.2, x: Math.round(p.x), y: Math.round(p.y - o.size * 0.6) } });
+        const o = opt.type, L = mkLayer({ name: tr("imgedit.testo"), kind: "text", props: { text: "", font: o.font, size: o.size, bold: o.bold, italic: o.italic, align: o.align, color: fg, lead: 1.2, x: Math.round(p.x), y: Math.round(p.y - o.size * 0.6) } });
         renderText(L);
         layers.splice(act + 1, 0, L); act++; target = "pixels";
         startText(L, true); refreshPanels();
@@ -1126,7 +1129,7 @@ export function createEditor(ctx, init) {
         drag = {
           move: (q, ev) => {
             if (!L) {
-              L = mkLayer({ name: nameNew({ rect: "Rettangolo", round: "Rettangolo arrotondato", ellipse: "Ellisse", line: "Linea" }[type]), kind: "shape",
+              L = mkLayer({ name: nameNew({ rect: tr("imgedit.rettangolo"), round: tr("imgedit.rettangolo_arrotondato"), ellipse: tr("imgedit.ellisse"), line: tr("imgedit.linea") }[type]), kind: "shape",
                 props: type === "line" ? { type, x1: p.x, y1: p.y, x2: q.x, y2: q.y, sw: o.sw, color2: fg } : { type, x: p.x, y: p.y, w: 0, h: 0, fill: o.fill ? fg : null, stroke: o.stroke ? o.color2 : null, sw: o.sw, r: o.r } });
               layers.splice(act + 1, 0, L); act++; target = "pixels";
             }
@@ -1171,7 +1174,7 @@ export function createEditor(ctx, init) {
     const pts = lassoPts, mode = lassoPts.mode || "new"; lassoPts = [];
     if (pts.length < 3) return schedule();
     const pa = new Path2D(); pts.forEach(([x, y], i) => (i ? pa.lineTo(x, y) : pa.moveTo(x, y))); pa.closePath();
-    applySelection(shapeMask(g => g.fill(pa)), mode, "Lazo poligonale", pa);
+    applySelection(shapeMask(g => g.fill(pa)), mode, tr("imgedit.lazo_poligonale"), pa);
   }
   function drawGradient(p0, p1) {
     const c = mkCanvas(W, H), g = g2(c), o = opt.gradient;
@@ -1181,7 +1184,7 @@ export function createEditor(ctx, init) {
     if (o.reverse) [a, b] = [b, a];
     gr.addColorStop(0, a); gr.addColorStop(1, b);
     g.fillStyle = gr; g.fillRect(0, 0, W, H);
-    applyDocBuffer(c, o.opacity, "Sfumatura");
+    applyDocBuffer(c, o.opacity, tr("imgedit.sfumatura"));
   }
   function move(e) {
     const p = docPt(e);
@@ -1245,14 +1248,14 @@ export function createEditor(ctx, init) {
     } else c = cloneC(src);
     clip = { c, x, y };
     c.toBlob(b => { try { navigator.clipboard?.write?.([new ClipboardItem({ "image/png": b })]).catch(() => {}); } catch { /* */ } }, "image/png");
-    if (cut && !merged) clearSel(); else toast(merged ? "Copia unione eseguita" : "Copiato", false, 1200);
+    if (cut && !merged) clearSel(); else toast(merged ? tr("imgedit.copia_unione_eseguita") : tr("imgedit.copiato"), false, 1200);
   }
   function pasteCanvas(c, x, y) {
     if (x === undefined || x + c.width < 0 || y + c.height < 0 || x > W || y > H) { x = Math.round((W - c.width) / 2); y = Math.round((H - c.height) / 2); }
     endText(true);
-    const L = mkLayer({ name: nameNew("Livello"), c, x, y });
+    const L = mkLayer({ name: nameNew(tr("imgedit.livello")), c, x, y });
     layers.splice(act + 1, 0, L); act++; target = "pixels"; sel = null;
-    invalidate(); commit("Incolla");
+    invalidate(); commit(tr("common.incolla"));
   }
   const onPaste = async e => {
     if (!root.isConnected || ctx.tab.view.hidden || isTyping(e.target) || dlgOpen) return;
@@ -1280,8 +1283,8 @@ export function createEditor(ctx, init) {
         el("div", { class: "ps-dlg-h" }, title),
         el("div", { class: "ps-dlg-b" }, body),
         el("div", { class: "ps-dlg-f" },
-          hasPreview ? el("label", { class: "ps-check" }, prevChk, "Anteprima") : null, el("span", { class: "grow" }),
-          el("button", { class: "btn", type: "button", onclick: () => close(false) }, "Annulla"),
+          hasPreview ? el("label", { class: "ps-check" }, prevChk, tr("imgedit.anteprima")) : null, el("span", { class: "grow" }),
+          el("button", { class: "btn", type: "button", onclick: () => close(false) }, tr("common.annulla")),
           el("button", { class: "btn primary", type: "button", onclick: () => close(true) }, okLabel)));
       if (hasPreview) prevChk.addEventListener("change", () => onPreview?.(prevChk.checked));
       const close = v => { dlgOpen = false; box.remove(); resolve(v); };
@@ -1324,9 +1327,9 @@ export function createEditor(ctx, init) {
   function destTarget() {
     const L = cur();
     if (!L) return null;
-    if (L.kind === "adjust") { toast("Il livello attivo e' di regolazione: seleziona un livello con dei pixel", true); return null; }
+    if (L.kind === "adjust") { toast(tr("imgedit.livello_attivo_regolazione_seleziona_livello"), true); return null; }
     if (L.kind === "text" || L.kind === "shape") rasterize(L, true);
-    if (!L.visible) { toast("Il livello attivo e' nascosto", true); return null; }
+    if (!L.visible) { toast(tr("imgedit.livello_attivo_nascosto"), true); return null; }
     return L;
   }
   async function runAdjust(type) {
@@ -1338,7 +1341,7 @@ export function createEditor(ctx, init) {
     let H_ = null;
     const hist = () => (H_ ||= histogram(readData(L.c).data));
     const lp = livePreview(L, c => { const id = readData(c); makeAdjust(type, p)(id.data); const o = mkCanvas(c.width, c.height); g2(o).putImageData(id, 0, 0); return o; });
-    if (type === "invert") { L.c = lp.result(); invalidate(); return commit("Inverti"); }
+    if (type === "invert") { L.c = lp.result(); invalidate(); return commit(tr("imgedit.inverti")); }
     lp.update();
     const ok = await dialog(ADJ[type].name, adjustControls(type, p, () => lp.update(), hist), { preview: true, onPreview: v => lp.toggle(v) });
     if (ok) { L.c = lp.result(); preview = null; invalidate(); commit(ADJ[type].name); }
@@ -1350,7 +1353,7 @@ export function createEditor(ctx, init) {
     if (kind === "desaturate") makeAdjust("desaturate", {})(id.data); else autoAdjust(kind, id.data);
     const o = mkCanvas(L.c.width, L.c.height); g2(o).putImageData(id, 0, 0);
     L.c = mergeSel(L.c, o, L.x, L.y); invalidate();
-    commit({ desaturate: "Togli saturazione", tone: "Tono automatico", contrast: "Contrasto automatico", color: "Colore automatico" }[kind]);
+    commit({ desaturate: tr("imgedit.togli_saturazione"), tone: tr("imgedit.tono_automatico"), contrast: tr("imgedit.contrasto_automatico"), color: tr("imgedit.colore_automatico") }[kind]);
   }
   let lastFilter = null;
   async function runFilter(id, again) {
@@ -1363,7 +1366,7 @@ export function createEditor(ctx, init) {
       const ok = await dialog(f.name.replace("...", ""), filterControls(f, p, () => lp.update()), { preview: true, onPreview: v => lp.toggle(v) });
       if (!ok) return lp.stop();
     }
-    ctx.status("Filtro in corso...");
+    ctx.status(tr("imgedit.filtro_corso"));
     await new Promise(r => setTimeout(r, 20));
     L.c = lp.result(); preview = null; invalidate();
     lastFilter = { id, p };
@@ -1372,87 +1375,87 @@ export function createEditor(ctx, init) {
 
   async function dlgImageSize() {
     let keep = true;
-    const [wI, wRow] = numField("Larghezza:", W, { min: 1, max: 30000, unit: "pixel" }), [hI, hRow] = numField("Altezza:", H, { min: 1, max: 30000, unit: "pixel" });
-    const [pI, pRow] = numField("Percentuale:", 100, { min: 1, max: 1000, step: 1, unit: "%" });
+    const [wI, wRow] = numField(tr("imgedit.larghezza"), W, { min: 1, max: 30000, unit: "pixel" }), [hI, hRow] = numField(tr("imgedit.altezza"), H, { min: 1, max: 30000, unit: "pixel" });
+    const [pI, pRow] = numField(tr("imgedit.percentuale"), 100, { min: 1, max: 1000, step: 1, unit: "%" });
     const chk = el("input", { type: "checkbox" }); chk.checked = true;
-    const res = el("select", { class: "field ps-sel" }, el("option", { value: "1" }, "Automatico (bicubica)"), el("option", { value: "0" }, "Vicino piu' prossimo (bordi netti)"));
+    const res = el("select", { class: "field ps-sel" }, el("option", { value: "1" }, tr("imgedit.automatico_bicubica")), el("option", { value: "0" }, tr("imgedit.vicino_piu_prossimo_bordi_netti")));
     wI.addEventListener("input", () => { if (keep) hI.value = Math.max(1, Math.round(+wI.value * H / W)); pI.value = Math.round(+wI.value / W * 100); });
     hI.addEventListener("input", () => { if (keep) wI.value = Math.max(1, Math.round(+hI.value * W / H)); });
     pI.addEventListener("input", () => { wI.value = Math.max(1, Math.round(W * +pI.value / 100)); hI.value = Math.max(1, Math.round(H * +pI.value / 100)); });
     chk.addEventListener("change", () => (keep = chk.checked));
-    const ok = await dialog("Dimensione immagine", el("div", { class: "ps-form" }, el("p", { class: "ps-note" }, `Attuale: ${W} × ${H} pixel`), wRow, hRow, pRow,
-      el("label", { class: "ps-check" }, chk, "Vincola proporzioni"), el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, "Ricampiona:"), res)));
+    const ok = await dialog(tr("imgedit.dimensione_immagine"), el("div", { class: "ps-form" }, el("p", { class: "ps-note" }, `Attuale: ${W} × ${H} pixel`), wRow, hRow, pRow,
+      el("label", { class: "ps-check" }, chk, tr("imgedit.vincola_proporzioni")), el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgedit.ricampiona")), res)));
     if (ok && +wI.value > 0 && +hI.value > 0 && (+wI.value !== W || +hI.value !== H)) resizeDoc(Math.round(+wI.value), Math.round(+hI.value), res.value === "1");
   }
   async function dlgCanvasSize() {
-    const [wI, wRow] = numField("Larghezza:", W, { min: 1, max: 30000, unit: "pixel" }), [hI, hRow] = numField("Altezza:", H, { min: 1, max: 30000, unit: "pixel" });
+    const [wI, wRow] = numField(tr("imgedit.larghezza"), W, { min: 1, max: 30000, unit: "pixel" }), [hI, hRow] = numField(tr("imgedit.altezza"), H, { min: 1, max: 30000, unit: "pixel" });
     const rel = el("input", { type: "checkbox" });
     rel.addEventListener("change", () => { wI.value = rel.checked ? 0 : W; hI.value = rel.checked ? 0 : H; });
     let anchor = [0.5, 0.5];
     const grid = el("div", { class: "ps-anchor" });
     const drawGrid = () => { grid.innerHTML = ""; for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) grid.append(el("button", { type: "button", class: anchor[0] === c / 2 && anchor[1] === r / 2 ? "on" : "", onclick: () => { anchor = [c / 2, r / 2]; drawGrid(); } })); };
     drawGrid();
-    const col = el("select", { class: "field ps-sel" }, ...[["", "Trasparente"], ["fg", "Primo piano"], ["bg", "Sfondo"], ["#ffffff", "Bianco"], ["#000000", "Nero"], ["#808080", "Grigio"]].map(([v, t]) => el("option", { value: v }, t)));
+    const col = el("select", { class: "field ps-sel" }, ...[["", tr("imgedit.trasparente")], ["fg", tr("imgedit.primo_piano")], ["bg", tr("imgedit.sfondo")], ["#ffffff", tr("imgedit.bianco")], ["#000000", tr("imgedit.nero")], ["#808080", tr("imgedit.grigio")]].map(([v, t]) => el("option", { value: v }, t)));
     col.value = layers[0]?.name === "Sfondo" ? "bg" : "";
-    const ok = await dialog("Dimensione quadro", el("div", { class: "ps-form" }, el("p", { class: "ps-note" }, `Attuale: ${W} × ${H} pixel`), wRow, hRow,
-      el("label", { class: "ps-check" }, rel, "Relativa"), el("div", { class: "ps-row" }, el("span", { class: "ps-lab2" }, "Ancoraggio:"), grid),
-      el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, "Colore estensione:"), col)));
+    const ok = await dialog(tr("imgedit.dimensione_quadro"), el("div", { class: "ps-form" }, el("p", { class: "ps-note" }, `Attuale: ${W} × ${H} pixel`), wRow, hRow,
+      el("label", { class: "ps-check" }, rel, tr("imgedit.relativa")), el("div", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgedit.ancoraggio")), grid),
+      el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgedit.colore_estensione")), col)));
     if (!ok) return;
     const nw = Math.round(rel.checked ? W + +wI.value : +wI.value), nh = Math.round(rel.checked ? H + +hI.value : +hI.value);
     if (nw < 1 || nh < 1 || (nw === W && nh === H)) return;
     canvasSize(nw, nh, anchor[0], anchor[1], col.value === "fg" ? fg : col.value === "bg" ? bg : col.value || null);
   }
   async function dlgRotate() {
-    const [aI, row] = numField("Angolo:", 15, { min: -359.99, max: 359.99, step: 0.01, unit: "° (positivo = orario)" });
-    if (await dialog("Ruota quadro", el("div", { class: "ps-form" }, row)) && +aI.value) rotateDoc("free", +aI.value);
+    const [aI, row] = numField(tr("imgedit.angolo"), 15, { min: -359.99, max: 359.99, step: 0.01, unit: "° (positivo = orario)" });
+    if (await dialog(tr("imgedit.ruota_quadro"), el("div", { class: "ps-form" }, row)) && +aI.value) rotateDoc("free", +aI.value);
   }
   async function dlgFill() {
-    const what = el("select", { class: "field ps-sel" }, ...[["fg", "Colore di primo piano"], ["bg", "Colore di sfondo"], ["#000000", "Nero"], ["#808080", "Grigio 50%"], ["#ffffff", "Bianco"]].map(([v, t]) => el("option", { value: v }, t)));
-    const [oI, oRow] = numField("Opacita':", 100, { min: 1, max: 100, unit: "%" });
-    if (!(await dialog("Riempi", el("div", { class: "ps-form" }, el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, "Contenuto:"), what), oRow)))) return;
+    const what = el("select", { class: "field ps-sel" }, ...[["fg", tr("imgedit.colore_primo_piano")], ["bg", tr("imgedit.colore_sfondo")], ["#000000", tr("imgedit.nero")], ["#808080", "Grigio 50%"], ["#ffffff", tr("imgedit.bianco")]].map(([v, t]) => el("option", { value: v }, t)));
+    const [oI, oRow] = numField(tr("imgedit.opacita"), 100, { min: 1, max: 100, unit: "%" });
+    if (!(await dialog(tr("imgedit.riempi"), el("div", { class: "ps-form" }, el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgedit.contenuto")), what), oRow)))) return;
     fillWith(what.value === "fg" ? fg : what.value === "bg" ? bg : what.value, clamp(+oI.value, 1, 100));
   }
   async function dlgStroke() {
-    if (!sel) return toast("Traccia: serve una selezione", true);
-    const [wI, wRow] = numField("Larghezza:", 3, { min: 1, max: 250, unit: "pixel" });
-    const pos = el("select", { class: "field ps-sel" }, el("option", { value: "center" }, "Al centro"), el("option", { value: "inside" }, "Interna"), el("option", { value: "outside" }, "Esterna"));
-    if (!(await dialog("Traccia", el("div", { class: "ps-form" }, wRow, el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, "Posizione:"), pos), el("p", { class: "ps-note" }, "Colore: primo piano"))))) return;
+    if (!sel) return toast(tr("imgedit.traccia_serve_selezione"), true);
+    const [wI, wRow] = numField(tr("imgedit.larghezza"), 3, { min: 1, max: 250, unit: "pixel" });
+    const pos = el("select", { class: "field ps-sel" }, el("option", { value: "center" }, tr("imgedit.centro")), el("option", { value: "inside" }, tr("imgedit.interna")), el("option", { value: "outside" }, tr("imgedit.esterna")));
+    if (!(await dialog(tr("imgedit.traccia"), el("div", { class: "ps-form" }, wRow, el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgedit.posizione")), pos), el("p", { class: "ps-note" }, tr("imgedit.colore_primo_piano_2")))))) return;
     const w = +wI.value, c = mkCanvas(W, H), g = g2(c);
     g.strokeStyle = fg; g.lineWidth = pos.value === "center" ? w : w * 2; g.lineJoin = "round"; g.stroke(sel.path);
     if (pos.value !== "center") { g.globalCompositeOperation = pos.value === "inside" ? "destination-in" : "destination-out"; g.drawImage(sel.c, 0, 0); }
-    const keep = sel; sel = null; applyDocBuffer(c, 100, "Traccia"); sel = keep; schedule();
+    const keep = sel; sel = null; applyDocBuffer(c, 100, tr("imgedit.traccia")); sel = keep; schedule();
   }
   async function dlgModifySel(kind) {
-    if (!sel) return toast("Nessuna selezione", true);
-    const [rI, row] = numField({ feather: "Raggio sfumatura:", expand: "Espandi di:", contract: "Contrai di:" }[kind], kind === "feather" ? 5 : 2, { min: 0.1, max: 500, step: 0.1, unit: "pixel" });
-    if (await dialog({ feather: "Sfuma selezione", expand: "Espandi selezione", contract: "Contrai selezione" }[kind], el("div", { class: "ps-form" }, row))) modifySel(kind, +rI.value);
+    if (!sel) return toast(tr("imgedit.nessuna_selezione"), true);
+    const [rI, row] = numField({ feather: tr("imgedit.raggio_sfumatura"), expand: tr("imgedit.espandi_2"), contract: tr("imgedit.contrai_2") }[kind], kind === "feather" ? 5 : 2, { min: 0.1, max: 500, step: 0.1, unit: "pixel" });
+    if (await dialog({ feather: tr("imgedit.sfuma_selezione"), expand: tr("imgedit.espandi_selezione"), contract: tr("imgedit.contrai_selezione") }[kind], el("div", { class: "ps-form" }, row))) modifySel(kind, +rI.value);
   }
   async function dlgNewLayer() {
-    const n = el("input", { type: "text", class: "field", value: nameNew("Livello") });
+    const n = el("input", { type: "text", class: "field", value: nameNew(tr("imgedit.livello")) });
     const bl = blendSelect("source-over");
-    const [oI, oRow] = numField("Opacita':", 100, { min: 0, max: 100, unit: "%" });
-    if (!(await dialog("Nuovo livello", el("div", { class: "ps-form" }, el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, "Nome:"), n), el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, "Metodo:"), bl), oRow)))) return;
-    addLayer({ name: n.value || nameNew("Livello"), blend: bl.value, opacity: clamp(+oI.value, 0, 100) });
+    const [oI, oRow] = numField(tr("imgedit.opacita"), 100, { min: 0, max: 100, unit: "%" });
+    if (!(await dialog(tr("imgedit.nuovo_livello"), el("div", { class: "ps-form" }, el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgedit.nome")), n), el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgedit.metodo")), bl), oRow)))) return;
+    addLayer({ name: n.value || nameNew(tr("imgedit.livello")), blend: bl.value, opacity: clamp(+oI.value, 0, 100) });
   }
   async function renameLayer(L) {
     const n = el("input", { type: "text", class: "field", value: L.name });
-    if (await dialog("Proprieta' livello", el("div", { class: "ps-form" }, el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, "Nome:"), n))) && n.value.trim()) { L.name = n.value.trim(); commit("Rinomina livello"); }
+    if (await dialog(tr("imgedit.proprieta_livello"), el("div", { class: "ps-form" }, el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgedit.nome")), n))) && n.value.trim()) { L.name = n.value.trim(); commit(tr("imgedit.rinomina_livello")); }
   }
   async function showInfo() {
     const dl = el("dl", { class: "kv" });
     const add = (k, v) => v !== undefined && v !== null && dl.append(el("dt", {}, k), el("dd", {}, String(v)));
-    add("Dimensioni", `${W} × ${H} px`); add("Livelli", layers.length);
-    add("Formato", init.meta?.formato || ctx.ext.toUpperCase()); add("Modalita' colore", init.meta?.modalita); add("Pagine/fotogrammi", init.meta?.pagine);
+    add(tr("imgedit.dimensioni"), `${W} × ${H} px`); add(tr("imgedit.livelli"), layers.length);
+    add(tr("imgedit.formato"), init.meta?.formato || ctx.ext.toUpperCase()); add(tr("imgedit.modalita_colore"), init.meta?.modalita); add("Pagine/fotogrammi", init.meta?.pagine);
     for (const [k, v] of Object.entries(init.meta?.exif || {})) add(k, v);
-    await modal("Informazioni immagine", dl);
+    await modal(tr("imgedit.informazioni_immagine"), dl);
   }
 
   // ------------------------------------------------------------ colori primo piano / sfondo
   function setColor(which, v) { if (which === "fg") fg = v; else bg = v; tipCache.clear(); renderSwatches(); if (textEd && which === "fg") { textEd.L.props.color = fg; placeText(); } }
   fgIn.addEventListener("input", () => setColor("fg", fgIn.value));
   bgIn.addEventListener("input", () => setColor("bg", bgIn.value));
-  const swFg = el("button", { class: "ps-sw ps-sw-fg", type: "button", title: "Imposta colore di primo piano", onclick: () => { fgIn.value = fg; fgIn.click(); } });
-  const swBg = el("button", { class: "ps-sw ps-sw-bg", type: "button", title: "Imposta colore di sfondo", onclick: () => { bgIn.value = bg; bgIn.click(); } });
+  const swFg = el("button", { class: "ps-sw ps-sw-fg", type: "button", title: tr("imgedit.imposta_colore_primo_piano"), onclick: () => { fgIn.value = fg; fgIn.click(); } });
+  const swBg = el("button", { class: "ps-sw ps-sw-bg", type: "button", title: tr("imgedit.imposta_colore_sfondo"), onclick: () => { bgIn.value = bg; bgIn.click(); } });
   const swapColors = () => { [fg, bg] = [bg, fg]; tipCache.clear(); renderSwatches(); };
   const defaultColors = () => { fg = "#000000"; bg = "#ffffff"; tipCache.clear(); renderSwatches(); };
   function renderSwatches() { swFg.style.background = fg; swBg.style.background = bg; }
@@ -1468,7 +1471,7 @@ export function createEditor(ctx, init) {
       b.addEventListener("dblclick", () => { if (groupCur[gi] === "hand") fit(true); if (groupCur[gi] === "zoom") setZoom(1); });
       const openFly = () => {
         closeFly();
-        flyout = el("div", { class: "ps-fly" }, ...grp.map(t => el("button", { type: "button", class: "ps-fly-it" + (t === tool ? " on" : ""), onclick: () => { closeFly(); selectTool(t); } }, psIcon(t, 18), el("span", {}, TOOLS[t].name.replace("Strumento ", "")), el("span", { class: "ps-k" }, TOOLS[t].key))));
+        flyout = el("div", { class: "ps-fly" }, ...grp.map(t => el("button", { type: "button", class: "ps-fly-it" + (t === tool ? " on" : ""), onclick: () => { closeFly(); selectTool(t); } }, psIcon(t, 18), el("span", {}, TOOLS[t].name.replace(tr("imgedit.strumento"), "")), el("span", { class: "ps-k" }, TOOLS[t].key))));
         const r = b.getBoundingClientRect(), rr = root.getBoundingClientRect();
         flyout.style.left = r.right - rr.left + 2 + "px"; flyout.style.top = r.top - rr.top + "px";
         root.append(flyout);
@@ -1485,8 +1488,8 @@ export function createEditor(ctx, init) {
       if (SEP_AFTER.has(gi)) toolBar.append(el("div", { class: "ps-tsep" }));
     });
     toolBar.append(el("div", { class: "ps-tsep" }), el("div", { class: "ps-colors" }, swBg, swFg,
-      el("button", { class: "ps-mini ps-mini-def", type: "button", title: "Colori predefiniti di primo piano e sfondo (D)", onclick: defaultColors }, psIcon("defaultColors", 11)),
-      el("button", { class: "ps-mini ps-mini-swap", type: "button", title: "Inverti colori di primo piano e sfondo (X)", onclick: swapColors }, psIcon("swap", 12))));
+      el("button", { class: "ps-mini ps-mini-def", type: "button", title: tr("imgedit.colori_predefiniti_primo_piano_sfondo"), onclick: defaultColors }, psIcon("defaultColors", 11)),
+      el("button", { class: "ps-mini ps-mini-swap", type: "button", title: tr("imgedit.inverti_colori_primo_piano_sfondo"), onclick: swapColors }, psIcon("swap", 12))));
     renderSwatches();
   }
   const closeFly = () => { flyout?.remove(); flyout = null; };
@@ -1526,7 +1529,7 @@ export function createEditor(ctx, init) {
   const oBtn = (icon, title, fn, on) => el("button", { class: "ps-obtn" + (on ? " on" : ""), type: "button", title, onclick: fn }, psIcon(icon, 18));
   const oSep = () => el("span", { class: "ps-osep" });
   function selModeBtns() {
-    return [["new", "selNew", "Nuova selezione"], ["add", "selAdd", "Aggiungi alla selezione (Maiusc)"], ["sub", "selSub", "Sottrai dalla selezione (Alt)"], ["int", "selInt", "Interseca con la selezione (Maiusc+Alt)"]]
+    return [["new", "selNew", tr("imgedit.nuova_selezione")], ["add", "selAdd", tr("imgedit.aggiungi_selezione_maiusc")], ["sub", "selSub", tr("imgedit.sottrai_selezione_alt")], ["int", "selInt", tr("imgedit.interseca_selezione_maiusc_alt")]]
       .map(([m, ic, t]) => oBtn(ic, t, () => { opt.sel.mode = m; renderOptions(); }, opt.sel.mode === m));
   }
   function renderOptions() {
@@ -1535,87 +1538,87 @@ export function createEditor(ctx, init) {
     optBar.append(el("span", { class: "ps-otool", title: TOOLS[t].name }, psIcon(t, 20)), oSep());
     if (tf) {
       const fld = (label, get, set, unit, step = 1) => { const i = el("input", { type: "number", class: "ps-num", step, value: Math.round(get() * 100) / 100 }); i.addEventListener("change", () => { set(+i.value); updateTfPreview(); }); return el("label", { class: "ps-ofield" }, oLabel(label), i, unit ? el("span", { class: "ps-unit" }, unit) : null); };
-      optBar.append(oLabel("Trasformazione libera"), oSep(),
+      optBar.append(oLabel(tr("imgedit.trasformazione_libera")), oSep(),
         fld("X:", () => tf.cx, v => (tf.cx = v), "px"), fld("Y:", () => tf.cy, v => (tf.cy = v), "px"), oSep(),
         fld("L:", () => tf.sx * 100, v => (tf.sx = v / 100 || 0.01), "%", 0.1), fld("A:", () => tf.sy * 100, v => (tf.sy = v / 100 || 0.01), "%", 0.1), oSep(),
-        fld("Ruota:", () => tf.rot * 180 / Math.PI, v => (tf.rot = v * Math.PI / 180), "°", 0.1),
-        el("span", { class: "grow" }), oBtn("cancel", "Annulla trasformazione (Esc)", cancelTransform), oBtn("check", "Conferma trasformazione (Invio)", () => commitTransform()));
+        fld(tr("imgedit.ruota"), () => tf.rot * 180 / Math.PI, v => (tf.rot = v * Math.PI / 180), "°", 0.1),
+        el("span", { class: "grow" }), oBtn("cancel", tr("imgedit.annulla_trasformazione_esc"), cancelTransform), oBtn("check", tr("imgedit.conferma_trasformazione_invio"), () => commitTransform()));
       return;
     }
     switch (t) {
       case "move":
-        optBar.append(oCheck(opt.move, "auto", "Selezione automatica livello (o Ctrl+clic)"), oCheck(opt.move, "ctrls", "Mostra controlli trasformazione", schedule), oSep(),
-          el("button", { class: "btn", type: "button", onclick: () => beginTransform() }, "Trasformazione libera (Ctrl+T)"));
+        optBar.append(oCheck(opt.move, "auto", tr("imgedit.selezione_automatica_livello_ctrl_clic")), oCheck(opt.move, "ctrls", tr("imgedit.mostra_controlli_trasformazione"), schedule), oSep(),
+          el("button", { class: "btn", type: "button", onclick: () => beginTransform() }, tr("imgedit.trasformazione_libera_ctrl_t")));
         break;
       case "marqueeRect": case "marqueeEllipse": case "lasso": case "lassoPoly":
-        optBar.append(...selModeBtns(), oSep(), oNum(opt.sel, "feather", 0, 250, "Sfuma:", "px"));
-        if (t === "lassoPoly") optBar.append(oSep(), el("span", { class: "ps-note" }, "Clic per i vertici, doppio clic o clic sul primo punto per chiudere, Esc annulla"));
+        optBar.append(...selModeBtns(), oSep(), oNum(opt.sel, "feather", 0, 250, tr("imgedit.sfuma_2"), "px"));
+        if (t === "lassoPoly") optBar.append(oSep(), el("span", { class: "ps-note" }, tr("imgedit.clic_i_vertici_doppio_clic")));
         break;
       case "wand":
-        optBar.append(...selModeBtns(), oSep(), oNum(opt.wand, "tol", 0, 255, "Tolleranza:"), oCheck(opt.wand, "contig", "Contigui"), oCheck(opt.wand, "all", "Campiona tutti i livelli"));
+        optBar.append(...selModeBtns(), oSep(), oNum(opt.wand, "tol", 0, 255, tr("imgedit.tolleranza")), oCheck(opt.wand, "contig", tr("imgedit.contigui")), oCheck(opt.wand, "all", tr("imgedit.campiona_tutti_i_livelli")));
         break;
       case "crop":
-        optBar.append(oSelect(opt.crop, "ratio", [["free", "Proporzioni libere"], ["orig", "Proporzioni originali"], ["1:1", "1 : 1 (quadrato)"], ["4:3", "4 : 3"], ["3:2", "3 : 2"], ["16:9", "16 : 9"], ["3:4", "3 : 4"], ["2:3", "2 : 3"], ["9:16", "9 : 16"]], "", () => { startCrop(); }),
-          oSep(), oCheck(opt.crop, "del", "Elimina pixel ritagliati"), el("span", { class: "grow" }),
-          oBtn("cancel", "Annulla ritaglio (Esc)", cancelCrop), oBtn("check", "Conferma ritaglio (Invio)", applyCrop));
+        optBar.append(oSelect(opt.crop, "ratio", [["free", tr("imgedit.proporzioni_libere")], ["orig", tr("imgedit.proporzioni_originali")], ["1:1", tr("imgedit.1_1_quadrato")], ["4:3", "4 : 3"], ["3:2", "3 : 2"], ["16:9", "16 : 9"], ["3:4", "3 : 4"], ["2:3", "2 : 3"], ["9:16", "9 : 16"]], "", () => { startCrop(); }),
+          oSep(), oCheck(opt.crop, "del", tr("imgedit.elimina_pixel_ritagliati")), el("span", { class: "grow" }),
+          oBtn("cancel", tr("imgedit.annulla_ritaglio_esc"), cancelCrop), oBtn("check", tr("imgedit.conferma_ritaglio_invio"), applyCrop));
         break;
       case "eyedropper":
-        optBar.append(oSelect(opt.eyedropper, "size", [[1, "Campione puntiforme"], [3, "Media 3 x 3"], [5, "Media 5 x 5"], [11, "Media 11 x 11"]], "Dimensione campione:", () => (opt.eyedropper.size = +opt.eyedropper.size)),
-          oSelect({ v: opt.eyedropper.all ? "all" : "cur" }, "v", [["all", "Tutti i livelli"], ["cur", "Livello corrente"]], "Campione:", function () { opt.eyedropper.all = this?.v !== "cur"; }));
+        optBar.append(oSelect(opt.eyedropper, "size", [[1, tr("imgedit.campione_puntiforme")], [3, tr("imgedit.media_3_x_3")], [5, tr("imgedit.media_5_x_5")], [11, tr("imgedit.media_11_x_11")]], tr("imgedit.dimensione_campione"), () => (opt.eyedropper.size = +opt.eyedropper.size)),
+          oSelect({ v: opt.eyedropper.all ? "all" : "cur" }, "v", [["all", tr("imgedit.tutti_i_livelli")], ["cur", tr("imgedit.livello_corrente")]], tr("imgedit.campione"), function () { opt.eyedropper.all = this?.v !== "cur"; }));
         optBar.lastChild.querySelector("select").addEventListener("change", e => (opt.eyedropper.all = e.target.value === "all"));
-        optBar.append(oSep(), el("span", { class: "ps-note" }, "Clic: primo piano · Alt+clic: sfondo"));
+        optBar.append(oSep(), el("span", { class: "ps-note" }, tr("imgedit.clic_primo_piano_alt_clic")));
         break;
       case "brush": case "pencil": case "eraser": case "stamp": {
         const o = opt[t];
-        optBar.append(oNum(o, "size", 1, 5000, "Dim.:", "px"));
-        if (t !== "pencil") { const hs = { v: Math.round(o.hard * 100) }; optBar.append(oNum(hs, "v", 0, 100, "Durezza:", "%", 1, () => (o.hard = hs.v / 100))); }
-        optBar.append(oSep(), oNum(o, "opacity", 1, 100, "Opacita':", "%"));
-        if (t !== "pencil") optBar.append(oNum(o, "flow", 1, 100, "Flusso:", "%"));
-        if (t === "stamp") optBar.append(oSep(), oCheck(o, "aligned", "Allineato", () => (cloneOff = null)), oSelect({ v: o.all ? "all" : "cur" }, "v", [["cur", "Livello corrente"], ["all", "Tutti i livelli"]], "Campione:"),
-          el("span", { class: "ps-note" }, "Alt+clic: origine"));
+        optBar.append(oNum(o, "size", 1, 5000, tr("imgedit.dim"), "px"));
+        if (t !== "pencil") { const hs = { v: Math.round(o.hard * 100) }; optBar.append(oNum(hs, "v", 0, 100, tr("imgedit.durezza"), "%", 1, () => (o.hard = hs.v / 100))); }
+        optBar.append(oSep(), oNum(o, "opacity", 1, 100, tr("imgedit.opacita"), "%"));
+        if (t !== "pencil") optBar.append(oNum(o, "flow", 1, 100, tr("imgedit.flusso"), "%"));
+        if (t === "stamp") optBar.append(oSep(), oCheck(o, "aligned", tr("imgedit.allineato"), () => (cloneOff = null)), oSelect({ v: o.all ? "all" : "cur" }, "v", [["cur", tr("imgedit.livello_corrente")], ["all", tr("imgedit.tutti_i_livelli")]], tr("imgedit.campione")),
+          el("span", { class: "ps-note" }, tr("imgedit.alt_clic_origine")));
         if (t === "stamp") optBar.querySelectorAll("select")[0].addEventListener("change", e => (o.all = e.target.value === "all"));
         break;
       }
       case "gradient": {
         const o = opt.gradient;
-        optBar.append(oSelect(o, "kind", [["fgbg", "Primo piano → sfondo"], ["fgtr", "Primo piano → trasparente"]], ""),
-          oBtn("gradient", "Sfumatura lineare", () => { o.type = "linear"; renderOptions(); }, o.type === "linear"),
-          oBtn("marqueeEllipse", "Sfumatura radiale", () => { o.type = "radial"; renderOptions(); }, o.type === "radial"), oSep(),
-          oCheck(o, "reverse", "Inverti"), oNum(o, "opacity", 1, 100, "Opacita':", "%"), el("span", { class: "ps-note" }, "Trascina sul documento; Maiusc vincola a 45°"));
+        optBar.append(oSelect(o, "kind", [["fgbg", tr("imgedit.primo_piano_sfondo")], ["fgtr", tr("imgedit.primo_piano_trasparente")]], ""),
+          oBtn("gradient", tr("imgedit.sfumatura_lineare"), () => { o.type = "linear"; renderOptions(); }, o.type === "linear"),
+          oBtn("marqueeEllipse", tr("imgedit.sfumatura_radiale"), () => { o.type = "radial"; renderOptions(); }, o.type === "radial"), oSep(),
+          oCheck(o, "reverse", tr("imgedit.inverti")), oNum(o, "opacity", 1, 100, tr("imgedit.opacita"), "%"), el("span", { class: "ps-note" }, tr("imgedit.trascina_documento_maiusc_vincola_45")));
         break;
       }
       case "bucket":
-        optBar.append(oNum(opt.bucket, "opacity", 1, 100, "Opacita':", "%"), oNum(opt.bucket, "tol", 0, 255, "Tolleranza:"), oCheck(opt.bucket, "contig", "Contigui"), oCheck(opt.bucket, "all", "Tutti i livelli"));
+        optBar.append(oNum(opt.bucket, "opacity", 1, 100, tr("imgedit.opacita"), "%"), oNum(opt.bucket, "tol", 0, 255, tr("imgedit.tolleranza")), oCheck(opt.bucket, "contig", tr("imgedit.contigui")), oCheck(opt.bucket, "all", tr("imgedit.tutti_i_livelli")));
         break;
       case "type": {
         const o = opt.type, apply = () => { if (textEd) { Object.assign(textEd.L.props, { font: o.font, size: o.size, bold: o.bold, italic: o.italic, align: o.align }); placeText(); } };
         if (textEd) Object.assign(o, { font: textEd.L.props.font, size: textEd.L.props.size, bold: textEd.L.props.bold, italic: textEd.L.props.italic, align: textEd.L.props.align });
         const style = { v: (o.bold ? "b" : "") + (o.italic ? "i" : "") || "n" };
         optBar.append(oSelect(o, "font", FONTS.map(f => [f, f]), "", apply),
-          oSelect(style, "v", [["n", "Normale"], ["b", "Grassetto"], ["i", "Corsivo"], ["bi", "Grassetto corsivo"]], "", () => { o.bold = style.v.includes("b"); o.italic = style.v.includes("i"); apply(); }),
+          oSelect(style, "v", [["n", tr("imgedit.normale")], ["b", tr("imgedit.grassetto")], ["i", tr("imgedit.corsivo")], ["bi", tr("imgedit.grassetto_corsivo")]], "", () => { o.bold = style.v.includes("b"); o.italic = style.v.includes("i"); apply(); }),
           oNum(o, "size", 1, 2000, "", "px", 1, apply), oSep(),
-          ...[["left", "Allinea testo a sinistra"], ["center", "Testo al centro"], ["right", "Allinea testo a destra"]].map(([a, ti]) => el("button", { class: "ps-obtn" + (o.align === a ? " on" : ""), type: "button", title: ti, onclick: () => { o.align = a; apply(); renderOptions(); } },
+          ...[["left", tr("imgedit.allinea_testo_sinistra")], ["center", tr("imgedit.testo_centro")], ["right", tr("imgedit.allinea_testo_destra")]].map(([a, ti]) => el("button", { class: "ps-obtn" + (o.align === a ? " on" : ""), type: "button", title: ti, onclick: () => { o.align = a; apply(); renderOptions(); } },
             el("span", { class: "ps-align ps-align-" + a }, el("i"), el("i"), el("i")))),
-          oSep(), el("span", { class: "ps-note" }, textEd ? "Ctrl+Invio o Esc per confermare" : "Clic sul documento per scrivere; clic su un testo per modificarlo"));
-        if (textEd) optBar.append(el("span", { class: "grow" }), oBtn("cancel", "Annulla modifiche (Esc)", () => endText(false)), oBtn("check", "Conferma (Ctrl+Invio)", () => endText(true)));
+          oSep(), el("span", { class: "ps-note" }, textEd ? tr("imgedit.ctrl_invio_esc_confermare") : tr("imgedit.clic_documento_scrivere_clic_testo")));
+        if (textEd) optBar.append(el("span", { class: "grow" }), oBtn("cancel", tr("imgedit.annulla_modifiche_esc"), () => endText(false)), oBtn("check", tr("imgedit.conferma_ctrl_invio"), () => endText(true)));
         break;
       }
       case "shapeRect": case "shapeRound": case "shapeEllipse": case "shapeLine": {
         const o = opt.shape;
-        if (t === "shapeLine") optBar.append(oNum(o, "sw", 1, 500, "Spessore:", "px"), el("span", { class: "ps-note" }, "Colore: primo piano · Maiusc vincola a 45°"));
+        if (t === "shapeLine") optBar.append(oNum(o, "sw", 1, 500, tr("imgedit.spessore"), "px"), el("span", { class: "ps-note" }, tr("imgedit.colore_primo_piano_maiusc_vincola")));
         else {
-          const sc = el("input", { type: "color", value: o.color2, class: "ps-ocolor", title: "Colore traccia" }); sc.addEventListener("input", () => (o.color2 = sc.value));
-          optBar.append(oCheck(o, "fill", "Riempimento (primo piano)"), oSep(), oCheck(o, "stroke", "Traccia:"), sc, oNum(o, "sw", 1, 500, "", "px"));
-          if (t === "shapeRound") optBar.append(oSep(), oNum(o, "r", 0, 2000, "Raggio:", "px"));
-          optBar.append(oSep(), el("span", { class: "ps-note" }, "Maiusc: proporzioni bloccate · Alt: dal centro"));
+          const sc = el("input", { type: "color", value: o.color2, class: "ps-ocolor", title: tr("imgedit.colore_traccia") }); sc.addEventListener("input", () => (o.color2 = sc.value));
+          optBar.append(oCheck(o, "fill", tr("imgedit.riempimento_primo_piano")), oSep(), oCheck(o, "stroke", tr("imgedit.traccia_2")), sc, oNum(o, "sw", 1, 500, "", "px"));
+          if (t === "shapeRound") optBar.append(oSep(), oNum(o, "r", 0, 2000, tr("imgedit.raggio"), "px"));
+          optBar.append(oSep(), el("span", { class: "ps-note" }, tr("imgedit.maiusc_proporzioni_bloccate_alt_centro")));
         }
         break;
       }
-      case "hand": optBar.append(el("button", { class: "btn", type: "button", onclick: () => setZoom(1) }, "100%"), el("button", { class: "btn", type: "button", onclick: () => fit(true) }, "Adatta allo schermo")); break;
+      case "hand": optBar.append(el("button", { class: "btn", type: "button", onclick: () => setZoom(1) }, "100%"), el("button", { class: "btn", type: "button", onclick: () => fit(true) }, tr("imgedit.adatta_allo_schermo"))); break;
       case "zoom":
-        optBar.append(oBtn("zoom", "Zoom avanti", () => zoomStep(1)), el("button", { class: "btn", type: "button", onclick: () => zoomStep(-1) }, "Zoom indietro"), oSep(),
-          el("button", { class: "btn", type: "button", onclick: () => setZoom(1) }, "100%"), el("button", { class: "btn", type: "button", onclick: () => fit(true) }, "Adatta allo schermo"),
-          el("span", { class: "ps-note" }, "Clic: ingrandisci · Alt+clic: riduci · trascina un riquadro"));
+        optBar.append(oBtn("zoom", tr("imgedit.zoom_avanti"), () => zoomStep(1)), el("button", { class: "btn", type: "button", onclick: () => zoomStep(-1) }, tr("imgedit.zoom_indietro")), oSep(),
+          el("button", { class: "btn", type: "button", onclick: () => setZoom(1) }, "100%"), el("button", { class: "btn", type: "button", onclick: () => fit(true) }, tr("imgedit.adatta_allo_schermo")),
+          el("span", { class: "ps-note" }, tr("imgedit.clic_ingrandisci_alt_clic_riduci")));
         break;
     }
   }
@@ -1635,8 +1638,8 @@ export function createEditor(ctx, init) {
     show(curTab);
     return { d, pages: Object.fromEntries(Object.entries(pages).map(([k, v]) => [k, v.page])), show, head };
   };
-  const d1 = dock([["props", "Proprieta'"], ["adjust", "Regolazioni"], ["hist", "Cronologia"]]);
-  const d2 = dock([["layers", "Livelli"]]);
+  const d1 = dock([["props", tr("imgedit.proprieta")], ["adjust", tr("imgedit.regolazioni")], ["hist", tr("imgedit.cronologia")]]);
+  const d2 = dock([["layers", tr("imgedit.livelli")]]);
   panels.append(d1.d, d2.d);
   const dock1Show = id => { panels.hidden = false; root.classList.remove("ps-nopanels"); d1.show(id); };
 
@@ -1650,14 +1653,14 @@ export function createEditor(ctx, init) {
   const lyBlend = blendSelect("source-over");
   const lyOpacity = el("input", { type: "number", class: "ps-num", min: 0, max: 100 });
   const lyList = el("div", { class: "ps-lylist" });
-  lyBlend.addEventListener("change", () => { const L = cur(); if (L) { L.blend = lyBlend.value; invalidate(); commit("Metodo di fusione"); } });
-  lyOpacity.addEventListener("change", () => { const L = cur(); if (L) { L.opacity = clamp(Math.round(+lyOpacity.value), 0, 100); lyOpacity.value = L.opacity; invalidate(); commit("Opacita' livello"); } });
+  lyBlend.addEventListener("change", () => { const L = cur(); if (L) { L.blend = lyBlend.value; invalidate(); commit(tr("imgedit.metodo_fusione")); } });
+  lyOpacity.addEventListener("change", () => { const L = cur(); if (L) { L.opacity = clamp(Math.round(+lyOpacity.value), 0, 100); lyOpacity.value = L.opacity; invalidate(); commit(tr("imgedit.opacita_livello")); } });
   const lyBottom = el("div", { class: "ps-lybar" },
-    el("button", { type: "button", class: "ps-lyb", title: "Aggiungi maschera di livello (Alt: nascondi tutto)", onclick: e => addMask(sel ? (e.altKey ? "hideSel" : "revealSel") : e.altKey ? "hide" : "reveal") }, psIcon("mask", 16)),
-    el("button", { type: "button", class: "ps-lyb", title: "Crea nuovo livello di riempimento o regolazione", onclick: e => openMenu(e.currentTarget, Object.entries(ADJ).map(([k, a]) => ({ label: a.name + "...", run: () => addAdjustLayer(k) })), "up") }, psIcon("adjust", 16)),
-    el("button", { type: "button", class: "ps-lyb", title: "Crea un nuovo livello (Ctrl+Maiusc+Alt+N)", onclick: () => addLayer() }, psIcon("newLayer", 16)),
-    el("button", { type: "button", class: "ps-lyb", title: "Elimina livello", onclick: () => deleteLayer() }, psIcon("trash", 16)));
-  d2.pages.layers.append(el("div", { class: "ps-lyhead" }, lyBlend, el("label", { class: "ps-ofield" }, oLabel("Opacita':"), lyOpacity, el("span", { class: "ps-unit" }, "%"))), lyList, lyBottom);
+    el("button", { type: "button", class: "ps-lyb", title: tr("imgedit.aggiungi_maschera_livello_alt_nascondi"), onclick: e => addMask(sel ? (e.altKey ? "hideSel" : "revealSel") : e.altKey ? "hide" : "reveal") }, psIcon("mask", 16)),
+    el("button", { type: "button", class: "ps-lyb", title: tr("imgedit.crea_nuovo_livello_riempimento_regolazione"), onclick: e => openMenu(e.currentTarget, Object.entries(ADJ).map(([k, a]) => ({ label: a.name + "...", run: () => addAdjustLayer(k) })), "up") }, psIcon("adjust", 16)),
+    el("button", { type: "button", class: "ps-lyb", title: tr("imgedit.crea_nuovo_livello_ctrl_maiusc"), onclick: () => addLayer() }, psIcon("newLayer", 16)),
+    el("button", { type: "button", class: "ps-lyb", title: tr("imgedit.elimina_livello"), onclick: () => deleteLayer() }, psIcon("trash", 16)));
+  d2.pages.layers.append(el("div", { class: "ps-lyhead" }, lyBlend, el("label", { class: "ps-ofield" }, oLabel(tr("imgedit.opacita")), lyOpacity, el("span", { class: "ps-unit" }, "%"))), lyList, lyBottom);
   const thumbs = new Map();
   function drawThumb(cv, L, mask) {
     const g = g2(cv), tw = cv.width, th = cv.height, s = Math.min(tw / W, th / H), ox = (tw - W * s) / 2, oy = (th - H * s) / 2;
@@ -1675,16 +1678,16 @@ export function createEditor(ctx, init) {
     if (L0) { lyBlend.value = L0.blend; lyOpacity.value = L0.opacity; }
     for (let i = layers.length - 1; i >= 0; i--) {
       const L = layers[i], on = i === act;
-      const eye = el("button", { type: "button", class: "ps-eye" + (L.visible ? "" : " off"), title: "Mostra/nascondi (Alt+clic: solo questo)" }, L.visible ? psIcon("eye", 15) : "");
+      const eye = el("button", { type: "button", class: "ps-eye" + (L.visible ? "" : " off"), title: tr("imgedit.mostra_nascondi_alt_clic_solo") }, L.visible ? psIcon("eye", 15) : "");
       eye.addEventListener("click", e => {
         e.stopPropagation();
         if (e.altKey) { const solo = layers.every((l, j) => j === i || !l.visible); layers.forEach((l, j) => (l.visible = solo || j === i)); }
         else L.visible = !L.visible;
-        invalidate(); commit(L.visible ? "Mostra livello" : "Nascondi livello");
+        invalidate(); commit(L.visible ? tr("imgedit.mostra_livello") : tr("imgedit.nascondi_livello"));
       });
       let th;
       if (L.kind === "adjust") th = el("span", { class: "ps-thumb ps-thumb-adj", title: ADJ[L.props.type]?.name }, psIcon(ADJ[L.props.type]?.icon || "adjust", 18));
-      else if (L.kind === "text") th = el("span", { class: "ps-thumb ps-thumb-adj", title: "Livello di testo" }, el("b", {}, "T"));
+      else if (L.kind === "text") th = el("span", { class: "ps-thumb ps-thumb-adj", title: tr("imgedit.livello_testo") }, el("b", {}, "T"));
       else { th = el("canvas", { class: "ps-thumb", width: 40, height: 30 }); const cv = th; thumbs.set(L.id, () => drawThumb(cv, L, false)); drawThumb(cv, L, false); }
       th.classList.toggle("tgt", on && target === "pixels");
       th.addEventListener("click", e => {
@@ -1694,13 +1697,13 @@ export function createEditor(ctx, init) {
       });
       const row = el("div", { class: "ps-ly" + (on ? " on" : "") + (L.visible ? "" : " hid"), draggable: "true" }, eye, th);
       if (L.mask) {
-        const mc = el("canvas", { class: "ps-thumb ps-mthumb" + (on && target === "mask" ? " tgt" : "") + (L.mask.on ? "" : " off"), width: 40, height: 30, title: "Maschera (Maiusc+clic: disattiva, Alt+clic: mostra la maschera)" });
+        const mc = el("canvas", { class: "ps-thumb ps-mthumb" + (on && target === "mask" ? " tgt" : "") + (L.mask.on ? "" : " off"), width: 40, height: 30, title: tr("imgedit.maschera_maiusc_clic_disattiva_alt") });
         drawThumb(mc, L, true); const id = L.id; thumbs.set(id + ":m", () => drawThumb(mc, L, true));
         mc.addEventListener("click", e => {
           e.stopPropagation();
           if (e.shiftKey) { selectLayer(i, "mask"); return maskOp("toggle"); }
           if (e.altKey) { selectLayer(i, "mask"); maskView = !maskView; schedule(); return; }
-          if (e.ctrlKey) { const c = mkCanvas(W, H); g2(c).drawImage(L.mask.c, L.mask.x, L.mask.y); sel = makeSel(c); invalidate(); return commit("Carica selezione"); }
+          if (e.ctrlKey) { const c = mkCanvas(W, H); g2(c).drawImage(L.mask.c, L.mask.x, L.mask.y); sel = makeSel(c); invalidate(); return commit(tr("imgedit.carica_selezione")); }
           selectLayer(i, "mask");
         });
         row.append(el("span", { class: "ps-chain" }, psIcon("link", 11)), mc);
@@ -1731,21 +1734,21 @@ export function createEditor(ctx, init) {
       let t = 0;
       const H_ = () => { const i = layers.indexOf(L), c = mkCanvas(W, H), g = g2(c); for (let j = 0; j < i; j++) renderLayer(g, layers[j]); return histogram(readData(c).data); };
       let hc = null;
-      P.append(sec(ADJ[L.props.type].name, adjustControls(L.props.type, L.props.p, () => { invalidate(); clearTimeout(t); t = setTimeout(() => commit("Modifica " + ADJ[L.props.type].name), 500); }, () => (hc ||= H_())),
-        el("div", { class: "ps-row" }, btn("Ripristina predefiniti", () => { L.props.p = ADJ[L.props.type].def(); invalidate(); commit("Ripristina"); renderProps(); }))));
+      P.append(sec(ADJ[L.props.type].name, adjustControls(L.props.type, L.props.p, () => { invalidate(); clearTimeout(t); t = setTimeout(() => commit(tr("imgedit.modifica") + ADJ[L.props.type].name), 500); }, () => (hc ||= H_())),
+        el("div", { class: "ps-row" }, btn(tr("imgedit.ripristina_predefiniti"), () => { L.props.p = ADJ[L.props.type].def(); invalidate(); commit(tr("imgedit.ripristina")); renderProps(); }))));
     } else if (L?.kind === "text") {
-      const p = L.props, upd = () => { renderText(L); invalidate(); clearTimeout(upd.t); upd.t = setTimeout(() => commit("Modifica testo"), 400); };
-      const ta = el("textarea", { class: "field ps-ta", rows: 3 }); ta.value = p.text; ta.addEventListener("input", () => { p.text = ta.value; L.name = p.text.split("\n")[0].slice(0, 30) || "Testo"; upd(); });
+      const p = L.props, upd = () => { renderText(L); invalidate(); clearTimeout(upd.t); upd.t = setTimeout(() => commit(tr("imgedit.modifica_testo")), 400); };
+      const ta = el("textarea", { class: "field ps-ta", rows: 3 }); ta.value = p.text; ta.addEventListener("input", () => { p.text = ta.value; L.name = p.text.split("\n")[0].slice(0, 30) || tr("imgedit.testo"); upd(); });
       const font = el("select", { class: "field ps-sel" }, ...FONTS.map(f => el("option", { value: f }, f))); font.value = p.font; font.addEventListener("change", () => { p.font = font.value; upd(); });
       const col = el("input", { type: "color", class: "ps-ocolor", value: p.color }); col.addEventListener("input", () => { p.color = col.value; upd(); });
       const n = (label, key, min, max, step = 1) => { const i = el("input", { type: "number", class: "ps-num", min, max, step, value: p[key] }); i.addEventListener("change", () => { p[key] = clamp(+i.value, min, max); upd(); }); return el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, label), i); };
       const ck = (label, key) => { const c = el("input", { type: "checkbox" }); c.checked = !!p[key]; c.addEventListener("change", () => { p[key] = c.checked; upd(); }); return el("label", { class: "ps-check" }, c, label); };
-      const al = el("select", { class: "field ps-sel" }, el("option", { value: "left" }, "Sinistra"), el("option", { value: "center" }, "Centro"), el("option", { value: "right" }, "Destra")); al.value = p.align; al.addEventListener("change", () => { p.align = al.value; upd(); });
-      P.append(sec("Testo", ta, el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, "Carattere:"), font), n("Dimensione (px):", "size", 1, 2000), n("Interlinea:", "lead", 0.5, 4, 0.05),
-        el("div", { class: "ps-row" }, ck("Grassetto", "bold"), ck("Corsivo", "italic")), el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, "Allineamento:"), al),
-        el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, "Colore:"), col), el("div", { class: "ps-row" }, btn("Rasterizza testo", () => rasterize(L)))));
+      const al = el("select", { class: "field ps-sel" }, el("option", { value: "left" }, tr("imgedit.sinistra")), el("option", { value: "center" }, tr("imgedit.centro_2")), el("option", { value: "right" }, tr("imgedit.destra"))); al.value = p.align; al.addEventListener("change", () => { p.align = al.value; upd(); });
+      P.append(sec(tr("imgedit.testo"), ta, el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgedit.carattere")), font), n(tr("imgedit.dimensione_px"), "size", 1, 2000), n(tr("imgedit.interlinea"), "lead", 0.5, 4, 0.05),
+        el("div", { class: "ps-row" }, ck(tr("imgedit.grassetto"), "bold"), ck(tr("imgedit.corsivo"), "italic")), el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgedit.allineamento")), al),
+        el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgedit.colore")), col), el("div", { class: "ps-row" }, btn(tr("imgedit.rasterizza_testo"), () => rasterize(L)))));
     } else if (L?.kind === "shape") {
-      const p = L.props, upd = () => { renderShape(L); invalidate(); clearTimeout(upd.t); upd.t = setTimeout(() => commit("Modifica forma"), 400); };
+      const p = L.props, upd = () => { renderShape(L); invalidate(); clearTimeout(upd.t); upd.t = setTimeout(() => commit(tr("imgedit.modifica_forma")), 400); };
       const n = (label, key, min = -1e5, max = 1e5) => { const i = el("input", { type: "number", class: "ps-num", value: Math.round(p[key]) }); i.addEventListener("change", () => { p[key] = clamp(+i.value, min, max); upd(); }); return el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, label), i, el("span", { class: "ps-unit" }, "px")); };
       const colRow = (label, key, def) => {
         const c = el("input", { type: "checkbox" }); c.checked = !!p[key];
@@ -1755,40 +1758,40 @@ export function createEditor(ctx, init) {
       };
       if (p.type === "line") {
         const col = el("input", { type: "color", class: "ps-ocolor", value: p.color2 || "#000000" }); col.addEventListener("input", () => { p.color2 = col.value; upd(); });
-        P.append(sec("Linea", n("X1:", "x1"), n("Y1:", "y1"), n("X2:", "x2"), n("Y2:", "y2"), n("Spessore:", "sw", 1, 500), el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, "Colore:"), col), el("div", { class: "ps-row" }, btn("Rasterizza forma", () => rasterize(L)))));
+        P.append(sec(tr("imgedit.linea"), n("X1:", "x1"), n("Y1:", "y1"), n("X2:", "x2"), n("Y2:", "y2"), n(tr("imgedit.spessore"), "sw", 1, 500), el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgedit.colore")), col), el("div", { class: "ps-row" }, btn(tr("imgedit.rasterizza_forma"), () => rasterize(L)))));
       } else {
-        P.append(sec("Forma", n("X:", "x"), n("Y:", "y"), n("L:", "w", 1), n("A:", "h", 1), p.type === "round" ? n("Raggio:", "r", 0) : null,
-          colRow("Riempimento", "fill", fg), colRow("Traccia", "stroke", "#000000"), n("Spessore traccia:", "sw", 1, 500), el("div", { class: "ps-row" }, btn("Rasterizza forma", () => rasterize(L)))));
+        P.append(sec(tr("imgedit.forma"), n("X:", "x"), n("Y:", "y"), n("L:", "w", 1), n("A:", "h", 1), p.type === "round" ? n(tr("imgedit.raggio"), "r", 0) : null,
+          colRow(tr("imgedit.riempimento"), "fill", fg), colRow(tr("imgedit.traccia"), "stroke", "#000000"), n(tr("imgedit.spessore_traccia"), "sw", 1, 500), el("div", { class: "ps-row" }, btn(tr("imgedit.rasterizza_forma"), () => rasterize(L)))));
       }
     } else if (L) {
-      const pos = (label, get, set) => { const i = el("input", { type: "number", class: "ps-num", value: get() }); i.addEventListener("change", () => { set(Math.round(+i.value)); invalidate(); commit("Sposta"); }); return el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, label), i, el("span", { class: "ps-unit" }, "px")); };
-      P.append(sec("Livello pixel",
+      const pos = (label, get, set) => { const i = el("input", { type: "number", class: "ps-num", value: get() }); i.addEventListener("change", () => { set(Math.round(+i.value)); invalidate(); commit(tr("imgedit.sposta")); }); return el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, label), i, el("span", { class: "ps-unit" }, "px")); };
+      P.append(sec(tr("imgedit.livello_pixel"),
         el("div", { class: "ps-grid2" },
           pos("X:", () => L.x, v => { const d = v - L.x; L.x = v; if (L.mask) L.mask = { ...L.mask, x: L.mask.x + d }; }),
           pos("Y:", () => L.y, v => { const d = v - L.y; L.y = v; if (L.mask) L.mask = { ...L.mask, y: L.mask.y + d }; }),
           el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, "L:"), el("span", {}, (L.c?.width || 0) + " px")), el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, "A:"), el("span", {}, (L.c?.height || 0) + " px"))),
         el("div", { class: "ps-row ps-icons" },
-          oBtn("rotate", "Ruota 90° in senso orario", () => layerXform("cw")), el("button", { class: "ps-obtn", type: "button", title: "Ruota 90° in senso antiorario", onclick: () => layerXform("ccw") }, el("span", { class: "ps-flipx" }, psIcon("rotate", 18))),
-          oBtn("flipH", "Rifletti orizzontale", () => layerXform("fh")), oBtn("flipV", "Rifletti verticale", () => layerXform("fv")),
-          el("button", { class: "btn", type: "button", onclick: () => beginTransform() }, "Trasforma (Ctrl+T)"))));
+          oBtn("rotate", tr("imgedit.ruota_90_senso_orario"), () => layerXform("cw")), el("button", { class: "ps-obtn", type: "button", title: tr("imgedit.ruota_90_senso_antiorario"), onclick: () => layerXform("ccw") }, el("span", { class: "ps-flipx" }, psIcon("rotate", 18))),
+          oBtn("flipH", tr("imgedit.rifletti_orizzontale"), () => layerXform("fh")), oBtn("flipV", tr("imgedit.rifletti_verticale"), () => layerXform("fv")),
+          el("button", { class: "btn", type: "button", onclick: () => beginTransform() }, tr("imgedit.trasforma_ctrl_t")))));
     }
     if (L?.mask) {
-      P.append(sec("Maschera di livello", el("p", { class: "ps-note" }, target === "mask" ? "Stai modificando la maschera: il nero nasconde, il bianco mostra." : "Clic sulla miniatura della maschera per dipingerla."),
-        el("div", { class: "ps-row ps-wrap" }, btn("Inverti", () => maskOp("invert")), btn(L.mask.on ? "Disattiva" : "Attiva", () => maskOp("toggle")),
-          L.kind !== "adjust" ? btn("Applica", () => maskOp("apply")) : null, btn("Elimina", () => maskOp("delete")), btn("Seleziona", () => { const c = mkCanvas(W, H); g2(c).drawImage(L.mask.c, L.mask.x, L.mask.y); sel = makeSel(c); invalidate(); commit("Carica selezione"); }))));
-    } else if (L) P.append(sec("Maschera di livello", el("div", { class: "ps-row ps-wrap" }, btn("Aggiungi maschera", () => addMask(sel ? "revealSel" : "reveal")), btn("Maschera nera", () => addMask(sel ? "hideSel" : "hide")))));
-    P.append(sec("Documento", el("p", { class: "ps-note" }, `${W} × ${H} pixel · ${layers.length} livell${layers.length === 1 ? "o" : "i"}`),
-      el("div", { class: "ps-row ps-wrap" }, btn("Dimensione immagine...", dlgImageSize), btn("Dimensione quadro...", dlgCanvasSize), btn("Rifila", trimTransparent, "Taglia i bordi trasparenti"))));
+      P.append(sec(tr("imgedit.maschera_livello"), el("p", { class: "ps-note" }, target === "mask" ? tr("imgedit.stai_modificando_maschera_nero_nasconde") : tr("imgedit.clic_miniatura_maschera_dipingerla")),
+        el("div", { class: "ps-row ps-wrap" }, btn(tr("imgedit.inverti"), () => maskOp("invert")), btn(L.mask.on ? tr("imgedit.disattiva") : tr("imgedit.attiva"), () => maskOp("toggle")),
+          L.kind !== "adjust" ? btn(tr("common.applica"), () => maskOp("apply")) : null, btn(tr("common.elimina"), () => maskOp("delete")), btn(tr("imgedit.seleziona"), () => { const c = mkCanvas(W, H); g2(c).drawImage(L.mask.c, L.mask.x, L.mask.y); sel = makeSel(c); invalidate(); commit(tr("imgedit.carica_selezione")); }))));
+    } else if (L) P.append(sec(tr("imgedit.maschera_livello"), el("div", { class: "ps-row ps-wrap" }, btn(tr("imgedit.aggiungi_maschera"), () => addMask(sel ? "revealSel" : "reveal")), btn(tr("imgedit.maschera_nera"), () => addMask(sel ? "hideSel" : "hide")))));
+    P.append(sec(tr("imgedit.documento"), el("p", { class: "ps-note" }, tr("imgedit.0_1_pixel", W, H) + " · " + tn("imgedit.n_livelli", layers.length)),
+      el("div", { class: "ps-row ps-wrap" }, btn(tr("imgedit.dimensione_immagine_2"), dlgImageSize), btn(tr("imgedit.dimensione_quadro_2"), dlgCanvasSize), btn(tr("imgedit.rifila"), trimTransparent, tr("imgedit.taglia_i_bordi_trasparenti")))));
   }
 
   // --- Regolazioni
   function renderAdjustPanel() {
     const P = d1.pages.adjust;
     P.innerHTML = "";
-    P.append(el("div", { class: "ps-sec-h" }, "Aggiungi una regolazione"));
+    P.append(el("div", { class: "ps-sec-h" }, tr("imgedit.aggiungi_regolazione")));
     const g = el("div", { class: "ps-adjgrid" });
     for (const [k, a] of Object.entries(ADJ)) g.append(el("button", { type: "button", class: "ps-adjbtn", title: a.name, onclick: () => addAdjustLayer(k) }, psIcon(a.icon, 22)));
-    P.append(g, el("p", { class: "ps-note" }, "Crea un livello di regolazione (non distruttivo) sopra il livello attivo; con una selezione attiva la maschera la segue. Per applicare direttamente ai pixel: menu Immagine > Regolazioni."));
+    P.append(g, el("p", { class: "ps-note" }, tr("imgedit.crea_livello_regolazione_non_distruttivo")));
   }
   // --- Cronologia
   function renderHistory() {
@@ -1838,84 +1841,73 @@ export function createEditor(ctx, init) {
   const prettyKeys = k => (k ? k.split("|")[0].replace(/Shift/g, "Maiusc").replace(/Escape/g, "Esc").replace(/Delete/g, "Canc").replace(/Plus/g, "+").replace(/Minus/g, "-") : "");
   const noSel = () => !sel, noLayer = () => !cur(), noMask = () => !cur()?.mask;
   const adjItems = () => [...Object.entries(ADJ).map(([k, a]) => ({ label: a.name + (k === "invert" ? "" : "..."), keys: a.keys, run: () => runAdjust(k) })),
-    "-", { label: "Togli saturazione", keys: "Ctrl+Shift+U", run: () => quickAdjust("desaturate") }];
-  // accesso del menu IA all'editor: documento appiattito, selezione, livelli nuovi, dimensione del quadro
-  const aiHost = {
-    ctx, size: () => [W, H], version: () => ver, flatten: () => flatten(), selMask: () => sel?.c || null,
-    setSel: (c, name) => { endText(true); sel = makeSel(c); if (sel) lastSel = sel; invalidate(); commit(name || "Selezione IA"); },
-    addLayer: (c, x, y, name) => { endText(true); addLayer({ c, x, y, name }, layers.length, name); },
-    canvasSize: (nw, nh, ax, ay) => canvasSize(nw, nh, ax, ay, null),
-    hideBelowTop: () => { layers.forEach((L, i) => { if (i < layers.length - 1) L.visible = false; }); invalidate(); commit("Nascondi originale"); },
-    openResult: p => ctx.openFile(p),
-  };
+    "-", { label: tr("imgedit.togli_saturazione"), keys: "Ctrl+Shift+U", run: () => quickAdjust("desaturate") }];
   const MENUS = {
     Modifica: () => [
-      { label: "Annulla" + (hi > 0 ? " " + history[hi].name : ""), keys: "Ctrl+Z", run: undo, disabled: () => hi <= 0 },
-      { label: "Ripeti", keys: "Ctrl+Shift+Z", run: redo, disabled: () => hi >= history.length - 1 },
-      { label: "Alterna ultimo stato", keys: "Ctrl+Alt+Z", run: toggleLast }, "-",
-      { label: "Taglia", keys: "Ctrl+X", run: () => copy(false, true) }, { label: "Copia", keys: "Ctrl+C", run: () => copy(false) },
-      { label: "Copia unione", keys: "Ctrl+Shift+C", run: () => copy(true) }, { label: "Incolla", keys: "Ctrl+V", run: () => (clip ? pasteCanvas(cloneC(clip.c), clip.x, clip.y) : toast("Usa Ctrl+V per incollare dagli appunti di Windows", false)) },
-      { label: "Cancella", keys: "Delete", run: clearSel, disabled: noSel }, "-",
-      { label: "Riempi...", keys: "Shift+F5", run: dlgFill }, { label: "Traccia...", run: dlgStroke, disabled: noSel }, "-",
-      { label: "Trasformazione libera", keys: "Ctrl+T", run: () => beginTransform() },
-      { label: "Trasforma", sub: () => [{ label: "Ruota di 180°", run: () => layerXform("180") }, { label: "Ruota di 90° in senso orario", run: () => layerXform("cw") }, { label: "Ruota di 90° in senso antiorario", run: () => layerXform("ccw") }, "-",
-        { label: "Rifletti orizzontale", run: () => layerXform("fh") }, { label: "Rifletti verticale", run: () => layerXform("fv") }] },
+      { label: tr("common.annulla_op") + (hi > 0 ? " " + history[hi].name : ""), keys: "Ctrl+Z", run: undo, disabled: () => hi <= 0 },
+      { label: tr("common.ripeti"), keys: "Ctrl+Shift+Z", run: redo, disabled: () => hi >= history.length - 1 },
+      { label: tr("imgedit.alterna_ultimo_stato"), keys: "Ctrl+Alt+Z", run: toggleLast }, "-",
+      { label: tr("common.taglia"), keys: "Ctrl+X", run: () => copy(false, true) }, { label: tr("common.copia"), keys: "Ctrl+C", run: () => copy(false) },
+      { label: tr("imgedit.copia_unione"), keys: "Ctrl+Shift+C", run: () => copy(true) }, { label: tr("common.incolla"), keys: "Ctrl+V", run: () => (clip ? pasteCanvas(cloneC(clip.c), clip.x, clip.y) : toast(tr("imgedit.usa_ctrl_v_incollare_dagli"), false)) },
+      { label: tr("imgedit.cancella"), keys: "Delete", run: clearSel, disabled: noSel }, "-",
+      { label: tr("imgedit.riempi_2"), keys: "Shift+F5", run: dlgFill }, { label: tr("imgedit.traccia_3"), run: dlgStroke, disabled: noSel }, "-",
+      { label: tr("imgedit.trasformazione_libera"), keys: "Ctrl+T", run: () => beginTransform() },
+      { label: tr("imgedit.trasforma"), sub: () => [{ label: tr("imgedit.ruota_180_2"), run: () => layerXform("180") }, { label: tr("imgedit.ruota_90_senso_orario_2"), run: () => layerXform("cw") }, { label: tr("imgedit.ruota_90_senso_antiorario_2"), run: () => layerXform("ccw") }, "-",
+        { label: tr("imgedit.rifletti_orizzontale"), run: () => layerXform("fh") }, { label: tr("imgedit.rifletti_verticale"), run: () => layerXform("fv") }] },
     ],
     Immagine: () => [
-      { label: "Regolazioni", sub: adjItems }, "-",
-      { label: "Tono automatico", keys: "Ctrl+Shift+L", run: () => quickAdjust("tone") }, { label: "Contrasto automatico", keys: "Ctrl+Alt+Shift+L", run: () => quickAdjust("contrast") },
-      { label: "Colore automatico", keys: "Ctrl+Shift+B", run: () => quickAdjust("color") }, "-",
-      { label: "Dimensione immagine...", keys: "Ctrl+Alt+I", run: dlgImageSize }, { label: "Dimensione quadro...", keys: "Ctrl+Alt+C", run: dlgCanvasSize },
-      { label: "Rotazione immagine", sub: () => [{ label: "180°", run: () => rotateDoc("180") }, { label: "90° in senso orario", run: () => rotateDoc("cw") }, { label: "90° in senso antiorario", run: () => rotateDoc("ccw") },
-        { label: "Arbitraria...", run: dlgRotate }, "-", { label: "Rifletti quadro orizzontale", run: () => rotateDoc("fh") }, { label: "Rifletti quadro verticale", run: () => rotateDoc("fv") }] },
-      { label: "Ritaglia", run: () => cropDoc(sel.bounds), disabled: noSel }, { label: "Rifila (bordi trasparenti)", run: trimTransparent }, "-",
-      { label: "Informazioni immagine...", run: showInfo },
+      { label: tr("imgedit.regolazioni"), sub: adjItems }, "-",
+      { label: tr("imgedit.tono_automatico"), keys: "Ctrl+Shift+L", run: () => quickAdjust("tone") }, { label: tr("imgedit.contrasto_automatico"), keys: "Ctrl+Alt+Shift+L", run: () => quickAdjust("contrast") },
+      { label: tr("imgedit.colore_automatico"), keys: "Ctrl+Shift+B", run: () => quickAdjust("color") }, "-",
+      { label: tr("imgedit.dimensione_immagine_2"), keys: "Ctrl+Alt+I", run: dlgImageSize }, { label: tr("imgedit.dimensione_quadro_2"), keys: "Ctrl+Alt+C", run: dlgCanvasSize },
+      { label: tr("imgedit.rotazione_immagine"), sub: () => [{ label: "180°", run: () => rotateDoc("180") }, { label: tr("imgedit.90_senso_orario"), run: () => rotateDoc("cw") }, { label: tr("imgedit.90_senso_antiorario"), run: () => rotateDoc("ccw") },
+        { label: tr("imgedit.arbitraria"), run: dlgRotate }, "-", { label: tr("imgedit.rifletti_quadro_orizzontale"), run: () => rotateDoc("fh") }, { label: tr("imgedit.rifletti_quadro_verticale"), run: () => rotateDoc("fv") }] },
+      { label: tr("imgedit.ritaglia"), run: () => cropDoc(sel.bounds), disabled: noSel }, { label: tr("imgedit.rifila_bordi_trasparenti"), run: trimTransparent }, "-",
+      { label: tr("imgedit.informazioni_immagine_2"), run: showInfo },
     ],
     Livello: () => [
-      { label: "Nuovo", sub: () => [{ label: "Livello...", keys: "Ctrl+Shift+N", run: dlgNewLayer }, { label: "Livello tramite copia", keys: "Ctrl+J", run: () => layerVia(false) }, { label: "Livello tramite taglio", keys: "Ctrl+Shift+J", run: () => layerVia(true) }] },
-      { label: "Duplica livello", run: duplicateLayer, disabled: noLayer }, { label: "Elimina livello", run: deleteLayer, disabled: () => layers.length < 2 },
-      { label: "Rinomina livello...", run: () => renameLayer(cur()), disabled: noLayer }, "-",
-      { label: "Nuovo livello di regolazione", sub: () => Object.entries(ADJ).map(([k, a]) => ({ label: a.name + "...", run: () => addAdjustLayer(k) })) },
-      { label: "Inserisci immagine come livello...", run: async () => { const ps = await pickFiles(); for (const p of ps || []) await placeImage(p); } }, "-",
-      { label: "Maschera di livello", sub: () => [{ label: "Mostra tutto", run: () => addMask("reveal"), disabled: () => !!cur()?.mask }, { label: "Nascondi tutto", run: () => addMask("hide"), disabled: () => !!cur()?.mask },
-        { label: "Mostra selezione", run: () => addMask("revealSel"), disabled: () => !sel || !!cur()?.mask }, { label: "Nascondi selezione", run: () => addMask("hideSel"), disabled: () => !sel || !!cur()?.mask }, "-",
-        { label: "Elimina", run: () => maskOp("delete"), disabled: noMask }, { label: "Applica", run: () => maskOp("apply"), disabled: noMask },
-        { label: cur()?.mask?.on === false ? "Attiva" : "Disattiva", run: () => maskOp("toggle"), disabled: noMask }, { label: "Inverti", run: () => maskOp("invert"), disabled: noMask }] },
-      { label: "Rasterizza", run: () => rasterize(cur()), disabled: () => !["text", "shape"].includes(cur()?.kind) }, "-",
-      { label: "Disponi", sub: () => [{ label: "Porta in primo piano", keys: "Ctrl+Shift+]", run: () => moveLayer(layers.length - 1) }, { label: "Porta avanti", keys: "Ctrl+]", run: () => moveLayer(act + 1) },
-        { label: "Porta indietro", keys: "Ctrl+[", run: () => moveLayer(act - 1) }, { label: "Porta sotto", keys: "Ctrl+Shift+[", run: () => moveLayer(0) }] }, "-",
-      { label: "Unisci sotto", keys: "Ctrl+E", run: mergeDown, disabled: () => act < 1 }, { label: "Unisci visibili", keys: "Ctrl+Shift+E", run: () => mergeVisible(false) },
-      { label: "Unico livello", run: () => mergeVisible(true) },
+      { label: tr("imgedit.nuovo"), sub: () => [{ label: tr("imgedit.livello_2"), keys: "Ctrl+Shift+N", run: dlgNewLayer }, { label: tr("imgedit.livello_tramite_copia"), keys: "Ctrl+J", run: () => layerVia(false) }, { label: tr("imgedit.livello_tramite_taglio"), keys: "Ctrl+Shift+J", run: () => layerVia(true) }] },
+      { label: tr("imgedit.duplica_livello"), run: duplicateLayer, disabled: noLayer }, { label: tr("imgedit.elimina_livello"), run: deleteLayer, disabled: () => layers.length < 2 },
+      { label: tr("imgedit.rinomina_livello_2"), run: () => renameLayer(cur()), disabled: noLayer }, "-",
+      { label: tr("imgedit.nuovo_livello_regolazione"), sub: () => Object.entries(ADJ).map(([k, a]) => ({ label: a.name + "...", run: () => addAdjustLayer(k) })) },
+      { label: tr("imgedit.inserisci_immagine_come_livello"), run: async () => { const ps = await pickFiles(); for (const p of ps || []) await placeImage(p); } }, "-",
+      { label: tr("imgedit.maschera_livello"), sub: () => [{ label: tr("imgedit.mostra_tutto"), run: () => addMask("reveal"), disabled: () => !!cur()?.mask }, { label: tr("imgedit.nascondi_tutto"), run: () => addMask("hide"), disabled: () => !!cur()?.mask },
+        { label: tr("imgedit.mostra_selezione"), run: () => addMask("revealSel"), disabled: () => !sel || !!cur()?.mask }, { label: tr("imgedit.nascondi_selezione"), run: () => addMask("hideSel"), disabled: () => !sel || !!cur()?.mask }, "-",
+        { label: tr("common.elimina"), run: () => maskOp("delete"), disabled: noMask }, { label: tr("common.applica"), run: () => maskOp("apply"), disabled: noMask },
+        { label: cur()?.mask?.on === false ? tr("imgedit.attiva") : tr("imgedit.disattiva"), run: () => maskOp("toggle"), disabled: noMask }, { label: tr("imgedit.inverti"), run: () => maskOp("invert"), disabled: noMask }] },
+      { label: tr("imgedit.rasterizza"), run: () => rasterize(cur()), disabled: () => !["text", "shape"].includes(cur()?.kind) }, "-",
+      { label: tr("imgedit.disponi"), sub: () => [{ label: tr("imgedit.porta_primo_piano"), keys: "Ctrl+Shift+]", run: () => moveLayer(layers.length - 1) }, { label: tr("imgedit.porta_avanti"), keys: "Ctrl+]", run: () => moveLayer(act + 1) },
+        { label: tr("imgedit.porta_indietro"), keys: "Ctrl+[", run: () => moveLayer(act - 1) }, { label: tr("imgedit.porta_sotto"), keys: "Ctrl+Shift+[", run: () => moveLayer(0) }] }, "-",
+      { label: tr("imgedit.unisci_sotto"), keys: "Ctrl+E", run: mergeDown, disabled: () => act < 1 }, { label: tr("imgedit.unisci_visibili"), keys: "Ctrl+Shift+E", run: () => mergeVisible(false) },
+      { label: tr("imgedit.unico_livello"), run: () => mergeVisible(true) },
     ],
     Seleziona: () => [
-      { label: "Tutto", keys: "Ctrl+A", run: selectAll }, { label: "Deseleziona", keys: "Ctrl+D", run: deselect, disabled: noSel },
-      { label: "Riseleziona", keys: "Ctrl+Shift+D", run: reselect, disabled: () => !lastSel }, { label: "Inversa", keys: "Ctrl+Shift+I", run: invertSel }, "-",
-      { label: "Carica selezione dal livello", run: () => selFromLayer(cur()), disabled: () => !cur()?.c },
-      { label: "Modifica", sub: () => [{ label: "Espandi...", run: () => dlgModifySel("expand") }, { label: "Contrai...", run: () => dlgModifySel("contract") }, { label: "Sfuma...", keys: "Shift+F6", run: () => dlgModifySel("feather") }], disabled: noSel },
+      { label: tr("imgedit.tutto"), keys: "Ctrl+A", run: selectAll }, { label: tr("imgedit.deseleziona"), keys: "Ctrl+D", run: deselect, disabled: noSel },
+      { label: tr("imgedit.riseleziona"), keys: "Ctrl+Shift+D", run: reselect, disabled: () => !lastSel }, { label: tr("imgedit.inversa"), keys: "Ctrl+Shift+I", run: invertSel }, "-",
+      { label: tr("imgedit.carica_selezione_livello"), run: () => selFromLayer(cur()), disabled: () => !cur()?.c },
+      { label: tr("imgedit.modifica_2"), sub: () => [{ label: tr("imgedit.espandi_3"), run: () => dlgModifySel("expand") }, { label: tr("imgedit.contrai_3"), run: () => dlgModifySel("contract") }, { label: tr("imgedit.sfuma_3"), keys: "Shift+F6", run: () => dlgModifySel("feather") }], disabled: noSel },
     ],
     Filtro: () => {
       const groups = {};
       for (const [id, f] of Object.entries(FILTERS)) (groups[f.group] ||= []).push({ label: f.name, run: () => runFilter(id) });
-      return [{ label: lastFilter ? "Ultimo filtro: " + FILTERS[lastFilter.id].name.replace("...", "") : "Ultimo filtro", keys: "Ctrl+Alt+F", run: () => lastFilter && runFilter(lastFilter.id, true), disabled: () => !lastFilter }, "-",
+      return [{ label: lastFilter ? tr("imgedit.ultimo_filtro") + FILTERS[lastFilter.id].name.replace("...", "") : tr("imgedit.ultimo_filtro_2"), keys: "Ctrl+Alt+F", run: () => lastFilter && runFilter(lastFilter.id, true), disabled: () => !lastFilter }, "-",
         ...Object.entries(groups).map(([g, items]) => ({ label: g, sub: () => items }))];
     },
-    // funzioni IA del motore locale (ui/js/aiedit.js): solo nell'app per PC
-    ...(WEB ? {} : { IA: () => aiMenu(aiHost) }),
     Visualizza: () => [
-      { label: "Zoom avanti", keys: "Ctrl+Plus", run: () => zoomStep(1) }, { label: "Zoom indietro", keys: "Ctrl+Minus", run: () => zoomStep(-1) },
-      { label: "Adatta allo schermo", keys: "Ctrl+0", run: () => fit(true) }, { label: "100%", keys: "Ctrl+1", run: () => setZoom(1) }, "-",
-      { label: "Extra (bordi selezione)", keys: "Ctrl+H", run: () => { showExtras = !showExtras; schedule(); }, checked: () => showExtras },
+      { label: tr("imgedit.zoom_avanti"), keys: "Ctrl+Plus", run: () => zoomStep(1) }, { label: tr("imgedit.zoom_indietro"), keys: "Ctrl+Minus", run: () => zoomStep(-1) },
+      { label: tr("imgedit.adatta_allo_schermo"), keys: "Ctrl+0", run: () => fit(true) }, { label: "100%", keys: "Ctrl+1", run: () => setZoom(1) }, "-",
+      { label: tr("imgedit.extra_bordi_selezione"), keys: "Ctrl+H", run: () => { showExtras = !showExtras; schedule(); }, checked: () => showExtras },
     ],
     Finestra: () => [
-      { label: "Livelli", keys: "F7", run: togglePanels, checked: () => !panels.hidden },
-      { label: "Proprieta'", run: () => dock1Show("props") }, { label: "Regolazioni", run: () => dock1Show("adjust") }, { label: "Cronologia", run: () => dock1Show("hist") }, "-",
-      { label: "Mostra/nascondi pannelli e strumenti", keys: "Tab", run: toggleAll },
+      { label: tr("imgedit.livelli"), keys: "F7", run: togglePanels, checked: () => !panels.hidden },
+      { label: tr("imgedit.proprieta"), run: () => dock1Show("props") }, { label: tr("imgedit.regolazioni"), run: () => dock1Show("adjust") }, { label: tr("imgedit.cronologia"), run: () => dock1Show("hist") }, "-",
+      { label: tr("imgedit.mostra_nascondi_pannelli_strumenti"), keys: "Tab", run: toggleAll },
     ],
   };
   function togglePanels() { panels.hidden = !panels.hidden; root.classList.toggle("ps-nopanels", panels.hidden); schedule(); }
   function toggleAll() { root.classList.toggle("ps-full"); setTimeout(() => schedule(), 0); }
   for (const name of Object.keys(MENUS)) {
-    const b = el("button", { class: "ps-mbtn", type: "button" }, name);
+    const b = el("button", { class: "ps-mbtn", type: "button" }, tr("imgedit.menu_" + name.toLowerCase()));
     b.addEventListener("click", () => (menuEl && menuEl.dataset.m === name ? closeMenu() : (openMenu(b, MENUS[name]()), (menuEl.dataset.m = name))));
     b.addEventListener("pointerenter", () => { if (menuEl && menuEl.dataset.m && menuEl.dataset.m !== name) { openMenu(b, MENUS[name]()); menuEl.dataset.m = name; } });
     ctx.tb.append(b);
@@ -1927,102 +1919,98 @@ export function createEditor(ctx, init) {
     if (tool !== "move" && !tf) return false;
     if (tf) { tf.cx += dx; tf.cy += dy; updateTfPreview(); return true; }
     const L = cur(); if (!L) return false;
-    if (sel && L.c) { if (beginTransform(true)) { tf.cx += dx; tf.cy += dy; commitTransform("Sposta"); } return true; }
+    if (sel && L.c) { if (beginTransform(true)) { tf.cx += dx; tf.cy += dy; commitTransform(tr("imgedit.sposta")); } return true; }
     L.x += dx; L.y += dy; if (L.mask) L.mask = { ...L.mask, x: L.mask.x + dx, y: L.mask.y + dy };
     if (L.kind === "text") { L.props.x += dx; L.props.y += dy; }
     if (L.kind === "shape") { const P = L.props; if (P.type === "line") { P.x1 += dx; P.x2 += dx; P.y1 += dy; P.y2 += dy; } else { P.x += dx; P.y += dy; } }
-    invalidate(); commit("Sposta"); return true;
+    invalidate(); commit(tr("imgedit.sposta")); return true;
   };
   const setOpacityKey = n => {
     const v = n === 0 ? 100 : n * 10;
-    if (PAINT.has(tool)) { opt[tool].opacity = v; renderOptions(); ctx.status(`Opacita' ${v}%`); }
+    if (PAINT.has(tool)) { opt[tool].opacity = v; renderOptions(); ctx.status(tr("imgedit.opacita_0", v)); }
     else if (tool === "gradient" || tool === "bucket") { opt[tool].opacity = v; renderOptions(); }
-    else { const L = cur(); if (L) { L.opacity = v; invalidate(); commit("Opacita' livello"); } }
+    else { const L = cur(); if (L) { L.opacity = v; invalidate(); commit(tr("imgedit.opacita_livello")); } }
   };
-  const brushSize = f => { if (!PAINT.has(tool)) return; const o = opt[tool]; o.size = clamp(Math.round(f(o.size)), 1, 5000); tipCache.clear(); renderOptions(); schedule(); ctx.status(`Dimensione pennello ${o.size} px`); };
+  const brushSize = f => { if (!PAINT.has(tool)) return; const o = opt[tool]; o.size = clamp(Math.round(f(o.size)), 1, 5000); tipCache.clear(); renderOptions(); schedule(); ctx.status(tr("imgedit.dimensione_pennello_0_px", o.size)); };
   const brushHard = d => { if (!PAINT.has(tool) || tool === "pencil") return; const o = opt[tool]; o.hard = clamp(Math.round((o.hard + d) * 4) / 4, 0, 1); tipCache.clear(); renderOptions(); ctx.status(`Durezza ${Math.round(o.hard * 100)}%`); };
   const defs = [];
   const K = (keys, desc, run, group, when = free) => defs.push({ keys, desc, run, group, when });
-  for (const [letter, label] of [["V", "Sposta"], ["M", "Selezione rettangolare / ellittica"], ["L", "Lazo / Lazo poligonale"], ["W", "Bacchetta magica"], ["C", "Taglierina"], ["I", "Contagocce"],
-    ["B", "Pennello / Matita"], ["S", "Timbro clone"], ["E", "Gomma"], ["G", "Sfumatura / Secchiello"], ["T", "Testo"], ["U", "Rettangolo / Ellisse / Linea"], ["H", "Mano"], ["Z", "Zoom"]]) {
-    K(letter, "Strumento " + label, () => toolKey(letter, false), "Strumenti");
-    if (GROUPS.find(g => TOOLS[g[0]].key === letter).length > 1) K("Shift+" + letter, "Strumento successivo del gruppo " + letter, () => toolKey(letter, true), "Strumenti");
+  for (const [letter, label] of [["V", tr("imgedit.sposta")], ["M", tr("imgedit.selezione_rettangolare_ellittica")], ["L", tr("imgedit.lazo_lazo_poligonale")], ["W", tr("imgedit.bacchetta_magica")], ["C", tr("imgedit.taglierina")], ["I", tr("imgedit.contagocce")],
+    ["B", tr("imgedit.pennello_matita")], ["S", tr("imgedit.timbro_clone")], ["E", tr("imgedit.gomma")], ["G", tr("imgedit.sfumatura_secchiello")], ["T", tr("imgedit.testo")], ["U", tr("imgedit.rettangolo_ellisse_linea")], ["H", tr("imgedit.mano")], ["Z", tr("imgedit.zoom")]]) {
+    K(letter, tr("imgedit.strumento") + label, () => toolKey(letter, false), tr("imgedit.strumenti"));
+    if (GROUPS.find(g => TOOLS[g[0]].key === letter).length > 1) K("Shift+" + letter, tr("imgedit.strumento_successivo_gruppo") + letter, () => toolKey(letter, true), tr("imgedit.strumenti"));
   }
-  K("Space", "Mano temporanea (tieni premuto)", () => {}, "Strumenti", () => false);
-  describeKeys(ctx, "Photoshop", [["Spazio (tieni premuto)", "Strumento Mano temporaneo", "Strumenti"], ["Alt (tieni premuto)", "Contagocce temporaneo con pennello, matita, sfumatura, secchiello, forme e testo", "Strumenti"],
-    ["Alt+clic", "Timbro clone: imposta l'origine", "Strumenti"], ["Maiusc+clic", "Pennello/gomma: linea retta dall'ultimo punto", "Strumenti"], ["Ctrl+clic", "Strumento Sposta: seleziona il livello sotto il puntatore", "Strumenti"],
-    ["Ctrl+clic sulla miniatura", "Carica la trasparenza del livello come selezione", "Livelli"], ["Alt+clic sull'occhio", "Mostra solo questo livello", "Livelli"],
-    ["Alt+rotella / Ctrl+rotella", "Zoom nel punto del puntatore", "Vista"], ["Ctrl+V", "Incolla come nuovo livello (anche dagli appunti di Windows)", "Modifica"]]);
-  if (!WEB) {
-    K("Ctrl+Shift+G", "Riempimento generativo (IA) nella selezione", () => genFill(aiHost), "IA");
-    K("Ctrl+Shift+R", "Rimuovi oggetto (IA) nella selezione", () => removeObj(aiHost), "IA");
-  }
-  K("D", "Colori predefiniti (nero / bianco)", defaultColors, "Colori");
-  K("X", "Inverti primo piano e sfondo", swapColors, "Colori");
-  K("[|Ctrl+Alt+[", "Pennello piu' piccolo", () => brushSize(s => (s > 100 ? s * 0.9 : s - (s > 10 ? 5 : 1))), "Pennello");
-  K("]|Ctrl+Alt+]", "Pennello piu' grande", () => brushSize(s => (s >= 100 ? s * 1.1 : s + (s >= 10 ? 5 : 1))), "Pennello");
-  K("Shift+[", "Pennello piu' morbido", () => brushHard(-0.25), "Pennello");
-  K("Shift+]", "Pennello piu' duro", () => brushHard(0.25), "Pennello");
-  for (let n = 0; n <= 9; n++) K(String(n), n ? `Opacita' ${n * 10}%` : "Opacita' 100%", () => setOpacityKey(n), "Pennello");
-  K("Enter", "Conferma trasformazione / ritaglio / lazo poligonale", () => { if (tf) commitTransform(); else if (crop && tool === "crop") applyCrop(); else if (lassoPts.length) closePoly(); }, "Modifica");
-  K("Escape", "Annulla trasformazione / ritaglio / lazo", () => { if (menuEl) closeMenu(); else if (tf) cancelTransform(); else if (crop && tool === "crop") cancelCrop(); else if (lassoPts.length) { lassoPts = []; schedule(); } else if (maskView) { maskView = false; schedule(); } }, "Modifica");
-  K("Ctrl+Z", "Annulla", undo, "Modifica");
-  K("Ctrl+Shift+Z", "Ripeti", redo, "Modifica");
-  K("Ctrl+Alt+Z", "Alterna ultimo stato", toggleLast, "Modifica");
-  K("Ctrl+X", "Taglia", () => copy(false, true), "Modifica");
-  K("Ctrl+C", "Copia", () => copy(false), "Modifica");
-  K("Ctrl+Shift+C", "Copia unione", () => copy(true), "Modifica");
-  K("Delete|Backspace", "Cancella la selezione", () => { if (lassoPts.length > 1) { lassoPts.pop(); schedule(); } else clearSel(); }, "Modifica");
-  K("Alt+Backspace|Alt+Delete", "Riempi con il colore di primo piano", () => fillWith(fg, 100, "Riempi"), "Modifica");
-  K("Ctrl+Backspace|Ctrl+Delete", "Riempi con il colore di sfondo", () => fillWith(bg, 100, "Riempi"), "Modifica");
-  K("Shift+F5", "Riempi...", dlgFill, "Modifica");
-  K("Ctrl+T", "Trasformazione libera", () => (tf ? commitTransform() : beginTransform()), "Modifica");
-  K("ArrowLeft", "Sposta di 1 px (Maiusc: 10 px)", () => nudge(-1, 0), "Modifica"); K("ArrowRight", "Sposta a destra", () => nudge(1, 0), "Modifica");
-  K("ArrowUp", "Sposta in alto", () => nudge(0, -1), "Modifica"); K("ArrowDown", "Sposta in basso", () => nudge(0, 1), "Modifica");
-  K("Shift+ArrowLeft", "Sposta di 10 px", () => nudge(-10, 0), "Modifica"); K("Shift+ArrowRight", "Sposta di 10 px", () => nudge(10, 0), "Modifica");
-  K("Shift+ArrowUp", "Sposta di 10 px", () => nudge(0, -10), "Modifica"); K("Shift+ArrowDown", "Sposta di 10 px", () => nudge(0, 10), "Modifica");
-  for (const [k, a] of Object.entries(ADJ)) if (a.keys) K(a.keys, a.name, () => runAdjust(k), "Immagine");
-  K("Ctrl+Shift+U", "Togli saturazione", () => quickAdjust("desaturate"), "Immagine");
-  K("Ctrl+Shift+L", "Tono automatico", () => quickAdjust("tone"), "Immagine");
-  K("Ctrl+Alt+Shift+L", "Contrasto automatico", () => quickAdjust("contrast"), "Immagine");
-  K("Ctrl+Shift+B", "Colore automatico", () => quickAdjust("color"), "Immagine");
-  K("Ctrl+Alt+I", "Dimensione immagine", dlgImageSize, "Immagine");
-  K("Ctrl+Alt+C", "Dimensione quadro", dlgCanvasSize, "Immagine");
-  K("Ctrl+Shift+N", "Nuovo livello...", dlgNewLayer, "Livello");
-  K("Ctrl+Alt+Shift+N", "Nuovo livello senza finestra", () => addLayer(), "Livello");
-  K("Ctrl+J", "Livello tramite copia", () => layerVia(false), "Livello");
-  K("Ctrl+Shift+J", "Livello tramite taglio", () => layerVia(true), "Livello");
-  K("Ctrl+E", "Unisci sotto", mergeDown, "Livello");
-  K("Ctrl+Shift+E", "Unisci visibili", () => mergeVisible(false), "Livello");
-  K("Ctrl+]", "Porta avanti", () => moveLayer(act + 1), "Livello");
-  K("Ctrl+[", "Porta indietro", () => moveLayer(act - 1), "Livello");
-  K("Ctrl+Shift+]", "Porta in primo piano", () => moveLayer(layers.length - 1), "Livello");
-  K("Ctrl+Shift+[", "Porta sotto", () => moveLayer(0), "Livello");
-  K("Alt+]", "Seleziona il livello sopra", () => selectLayer(Math.min(layers.length - 1, act + 1)), "Livello");
-  K("Alt+[", "Seleziona il livello sotto", () => selectLayer(Math.max(0, act - 1)), "Livello");
-  K("Ctrl+A", "Seleziona tutto", selectAll, "Seleziona");
-  K("Ctrl+D", "Deseleziona", deselect, "Seleziona");
-  K("Ctrl+Shift+D", "Riseleziona", reselect, "Seleziona");
-  K("Ctrl+Shift+I", "Inverti selezione", invertSel, "Seleziona");
-  K("Shift+F6", "Sfuma selezione", () => dlgModifySel("feather"), "Seleziona");
-  K("Ctrl+Alt+F", "Ripeti l'ultimo filtro", () => lastFilter && runFilter(lastFilter.id, true), "Filtro");
-  K("Ctrl+Plus", "Zoom avanti", () => zoomStep(1), "Vista");
-  K("Ctrl+Minus", "Zoom indietro", () => zoomStep(-1), "Vista");
-  K("Ctrl+0", "Adatta allo schermo", () => fit(true), "Vista");
-  K("Ctrl+1", "100% (pixel reali)", () => setZoom(1), "Vista");
-  K("Ctrl+H", "Mostra/nascondi extra (bordi della selezione)", () => { showExtras = !showExtras; schedule(); }, "Vista");
-  K("Tab", "Mostra/nascondi pannelli e strumenti", toggleAll, "Finestra");
-  K("F7", "Mostra/nascondi pannelli", togglePanels, "Finestra");
+  K("Space", tr("imgedit.mano_temporanea_tieni_premuto"), () => {}, tr("imgedit.strumenti"), () => false);
+  describeKeys(ctx, "Photoshop", [[tr("imgedit.spazio_tieni_premuto"), tr("imgedit.strumento_mano_temporaneo"), tr("imgedit.strumenti")], [tr("imgedit.alt_tieni_premuto"), tr("imgedit.contagocce_temporaneo_pennello_matita_sfumatura"), tr("imgedit.strumenti")],
+    ["Alt+clic", tr("imgedit.timbro_clone_imposta_l_origine"), tr("imgedit.strumenti")], ["Maiusc+clic", tr("imgedit.pennello_gomma_linea_retta_dall"), tr("imgedit.strumenti")], ["Ctrl+clic", tr("imgedit.strumento_sposta_seleziona_livello_sotto"), tr("imgedit.strumenti")],
+    [tr("imgedit.ctrl_clic_miniatura"), tr("imgedit.carica_trasparenza_livello_come_selezione"), tr("imgedit.livelli")], [tr("imgedit.alt_clic_sull_occhio"), tr("imgedit.mostra_solo_questo_livello"), tr("imgedit.livelli")],
+    [tr("imgedit.alt_rotella_ctrl_rotella"), tr("imgedit.zoom_punto_puntatore"), tr("imgedit.vista")], ["Ctrl+V", tr("imgedit.incolla_come_nuovo_livello_anche"), tr("imgedit.modifica_2")]]);
+  K("D", tr("imgedit.colori_predefiniti_nero_bianco"), defaultColors, tr("imgedit.colori"));
+  K("X", tr("imgedit.inverti_primo_piano_sfondo"), swapColors, tr("imgedit.colori"));
+  K("[|Ctrl+Alt+[", tr("imgedit.pennello_piu_piccolo"), () => brushSize(s => (s > 100 ? s * 0.9 : s - (s > 10 ? 5 : 1))), tr("imgedit.pennello"));
+  K("]|Ctrl+Alt+]", tr("imgedit.pennello_piu_grande"), () => brushSize(s => (s >= 100 ? s * 1.1 : s + (s >= 10 ? 5 : 1))), tr("imgedit.pennello"));
+  K("Shift+[", tr("imgedit.pennello_piu_morbido"), () => brushHard(-0.25), tr("imgedit.pennello"));
+  K("Shift+]", tr("imgedit.pennello_piu_duro"), () => brushHard(0.25), tr("imgedit.pennello"));
+  for (let n = 0; n <= 9; n++) K(String(n), n ? tr("imgedit.opacita_0", n * 10) : tr("imgedit.opacita_100"), () => setOpacityKey(n), tr("imgedit.pennello"));
+  K("Enter", tr("imgedit.conferma_trasformazione_ritaglio_lazo_poligonale"), () => { if (tf) commitTransform(); else if (crop && tool === "crop") applyCrop(); else if (lassoPts.length) closePoly(); }, tr("imgedit.modifica_2"));
+  K("Escape", tr("imgedit.annulla_trasformazione_ritaglio_lazo"), () => { if (menuEl) closeMenu(); else if (tf) cancelTransform(); else if (crop && tool === "crop") cancelCrop(); else if (lassoPts.length) { lassoPts = []; schedule(); } else if (maskView) { maskView = false; schedule(); } }, tr("imgedit.modifica_2"));
+  K("Ctrl+Z", tr("common.annulla_op"), undo, tr("imgedit.modifica_2"));
+  K("Ctrl+Shift+Z", tr("common.ripeti"), redo, tr("imgedit.modifica_2"));
+  K("Ctrl+Alt+Z", tr("imgedit.alterna_ultimo_stato"), toggleLast, tr("imgedit.modifica_2"));
+  K("Ctrl+X", tr("common.taglia"), () => copy(false, true), tr("imgedit.modifica_2"));
+  K("Ctrl+C", tr("common.copia"), () => copy(false), tr("imgedit.modifica_2"));
+  K("Ctrl+Shift+C", tr("imgedit.copia_unione"), () => copy(true), tr("imgedit.modifica_2"));
+  K("Delete|Backspace", tr("imgedit.cancella_selezione"), () => { if (lassoPts.length > 1) { lassoPts.pop(); schedule(); } else clearSel(); }, tr("imgedit.modifica_2"));
+  K("Alt+Backspace|Alt+Delete", tr("imgedit.riempi_colore_primo_piano"), () => fillWith(fg, 100, tr("imgedit.riempi")), tr("imgedit.modifica_2"));
+  K("Ctrl+Backspace|Ctrl+Delete", tr("imgedit.riempi_colore_sfondo"), () => fillWith(bg, 100, tr("imgedit.riempi")), tr("imgedit.modifica_2"));
+  K("Shift+F5", tr("imgedit.riempi_2"), dlgFill, tr("imgedit.modifica_2"));
+  K("Ctrl+T", tr("imgedit.trasformazione_libera"), () => (tf ? commitTransform() : beginTransform()), tr("imgedit.modifica_2"));
+  K("ArrowLeft", tr("imgedit.sposta_1_px_maiusc_10"), () => nudge(-1, 0), tr("imgedit.modifica_2")); K("ArrowRight", tr("imgedit.sposta_destra"), () => nudge(1, 0), tr("imgedit.modifica_2"));
+  K("ArrowUp", tr("imgedit.sposta_alto"), () => nudge(0, -1), tr("imgedit.modifica_2")); K("ArrowDown", tr("imgedit.sposta_basso"), () => nudge(0, 1), tr("imgedit.modifica_2"));
+  K("Shift+ArrowLeft", tr("imgedit.sposta_10_px"), () => nudge(-10, 0), tr("imgedit.modifica_2")); K("Shift+ArrowRight", tr("imgedit.sposta_10_px"), () => nudge(10, 0), tr("imgedit.modifica_2"));
+  K("Shift+ArrowUp", tr("imgedit.sposta_10_px"), () => nudge(0, -10), tr("imgedit.modifica_2")); K("Shift+ArrowDown", tr("imgedit.sposta_10_px"), () => nudge(0, 10), tr("imgedit.modifica_2"));
+  for (const [k, a] of Object.entries(ADJ)) if (a.keys) K(a.keys, a.name, () => runAdjust(k), tr("imgedit.immagine"));
+  K("Ctrl+Shift+U", tr("imgedit.togli_saturazione"), () => quickAdjust("desaturate"), tr("imgedit.immagine"));
+  K("Ctrl+Shift+L", tr("imgedit.tono_automatico"), () => quickAdjust("tone"), tr("imgedit.immagine"));
+  K("Ctrl+Alt+Shift+L", tr("imgedit.contrasto_automatico"), () => quickAdjust("contrast"), tr("imgedit.immagine"));
+  K("Ctrl+Shift+B", tr("imgedit.colore_automatico"), () => quickAdjust("color"), tr("imgedit.immagine"));
+  K("Ctrl+Alt+I", tr("imgedit.dimensione_immagine"), dlgImageSize, tr("imgedit.immagine"));
+  K("Ctrl+Alt+C", tr("imgedit.dimensione_quadro"), dlgCanvasSize, tr("imgedit.immagine"));
+  K("Ctrl+Shift+N", tr("imgedit.nuovo_livello_2"), dlgNewLayer, tr("imgedit.livello"));
+  K("Ctrl+Alt+Shift+N", tr("imgedit.nuovo_livello_senza_finestra"), () => addLayer(), tr("imgedit.livello"));
+  K("Ctrl+J", tr("imgedit.livello_tramite_copia"), () => layerVia(false), tr("imgedit.livello"));
+  K("Ctrl+Shift+J", tr("imgedit.livello_tramite_taglio"), () => layerVia(true), tr("imgedit.livello"));
+  K("Ctrl+E", tr("imgedit.unisci_sotto"), mergeDown, tr("imgedit.livello"));
+  K("Ctrl+Shift+E", tr("imgedit.unisci_visibili"), () => mergeVisible(false), tr("imgedit.livello"));
+  K("Ctrl+]", tr("imgedit.porta_avanti"), () => moveLayer(act + 1), tr("imgedit.livello"));
+  K("Ctrl+[", tr("imgedit.porta_indietro"), () => moveLayer(act - 1), tr("imgedit.livello"));
+  K("Ctrl+Shift+]", tr("imgedit.porta_primo_piano"), () => moveLayer(layers.length - 1), tr("imgedit.livello"));
+  K("Ctrl+Shift+[", tr("imgedit.porta_sotto"), () => moveLayer(0), tr("imgedit.livello"));
+  K("Alt+]", tr("imgedit.seleziona_livello_sopra"), () => selectLayer(Math.min(layers.length - 1, act + 1)), tr("imgedit.livello"));
+  K("Alt+[", tr("imgedit.seleziona_livello_sotto"), () => selectLayer(Math.max(0, act - 1)), tr("imgedit.livello"));
+  K("Ctrl+A", tr("imgedit.seleziona_tutto"), selectAll, tr("imgedit.seleziona"));
+  K("Ctrl+D", tr("imgedit.deseleziona"), deselect, tr("imgedit.seleziona"));
+  K("Ctrl+Shift+D", tr("imgedit.riseleziona"), reselect, tr("imgedit.seleziona"));
+  K("Ctrl+Shift+I", tr("imgedit.inverti_selezione"), invertSel, tr("imgedit.seleziona"));
+  K("Shift+F6", tr("imgedit.sfuma_selezione"), () => dlgModifySel("feather"), tr("imgedit.seleziona"));
+  K("Ctrl+Alt+F", tr("imgedit.ripeti_l_ultimo_filtro"), () => lastFilter && runFilter(lastFilter.id, true), tr("imgedit.filtro"));
+  K("Ctrl+Plus", tr("imgedit.zoom_avanti"), () => zoomStep(1), tr("imgedit.vista"));
+  K("Ctrl+Minus", tr("imgedit.zoom_indietro"), () => zoomStep(-1), tr("imgedit.vista"));
+  K("Ctrl+0", tr("imgedit.adatta_allo_schermo"), () => fit(true), tr("imgedit.vista"));
+  K("Ctrl+1", tr("imgedit.100_pixel_reali"), () => setZoom(1), tr("imgedit.vista"));
+  K("Ctrl+H", tr("imgedit.mostra_nascondi_extra_bordi_selezione"), () => { showExtras = !showExtras; schedule(); }, tr("imgedit.vista"));
+  K("Tab", tr("imgedit.mostra_nascondi_pannelli_strumenti"), toggleAll, tr("imgedit.finestra"));
+  K("F7", tr("imgedit.mostra_nascondi_pannelli"), togglePanels, tr("imgedit.finestra"));
   keymap(ctx, "Photoshop", defs, window);
 
   // ------------------------------------------------------------ avvio
   buildToolbar();
-  history = [{ name: "Apri", s: snap() }]; hi = 0;
+  history = [{ name: tr("imgedit.apri"), s: snap() }]; hi = 0;
   selectTool("move");
   refreshPanels(); renderAdjustPanel();
   // finche' l'utente non cambia zoom o posizione, l'immagine resta adattata alla finestra
   new ResizeObserver(() => { if (autoFit && stage.clientWidth) fit(); schedule(); placeText(); }).observe(stage);
-  if (init.skipped?.length) toast(`Livelli non supportati ignorati: ${init.skipped.slice(0, 3).join(", ")}${init.skipped.length > 3 ? "..." : ""}`, true, 6000);
+  if (init.skipped?.length) toast(tr("imgedit.livelli_non_supportati_ignorati_0", init.skipped.slice(0, 3).join(", "), init.skipped.length > 3 ? "..." : ""), true, 6000);
 
   // ------------------------------------------------------------ salvataggio
   const RAW = init.raw;
@@ -2033,8 +2021,8 @@ export function createEditor(ctx, init) {
     get saveInPlace() { return !RAW && (LAYERED_EXT.has(curExt) || !layered()); },
     saveAsName: () => (layered() && !LAYERED_EXT.has(curExt) ? withExt(ctx.tab.name, "psd") : RAW ? withExt(ctx.tab.name, "jpg") : ctx.tab.name),
     saveFormats: ["psd", "ora", "png", "jpg", "webp", "tif", "bmp", "gif"],
-    saveLabels: { psd: "Photoshop, con livelli", ora: "OpenRaster, con livelli (GIMP, Krita)", png: "PNG", jpg: "JPEG", webp: "WebP", tif: "TIFF", bmp: "Bitmap", gif: "GIF" },
-    saveNote: "PSD e ORA conservano livelli, maschere e regolazioni; gli altri formati salvano l'immagine unita.",
+    saveLabels: { psd: tr("imgedit.photoshop_livelli"), ora: tr("imgedit.openraster_livelli_gimp_krita"), png: "PNG", jpg: "JPEG", webp: "WebP", tif: "TIFF", bmp: tr("imgedit.bitmap"), gif: "GIF" },
+    saveNote: tr("imgedit.psd_ora_conservano_livelli_maschere"),
     async save(path) {
       endText(true);
       if (tf) commitTransform();
@@ -2049,7 +2037,7 @@ export function createEditor(ctx, init) {
         const blob = await new Promise(r => c.toBlob(r, type || "image/png", 0.92));
         bytes = new Uint8Array(await blob.arrayBuffer());
         if (!type) { await api("image_save", { path }, { body: bytes }); bytes = null; }
-        if (layered()) toast("Salvata l'immagine unita: per conservare i livelli salva in PSD o ORA", false, 5000);
+        if (layered()) toast(tr("imgedit.salvata_l_immagine_unita_conservare"), false, 5000);
       }
       if (bytes) await api("save", { path }, { body: bytes });
       if (path === ctx.tab.path || extOf(path) === curExt) ctx.setDirty(false);
@@ -2074,5 +2062,5 @@ export async function openImageDoc(bytesOrImg, ext) {
   if (ext === "ora") return readOra(bytesOrImg);
   const img = bytesOrImg, c = mkCanvas(img.naturalWidth || img.width, img.naturalHeight || img.height);
   g2(c).drawImage(img, 0, 0);
-  return { W: c.width, H: c.height, layers: [{ name: "Sfondo", kind: "pixel", c, x: 0, y: 0 }] };
+  return { W: c.width, H: c.height, layers: [{ name: tr("imgedit.sfondo"), kind: "pixel", c, x: 0, y: 0 }] };
 }

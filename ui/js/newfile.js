@@ -2,9 +2,10 @@
 // programma e la miniatura del modello). File vuoti dei formati modificabili, aperti subito nel loro editor.
 // Office, PDF, DXF e database partono dai modelli in ui/templates (tools/make_templates.py); gli altri si generano qui.
 import { api, el, toast, WEB } from "./core.js";
+import { t as tr } from "./i18n.js";
 
 const enc = s => new TextEncoder().encode(s);
-const tpl = name => fetch("templates/" + name).then(r => { if (!r.ok) throw new Error("Modello non trovato: " + name); return r.arrayBuffer(); }).then(b => new Uint8Array(b));
+const tpl = name => fetch("templates/" + name).then(r => { if (!r.ok) throw new Error(tr("newfile.modello_non_trovato") + name); return r.arrayBuffer(); }).then(b => new Uint8Array(b));
 async function canvasImage(w, h, type) {
   const c = document.createElement("canvas");
   c.width = w; c.height = h;
@@ -19,28 +20,32 @@ async function canvasImage(w, h, type) {
 // Un solo modello per tipo: formato, orientamento e dimensioni si cambiano poi nel programma (es. pagina del PDF,
 // limiti del disegno). Niente formati di codice (basta un testo e cambiare estensione) ne' immagini non modificabili.
 const TYPES = [
-  ["Nuovo", [
-    ["docx", "Documento Word", "Nuovo documento", () => tpl("vuoto.docx"), "doc", "Testi, relazioni, lettere"],
-    ["xlsx", "Cartella di lavoro Excel", "Nuovo foglio", () => tpl("vuoto.xlsx"), "sheet", "Tabelle, calcoli, computi"],
-    ["pptx", "Presentazione PowerPoint", "Nuova presentazione", () => tpl("vuoto.pptx"), "slide", "Diapositive"],
-    ["mbpub", "Pubblicazione", "Nuova pubblicazione", () => import("./pubmodel.js").then(m => m.blankMbpub()), "pub", "Volantini, brochure, biglietti, newsletter"],
-    ["mbvid", "Progetto video", "Nuovo progetto video", () => import("./vidmodel.js").then(m => enc(JSON.stringify(m.newProject(), null, 1))), "video-l", "Montaggio video e audio, titoli, transizioni"],
-    ["pdf", "Documento PDF", "Nuovo PDF", () => tpl("vuoto_A4.pdf"), "page", "Moduli, testi, immagini"],
-    ["dxf", "Disegno CAD", "Nuovo disegno", () => tpl("vuoto.dxf"), "cad", "Si apre in AutoCAD e in ogni CAD"],
-    ["png", "Immagine", "Nuova immagine", () => canvasImage(1920, 1080, "image/png"), "image-l", "Disegno, fotoritocco, livelli"],
-    ["txt", "Testo", "Nuovo testo", () => enc(""), "text", "Note, appunti, codice"],
+  [tr("newfile.nuovo"), [
+    ["docx", tr("newfile.documento_word"), tr("newfile.nuovo_documento"), () => tpl("vuoto.docx"), "doc", tr("newfile.testi_relazioni_lettere")],
+    ["xlsx", tr("newfile.cartella_lavoro_excel"), tr("newfile.nuovo_foglio"), () => tpl("vuoto.xlsx"), "sheet", tr("newfile.tabelle_calcoli_computi")],
+    ["pptx", tr("newfile.presentazione_powerpoint"), tr("newfile.nuova_presentazione"), () => tpl("vuoto.pptx"), "slide", tr("newfile.diapositive")],
+    ["mbpub", tr("newfile.pubblicazione"), tr("newfile.nuova_pubblicazione"), () => import("./pubmodel.js").then(m => m.blankMbpub()), "pub", tr("newfile.volantini_brochure_biglietti_newsletter")],
+    ["vsdx", tr("newfile.diagramma"), tr("newfile.nuovo_diagramma"), () => import("./vsdmodel.js").then(m => m.blankVsdx()), "diagram-l", tr("newfile.diagrammi_flusso_schemi_visio")],
+    ["mbvid", tr("newfile.progetto_video"), tr("newfile.nuovo_progetto_video"), () => import("./vidmodel.js").then(m => enc(JSON.stringify(m.newProject(), null, 1))), "video-l", tr("newfile.montaggio_video_audio_titoli_transizioni")],
+    ["pdf", tr("newfile.documento_pdf"), tr("newfile.nuovo_pdf"), () => tpl("vuoto_A4.pdf"), "page", tr("newfile.moduli_testi_immagini")],
+    ["dxf", tr("newfile.disegno_cad"), tr("newfile.nuovo_disegno"), () => tpl("vuoto.dxf"), "cad", tr("newfile.si_apre_autocad_ogni_cad")],
+    ["png", tr("newfile.immagine"), tr("newfile.nuova_immagine"), () => canvasImage(1920, 1080, "image/png"), "image-l", tr("newfile.disegno_fotoritocco_livelli")],
+    ["txt", tr("newfile.testo"), tr("newfile.nuovo_testo"), () => enc(""), "text", tr("newfile.note_appunti_codice")],
   ]],
 ];
 
+// nella web app (telefono) il montaggio video non c'e' (serve il motore dell'app per PC): niente modello che poi non si apre
+const WEB_SKIP = new Set(["mbvid"]);
+
 // icona del programma (colori e iniziale come le app originali, senza marchi)
 const APP = {
-  docx: ["#185abd", "W"], xlsx: ["#107c41", "X"], csv: ["#107c41", "a,b"], pptx: ["#c43e1c", "P"], mbpub: ["#077568", "P"], mbvid: ["#3b2d8f", "VID"], pdf: ["#d93025", "PDF"], dxf: ["#c0392b", "DXF"],
+  docx: ["#185abd", "W"], xlsx: ["#107c41", "X"], csv: ["#107c41", "a,b"], pptx: ["#c43e1c", "P"], mbpub: ["#077568", "P"], vsdx: ["#3955a3", "V"], mbvid: ["#3b2d8f", "VID"], pdf: ["#d93025", "PDF"], dxf: ["#c0392b", "DXF"],
   txt: ["#5f6b76", "TXT"], md: ["#37474f", "MD"], html: ["#e65100", "</>"], json: ["#6a4fb3", "{ }"], xml: ["#00838f", "XML"], py: ["#2b6cb0", "PY"], bat: ["#3c3c3c", "BAT"],
   png: ["#0078d4", "PNG"], jpg: ["#0078d4", "JPG"], svg: ["#f57c00", "SVG"], sqlite: ["#0f6d8c", "DB"],
 };
 function appIcon(ext) {
   const [c, t] = APP[ext] || ["#666", ext.toUpperCase()];
-  return `<svg viewBox="0 0 36 36" class="nf-app"><rect x="1" y="1" width="34" height="34" rx="7" fill="${c}"/><text x="18" y="${t.length > 2 ? 22.5 : 24.5}" text-anchor="middle" font-family="Segoe UI, Arial" font-weight="700" font-size="${t.length > 2 ? 10.5 : 17}" fill="#fff">${t.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</text></svg>`;
+  return `<svg viewBox="0 0 36 36" class="nf-app"><rect x="1" y="1" width="34" height="34" rx="7" fill="${c}"/><text x="18" y="${t.length > 2 ? 22.5 : 24.5}" text-anchor="middle" font-family="IBM Plex Sans, Segoe UI, Arial" font-weight="700" font-size="${t.length > 2 ? 10.5 : 17}" fill="#fff">${t.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</text></svg>`;
 }
 // miniatura del modello (pagina, foglio, diapositiva, disegno...)
 function thumb(kind, color) {
@@ -65,6 +70,14 @@ function thumb(kind, color) {
       + Array.from({ length: 22 }, (_, i) => `<rect x="${x + 8 + i * (W - 16) / 22}" y="${y + H * 0.52 + 22.5 - (2 + (i * 7) % 4)}" width="2" height="${(2 + (i * 7) % 4) * 2}" fill="#1d4d26"/>`).join("")
       + `<rect x="${x + W * 0.6}" y="${y + H * 0.48}" width="1.5" height="${H * 0.48}" fill="#2d8ceb"/>`;
   }
+  else if (kind === "diagram-l") {
+    // diagramma di flusso: inizio, processo, decisione collegati da connettori con freccia
+    const bx = (cx, cy, w, h, r) => `<rect x="${x + cx - w / 2}" y="${y + cy - h / 2}" width="${w}" height="${h}" rx="${r}" fill="${color}" opacity=".85"/>`;
+    const ar = (x1, y1, x2, y2) => `<path d="M${x + x1} ${y + y1}L${x + x2} ${y + y2}" stroke="#7a8691" stroke-width="1.2"/><path d="M${x + x2 - 3} ${y + y2 - 3}L${x + x2} ${y + y2}L${x + x2 + (x1 === x2 ? 3 : -3)} ${y + y2 + (x1 === x2 ? -3 : 3)}" fill="none" stroke="#7a8691" stroke-width="1.2"/>`;
+    inner = bx(22, 14, 26, 10, 5) + ar(22, 19, 22, 30) + bx(22, 37, 26, 13, 1)
+      + `<path d="M${x + 70} ${y + 26}l13 11 -13 11 -13 -11z" fill="${color}" opacity=".55"/>` + ar(35, 37, 56, 37) + ar(83, 37, 96, 37)
+      + bx(102, 37, 12, 13, 1) + `<path d="M${x + 70} ${y + 48}V${y + 60}H${x + 22}V${y + 56}" fill="none" stroke="#7a8691" stroke-width="1.2"/>` + bx(22, 63, 26, 10, 5);
+  }
   else if (kind.startsWith("page")) inner = "";
   else if (kind === "cad") inner = `<path d="M${x + 20} ${y + 55} L${x + 50} ${y + 25} L${x + 85} ${y + 45}" fill="none" stroke="${color}" stroke-width="1.4"/><circle cx="${x + 50}" cy="${y + 25}" r="2" fill="${color}"/><circle cx="${x + 68}" cy="${y + 50}" r="12" fill="none" stroke="#7a8691"/>`;
   else if (kind === "cad-sheet") inner = `<rect x="${x + 4}" y="${y + 4}" width="${W - 8}" height="${H - 8}" fill="none" stroke="#7a8691" stroke-width="1.2"/><rect x="${x + W - 48}" y="${y + H - 22}" width="44" height="18" fill="none" stroke="#7a8691"/><line x1="${x + W - 48}" y1="${y + H - 13}" x2="${x + W - 4}" y2="${y + H - 13}" stroke="#7a8691"/><line x1="${x + W - 20}" y1="${y + H - 22}" x2="${x + W - 20}" y2="${y + H - 13}" stroke="#7a8691"/>`;
@@ -75,15 +88,17 @@ function thumb(kind, color) {
   return `<svg viewBox="0 0 120 110" class="nf-thumb">${page}${inner}</svg>`;
 }
 
-export async function createNew({ openFile }) {
+export async function createNew({ openFile, ext = null }) {
   const items = [];
-  for (const [group, entries] of TYPES) for (const it of entries) items.push({ group, ext: it[0], name: it[1], base: it[2], make: it[3], kind: it[4], note: it[5] });
+  for (const [group, entries] of TYPES) for (const it of entries) if (!(WEB && WEB_SKIP.has(it[0]))) items.push({ group, ext: it[0], name: it[1], base: it[2], make: it[3], kind: it[4], note: it[5] });
   let sel = items[0];
+  // tipo gia' scelto (scorciatoie della home): niente galleria
+  const quick = ext && items.find(i => i.ext === ext);
 
-  return new Promise(resolve => {
-    const back = el("div", { class: "nf-back", role: "dialog", "aria-label": "Crea un nuovo file" });
+  return (quick ? Promise.resolve(quick) : new Promise(resolve => {
+    const back = el("div", { class: "nf-back", role: "dialog", "aria-label": tr("newfile.crea_nuovo_file") });
     const grid = el("div", { class: "nf-grid" });
-    const createBtn = el("button", { class: "btn primary", onclick: () => go() }, "Crea");
+    const createBtn = el("button", { class: "btn primary", onclick: () => go() }, tr("newfile.crea"));
     const info = el("div", { class: "nf-info" });
     const close = v => { back.remove(); document.removeEventListener("keydown", onKey, true); resolve(v); };
     const visible = () => items;
@@ -112,15 +127,15 @@ export async function createNew({ openFile }) {
       if (mv && list.length) { e.preventDefault(); sel = list[Math.max(0, Math.min(list.length - 1, i + mv))]; renderGrid(); grid.querySelector(".nf-card.on")?.focus(); }
     };
     back.append(el("div", { class: "nf-box" },
-      el("header", { class: "nf-head" }, el("h2", {}, "Nuovo"), el("span", { class: "nf-hint" }, "Scegli il tipo di file: si apre subito, dove salvarlo lo decidi con Salva"), el("button", { class: "nf-x", title: "Chiudi (Esc)", onclick: () => close(null) }, "×")),
+      el("header", { class: "nf-head" }, el("h2", {}, tr("newfile.nuovo")), el("span", { class: "nf-hint" }, tr("newfile.scegli_tipo_file_si_apre")), el("button", { class: "nf-x", title: tr("newfile.chiudi_esc"), html: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>', onclick: () => close(null) })),
       el("div", { class: "nf-body nf-single" }, grid),
-      el("footer", { class: "nf-foot" }, info, el("span", { class: "grow" }), el("button", { class: "btn", onclick: () => close(null) }, "Annulla"), createBtn)));
+      el("footer", { class: "nf-foot" }, info, el("span", { class: "grow" }), el("button", { class: "btn", onclick: () => close(null) }, tr("common.annulla")), createBtn)));
     back.addEventListener("pointerdown", e => { if (e.target === back) close(null); });
     document.body.append(back);
     document.addEventListener("keydown", onKey, true);
     renderGrid();
     grid.querySelector(".nf-card.on")?.focus();
-  }).then(async chosen => {
+  })).then(async chosen => {
     if (!chosen) return;
     const { ext, base, make } = chosen;
     let bytes;
@@ -136,7 +151,7 @@ export async function createNew({ openFile }) {
     try {
       path = (await api("temp_path", { name: `${base}.${ext}` })).path;
       await api("save", { path }, { body: bytes });
-    } catch (e) { return toast("Creazione non riuscita: " + e.message, true); }
+    } catch (e) { return toast(tr("newfile.creazione_non_riuscita") + e.message, true); }
     return openFile(path, null, { untitled: true });
   });
 }

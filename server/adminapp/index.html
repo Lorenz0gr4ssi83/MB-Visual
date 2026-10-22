@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#17191b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MBV Admin">
+<link rel="manifest" href="__BASE__/manifest.webmanifest">
+<link rel="icon" href="__BASE__/icon-192.png">
+<link rel="apple-touch-icon" href="__BASE__/icon-192.png">
+<title>MB Visual Admin</title>
+<style>
+  :root { --bg: #111315; --panel: #1a1d20; --panel2: #23272b; --line: #2f3439; --fg: #eceeef; --muted: #9aa1a8; --faint: #6d747b;
+    --accent: #f07d2e; --accent-fg: #1a1006; --ok: #5cb85c; --bad: #e0605a; --warn: #e3a33b; --r: 12px;
+    --top: env(safe-area-inset-top, 0px); --bottom: env(safe-area-inset-bottom, 0px); }
+  *, *::before, *::after { box-sizing: border-box; cursor: default !important; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { overscroll-behavior: none; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .hide { display: none !important; }
+  .mono { font-family: ui-monospace, "SF Mono", Consolas, monospace; letter-spacing: .02em; }
+  .muted { color: var(--muted); } .faint { color: var(--faint); } .err { color: var(--bad); }
+  /* schermate a tutto schermo: accesso, protezione, blocco */
+  .screen { position: fixed; inset: 0; display: grid; place-items: center; padding: calc(24px + var(--top)) 22px calc(24px + var(--bottom)); background: var(--bg); z-index: 50; overflow: auto; }
+  .card-c { width: min(420px, 100%); text-align: center; display: grid; gap: 14px; }
+  .card-c img { width: 96px; height: 96px; margin: 0 auto; border-radius: 22px; }
+  .card-c h1 { margin: 0; font-size: 22px; } .card-c p { margin: 0; color: var(--muted); }
+  input.big { width: 100%; padding: 13px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); font-size: 17px; text-align: center; }
+  input.big:focus, .field input:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--panel2); font-weight: 600; }
+  .btn.p { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+  .btn.d { color: var(--bad); } .btn.w { width: 100%; } .btn:disabled { opacity: .5; }
+  .btn.s { min-height: 34px; padding: 0 12px; font-size: 13.5px; border-radius: 8px; }
+  .link { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 6px; }
+  /* app */
+  header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 10px; padding: calc(10px + var(--top)) 16px 10px; background: rgba(17, 19, 21, .94);
+    border-bottom: 1px solid var(--line); backdrop-filter: blur(8px); }
+  header h2 { margin: 0; font-size: 18px; flex: 1; }
+  header .conn { font-size: 12px; color: var(--faint); }
+  .iconbtn { width: 38px; height: 38px; border-radius: 10px; border: 0; background: var(--panel2); display: inline-grid; place-items: center; }
+  .iconbtn svg, nav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  main { padding: 14px 14px calc(86px + var(--bottom)); display: grid; gap: 12px; }
+  nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(4, 1fr); padding: 6px 6px calc(6px + var(--bottom));
+    background: rgba(26, 29, 32, .97); border-top: 1px solid var(--line); }
+  nav button { position: relative; display: grid; justify-items: center; gap: 2px; padding: 6px 0; border: 0; background: none; color: var(--muted); font-size: 11.5px; }
+  nav button.on { color: var(--accent); }
+  nav .badge { position: absolute; top: 2px; left: calc(50% + 6px); }
+  .badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--bad); color: #fff; font-size: 11px; font-weight: 700; display: inline-grid; place-items: center; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; }
+  .tile .n { font-size: 26px; font-weight: 700; } .tile .l { color: var(--muted); font-size: 13px; }
+  .tile.alert .n { color: var(--accent); }
+  .box { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+  .row { padding: 12px 14px; border-bottom: 1px solid var(--line); display: grid; gap: 4px; }
+  .row:last-child { border-bottom: 0; }
+  .row.unread { box-shadow: inset 3px 0 0 var(--accent); background: rgba(240, 125, 46, .06); }
+  .row .top { display: flex; align-items: baseline; gap: 8px; } .row .top b { flex: 1; min-width: 0; }
+  .row .t { font-size: 12px; color: var(--faint); white-space: nowrap; }
+  .row.tap:active { background: var(--panel2); }
+  .sec { display: flex; align-items: center; gap: 8px; margin: 6px 2px -2px; }
+  .sec h3 { margin: 0; font-size: 15px; flex: 1; }
+  .chip { font-size: 11.5px; padding: 1px 8px; border-radius: 9px; border: 1px solid; white-space: nowrap; }
+  .chip.active, .chip.done { color: var(--ok); } .chip.revoked, .chip.closed { color: var(--muted); } .chip.replaced { color: var(--warn); } .chip.pending, .chip.open { color: var(--bad); }
+  .search { display: flex; gap: 8px; align-items: center; }
+  .search input[type=search] { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); }
+  .toggle { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13.5px; }
+  .toggle input { width: 20px; height: 20px; accent-color: var(--accent); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .fab { position: fixed; right: 16px; bottom: calc(76px + var(--bottom)); z-index: 11; height: 52px; padding: 0 20px; border-radius: 26px; border: 0; background: var(--accent);
+    color: var(--accent-fg); font-weight: 700; box-shadow: 0 10px 24px -8px rgba(240, 125, 46, .7); }
+  .note { font-size: 13px; color: var(--muted); }
+  .banner { background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 6px; }
+  .banner ol { margin: 0; padding-left: 20px; color: var(--muted); }
+  /* foglio dal basso (dettaglio licenza, moduli) */
+  .back { position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, .55); display: flex; align-items: flex-end; }
+  .sheet { width: 100%; max-height: 92vh; overflow: auto; background: var(--panel); border-radius: 18px 18px 0 0; padding: 8px 16px calc(18px + var(--bottom)); display: grid; gap: 12px; }
+  .sheet .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 2px auto 4px; }
+  .sheet h3 { margin: 0; font-size: 18px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; } .kv dt { color: var(--muted); } .kv dd { margin: 0; word-break: break-word; }
+  .keybox { display: grid; gap: 8px; padding: 12px; border-radius: 10px; background: var(--panel2); text-align: center; }
+  .keybox .mono { font-size: 16px; }
+  .field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  .field input, .field textarea { width: 100%; min-width: 0; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--fg); font-size: 16px; }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  .dev { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .dev > div { flex: 1; min-width: 0; }
+  .pick { display: grid; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--warn); }
+  .pick label { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+  .pick input, .sw input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+  .sw { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+  .sw:last-child { border-bottom: 0; } .sw span { flex: 1; }
+  #toast { position: fixed; left: 16px; right: 16px; bottom: calc(80px + var(--bottom)); z-index: 60; padding: 12px 14px; border-radius: 10px; background: #2b3035; border: 1px solid var(--line);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
+  #toast.bad { border-color: var(--bad); }
+  .empty { padding: 18px 14px; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+<!-- accesso -->
+<div class="screen hide" id="s-login"><div class="card-c">
+  <img src="__BASE__/icon-192.png" alt=""><h1>MB Visual Admin</h1>
+  <p>Inserisci il codice di 6 cifre mostrato da MB Visual Admin sul PC (Impostazioni → App per telefono) oppure il codice di gestione.</p>
+  <input class="big mono" id="code" type="password" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Codice">
+  <div class="err" id="login-err"></div>
+  <button class="btn p w" id="login-go">Accedi</button>
+</div></div>
+<!-- protezione con impronta / PIN -->
+<div class="screen hide" id="s-protect"><div class="card-c">
+  <img src="__BASE__/icon-192.png" alt=""><h1>Proteggi l'accesso</h1>
+  <p>Ogni volta che apri l'app ti verra' chiesta l'impronta, il volto o il PIN di questo telefono. Chi prende il telefono sbloccato non puo' gestire le licenze.</p>
+  <div class="err" id="protect-err"></div>
+  <button class="btn p w" id="protect-go">Attiva impronta / PIN</button>
+  <button class="link" id="protect-skip">Non ora</button>
+</div></div>
+<!-- bloccata -->
+<div class="screen hide" id="s-lock"><div class="card-c">
+  <img src="__BASE__/icon-192.png" alt=""><h1>App bloccata</h1>
+  <p>Sblocca con l'impronta, il volto o il PIN del telefono.</p>
+  <div class="err" id="lock-err"></div>
+  <button class="btn p w" id="lock-go">Sblocca</button>
+  <button class="link" id="lock-out">Esci e accedi con il codice</button>
+</div></div>
+
+<div id="app" class="hide">
+  <header><h2 id="title">Panoramica</h2><span class="conn" id="conn"></span>
+    <button class="iconbtn" id="refresh" title="Aggiorna"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button></header>
+  <main id="main"></main>
+  <button class="fab hide" id="fab">+ Nuova licenza</button>
+  <nav>
+    <button data-v="panoramica" class="on"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 8h6V4h-6z"/></svg>Panoramica</button>
+    <button data-v="licenze"><svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg>Licenze</button>
+    <button data-v="richieste"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>Richieste<span class="badge hide" id="nreq"></span></button>
+    <button data-v="impostazioni"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Impostazioni</button>
+  </nav>
+</div>
+<div id="toast" class="hide"></div>
+
+<script>
+"use strict";
+const BASE = "__BASE__";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = s => s ? new Date(s.replace(" ", "T") + "Z").toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" }) : "";
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+const KIND = { activation: "Attivazione", activation_pc: "Nuovo PC attivato", activation_mobile: "Nuovo cellulare attivato", expiring: "Licenza in scadenza", expired: "Licenza scaduta", change: "Cambio dispositivo", change_pending: "Cambio DA APPROVARE", report: "Segnalazione", limit: "Limite raggiunto",
+  invalid_key: "Chiave non valida", revoked_use: "Licenza non valida in uso", admin_login: "Accesso alla gestione" };
+// notifiche a scelta (stesse impostazioni dell'app per PC, salvate sul server)
+const NOTIFY = { activation_pc: "Nuova attivazione di un PC", activation_mobile: "Nuova attivazione di un cellulare", change: "Cambio dispositivo (chiave nuova generata)",
+  change_pending: "Cambio oltre il limite da approvare", report: "Segnalazione dall'app", expiring: "Licenza in scadenza (15 giorni prima)", expired: "Licenza scaduta",
+  limit: "Tentativi oltre il limite di dispositivi", invalid_key: "Tentativi con chiave non valida o sostituita", revoked_use: "Uso di una licenza revocata o scaduta",
+  admin_login: "Accesso alla gestione da un telefono" };
+const STATO = { active: "attiva", revoked: "revocata", replaced: "sostituita", open: "aperta", pending: "in attesa", done: "completata", closed: "chiusa" };
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+let state = {}, view = (location.hash.slice(1) || "panoramica"), data = null, showAll = false, query = "";
+if (!["panoramica", "licenze", "richieste", "impostazioni"].includes(view)) view = "panoramica";
+
+function toast(t, bad) { const e = $("toast"); e.textContent = t; e.className = bad ? "bad" : ""; clearTimeout(e._h); e._h = setTimeout(() => e.classList.add("hide"), 3800); }
+async function api(method, path, body) {
+  const r = await fetch(`${BASE}/api/${path}`, { method, credentials: "same-origin", cache: "no-store",
+    headers: body !== undefined ? { "content-type": "application/json" } : {}, body: body !== undefined ? JSON.stringify(body) : undefined });
+  const d = await r.json().catch(() => ({ ok: false, errore: "Risposta non valida dal server (" + r.status + ")" }));
+  if (r.status === 423) { show("lock"); throw new Error(d.errore); }
+  if (r.status === 401 && d.stato === "accesso") { show("login"); throw new Error(d.errore); }
+  if (!r.ok || d.ok === false) throw new Error(d.errore || "Errore " + r.status);
+  return d;
+}
+function show(s) {
+  for (const id of ["login", "protect", "lock"]) $("s-" + id).classList.toggle("hide", id !== s);
+  $("app").classList.toggle("hide", s !== "app");
+  if (s === "lock") setTimeout(() => $("lock-go").focus(), 50);
+}
+const deviceName = () => (/android/i.test(navigator.userAgent) ? "Android" : ios ? "iPhone/iPad" : "Telefono") + " " + new Date().toLocaleDateString("it-IT");
+const waSupported = async () => !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.().catch(() => false));
+
+// ------------------------------------------------------------ avvio
+async function start() {
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register(`${BASE}/sw.js`, { scope: `${BASE}/` }).catch(() => {});
+  try { state = await api("GET", "state"); } catch (e) { $("login-err").textContent = e.message; show("login"); return; }
+  const pair = new URLSearchParams(location.search).get("abbina");
+  if (pair) history.replaceState(null, "", `${BASE}/` + location.hash);
+  if (!state.accesso) { if (pair && /^\d{6}$/.test(pair)) return doLogin({ pair }); show("login"); return; }
+  if (state.bloccata) { show("lock"); return; }
+  if (!state.impronta && await waSupported() && localStorage.getItem("mbva-noimpronta") !== "1") { show("protect"); return; }
+  openApp();
+}
+async function doLogin(body) {
+  $("login-err").textContent = ""; $("login-go").disabled = true;
+  try {
+    await api("POST", "login", { ...body, name: deviceName() });
+    $("code").value = "";
+    state = await api("GET", "state");
+    if (!state.impronta && await waSupported()) show("protect"); else openApp();
+  } catch (e) { $("login-err").textContent = e.message; show("login"); } finally { $("login-go").disabled = false; }
+}
+$("login-go").onclick = () => { const v = $("code").value.trim(); if (!v) return; doLogin(/^\d{6}$/.test(v.replace(/\s/g, "")) ? { pair: v.replace(/\s/g, "") } : { code: v }); };
+$("code").addEventListener("keydown", e => { if (e.key === "Enter") $("login-go").click(); });
+
+async function registerPasskey() {
+  const o = (await api("POST", "wa/reg-options", {})).publicKey;
+  const cred = await navigator.credentials.create({ publicKey: { ...o, challenge: unb64u(o.challenge), user: { ...o.user, id: unb64u(o.user.id) } } });
+  await api("POST", "wa/reg", { clientDataJSON: b64u(cred.response.clientDataJSON), attestationObject: b64u(cred.response.attestationObject) });
+}
+$("protect-go").onclick = async () => {
+  $("protect-err").textContent = "";
+  try { await registerPasskey(); localStorage.removeItem("mbva-noimpronta"); toast("Accesso protetto con impronta / PIN"); openApp(); }
+  catch (e) { $("protect-err").textContent = e.name === "NotAllowedError" ? "Operazione annullata." : e.message; }
+};
+$("protect-skip").onclick = () => { localStorage.setItem("mbva-noimpronta", "1"); openApp(); };
+async function doUnlock() {
+  $("lock-err").textContent = ""; $("lock-go").disabled = true;
+  try {
+    const o = (await api("POST", "wa/unlock-options", {})).publicKey;
+    const cred = await navigator.credentials.get({ publicKey: { ...o, challenge: unb64u(o.challenge), allowCredentials: o.allowCredentials.map(c => ({ ...c, id: unb64u(c.id) })) } });
+    await api("POST", "wa/unlock", { id: cred.id, clientDataJSON: b64u(cred.response.clientDataJSON), authenticatorData: b64u(cred.response.authenticatorData), signature: b64u(cred.response.signature) });
+    state.bloccata = false; openApp();
+  } catch (e) { $("lock-err").textContent = e.name === "NotAllowedError" ? "Sblocco annullato." : e.message; } finally { $("lock-go").disabled = false; }
+}
+$("lock-go").onclick = doUnlock;
+$("lock-out").onclick = async () => { try { await api("POST", "logout", {}); } catch {} show("login"); };
+
+// ------------------------------------------------------------ app
+let timer = 0;
+function openApp() { show("app"); setView(view); refresh(); clearInterval(timer); timer = setInterval(() => { if (!document.hidden) refresh(true); }, 60000); }
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => setView(b.dataset.v));
+function setView(v) {
+  view = v; history.replaceState(null, "", `${BASE}/#${v}`);
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  $("title").textContent = { panoramica: "Panoramica", licenze: "Licenze", richieste: "Richieste", impostazioni: "Impostazioni" }[v];
+  $("fab").classList.toggle("hide", v !== "licenze");
+  scrollTo(0, 0); render();
+}
+$("refresh").onclick = () => refresh();
+async function refresh(quiet) {
+  try {
+    const [s, l, r, e] = await Promise.all([api("GET", "admin/summary"), api("GET", "admin/licenses"), api("GET", "admin/requests"), api("GET", "admin/events?after=0")]);
+    data = { s, lic: l.licenze, req: r.richieste, ev: e.avvisi.slice(-200).reverse() };
+    $("conn").textContent = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+    const open = data.req.filter(x => x.status === "open" || x.status === "pending").length;
+    $("nreq").textContent = open; $("nreq").classList.toggle("hide", !open);
+    navigator.setAppBadge?.(open + data.s.avvisi_non_letti).catch?.(() => {});
+    if (!open && !data.s.avvisi_non_letti) navigator.clearAppBadge?.().catch?.(() => {});
+    render();
+  } catch (x) { if (!quiet) toast(x.message, true); }
+}
+document.addEventListener("visibilitychange", async () => {
+  if (document.hidden || $("app").classList.contains("hide")) return;
+  try { state = await api("GET", "state"); } catch { return; }
+  if (!state.accesso) return show("login");
+  if (state.bloccata) return show("lock");
+  refresh(true);
+});
+navigator.serviceWorker?.addEventListener("message", e => { if (e.data?.vista) setView(e.data.vista); refresh(true); });
+
+function render() {
+  const m = $("main");
+  if (view === "impostazioni") return renderSettings(m);
+  if (!data) { m.innerHTML = `<div class="empty">Collegamento al server delle licenze...</div>`; return; }
+  if (view === "panoramica") {
+    const s = data.s, hint = standalone || localStorage.getItem("mbva-noinstalla") === "1" ? "" : `<div class="banner"><b>Installa l'app sulla schermata Home</b>
+      <ol>${ios ? "<li>Tocca Condividi in Safari (quadrato con la freccia).</li><li>Scegli <b>Aggiungi alla schermata Home</b>.</li><li>Apri MBV Admin dalla Home e accedi con un nuovo codice di 6 cifre (l'app installata non vede l'accesso fatto in Safari).</li>"
+        : "<li>Apri il menu del browser (tre puntini).</li><li>Scegli <b>Installa app</b> o <b>Aggiungi a schermata Home</b>.</li>"}</ol>
+      <div><button class="btn s" onclick="localStorage.setItem('mbva-noinstalla','1');render()">Nascondi</button></div></div>`;
+    m.innerHTML = hint + `<div class="cards">${[["Licenze attive", s.licenze], ["PC attivi", s.pc], ["Cellulari attivi", s.cellulari], ["Richieste aperte", s.richieste_aperte, s.richieste_aperte > 0]]
+      .map(([l, n, a]) => `<div class="tile${a ? " alert" : ""}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("")}</div>
+      <div class="sec"><h3>Avvisi ${s.avvisi_non_letti ? `<span class="badge">${s.avvisi_non_letti}</span>` : ""}</h3>${s.avvisi_non_letti ? `<button class="btn s" id="readall">Segna come letti</button>` : ""}</div>
+      <div class="box">${data.ev.map(e => `<div class="row ${e.read ? "" : "unread"}"><div class="top"><b>${esc(KIND[e.kind] || e.kind)}</b><span class="t">${fmt(e.created)}</span></div><div class="muted">${esc(e.text)}</div></div>`).join("")
+        || `<div class="empty">Nessun avviso</div>`}</div>`;
+    $("readall")?.addEventListener("click", readAll);
+  }
+  if (view === "licenze") {
+    m.innerHTML = `<div class="search"><input type="search" id="q" placeholder="Cerca cliente, chiave, email" value="${esc(query)}"></div>
+      <label class="toggle"><input type="checkbox" id="all" ${showAll ? "checked" : ""}> anche sostituite e revocate</label><div class="box" id="ll"></div>`;
+    $("q").oninput = e => { query = e.target.value; listLic(); };
+    $("all").onchange = e => { showAll = e.target.checked; listLic(); };
+    listLic();
+  }
+  if (view === "richieste") {
+    m.innerHTML = `<div class="box">${data.req.map(r => `<div class="row"><div class="top"><b>${r.type === "change" ? "Cambio dispositivo" : "Segnalazione"}</b><span class="chip ${r.status}">${STATO[r.status] || r.status}</span></div>
+      <div>${esc(r.customer || r.license_key)} <span class="faint">· ${fmt(r.created)}</span></div>${r.device_name ? `<div class="note">da ${esc(r.device_name)}</div>` : ""}
+      ${r.message ? `<div class="muted">${esc(r.message)}</div>` : ""}${r.new_key ? `<div class="note">nuova chiave <span class="mono">${esc(r.new_key)}</span></div>` : ""}
+      ${r.status === "pending" || r.status === "open" ? `<div class="actions">${r.status === "pending" ? `<button class="btn s p" data-a="approve" data-id="${r.id}">Approva</button>` : ""}<button class="btn s" data-a="close" data-id="${r.id}">Chiudi</button></div>` : ""}</div>`).join("")
+      || `<div class="empty">Nessuna richiesta</div>`}</div>`;
+    m.querySelectorAll("[data-a]").forEach(b => b.onclick = () => reqAct(+b.dataset.id, b.dataset.a));
+  }
+}
+function listLic() {
+  const q = query.toLowerCase();
+  const rows = data.lic.filter(l => (showAll || l.status === "active" || l.status === "revoked") && `${l.key} ${l.customer} ${l.email} ${l.notes}`.toLowerCase().includes(q));
+  $("ll").innerHTML = rows.map(l => { const d = l.dispositivi.filter(x => x.status === "active");
+    return `<div class="row tap" data-k="${esc(l.key)}"><div class="top"><b>${esc(l.customer || "(senza nome)")}</b><span class="chip ${l.status}">${STATO[l.status]}</span></div>
+      <div class="mono note">${esc(l.key)}</div><div class="note">PC ${d.filter(x => x.kind === "pc").length}/${l.max_pc} · cellulari ${d.filter(x => x.kind === "mobile").length}/${l.max_mobile}</div></div>`; }).join("")
+    || `<div class="empty">Nessuna licenza</div>`;
+  $("ll").querySelectorAll("[data-k]").forEach(r => r.onclick = () => licSheet(r.dataset.k));
+}
+
+// ------------------------------------------------------------ fogli
+function sheet(html) {
+  const back = document.createElement("div"); back.className = "back";
+  back.innerHTML = `<div class="sheet"><div class="grab"></div>${html}</div>`;
+  back.addEventListener("click", e => { if (e.target === back) back.remove(); });
+  document.body.append(back); return back;
+}
+async function copy(text, msg) { try { await navigator.clipboard.writeText(text); toast(msg || "Copiato"); } catch { toast("Copia non riuscita: tieni premuto sul testo per copiarlo", true); } }
+async function share(key, customer) {
+  const text = `Chiave di licenza MB Visual${customer ? " per " + customer : ""}: ${key}`;
+  if (navigator.share) { try { await navigator.share({ text }); } catch {} } else copy(text);
+}
+function keySheet(title, key, customer) {
+  const s = sheet(`<h3>${esc(title)}</h3><div class="keybox"><span class="mono">${esc(key)}</span><div class="actions" style="justify-content:center">
+    <button class="btn s" id="k-copy">Copia</button><button class="btn s p" id="k-share">Condividi</button></div></div><button class="btn w" id="k-ok">Chiudi</button>`);
+  s.querySelector("#k-copy").onclick = () => copy(key, "Chiave copiata");
+  s.querySelector("#k-share").onclick = () => share(key, customer);
+  s.querySelector("#k-ok").onclick = () => s.remove();
+}
+function licSheet(key) {
+  const l = data.lic.find(x => x.key === key); if (!l) return;
+  const devs = l.dispositivi.filter(d => d.status === "active");
+  const s = sheet(`<h3>${esc(l.customer || "(senza nome)")}</h3>
+    <div class="keybox"><span class="mono">${esc(l.key)}</span><div class="actions" style="justify-content:center"><button class="btn s" data-x="copy">Copia</button><button class="btn s" data-x="share">Condividi</button></div></div>
+    <dl class="kv"><dt>Stato</dt><dd><span class="chip ${l.status}">${STATO[l.status]}</span>${l.replaced_by ? ` → <span class="mono">${esc(l.replaced_by)}</span>` : ""}</dd>
+      ${l.email ? `<dt>Email</dt><dd>${esc(l.email)}</dd>` : ""}${l.notes ? `<dt>Note</dt><dd>${esc(l.notes)}</dd>` : ""}
+      <dt>Posti</dt><dd>PC ${devs.filter(d => d.kind === "pc").length}/${l.max_pc} · cellulari ${devs.filter(d => d.kind === "mobile").length}/${l.max_mobile}</dd>
+      <dt>Creata</dt><dd>${fmt(l.created)}${l.expires ? " · scade " + esc(l.expires) : ""}</dd></dl>
+    <div><b>Dispositivi</b>${devs.map(d => `<div class="dev"><div><div>${d.kind === "pc" ? "PC" : "Cellulare"} · <b>${esc(d.name || "-")}</b></div>
+      <div class="note">${esc([d.version, "ultimo uso " + fmt(d.last_seen)].filter(Boolean).join(" · "))}</div></div><button class="btn s d" data-free="${d.id}">Libera</button></div>`).join("") || `<div class="note">Nessun dispositivo attivo</div>`}</div>
+    <div class="actions">${l.status === "active" ? `<button class="btn s" data-x="edit">Modifica</button><button class="btn s" data-x="replace">Nuova chiave</button><button class="btn s d" data-x="revoke">Revoca</button>`
+      : l.status === "revoked" ? `<button class="btn s" data-x="reactivate">Riattiva</button>` : ""}</div>`);
+  s.querySelectorAll("[data-free]").forEach(b => b.onclick = async () => {
+    if (!confirm("Liberare il dispositivo? L'app su quel dispositivo si blocca e il posto torna disponibile.")) return;
+    try { await api("POST", `admin/devices/${b.dataset.free}/revoke`, {}); toast("Dispositivo liberato"); s.remove(); await refresh(); licSheet(key); } catch (x) { toast(x.message, true); }
+  });
+  s.querySelectorAll("[data-x]").forEach(b => b.onclick = async () => {
+    const x = b.dataset.x;
+    if (x === "copy") return copy(l.key, "Chiave copiata");
+    if (x === "share") return share(l.key, l.customer);
+    if (x === "edit") { s.remove(); return licForm(l); }
+    if (x === "replace" && !confirm("Generare una chiave nuova? Questa smettera' di funzionare su tutti i dispositivi.")) return;
+    if (x === "revoke" && !confirm("Revocare la licenza? Tutte le app si bloccano.")) return;
+    try { const r = await api("POST", `admin/licenses/${encodeURIComponent(l.key)}/${x}`, {}); s.remove(); await refresh(); if (r.key) keySheet("Nuova chiave", r.key, l.customer); else toast("Fatto"); }
+    catch (e) { toast(e.message, true); }
+  });
+}
+function licForm(l) {
+  const active = k => l ? l.dispositivi.filter(d => d.status === "active" && d.kind === k) : [];
+  const s = sheet(`<h3>${l ? "Modifica licenza" : "Nuova licenza"}</h3>
+    <label class="field">Cliente<input id="f-c" value="${esc(l?.customer)}" autocomplete="off"></label>
+    <label class="field">Email<input id="f-e" type="email" value="${esc(l?.email)}" autocomplete="off"></label>
+    <div class="grid2"><label class="field">PC abilitati<input id="f-p" type="number" min="1" inputmode="numeric" value="${l?.max_pc ?? 1}"></label>
+      <label class="field">Cellulari abilitati<input id="f-m" type="number" min="0" inputmode="numeric" value="${l?.max_mobile ?? 2}"></label></div>
+    ${l ? `<div class="note">In uso: ${active("pc").length} PC e ${active("mobile").length} cellulari. Aumentando, i posti nuovi sono subito disponibili.</div>` : ""}
+    <div id="f-pick"></div>
+    <label class="field">Scadenza (facoltativa)<input id="f-x" type="date" value="${esc((l?.expires || "").slice(0, 10))}"></label>
+    <label class="field">Note<textarea id="f-n" rows="2">${esc(l?.notes)}</textarea></label>
+    <div class="err" id="f-err"></div><button class="btn p w" id="f-ok">${l ? "Salva" : "Crea licenza"}</button>`);
+  // limite sotto i dispositivi gia' attivi: si sceglie quali disattivare (su quei dispositivi l'app si blocca)
+  const need = () => ({ pc: Math.max(0, active("pc").length - (+s.querySelector("#f-p").value || 1)), mobile: Math.max(0, active("mobile").length - Math.max(0, +s.querySelector("#f-m").value || 0)) });
+  const pick = s.querySelector("#f-pick");
+  function drawPick() {
+    const n = need(), keep = new Set([...pick.querySelectorAll("input:checked")].map(i => +i.value));
+    pick.innerHTML = ["pc", "mobile"].filter(k => n[k] > 0).map(k => `<div class="pick"><b>${k === "pc" ? "PC" : "Cellulari"}: scegli ${n[k] === 1 ? "quale disattivare" : `quali ${n[k]} disattivare`}</b>
+      <span class="note">Il nuovo limite e' sotto i ${k === "pc" ? "PC" : "cellulari"} gia' attivi. Sui dispositivi scelti l'app si blocca e il posto si libera.</span>
+      ${active(k).map(d => `<label><input type="checkbox" value="${d.id}" data-k="${k}" ${keep.has(d.id) ? "checked" : ""}><span>${esc(d.name || "-")}<br><span class="note">ultimo uso ${fmt(d.last_seen)}</span></span></label>`).join("")}</div>`).join("");
+  }
+  s.querySelector("#f-p").oninput = s.querySelector("#f-m").oninput = drawPick;
+  s.querySelector("#f-ok").onclick = async () => {
+    const body = { customer: s.querySelector("#f-c").value.trim(), email: s.querySelector("#f-e").value.trim(), notes: s.querySelector("#f-n").value.trim(),
+      max_pc: Math.max(1, +s.querySelector("#f-p").value || 1), max_mobile: Math.max(0, +s.querySelector("#f-m").value || 0), expires: s.querySelector("#f-x").value || "" };
+    const err = s.querySelector("#f-err");
+    if (!body.customer) { err.textContent = "Scrivi il nome del cliente."; return; }
+    if (l) {
+      const n = need(), chosen = [...pick.querySelectorAll("input:checked")];
+      for (const k of ["pc", "mobile"]) if (chosen.filter(i => i.dataset.k === k).length < n[k]) { err.textContent = `Scegli ancora ${n[k] - chosen.filter(i => i.dataset.k === k).length} ${k === "pc" ? "PC" : "cellulari"} da disattivare.`; return; }
+      body.free = chosen.map(i => +i.value);
+      if (body.free.length && !confirm(`Disattivare ${body.free.length} dispositivi? Su quei dispositivi l'app si blocca.`)) return;
+    }
+    try {
+      const r = await api("POST", l ? `admin/licenses/${encodeURIComponent(l.key)}/update` : "admin/licenses", body);
+      s.remove(); await refresh();
+      if (!l) keySheet("Licenza creata", r.key, body.customer); else toast(r.liberati ? `Licenza aggiornata: ${r.liberati} dispositivi disattivati` : "Licenza aggiornata");
+    } catch (e) { err.textContent = e.message; }
+  };
+}
+$("fab").onclick = () => licForm(null);
+async function reqAct(id, what) {
+  if (what === "approve" && !confirm("Approvare il cambio dispositivo? Verra' generata una chiave nuova e la vecchia smettera' di funzionare.")) return;
+  try { const r = await api("POST", `admin/requests/${id}/${what}`, {}); await refresh(); if (r.key) keySheet("Cambio approvato: nuova chiave", r.key, data.req.find(x => x.id === id)?.customer); else toast("Fatto"); }
+  catch (x) { toast(x.message, true); }
+}
+async function readAll() { const last = Math.max(0, ...data.ev.map(e => e.id)); try { await api("POST", "admin/events/read", { upto: last }); refresh(); } catch (x) { toast(x.message, true); } }
+
+// ------------------------------------------------------------ impostazioni
+async function pushSub() { const reg = await navigator.serviceWorker?.getRegistration(`${BASE}/`); return reg ? reg.pushManager?.getSubscription() : null; }
+async function renderSettings(m) {
+  const wa = await waSupported(), sub = await pushSub().catch(() => null);
+  const pushOk = "PushManager" in window && "serviceWorker" in navigator;
+  let phones = [];
+  try { phones = (await api("GET", "sessions")).telefoni; } catch {}
+  if (view !== "impostazioni") return;
+  m.innerHTML = `<div class="sec"><h3>Notifiche</h3></div><div class="box"><div class="row">
+      ${!state.notifiche ? `<div class="muted">Notifiche non configurate sul server.</div>` : !pushOk ? `<div class="muted">${ios && !standalone ? "Su iPhone le notifiche arrivano solo all'app installata sulla schermata Home." : "Questo browser non riceve notifiche."}</div>`
+        : sub ? `<div>Attive su questo telefono: attivazioni, richieste, segnalazioni e accessi alla gestione.</div><div class="actions"><button class="btn s" id="p-test">Prova</button><button class="btn s d" id="p-off">Disattiva</button></div>`
+        : `<div class="muted">${Notification.permission === "denied" ? "Le notifiche sono bloccate nelle impostazioni del telefono per questa app." : "Ricevi un avviso per ogni attivazione, richiesta o segnalazione."}</div>${Notification.permission === "denied" ? "" : `<div class="actions"><button class="btn s p" id="p-on">Attiva notifiche</button></div>`}`}
+    </div></div>
+    <div class="sec"><h3>Notifiche da ricevere</h3></div><div class="note" style="margin:-4px 2px 0">Valgono per il telefono e per MB Visual Admin sul PC. Gli avvisi restano comunque nella Panoramica.</div>
+    <div class="box" id="nsel"><div class="empty">...</div></div>
+    <div class="sec"><h3>Impronta / PIN</h3></div><div class="box"><div class="row">
+      ${state.impronta ? `<div>L'app chiede l'impronta, il volto o il PIN a ogni apertura e dopo ${10} minuti senza operazioni.</div><div class="actions"><button class="btn s" id="w-lock">Blocca ora</button><button class="btn s d" id="w-off">Rimuovi</button></div>`
+        : wa ? `<div class="muted">Non attivo: chi apre questo telefono sbloccato puo' gestire le licenze.</div><div class="actions"><button class="btn s p" id="w-on">Attiva impronta / PIN</button></div>`
+        : `<div class="muted">Questo telefono non offre impronta o PIN per le app web.</div>`}
+    </div></div>
+    <div class="sec"><h3>Telefoni collegati</h3></div><div class="box">${phones.map(p => `<div class="row"><div class="top"><b>${esc(p.nome)}${p.questo ? " (questo)" : ""}</b>${p.impronta ? `<span class="chip done">impronta</span>` : ""}</div>
+      <div class="note">collegato ${fmt(p.creato)} · ultimo uso ${fmt(p.ultimo)}</div>${p.questo ? "" : `<div class="actions"><button class="btn s d" data-off="${p.n}">Scollega</button></div>`}</div>`).join("") || `<div class="empty">-</div>`}</div>
+    <button class="btn w d" id="logout">Esci da questo telefono</button>
+    <div class="note" style="text-align:center">Per collegare un altro telefono: MB Visual Admin sul PC → Impostazioni → App per telefono.</div>`;
+  api("GET", "admin/settings").then(st => {
+    const box = $("nsel"); if (!box) return;
+    box.innerHTML = st.tipi.map(k => `<label class="sw"><span>${esc(NOTIFY[k] || k)}</span><input type="checkbox" data-n="${k}" ${st.notifiche[k] ? "checked" : ""}></label>`).join("");
+    box.querySelectorAll("[data-n]").forEach(i => i.onchange = async () => {
+      const n = Object.fromEntries([...box.querySelectorAll("[data-n]")].map(x => [x.dataset.n, x.checked]));
+      try { await api("POST", "admin/settings", { notifiche: n }); toast(i.checked ? "Notifica attivata" : "Notifica disattivata"); } catch (e) { i.checked = !i.checked; toast(e.message, true); }
+    });
+  }).catch(e => { const box = $("nsel"); if (box) box.innerHTML = `<div class="empty err">${esc(e.message)}</div>`; });
+  $("p-on")?.addEventListener("click", async () => {
+    try {
+      if (await Notification.requestPermission() !== "granted") throw new Error("Permesso per le notifiche non concesso.");
+      const reg = await navigator.serviceWorker.ready;
+      const s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: unb64u(state.notifiche) });
+      await api("POST", "push/sub", s.toJSON()); toast("Notifiche attive"); renderSettings(m);
+    } catch (e) { toast(e.message, true); }
+  });
+  $("p-off")?.addEventListener("click", async () => { try { const s = await pushSub(); if (s) { await api("POST", "push/unsub", { endpoint: s.endpoint }); await s.unsubscribe(); } toast("Notifiche disattivate"); renderSettings(m); } catch (e) { toast(e.message, true); } });
+  $("p-test")?.addEventListener("click", async () => { try { const r = await api("POST", "push/test", {}); toast(r.inviate ? "Notifica di prova inviata" : "Invio non riuscito", !r.inviate); } catch (e) { toast(e.message, true); } });
+  $("w-on")?.addEventListener("click", async () => { try { await registerPasskey(); state.impronta = true; localStorage.removeItem("mbva-noimpronta"); toast("Impronta / PIN attivo"); renderSettings(m); } catch (e) { toast(e.name === "NotAllowedError" ? "Operazione annullata" : e.message, true); } });
+  $("w-off")?.addEventListener("click", async () => { if (!confirm("Togliere la protezione con impronta / PIN?")) return; try { await api("POST", "wa/remove", {}); state.impronta = false; renderSettings(m); } catch (e) { toast(e.message, true); } });
+  $("w-lock")?.addEventListener("click", async () => { try { await api("POST", "lock", {}); } catch {} show("lock"); });
+  m.querySelectorAll("[data-off]").forEach(b => b.onclick = async () => { if (!confirm("Scollegare quel telefono? Dovra' accedere di nuovo con un codice.")) return; try { await api("POST", `sessions/${b.dataset.off}/revoke`, {}); renderSettings(m); } catch (e) { toast(e.message, true); } });
+  $("logout").onclick = async () => { if (!confirm("Uscire? Per rientrare servira' un codice.")) return; try { const s = await pushSub(); if (s) await s.unsubscribe(); await api("POST", "logout", {}); } catch {} show("login"); };
+}
+start();
+</script>
+</body>
+</html>

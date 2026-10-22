@@ -1,18 +1,19 @@
 // PowerPoint: diapositive con testi, immagini e forme; modifica dei testi mantenendo la formattazione.
 import { api, button, el, loading } from "../core.js";
+import { t as _t } from "../i18n.js";
 
 export async function mount(ctx) {
-  loading(ctx.el, "Lettura della presentazione");
+  loading(ctx.el, _t("v_pptx.lettura_presentazione"));
   const p = await api("pptx", { path: ctx.path });
   ctx.el.innerHTML = "";
   const edits = new Map(); // "slide:shape[:r:c]" -> {slide, shape, cell?, paragraphs}
   let editing = false;
   let current = 0;
 
-  const thumbs = el("div", { style: { padding: "10px", display: "grid", gap: "10px", alignContent: "start" } });
+  const thumbs = el("div", { class: "pp-thumbs", style: { padding: "10px", display: "grid", gap: "10px", alignContent: "start" } });
   const stage = el("div", { style: { padding: "20px", display: "grid", justifyItems: "center", gap: "12px", alignContent: "start" } });
   const notes = el("div", { class: "panel", style: { width: "min(100%, 960px)", whiteSpace: "pre-wrap", fontSize: "13px" } });
-  ctx.el.append(el("div", { class: "side", style: { gridTemplateColumns: "200px 1fr" } }, thumbs, stage));
+  ctx.el.append(el("div", { class: "side pp-side", style: { gridTemplateColumns: "200px 1fr" } }, thumbs, stage));
   ctx.fillBody(true);
 
   // valori predefiniti del modello Office per i segnaposto (quando la diapositiva non li specifica)
@@ -70,10 +71,10 @@ export async function mount(ctx) {
     stage.innerHTML = "";
     const w = Math.min(960, stage.clientWidth - 60 || 900);
     stage.append(drawSlide(p.slides[i], w, true));
-    notes.textContent = p.slides[i].notes ? "Note: " + p.slides[i].notes : "";
+    notes.textContent = p.slides[i].notes ? _t("v_pptx.note") + p.slides[i].notes : "";
     if (p.slides[i].notes) stage.append(notes);
     [...thumbs.children].forEach((t, k) => (t.style.outline = k === i ? "2px solid var(--accent)" : "none"));
-    ctx.status(`Diapositiva ${i + 1} di ${p.slides.length}`);
+    ctx.status(_t("v_pptx.diapositiva_0_1", i + 1, p.slides.length));
   }
 
   p.slides.forEach((s, i) => {
@@ -81,17 +82,17 @@ export async function mount(ctx) {
       el("span", { class: "note" }, String(i + 1)), drawSlide(s, 170, false));
     thumbs.append(t);
   });
-  const editBtn = button("Modifica testi", "edit", () => {
+  const editBtn = button(_t("v_pptx.modifica_testi"), "edit", () => {
     editing = !editing;
     editBtn.classList.toggle("on", editing);
     show(current);
   });
   ctx.tb.append(
-    button("", "rotateL", () => show(Math.max(0, current - 1)), { iconOnly: true, title: "Diapositiva precedente" }),
-    button("", "rotate", () => show(Math.min(p.slides.length - 1, current + 1)), { iconOnly: true, title: "Diapositiva successiva" }),
-    button("Presentazione", "play", () => { stage.requestFullscreen?.(); }),
+    button("", "rotateL", () => show(Math.max(0, current - 1)), { iconOnly: true, title: _t("v_pptx.diapositiva_precedente") }),
+    button("", "rotate", () => show(Math.min(p.slides.length - 1, current + 1)), { iconOnly: true, title: _t("v_pptx.diapositiva_successiva") }),
+    button(_t("v_pptx.presentazione"), "play", () => { stage.requestFullscreen?.(); }),
     el("span", { class: "sep" }), editBtn, el("span", { class: "grow" }),
-    el("span", { class: "note" }, "I testi modificati mantengono carattere, dimensione e colore originali."));
+    el("span", { class: "note" }, _t("v_pptx.i_testi_modificati_mantengono_carattere")));
   document.addEventListener("keydown", e => {
     if (ctx.tab.view.hidden || editing) return;
     if (e.key === "ArrowRight" || e.key === "PageDown") show(Math.min(p.slides.length - 1, current + 1));

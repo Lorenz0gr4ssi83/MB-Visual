@@ -7,6 +7,7 @@ import zipfile
 from pathlib import Path
 
 from .paths import NO_WINDOW, TEMP_DIR, find_7zip
+from .i18n import t as tr
 
 EDITABLE = {".zip", ".7z", ".tar", ".wim", ".jar", ".war", ".ear", ".xpi", ".cbz", ".cb7", ".zipx", ".apk",
             ".nupkg", ".vsix", ".whl", ".egg", ".kmz", ".ova"}
@@ -15,7 +16,7 @@ EDITABLE = {".zip", ".7z", ".tar", ".wim", ".jar", ".war", ".ear", ".xpi", ".cbz
 def _run7z(args, cwd=None):
     exe = find_7zip()
     if not exe:
-        raise RuntimeError("7-Zip non trovato")
+        raise RuntimeError(tr("srv_archive.7_zip_non_trovato"))
     r = subprocess.run([exe, *args], capture_output=True, cwd=cwd, creationflags=NO_WINDOW)
     out = r.stdout.decode("utf-8", "replace")
     if r.returncode not in (0, 1):
@@ -63,7 +64,7 @@ def list_entries(path: str, password: str | None = None) -> dict:
         with tarfile.open(path) as t:
             items = [{"path": m.name, "dir": m.isdir(), "size": m.size, "packed": m.size, "modified": "", "encrypted": False} for m in t.getmembers()]
         return {"ok": True, "items": items, "type": "tar", "editable": False}
-    return {"ok": False, "errore": "Formato di archivio non riconosciuto"}
+    return {"ok": False, "errore": tr("srv_archive.formato_archivio_non_riconosciuto")}
 
 
 def extract(path: str, entry: str | None = None, dest: str | None = None, password: str | None = None) -> str:

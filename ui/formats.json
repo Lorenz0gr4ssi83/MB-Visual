@@ -21,7 +21,6 @@
     "p7m",
     "p7s",
     "p7c",
-    "p7b",
     "spc",
     "tsd",
     "m7m"
@@ -98,6 +97,20 @@
    ]
   },
   {
+   "id": "visio",
+   "name": "Diagrammi (Visio)",
+   "viewer": "visio",
+   "view": "Pagine con forme, connettori, testi, stili e temi, immagini (anche EMF), livelli, pagine di sfondo, dati delle forme; elenco pagine, zoom, ricerca nel testo e nei dati",
+   "edit": "Editor in stile Visio: sposta/ridimensiona/ruota, testo sul posto, forme base e di flusso, connettori dinamici incollati che seguono le forme, gruppi, ordine, allineamento, livelli, dati forma, pagine; salvataggio nel VSDX (apribile in Visio), esportazione PDF/SVG/PNG. I .vsd binari: modificabili con Visio installato (conversione), altrimenti anteprima e testi",
+   "exts": [
+    "vsdx",
+    "vsdm",
+    "vstx",
+    "vstm",
+    "vsd"
+   ]
+  },
+  {
    "id": "office-lo",
    "name": "Altri documenti Office e OpenDocument",
    "viewer": "office",
@@ -120,9 +133,6 @@
     "odg",
     "otg",
     "fodg",
-    "vsd",
-    "vsdx",
-    "vsdm",
     "wpd",
     "wps",
     "wpt",
@@ -141,7 +151,6 @@
     "pages",
     "mml",
     "odf",
-    "xps",
     "oxps"
    ]
   },
@@ -348,10 +357,6 @@
     "m3u8",
     "pls",
     "xspf",
-    "ics",
-    "ical",
-    "vcf",
-    "vcard",
     "ldif",
     "gcode",
     "nc",
@@ -372,7 +377,6 @@
     "pat",
     "shx",
     "las",
-    "pts",
     "asc",
     "dat",
     "gitignore",
@@ -390,10 +394,6 @@
     "lock",
     "sum",
     "mod",
-    "pem",
-    "crt",
-    "cer",
-    "csr",
     "key",
     "pub",
     "sig",
@@ -977,6 +977,19 @@
    ]
   },
   {
+   "id": "dwf",
+   "name": "Pubblicazioni Autodesk DWF / DWFx e documenti XPS",
+   "viewer": "dwf",
+   "view": "Elenco dei fogli con miniature, fogli 2D vettoriali (W2D e XPS) con zoom/pan, layer, testi e ricerca, proprieta' degli oggetti (AutoCAD, Revit, Inventor), marcature di revisione, misure di distanza e area in unita' del disegno, modelli 3D W3D nel visualizzatore 3D",
+   "edit": "Esportazione in PDF vettoriale (tutti i fogli), SVG e PNG del foglio aperto",
+   "exts": [
+    "dwf",
+    "dwfx",
+    "w2d",
+    "xps"
+   ]
+  },
+  {
    "id": "cad3d",
    "name": "Modelli CAD 3D (STEP, IGES, BREP)",
    "viewer": "model3d",
@@ -1016,7 +1029,6 @@
     "vtk",
     "vtp",
     "pcd",
-    "xyz",
     "usdz",
     "lwo",
     "md2",
@@ -1025,6 +1037,75 @@
     "bvh",
     "vox",
     "3dm"
+   ]
+  },
+  {
+   "id": "sketchup",
+   "name": "SketchUp",
+   "viewer": "model3d",
+   "view": "Modello 3D senza SketchUp installato (lettore OpenSKP): geometria con materiali, colori e texture, spigoli, gruppi e componenti ad albero con nomi e attributi, tag accendibili, scene salvate come viste. Provato con file da SketchUp 8 a 2026; alcuni file 2013-2020 e i modelli molto grandi (oltre circa 50 MB) possono non aprirsi",
+   "edit": "Visibilita', colori, sezioni e misure; Salva con nome in STEP, IFC, GLB/glTF, OBJ, STL, 3MF, DXF 3D, PLY, VRML, USDZ",
+   "exts": [
+    "skp"
+   ]
+  },
+  {
+   "id": "pointcloud",
+   "name": "Nuvole di punti (laser scanner, LiDAR)",
+   "viewer": "model3d",
+   "view": "Nuvole anche di centinaia di milioni di punti lette a blocchi con livelli di dettaglio e cache su disco; colori RGB, intensita', quota o classificazione; dimensione dei punti e dettaglio regolabili; misure con aggancio al punto (distanza, in pianta, dislivello); sezione; coordinate del punto; insieme a IFC e altri modelli 3D (modello federato, coordinate allineate)",
+   "edit": "Salva con nome in LAS, LAZ, E57, PLY, PTS, XYZ (tutti i punti o solo la parte visibile della sezione); classi nascondibili",
+   "exts": [
+    "las",
+    "laz",
+    "e57",
+    "pts",
+    "ptx",
+    "xyz"
+   ]
+  },
+  {
+   "id": "bcf",
+   "name": "Segnalazioni BIM (BCF)",
+   "viewer": "bcf",
+   "view": "Segnalazioni BCF 2.0 / 2.1 / 3.0 (Revit, Navisworks, Solibri, BIMcollab, Archicad, Tekla): elenco con filtri, istantanee, commenti, punti di vista; sovrapposizione al modello IFC con ripristino di camera, elementi selezionati e visibili, colori e sezioni",
+   "edit": "Nuove segnalazioni dal visualizzatore 3D (titolo, descrizione, tipo, stato, priorita', assegnatario, scadenza, commenti, punto di vista e istantanea); salvataggio in .bcfzip BCF 2.1 o 3.0; report PDF ed Excel",
+   "exts": [
+    "bcfzip",
+    "bcf"
+   ]
+  },
+  {
+   "id": "vis3d",
+   "name": "Formati 3D di visualizzazione (JT, U3D)",
+   "viewer": "model3d",
+   "view": "JT (ISO 14306, versioni 8-10): assieme, parti, istanze, colori, proprieta' e metadati, geometria tassellata al livello di dettaglio piu' fine; U3D (ECMA-363), anche estratti dai PDF 3D (i modelli PRC dei PDF vengono elencati ma non ancora letti). Navigazione, albero, sezioni, misure come gli altri modelli 3D",
+   "edit": "Colori e visibilita' delle parti, esportazione in STL / OBJ / GLB. B-rep (Parasolid XT, JT B-rep), PMI e texture non vengono letti",
+   "exts": [
+    "jt",
+    "u3d"
+   ]
+  },
+  {
+   "id": "inventor",
+   "name": "Autodesk Inventor (parti e assiemi)",
+   "viewer": "model3d",
+   "view": "Modello 3D senza Inventor: il solido ShapeManager della parte convertito in STEP (piani, cilindri, coni, sfere, tori, superfici e curve B-spline), assiemi composti con le posizioni e i colori dei componenti (anche sottoassiemi), albero dei componenti, iProperties (codice, descrizione, materiale, autore, revisione) e anteprima",
+   "edit": "Visibilita' e colori dei componenti, misure, sezioni; esportazione in STEP / IFC / GLB / STL / OBJ",
+   "exts": [
+    "ipt",
+    "iam"
+   ]
+  },
+  {
+   "id": "inventor-doc",
+   "name": "Autodesk Inventor (tavole e presentazioni)",
+   "viewer": "inventor",
+   "view": "Anteprima salvata nel file, iProperties ed elenco dei modelli collegati (si aprono con un clic nel visualizzatore 3D)",
+   "edit": "Sola lettura",
+   "exts": [
+    "idw",
+    "ipn"
    ]
   },
   {
@@ -1038,6 +1119,34 @@
     "nwd",
     "nwc",
     "nwf"
+   ]
+  },
+  {
+   "id": "solidcad",
+   "name": "SolidWorks, Solid Edge e Parasolid",
+   "viewer": "solidcad",
+   "view": "Senza i programmi originali: anteprima incorporata, proprieta' (anche personalizzate e per configurazione), materiale, configurazioni, componenti degli assiemi e delle tavole; modello 3D esatto letto dal Parasolid contenuto nel file (assiemi SolidWorks composti dai file delle parti)",
+   "edit": "Esportazione in STEP esatto (B-rep), GLB, STL, OBJ, IFC; le tavole mostrano anteprima e proprieta'",
+   "exts": [
+    "sldprt",
+    "sldasm",
+    "slddrw",
+    "prtdot",
+    "asmdot",
+    "drwdot",
+    "par",
+    "psm",
+    "asm",
+    "dft",
+    "pwd",
+    "x_t",
+    "x_b",
+    "xmt_txt",
+    "xmt_bin",
+    "p_t",
+    "p_b",
+    "xmp_txt",
+    "xmp_bin"
    ]
   },
   {
@@ -1184,6 +1293,134 @@
     "gpkg",
     "mbtiles",
     "sdb"
+   ]
+  },
+  {
+   "id": "gis",
+   "name": "Dati geografici (GIS)",
+   "viewer": "gis",
+   "view": "Mappa con sfondo OpenStreetMap o ortofoto (servizi con chiave o WMS), riproiezione dei sistemi italiani (WGS84, ETRS89/RDN2008 UTM 32-33N, Gauss-Boaga Monte Mario, ED50) da .prj/EPSG, livelli con stile ed etichette, tabella attributi con ricerca e selezione collegata alla mappa, misura di distanze e aree, coordinate del cursore, valori dei raster",
+   "edit": "Salvataggio dei livelli in GeoJSON, KML/KMZ, GPX e shapefile (ZIP) con scelta del sistema di riferimento; vista in PNG, JPG e PDF",
+   "exts": [
+    "shp",
+    "geojson",
+    "topojson",
+    "kml",
+    "kmz",
+    "gpx",
+    "gpkg",
+    "tif",
+    "tiff",
+    "zip"
+   ]
+  },
+  {
+   "id": "dicom",
+   "name": "Immagini mediche DICOM",
+   "viewer": "dicom",
+   "view": "Serie della cartella (o DICOMDIR) con scorrimento tra le sezioni e riproduzione, finestra/livello con preimpostazioni TC, inversione, zoom, misure di distanza e angolo, ROI con media/deviazione/area, valore del pixel (HU), tag DICOM in tabella con ricerca; anche compressi JPEG, JPEG lossless, JPEG-LS, JPEG 2000, RLE e multi-fotogramma",
+   "edit": "Esportazione della sezione attuale o di tutte le sezioni in PNG/JPG (con le misure) e dei tag in CSV",
+   "exts": [
+    "dcm",
+    "dicom"
+   ]
+  },
+  {
+   "id": "calendar",
+   "name": "Calendari iCalendar",
+   "viewer": "calendar",
+   "view": "Eventi in elenco con ricerca e in vista mese (anche eventi ripetuti, giornate intere, promemoria, partecipanti, attivita')",
+   "edit": "Esportazione in PDF, CSV ed Excel",
+   "exts": [
+    "ics",
+    "ical",
+    "icalendar",
+    "ifb",
+    "vcs"
+   ]
+  },
+  {
+   "id": "contacts",
+   "name": "Contatti vCard",
+   "viewer": "contacts",
+   "view": "Schede dei contatti con foto, telefoni, email, indirizzi, azienda, note; ricerca (vCard 2.1, 3.0 e 4.0, anche piu' contatti per file)",
+   "edit": "Esportazione in CSV ed Excel",
+   "exts": [
+    "vcf",
+    "vcard"
+   ]
+  },
+  {
+   "id": "cert",
+   "name": "Certificati digitali",
+   "viewer": "cert",
+   "view": "Soggetto, emittente, validita', numero di serie, impronte SHA-1/SHA-256, chiave pubblica, usi della chiave, estensioni, catena di certificazione con verifica delle firme tra i certificati; PKCS#12 (.p12/.pfx) con password usata solo per la lettura e mai conservata; richieste di certificato (CSR) ed elenchi di revoca (CRL)",
+   "edit": "Esportazione dei soli dati pubblici: certificati in PEM, DER/CER, PKCS#7 (.p7b) e riepilogo in testo",
+   "exts": [
+    "cer",
+    "crt",
+    "pem",
+    "der",
+    "p7b",
+    "p12",
+    "pfx",
+    "csr",
+    "crl"
+   ]
+  },
+  {
+   "id": "iwork",
+   "name": "Apple iWork (Pages, Numbers, Keynote)",
+   "viewer": "iwork",
+   "view": "Anteprima incorporata nel documento (pagina o PDF di anteprima), immagini contenute, testo del documento e tabelle (Numbers) letti dal file",
+   "edit": "Esportazione dell'anteprima in PDF/PNG, del testo in TXT e delle tabelle in CSV/Excel",
+   "exts": [
+    "pages",
+    "numbers",
+    "key"
+   ]
+  },
+  {
+   "id": "hpgl",
+   "name": "File di plotter HP-GL / HP-GL/2",
+   "viewer": "hpgl",
+   "view": "Disegno vettoriale con penne colorate e spessori, testi (LB), archi e cerchi, poligoni pieni; zoom, misura, accensione/spegnimento delle penne",
+   "edit": "Esportazione in PDF e SVG vettoriali e in PNG",
+   "exts": [
+    "plt",
+    "hpgl",
+    "hgl",
+    "hpg"
+   ]
+  },
+  {
+   "id": "scidata",
+   "name": "Dati scientifici e tabellari (HDF5, NetCDF, Parquet, Arrow)",
+   "viewer": "scidata",
+   "view": "Struttura (gruppi, dataset, variabili, dimensioni, attributi, schema e metadati), anteprima dei dati a pagine con grafico per i valori numerici",
+   "edit": "Esportazione di tabelle, dataset e variabili in CSV ed Excel",
+   "exts": [
+    "h5",
+    "hdf5",
+    "he5",
+    "nc",
+    "nc4",
+    "parquet",
+    "feather",
+    "arrow"
+   ]
+  },
+  {
+   "id": "revit",
+   "name": "Autodesk Revit",
+   "viewer": "revit",
+   "view": "Anteprima incorporata nel file e informazioni senza Revit: versione e build di Revit, file centrale/locale, condivisione, autore, percorso del modello centrale, identificativi; per le famiglie categoria, tipi e parametri dichiarati",
+   "edit": "Esportazione dell'anteprima in PNG e delle informazioni in TXT/JSON",
+   "exts": [
+    "rvt",
+    "rfa",
+    "rte",
+    "rft"
    ]
   }
  ],

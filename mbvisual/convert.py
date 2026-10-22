@@ -18,6 +18,7 @@ from pathlib import Path
 
 from . import misc
 from .paths import IS_WIN, NO_WINDOW, TEMP_DIR, find_libreoffice, find_office as _find_office
+from .i18n import t as tr
 
 # famiglie di formati di partenza (estensione -> famiglia)
 FAMILIES = {
@@ -44,31 +45,32 @@ for fam, exts in FAMILIES.items():
     for e in exts:
         FAMILY_OF.setdefault(e, fam)
 
+# etichette: chiavi di traduzione (ui/i18n), tradotte in targets() nella lingua della richiesta
 TARGETS = {
-    "word": [("docx", "Word"), ("doc", "Word 97-2003"), ("docm", "Word con macro"), ("dotx", "Modello Word"), ("pdf", "PDF"),
-             ("odt", "OpenDocument testo"), ("rtf", "RTF"), ("txt", "Testo semplice"), ("html", "Pagina web"), ("mht", "Pagina web in un file"),
-             ("xps", "XPS"), ("xml", "Word XML"), ("epub", "eBook")],
-    "sheet": [("xlsx", "Excel"), ("xls", "Excel 97-2003"), ("xlsm", "Excel con macro"), ("xlsb", "Excel binario"), ("xltx", "Modello Excel"),
-              ("ods", "OpenDocument foglio"), ("csv", "CSV (UTF-8)"), ("txt", "Testo separato da tabulazioni"), ("pdf", "PDF"),
-              ("html", "Pagina web"), ("xps", "XPS"), ("xml", "Foglio XML 2003")],
-    "slides": [("pptx", "PowerPoint"), ("ppt", "PowerPoint 97-2003"), ("pptm", "PowerPoint con macro"), ("ppsx", "Presentazione da proiettare"),
-               ("potx", "Modello PowerPoint"), ("odp", "OpenDocument presentazione"), ("pdf", "PDF"), ("xps", "XPS"),
-               ("png", "Immagini PNG (una per diapositiva)"), ("jpg", "Immagini JPG (una per diapositiva)"), ("mp4", "Video MP4"), ("rtf", "Struttura RTF")],
-    "pdf": [("docx", "Word (modificabile)"), ("txt", "Testo"), ("html", "Pagina web"), ("svg", "SVG (una pagina per file)"),
-            ("png", "Immagini PNG"), ("jpg", "Immagini JPG"), ("tiff", "TIFF multipagina"), ("xlsx", "Excel (tabelle del PDF)"), ("pdf", "PDF ottimizzato")],
-    "xps": [("pdf", "PDF"), ("png", "Immagini PNG"), ("txt", "Testo")],
-    "epub": [("pdf", "PDF"), ("txt", "Testo"), ("html", "Pagina web"), ("docx", "Word")],
+    "word": [("docx", "Word"), ("doc", "srv_convert.word_97_2003"), ("docm", "srv_convert.word_macro"), ("dotx", "srv_convert.modello_word"), ("pdf", "PDF"),
+             ("odt", "srv_convert.opendocument_testo"), ("rtf", "RTF"), ("txt", "srv_convert.testo_semplice"), ("html", "srv_convert.pagina_web"), ("mht", "srv_convert.pagina_web_file"),
+             ("xps", "XPS"), ("xml", "srv_convert.word_xml"), ("epub", "eBook")],
+    "sheet": [("xlsx", "Excel"), ("xls", "srv_convert.excel_97_2003"), ("xlsm", "srv_convert.excel_macro"), ("xlsb", "srv_convert.excel_binario"), ("xltx", "srv_convert.modello_excel"),
+              ("ods", "srv_convert.opendocument_foglio"), ("csv", "CSV (UTF-8)"), ("txt", "srv_convert.testo_separato_tabulazioni"), ("pdf", "PDF"),
+              ("html", "srv_convert.pagina_web"), ("xps", "XPS"), ("xml", "srv_convert.foglio_xml_2003")],
+    "slides": [("pptx", "PowerPoint"), ("ppt", "PowerPoint 97-2003"), ("pptm", "srv_convert.powerpoint_macro"), ("ppsx", "srv_convert.presentazione_proiettare"),
+               ("potx", "srv_convert.modello_powerpoint"), ("odp", "srv_convert.opendocument_presentazione"), ("pdf", "PDF"), ("xps", "XPS"),
+               ("png", "srv_convert.immagini_png_diapositiva"), ("jpg", "srv_convert.immagini_jpg_diapositiva"), ("mp4", "srv_convert.video_mp4"), ("rtf", "srv_convert.struttura_rtf")],
+    "pdf": [("docx", "srv_convert.word_modificabile"), ("txt", "srv_convert.testo"), ("html", "srv_convert.pagina_web"), ("svg", "srv_convert.svg_pagina_file"),
+            ("png", "srv_convert.immagini_png"), ("jpg", "srv_convert.immagini_jpg"), ("tiff", "srv_convert.tiff_multipagina"), ("xlsx", "srv_convert.excel_tabelle_pdf"), ("pdf", "srv_convert.pdf_ottimizzato")],
+    "xps": [("pdf", "PDF"), ("png", "srv_convert.immagini_png"), ("txt", "srv_convert.testo")],
+    "epub": [("pdf", "PDF"), ("txt", "srv_convert.testo"), ("html", "srv_convert.pagina_web"), ("docx", "Word")],
     "svg": [("png", "PNG"), ("jpg", "JPG"), ("webp", "WEBP"), ("tiff", "TIFF"), ("pdf", "PDF")],
-    "html": [("pdf", "PDF"), ("docx", "Word"), ("odt", "OpenDocument testo"), ("rtf", "RTF"), ("txt", "Testo"), ("mht", "Pagina web in un file")],
-    "markdown": [("html", "Pagina web"), ("pdf", "PDF"), ("docx", "Word"), ("odt", "OpenDocument testo"), ("txt", "Testo")],
+    "html": [("pdf", "PDF"), ("docx", "Word"), ("odt", "srv_convert.opendocument_testo"), ("rtf", "RTF"), ("txt", "srv_convert.testo"), ("mht", "srv_convert.pagina_web_file")],
+    "markdown": [("html", "srv_convert.pagina_web"), ("pdf", "PDF"), ("docx", "Word"), ("odt", "srv_convert.opendocument_testo"), ("txt", "srv_convert.testo")],
     "image": [(e, e.upper()) for e in ("png", "jpg", "webp", "tiff", "bmp", "gif", "ico", "avif", "heic", "jp2", "tga", "ppm", "pcx", "dds", "icns", "qoi")] + [("pdf", "PDF")],
-    "media": [(e, e.upper()) for e in ("mp4", "mkv", "webm", "mov", "avi", "wmv", "flv", "mpg", "ts", "3gp", "gif")] + [(e, "Solo audio " + e.upper()) for e in ("mp3", "wav", "flac", "m4a", "ogg", "opus")],
+    "media": [(e, e.upper()) for e in ("mp4", "mkv", "webm", "mov", "avi", "wmv", "flv", "mpg", "ts", "3gp", "gif")] + [(e, "srv_convert.solo_audio|" + e.upper()) for e in ("mp3", "wav", "flac", "m4a", "ogg", "opus")],
     "audio": [(e, e.upper()) for e in ("mp3", "wav", "flac", "m4a", "aac", "ogg", "opus", "wma", "aiff", "ac3")],
     "archive": [("zip", "ZIP"), ("7z", "7-Zip"), ("tar", "TAR"), ("tgz", "TAR.GZ"), ("txz", "TAR.XZ"), ("tbz2", "TAR.BZ2"), ("wim", "WIM")],
     "font": [("ttf", "TrueType"), ("otf", "OpenType"), ("woff", "WOFF"), ("woff2", "WOFF2")],
-    "database": [("xlsx", "Excel (una tabella per foglio)"), ("csv", "CSV (tabelle in un file zip)"), ("sql", "Script SQL"), ("json", "JSON")],
-    "text": [("txt", "Testo"), ("pdf", "PDF"), ("docx", "Word"), ("html", "Pagina web")],
-    "email": [("eml", "Email"), ("html", "Pagina web"), ("txt", "Testo"), ("pdf", "PDF")],
+    "database": [("xlsx", "srv_convert.excel_tabella_foglio"), ("csv", "srv_convert.csv_tabelle_file_zip"), ("sql", "srv_convert.script_sql"), ("json", "JSON")],
+    "text": [("txt", "srv_convert.testo"), ("pdf", "PDF"), ("docx", "Word"), ("html", "srv_convert.pagina_web")],
+    "email": [("eml", "srv_convert.email"), ("html", "srv_convert.pagina_web"), ("txt", "srv_convert.testo"), ("pdf", "PDF")],
 }
 
 WORD_FMT = {"docx": 16, "doc": 0, "docm": 13, "dotx": 14, "rtf": 6, "odt": 23, "pdf": 17, "xps": 18, "txt": 7, "html": 10, "htm": 10, "mht": 9, "xml": 19}
@@ -76,10 +78,17 @@ EXCEL_FMT = {"xlsx": 51, "xlsm": 52, "xlsb": 50, "xls": 56, "csv": 62, "ods": 60
 PPT_FMT = {"pptx": 24, "ppt": 1, "pptm": 25, "ppsx": 28, "potx": 26, "odp": 35, "pdf": 32, "xps": 33, "png": 18, "jpg": 17, "rtf": 6, "mp4": 39}
 
 
+def _label(l: str) -> str:
+    if not l.startswith("srv_convert."):
+        return l
+    key, _, extra = l.partition("|")
+    return tr(key) + extra
+
+
 def targets(path: str) -> dict:
     ext = Path(path).suffix.lower().lstrip(".")
     fam = FAMILY_OF.get(ext)
-    lst = [{"ext": e, "label": l} for e, l in TARGETS.get(fam, []) if e != ext or fam in ("pdf",)]
+    lst = [{"ext": e, "label": _label(l)} for e, l in TARGETS.get(fam, []) if e != ext or fam in ("pdf",)]
     return {"ok": True, "family": fam, "targets": lst}
 
 
@@ -89,8 +98,8 @@ def convert(src: str, out: str, update=None) -> dict:
     to = Path(out).suffix.lower().lstrip(".")
     fam = FAMILY_OF.get(ext)
     if not fam:
-        raise ValueError(f"Nessuna conversione disponibile per i file .{ext}")
-    update(message="Conversione in corso", progress=0.1)
+        raise ValueError(tr("srv_convert.nessuna_conversione_disponibile_i_file", ext))
+    update(message=tr("srv_convert.conversione_corso"), progress=0.1)
     fn = {
         "word": _office_doc, "sheet": _office_sheet, "slides": _office_slides, "pdf": _pdf, "xps": _mupdf_doc, "epub": _mupdf_doc,
         "svg": _svg, "html": _html, "markdown": _markdown, "image": _image, "media": _media, "audio": _media, "archive": _archive,
@@ -121,7 +130,7 @@ def _com(progid):
 def _lo(src, out, to):
     exe = find_libreoffice()
     if not exe:
-        raise RuntimeError("Per questa conversione serve " + ("Microsoft Office o " if IS_WIN else "") + "LibreOffice (gratuito) installato sul computer")
+        raise RuntimeError(tr("srv_convert.questa_conversione_serve_microsoft_office"))
     import subprocess
     tmp = Path(tempfile.mkdtemp(dir=TEMP_DIR))
     profile = (TEMP_DIR / "lo-profile").as_uri()
@@ -129,7 +138,7 @@ def _lo(src, out, to):
                    capture_output=True, timeout=900, creationflags=NO_WINDOW)
     found = list(tmp.glob("*"))
     if not found:
-        raise RuntimeError("Conversione con LibreOffice non riuscita")
+        raise RuntimeError(tr("srv_convert.conversione_libreoffice_non_riuscita"))
     shutil.move(str(found[0]), out)
 
 
@@ -139,11 +148,11 @@ def _office_doc(src, out, ext, to, update):
     word = _com("Word.Application")
     try:
         doc = word.Documents.Open(os.path.abspath(src), ConfirmConversions=False, ReadOnly=True, AddToRecentFiles=False, Visible=False)
-        update(message="Salvataggio con Word", progress=0.5)
+        update(message=tr("srv_convert.salvataggio_word"), progress=0.5)
         if to in WORD_FMT:
             doc.SaveAs2(os.path.abspath(out), FileFormat=WORD_FMT[to])
         else:
-            raise ValueError(f"Word non salva in .{to}")
+            raise ValueError(tr("srv_convert.word_non_salva_0", to))
         doc.Close(False)
     finally:
         word.Quit()
@@ -155,13 +164,13 @@ def _office_sheet(src, out, ext, to, update):
     xl = _com("Excel.Application")
     try:
         wb = xl.Workbooks.Open(os.path.abspath(src), ReadOnly=True, AddToMru=False)
-        update(message="Salvataggio con Excel", progress=0.5)
+        update(message=tr("srv_convert.salvataggio_excel"), progress=0.5)
         if to in ("pdf", "xps"):
             wb.ExportAsFixedFormat(0 if to == "pdf" else 1, os.path.abspath(out))
         elif to in EXCEL_FMT:
             wb.SaveAs(os.path.abspath(out), FileFormat=EXCEL_FMT[to])
         else:
-            raise ValueError(f"Excel non salva in .{to}")
+            raise ValueError(tr("srv_convert.excel_non_salva_0", to))
         wb.Close(False)
     finally:
         xl.Quit()
@@ -173,7 +182,7 @@ def _office_slides(src, out, ext, to, update):
     pp = _com("PowerPoint.Application")
     try:
         pres = pp.Presentations.Open(os.path.abspath(src), ReadOnly=True, Untitled=False, WithWindow=False)
-        update(message="Salvataggio con PowerPoint", progress=0.5)
+        update(message=tr("srv_convert.salvataggio_powerpoint"), progress=0.5)
         if to == "mp4":
             pres.CreateVideo(os.path.abspath(out), True, 5, 1080, 30, 85)
             import time
@@ -189,7 +198,7 @@ def _office_slides(src, out, ext, to, update):
         elif to in PPT_FMT:
             pres.SaveAs(os.path.abspath(out), PPT_FMT[to])
         else:
-            raise ValueError(f"PowerPoint non salva in .{to}")
+            raise ValueError(tr("srv_convert.powerpoint_non_salva_0", to))
         pres.Close()
     finally:
         pp.Quit()
@@ -260,7 +269,7 @@ def _mupdf_out(doc, out, to, update):
                     ws.append([("" if c is None else c) for c in row])
                 n += 1
         if not n:
-            ws = wb.create_sheet("Testo")
+            ws = wb.create_sheet(tr("srv_convert.testo"))
             for p in doc:
                 for line in p.get_text().splitlines():
                     ws.append([line])
@@ -275,7 +284,7 @@ def _mupdf_out(doc, out, to, update):
         from . import pdfedit
         pdfedit.to_word(tmp, out)
     else:
-        raise ValueError(f"Formato .{to} non disponibile")
+        raise ValueError(tr("srv_convert.formato_0_non_disponibile", to))
     return {}
 
 
@@ -426,9 +435,9 @@ def _archive(src, out, ext, to, update):
     from . import archive
     from .paths import find_7zip
     tmp = Path(tempfile.mkdtemp(dir=TEMP_DIR))
-    update(message="Estrazione", progress=0.2)
+    update(message=tr("srv_convert.estrazione"), progress=0.2)
     archive.extract(src, None, str(tmp))
-    update(message="Compressione", progress=0.6)
+    update(message=tr("srv_convert.compressione"), progress=0.6)
     exe = find_7zip()
     import subprocess
     if os.path.exists(out):
@@ -487,6 +496,6 @@ def _database(src, out, ext, to, update):
                         wr.writerow([misc._cell(v) for v in r])
                     z.writestr(f"{t}.csv", "﻿" + buf.getvalue())
         else:
-            raise ValueError(f"Formato .{to} non disponibile per i database")
+            raise ValueError(tr("srv_convert.formato_0_non_disponibile_i", to))
     finally:
         con.close()

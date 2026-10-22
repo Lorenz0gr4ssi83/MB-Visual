@@ -9,23 +9,24 @@ import { askText, el, modal, toast } from "./core.js";
 import * as G from "./cadgeom.js";
 import { cadIcon } from "./cadicons.js";
 import { describeKeys } from "./shortcuts.js";
+import { t as tr, LOCALE } from "./i18n.js";
 
 // copia profonda (i DWG possono contenere interi BigInt nei dati estesi)
 const plain = (k, v) => (typeof v === "bigint" ? Number(v) : v);
 const clone = o => (o === undefined ? undefined : JSON.parse(JSON.stringify(o, plain)));
 const { R2D, TAU } = G;
-const COLORS = [[256, "DaLayer"], [0, "DaBlocco"], [1, "Rosso"], [2, "Giallo"], [3, "Verde"], [4, "Ciano"], [5, "Blu"], [6, "Magenta"], [7, "Bianco/Nero"], [8, "Grigio scuro"], [9, "Grigio"], [30, "Arancio"]];
-const LWEIGHTS = [[-1, "DaLayer"], [-2, "DaBlocco"], [-3, "Predefinito"], [0, "0,00 mm"], [13, "0,13 mm"], [18, "0,18 mm"], [25, "0,25 mm"], [35, "0,35 mm"], [50, "0,50 mm"], [70, "0,70 mm"], [100, "1,00 mm"], [140, "1,40 mm"], [200, "2,00 mm"]];
+const COLORS = [[256, tr("cadedit.dalayer")], [0, tr("cadedit.dablocco")], [1, tr("cadedit.rosso")], [2, tr("cadedit.giallo")], [3, tr("cadedit.verde")], [4, tr("cadedit.ciano")], [5, tr("cadedit.blu")], [6, tr("cadedit.magenta")], [7, tr("cadedit.bianco_nero")], [8, tr("cadedit.grigio_scuro")], [9, tr("cadedit.grigio")], [30, tr("cadedit.arancio")]];
+const LWEIGHTS = [[-1, tr("cadedit.dalayer")], [-2, tr("cadedit.dablocco")], [-3, tr("cadedit.predefinito")], [0, "0,00 mm"], [13, "0,13 mm"], [18, "0,18 mm"], [25, "0,25 mm"], [35, "0,35 mm"], [50, "0,50 mm"], [70, "0,70 mm"], [100, "1,00 mm"], [140, "1,40 mm"], [200, "2,00 mm"]];
 const LTYPES_STD = ["ByLayer", "ByBlock", "Continuous", "DASHED", "HIDDEN", "CENTER", "DASHDOT", "PHANTOM", "DOT", "DIVIDE", "BORDER"];
-const TYPE_IT = { LINE: "Linea", CIRCLE: "Cerchio", ARC: "Arco", ELLIPSE: "Ellisse", LWPOLYLINE: "Polilinea", POLYLINE2D: "Polilinea 2D", POLYLINE3D: "Polilinea 3D", SPLINE: "Spline",
-  TEXT: "Testo", MTEXT: "Testo multiriga", INSERT: "Blocco", DIMENSION: "Quota", HATCH: "Tratteggio", POINT: "Punto", SOLID: "Solido 2D", LEADER: "Direttrice", "3DFACE": "Faccia 3D", ATTRIB: "Attributo", TRACE: "Traccia" };
+const TYPE_IT = { LINE: tr("cadedit.linea"), CIRCLE: tr("cadedit.cerchio"), ARC: tr("cadedit.arco"), ELLIPSE: tr("cadedit.ellisse"), LWPOLYLINE: tr("cadedit.polilinea"), POLYLINE2D: tr("cadedit.polilinea_2d"), POLYLINE3D: tr("cadedit.polilinea_3d"), SPLINE: tr("cadedit.spline"),
+  TEXT: tr("cadedit.testo"), MTEXT: tr("cadedit.testo_multiriga"), INSERT: tr("cadedit.blocco"), DIMENSION: tr("cadedit.quota"), HATCH: tr("cadedit.tratteggio"), POINT: tr("cadedit.punto"), SOLID: tr("cadedit.solido_2d"), LEADER: tr("cadedit.direttrice"), "3DFACE": tr("cadedit.faccia_3d"), ATTRIB: tr("cadedit.attributo"), TRACE: tr("cadedit.traccia") };
 const MIRX = [-1, 0, 0, 1, 0, 0];
 // appunti condivisi tra i disegni aperti (Ctrl+C / Ctrl+V come in AutoCAD)
 let CLIP = null;
 const CANCEL = new Error("annullato");
 const num = v => { const n = parseFloat(String(v).trim().replace(",", ".")); return isFinite(n) ? n : null; };
 const f4 = v => (typeof v === "number" ? +v.toFixed(4) : v);
-const fmt = v => (typeof v === "number" ? v.toLocaleString("it-IT", { maximumFractionDigits: 4 }) : String(v));
+const fmt = v => (typeof v === "number" ? v.toLocaleString(LOCALE, { maximumFractionDigits: 4 }) : String(v));
 const P = ([x, y]) => ({ x, y, z: 0 });
 const XY = p => [p.x, p.y];
 const dist = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
@@ -231,7 +232,7 @@ export function createCadEditor(o) {
   function apply(states) { for (const [k, s] of states) setE(k, clone(s)); }
   function doUndo() {
     const c = undo.pop();
-    if (!c) return toast("Niente da annullare");
+    if (!c) return toast(tr("cadedit.niente_annullare"));
     apply(c.before);
     for (const k of c.added) { const e = getE(k); if (e) e._deleted = true; }
     redo.push(c);
@@ -240,7 +241,7 @@ export function createCadEditor(o) {
   }
   function doRedo() {
     const c = redo.pop();
-    if (!c) return toast("Niente da ripetere");
+    if (!c) return toast(tr("cadedit.niente_ripetere"));
     apply(c.after);
     undo.push(c);
     changed();
@@ -370,7 +371,7 @@ export function createCadEditor(o) {
 
   // ---- motore dei comandi: i comandi sono funzioni asincrone che chiedono punti, valori, oggetti
   let task = null, pending = null, preview = null;
-  function setPrompt(text) { promptEl.textContent = text ? text + ":" : "Comando:"; }
+  function setPrompt(text) { promptEl.textContent = text ? text + ":" : tr("cadedit.comando"); }
   async function run(name, fn) {
     if (task) cancelTask();
     const t = { name };
@@ -414,10 +415,10 @@ export function createCadEditor(o) {
       if (r.key && !r.pick) return r;
       const e = getE(r.pick.key);
       if (!filter || filter(e, r.pick.key)) return { ...r.pick, e };
-      toast("Tipo di oggetto non adatto a questo comando", true);
+      toast(tr("cadedit.tipo_oggetto_non_adatto_questo"), true);
     }
   }
-  async function needSelection(text = "Seleziona gli oggetti (Invio per confermare)") {
+  async function needSelection(text = tr("cadedit.seleziona_oggetti_invio_confermare")) {
     if (topKeys().length) return topKeys();
     const r = await ask("select", text);
     const k = topKeys();
@@ -446,7 +447,7 @@ export function createCadEditor(o) {
       if (s === "?") { showHelp(); return; }
       if (!s) { if (mem.lastCmd) startCmd(mem.lastCmd); return; }
       const c = ALIAS[s.toUpperCase()];
-      if (c) startCmd(c); else toast(`Comando sconosciuto: ${s}. Scrivi ? per l'elenco dei comandi.`, true);
+      if (c) startCmd(c); else toast(tr("cadedit.comando_sconosciuto_0_scrivi_l", s), true);
       return;
     }
     const p = pending, opts = p.opts || {};
@@ -456,7 +457,7 @@ export function createCadEditor(o) {
     if (p.kind === "select") {
       if (!s) return done(true);
       if (up === "T" || up === "TUTTO") return selectAll();
-      return toast("Seleziona con il mouse, poi Invio", true);
+      return toast(tr("cadedit.seleziona_mouse_poi_invio"), true);
     }
     if (p.kind === "entity") { if (!s) done(null); return; }
     if (!s) return done(null);
@@ -465,7 +466,7 @@ export function createCadEditor(o) {
       if (isNum) return done({ value: +s.replace(",", ".") });
       const pt = parsePointInput(s, opts.base);
       if (pt) return done(pt);
-      return toast("Valore non valido", true);
+      return toast(tr("cadedit.valore_non_valido"), true);
     }
     if (isNum && !s.includes(",")) {
       const n = +s;
@@ -478,7 +479,7 @@ export function createCadEditor(o) {
     if (isNum && opts.allowValue) return done({ value: +s.replace(",", ".") });
     const pt = parsePointInput(s, opts.base || lastPt);
     if (pt) return done(pt);
-    toast("Punto non valido: scrivi x,y oppure @dx,dy oppure @distanza<angolo, o una distanza", true, 5000);
+    toast(tr("cadedit.punto_non_valido_scrivi_x"), true, 5000);
   }
   let lastPt = null;
   const effectivePoint = p => {
@@ -507,12 +508,12 @@ export function createCadEditor(o) {
   function startCmd(id, arg) { const c = CMDS[id]; if (!c) return; if (!["undo", "redo", "dimstyle", "select", "zoomext", "selectall", "copyclip", "copybase"].includes(id)) mem.lastCmd = id; run(id, () => c.fn(arg)); }
 
   // .... disegno
-  def("line", "Linea", "Linea (L): clic sui punti, Invio per finire, C chiude, A annulla l'ultimo tratto", ["L", "LINEA", "LINE"], async () => {
-    let first = await needPoint("Primo punto"), prev = first;
+  def("line", tr("cadedit.linea"), tr("cadedit.linea_l_clic_sui_punti"), ["L", "LINEA", "LINE"], async () => {
+    let first = await needPoint(tr("cadedit.primo_punto")), prev = first;
     const made = [];
     for (;;) {
       lastPt = prev;
-      const r = await getPoint(`Punto successivo [${made.length >= 2 ? "Chiudi (C) / " : ""}Annulla (A)] o Invio`, { base: prev, keys: { C: 1, A: 1 }, preview: p => [{ type: "LINE", startPoint: P(prev), endPoint: P(p) }] });
+      const r = await getPoint(tr("cadedit.punto_successivo_0_annulla_invio", made.length >= 2 ? tr("cadedit.chiudi_c") : ""), { base: prev, keys: { C: 1, A: 1 }, preview: p => [{ type: "LINE", startPoint: P(prev), endPoint: P(p) }] });
       if (r === null) return;
       if (r.key === "A") { if (made.length) { doUndo(); made.pop(); prev = made.length ? made[made.length - 1] : first; } continue; }
       const q = r.key === "C" ? first : r;
@@ -521,9 +522,9 @@ export function createCadEditor(o) {
       made.push(q); prev = q;
     }
   }, "draw");
-  def("pline", "Polilinea", "Polilinea (PL): clic sui punti; A = tratti ad arco, L = tratti dritti, C chiude, Invio finisce", ["PL", "POLILINEA", "PLINE"], async () => {
+  def("pline", tr("cadedit.polilinea"), "Polilinea (PL): clic sui punti; A = tratti ad arco, L = tratti dritti, C chiude, Invio finisce", ["PL", "POLILINEA", "PLINE"], async () => {
     const v = [{ x: 0, y: 0, bulge: 0 }];
-    const first = await needPoint("Punto iniziale");
+    const first = await needPoint(tr("cadedit.punto_iniziale"));
     v[0].x = first[0]; v[0].y = first[1];
     let arcMode = false;
     const tangent = () => { // direzione di uscita dall'ultimo vertice
@@ -542,7 +543,7 @@ export function createCadEditor(o) {
     for (;;) {
       const b = v[v.length - 1];
       lastPt = [b.x, b.y];
-      const r = await getPoint(`Punto successivo [${arcMode ? "Linea (L)" : "Arco (A)"} / Chiudi (C) / Annulla (U)] o Invio`, { base: [b.x, b.y], keys: { A: 1, L: 1, C: 1, U: 1 }, preview: p => temp(p) });
+      const r = await getPoint(tr("cadedit.punto_successivo_0_chiudi_c", arcMode ? tr("cadedit.linea_l") : tr("cadedit.arco_2")), { base: [b.x, b.y], keys: { A: 1, L: 1, C: 1, U: 1 }, preview: p => temp(p) });
       if (r === null) break;
       if (r.key === "A") { arcMode = true; continue; }
       if (r.key === "L") { arcMode = false; continue; }
@@ -553,18 +554,18 @@ export function createCadEditor(o) {
     }
     if (v.length > 1) command([], () => add({ ...base(), type: "LWPOLYLINE", flag: 0, vertices: v }));
   }, "draw");
-  def("rect", "Rettangolo", "Rettangolo (REC): due angoli opposti (anche @larghezza,altezza)", ["REC", "RETTANGOLO", "RECTANG"], async () => {
-    const a = await needPoint("Primo angolo");
+  def("rect", tr("cadedit.rettangolo"), tr("cadedit.rettangolo_rec_due_angoli_opposti"), ["REC", "RETTANGOLO", "RECTANG"], async () => {
+    const a = await needPoint(tr("cadedit.primo_angolo"));
     lastPt = a;
     const rect = (b) => [[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]]].map(([x, y]) => ({ x, y, bulge: 0 }));
-    const b = await needPoint("Angolo opposto (o @larghezza,altezza)", { base: a, preview: p => [{ type: "LWPOLYLINE", flag: 1, vertices: rect(p) }] });
+    const b = await needPoint(tr("cadedit.angolo_opposto_larghezza_altezza"), { base: a, preview: p => [{ type: "LWPOLYLINE", flag: 1, vertices: rect(p) }] });
     command([], () => add({ ...base(), type: "LWPOLYLINE", flag: 1, vertices: rect(b) }));
   }, "draw");
-  def("circle", "Cerchio", "Cerchio (C): centro e raggio; D = diametro, 3P = per tre punti", ["C", "CERCHIO", "CIRCLE"], async mode => {
-    const r0 = mode === "3p" ? { key: "3P" } : await needPoint("Centro [3 punti (3P)]", { keys: { "3P": 1 } });
+  def("circle", tr("cadedit.cerchio"), tr("cadedit.cerchio_c_centro_raggio_d"), ["C", "CERCHIO", "CIRCLE"], async mode => {
+    const r0 = mode === "3p" ? { key: "3P" } : await needPoint(tr("cadedit.centro_3_punti_3p"), { keys: { "3P": 1 } });
     if (r0.key === "3P") {
-      const a = await needPoint("Primo punto"), b = await needPoint("Secondo punto", { base: a });
-      const c = await needPoint("Terzo punto", { base: b, preview: p => { const C = G.circle3(a, b, p); return C ? [{ type: "CIRCLE", center: P([C.cx, C.cy]), radius: C.r }] : []; } });
+      const a = await needPoint(tr("cadedit.primo_punto")), b = await needPoint(tr("cadedit.secondo_punto"), { base: a });
+      const c = await needPoint(tr("cadedit.terzo_punto"), { base: b, preview: p => { const C = G.circle3(a, b, p); return C ? [{ type: "CIRCLE", center: P([C.cx, C.cy]), radius: C.r }] : []; } });
       const C = G.circle3(a, b, c);
       if (C) command([], () => add({ ...base(), type: "CIRCLE", center: P([C.cx, C.cy]), radius: C.r }));
       return;
@@ -573,7 +574,7 @@ export function createCadEditor(o) {
     lastPt = c;
     let diam = mode === "d";
     for (;;) {
-      const r = await getPoint(diam ? "Diametro" : "Raggio [Diametro (D)]", { base: c, keys: { D: 1 }, allowValue: true, preview: p => [{ type: "CIRCLE", center: P(c), radius: Math.max(1e-9, dist(c, p) / (diam ? 2 : 1)) }] });
+      const r = await getPoint(diam ? tr("cadedit.diametro") : "Raggio [Diametro (D)]", { base: c, keys: { D: 1 }, allowValue: true, preview: p => [{ type: "CIRCLE", center: P(c), radius: Math.max(1e-9, dist(c, p) / (diam ? 2 : 1)) }] });
       if (r === null) return;
       if (r.key === "D") { diam = true; continue; }
       const rad = r.value !== undefined ? r.value / (diam ? 2 : 1) : dist(c, r) / (diam ? 2 : 1);
@@ -581,67 +582,67 @@ export function createCadEditor(o) {
       return;
     }
   }, "draw");
-  def("arc", "Arco", "Arco (A): inizio, secondo punto, fine; C = centro, inizio, fine", ["A", "ARCO", "ARC"], async mode => {
-    const r0 = mode === "cse" ? { key: "C" } : await needPoint("Punto iniziale [Centro (C)]", { keys: { C: 1 } });
+  def("arc", tr("cadedit.arco"), "Arco (A): inizio, secondo punto, fine; C = centro, inizio, fine", ["A", "ARCO", "ARC"], async mode => {
+    const r0 = mode === "cse" ? { key: "C" } : await needPoint(tr("cadedit.punto_iniziale_centro_c"), { keys: { C: 1 } });
     const toEnt = A => ({ type: "ARC", center: P([A.cx, A.cy]), radius: A.r, startAngle: G.normA(A.sw > 0 ? A.a0 : A.a0 + A.sw), endAngle: G.normA(A.sw > 0 ? A.a0 + A.sw : A.a0) });
     if (r0.key === "C") {
-      const c = await needPoint("Centro"), s = await needPoint("Punto iniziale", { base: c });
+      const c = await needPoint(tr("cadedit.centro")), s = await needPoint(tr("cadedit.punto_iniziale"), { base: c });
       const a0 = Math.atan2(s[1] - c[1], s[0] - c[0]), r = dist(c, s);
       const mk = p => ({ type: "ARC", center: P(c), radius: r, startAngle: G.normA(a0), endAngle: G.normA(Math.atan2(p[1] - c[1], p[0] - c[0])) });
-      const e = await needPoint("Punto finale (verso antiorario)", { base: c, preview: p => [mk(p)] });
+      const e = await needPoint(tr("cadedit.punto_finale_verso_antiorario"), { base: c, preview: p => [mk(p)] });
       command([], () => add({ ...base(), ...mk(e) }));
       return;
     }
-    const a = r0, b = await needPoint("Secondo punto", { base: a });
-    const c = await needPoint("Punto finale", { base: b, preview: p => { const A = G.arc3(a, b, p); return A ? [toEnt(A)] : []; } });
+    const a = r0, b = await needPoint(tr("cadedit.secondo_punto"), { base: a });
+    const c = await needPoint(tr("cadedit.punto_finale"), { base: b, preview: p => { const A = G.arc3(a, b, p); return A ? [toEnt(A)] : []; } });
     const A = G.arc3(a, b, c);
     if (A) command([], () => add({ ...base(), ...toEnt(A) }));
   }, "draw");
-  def("ellipse", "Ellisse", "Ellisse (EL): centro, estremo del primo asse, lunghezza del secondo semiasse", ["EL", "ELLISSE", "ELLIPSE"], async () => {
-    const c = await needPoint("Centro"), a = await needPoint("Estremo dell'asse", { base: c, preview: p => [{ type: "LINE", startPoint: P(c), endPoint: P(p) }] });
+  def("ellipse", tr("cadedit.ellisse"), tr("cadedit.ellisse_el_centro_estremo_primo"), ["EL", "ELLISSE", "ELLIPSE"], async () => {
+    const c = await needPoint(tr("cadedit.centro")), a = await needPoint(tr("cadedit.estremo_dell_asse"), { base: c, preview: p => [{ type: "LINE", startPoint: P(c), endPoint: P(p) }] });
     const L = dist(c, a);
     if (L < 1e-12) return;
     const mk = r => ({ type: "ELLIPSE", center: P(c), majorAxisEndPoint: { x: a[0] - c[0], y: a[1] - c[1], z: 0 }, axisRatio: Math.max(1e-6, r), startAngle: 0, endAngle: TAU });
-    const r = await getNumber("Lunghezza dell'altro semiasse", undefined, { base: c, preview: p => [mk(dist(c, p) / L)] });
+    const r = await getNumber(tr("cadedit.lunghezza_dell_altro_semiasse"), undefined, { base: c, preview: p => [mk(dist(c, p) / L)] });
     let rr = r / L, ent = mk(rr);
     if (rr > 1) { ent = { ...mk(1 / rr), majorAxisEndPoint: { x: -(a[1] - c[1]) * rr, y: (a[0] - c[0]) * rr, z: 0 } }; }
     command([], () => add({ ...base(), ...ent }));
   }, "draw");
-  def("text", "Testo", "Testo su una riga (T): punto, altezza, rotazione, testo", ["T", "TESTO", "DT", "TEXT"], async () => {
-    const p = await needPoint("Punto di inserimento");
+  def("text", tr("cadedit.testo"), tr("cadedit.testo_riga_t_punto_altezza"), ["T", "TESTO", "DT", "TEXT"], async () => {
+    const p = await needPoint(tr("cadedit.punto_inserimento"));
     lastPt = p;
-    const h = await getNumber("Altezza", cur.textH, { base: p });
+    const h = await getNumber(tr("common.altezza"), cur.textH, { base: p });
     cur.textH = h; hInput.value = fmt(h);
-    const rr = await getNumber("Rotazione in gradi", 0, { base: p, angle: true });
-    const s = await askText("Nuovo testo", "Testo");
+    const rr = await getNumber(tr("cadedit.rotazione_gradi"), 0, { base: p, angle: true });
+    const s = await askText(tr("cadedit.nuovo_testo"), tr("cadedit.testo"));
     if (s) command([], () => add({ ...base(), type: "TEXT", text: s, startPoint: P(p), endPoint: P(p), textHeight: h, rotation: (typeof rr === "number" ? rr : 0) / R2D, halign: 0, valign: 0 }));
   }, "draw");
-  def("mtext", "Testo multiriga", "Testo multiriga (MT): riquadro del testo, poi il testo (a capo con Invio)", ["MT", "TM", "MTEXT", "TESTOM"], async () => {
-    const a = await needPoint("Primo angolo del riquadro");
+  def("mtext", tr("cadedit.testo_multiriga"), tr("cadedit.testo_multiriga_mt_riquadro_testo"), ["MT", "TM", "MTEXT", "TESTOM"], async () => {
+    const a = await needPoint(tr("cadedit.primo_angolo_riquadro"));
     lastPt = a;
-    const b = await needPoint("Angolo opposto", { base: a, preview: p => [{ type: "LWPOLYLINE", flag: 1, vertices: [[a[0], a[1]], [p[0], a[1]], [p[0], p[1]], [a[0], p[1]]].map(([x, y]) => ({ x, y })) }] });
+    const b = await needPoint(tr("cadedit.angolo_opposto"), { base: a, preview: p => [{ type: "LWPOLYLINE", flag: 1, vertices: [[a[0], a[1]], [p[0], a[1]], [p[0], p[1]], [a[0], p[1]]].map(([x, y]) => ({ x, y })) }] });
     const ta = el("textarea", { rows: 6, style: { width: "100%", minWidth: "360px", fontFamily: "Arial", fontSize: "14px" } });
     const hh = el("input", { type: "text", class: "field", value: fmt(cur.textH), style: { width: "80px" } });
     setTimeout(() => ta.focus(), 50);
-    const ok = await modal("Testo multiriga", el("div", { style: { display: "grid", gap: "8px" } }, el("label", {}, "Altezza ", hh), ta), [{ label: "Annulla", value: null }, { label: "Inserisci", primary: true, value: () => ta.value }]);
+    const ok = await modal(tr("cadedit.testo_multiriga"), el("div", { style: { display: "grid", gap: "8px" } }, el("label", {}, tr("cadedit.altezza"), hh), ta), [{ label: tr("common.annulla"), value: null }, { label: tr("cadedit.inserisci"), primary: true, value: () => ta.value }]);
     if (!ok) return;
     const h = num(hh.value) || cur.textH;
     cur.textH = h; hInput.value = fmt(h);
     command([], () => add({ ...base(), type: "MTEXT", text: ok.replace(/\r?\n/g, "\\P"), insertionPoint: P([Math.min(a[0], b[0]), Math.max(a[1], b[1])]), textHeight: h, rectWidth: Math.abs(b[0] - a[0]), attachmentPoint: 1, rotation: 0 }));
   }, "draw");
-  def("hatch", "Tratteggio", "Tratteggio (H): motivo e scala, poi clic dentro le aree chiuse (Invio per finire)", ["H", "TR", "TRATTEGGIO", "HATCH", "BH", "RETINO"], async () => {
+  def("hatch", tr("cadedit.tratteggio"), tr("cadedit.tratteggio_h_motivo_scala_poi"), ["H", "TR", "TRATTEGGIO", "HATCH", "BH", "RETINO"], async () => {
     const hs = mem.hatch;
     const sel1 = el("select", { class: "field" }, ...["SOLID", ...Object.keys(G.PATTERNS)].map(n => el("option", { value: n, selected: n === hs.name || undefined }, G.PATTERN_IT[n] || n)));
     const sc = el("input", { type: "text", class: "field", value: fmt(hs.scale), style: { width: "90px" } }), an = el("input", { type: "text", class: "field", value: fmt(hs.angle), style: { width: "90px" } });
-    const ok = await modal("Tratteggio", el("div", { style: { display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px", alignItems: "center" } }, "Motivo", sel1, "Scala", sc, "Angolo (°)", an,
-      el("span", { class: "note", style: { gridColumn: "1/3" } }, "Poi fai clic dentro le aree da tratteggiare: il contorno si trova da solo (linee, polilinee, cerchi, archi).")), [{ label: "Annulla", value: null }, { label: "Continua", primary: true, value: true }]);
+    const ok = await modal(tr("cadedit.tratteggio"), el("div", { style: { display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px", alignItems: "center" } }, tr("cadedit.motivo"), sel1, tr("cadedit.scala"), sc, "Angolo (°)", an,
+      el("span", { class: "note", style: { gridColumn: "1/3" } }, tr("cadedit.poi_fai_clic_dentro_aree"))), [{ label: tr("common.annulla"), value: null }, { label: tr("cadedit.continua"), primary: true, value: true }]);
     if (!ok) return;
     Object.assign(hs, { name: sel1.value, scale: num(sc.value) || 1, angle: num(an.value) || 0 });
     for (;;) {
-      const r = await getPoint("Clic dentro un'area chiusa (Invio per finire)", { nosnap: true });
+      const r = await getPoint(tr("cadedit.clic_dentro_area_chiusa_invio"), { nosnap: true });
       if (r === null) return;
       const loops = findBoundary(r);
-      if (!loops) { toast("Nessun contorno chiuso attorno al punto (ingrandisci la zona o chiudi il contorno)", true, 5000); continue; }
+      if (!loops) { toast(tr("cadedit.nessun_contorno_chiuso_attorno_punto"), true, 5000); continue; }
       const solid = hs.name === "SOLID";
       command([], () => add({ ...base(), type: "HATCH", patternName: hs.name, solidFill: solid ? 1 : 0, patternScale: hs.scale, patternAngle: hs.angle / R2D,
         boundaryPaths: loops.map(L => ({ boundaryPathTypeFlag: 2, isClosed: true, vertices: L.map(([x, y]) => ({ x, y, bulge: 0 })) })) }));
@@ -651,10 +652,10 @@ export function createCadEditor(o) {
   // .... quote
   const dimBase = () => ({ ...base(), type: "DIMENSION", style: { ...dimStyle } });
   const dimEntity = (kind, f) => ({ ...dimBase(), dimKind: kind, ...f });
-  async function twoPoints(text1 = "Origine della prima linea di estensione (Invio = scegli un oggetto)") {
+  async function twoPoints(text1 = tr("cadedit.origine_prima_linea_estensione_invio")) {
     const r = await getPoint(text1, { none: null });
     if (r === null) {
-      const pk = await getEntity("Seleziona la linea, l'arco o il lato di polilinea da quotare", e => ["LINE", "ARC", "LWPOLYLINE", "POLYLINE2D"].includes(e?.type));
+      const pk = await getEntity(tr("cadedit.seleziona_linea_l_arco_lato"), e => ["LINE", "ARC", "LWPOLYLINE", "POLYLINE2D"].includes(e?.type));
       if (!pk) throw CANCEL;
       const it = pk.item;
       if (it.t === "L") return [[it.x1, it.y1], [it.x2, it.y2]];
@@ -662,10 +663,10 @@ export function createCadEditor(o) {
       throw CANCEL;
     }
     lastPt = r;
-    const b = await needPoint("Origine della seconda linea di estensione", { base: r });
+    const b = await needPoint(tr("cadedit.origine_seconda_linea_estensione"), { base: r });
     return [r, b];
   }
-  def("dimlin", "Lineare", "Quota lineare orizzontale/verticale (DLI): due punti, poi la posizione; O/V/R per forzare", ["DLI", "DIMLIN", "DIMLINEAR", "QUOTALIN"], async () => {
+  def("dimlin", tr("cadedit.lineare"), tr("cadedit.quota_lineare_orizzontale_verticale_dli"), ["DLI", "DIMLIN", "DIMLINEAR", "QUOTALIN"], async () => {
     const [a, b] = await twoPoints();
     let force = null, rotA = 0;
     const auto = p => {
@@ -675,10 +676,10 @@ export function createCadEditor(o) {
     };
     const mk = p => dimEntity("linear", { p1: P(a), p2: P(b), loc: P(p), angle: auto(p) });
     for (;;) {
-      const r = await getPoint("Posizione della linea di quota [Orizzontale (O) / Verticale (V) / Ruotata (R) / Testo (T)]", { base: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], keys: { O: 1, V: 1, R: 1, T: 1 }, preview: p => [mk(p)], nosnapDefault: true });
+      const r = await getPoint(tr("cadedit.posizione_linea_quota_orizzontale_verticale"), { base: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], keys: { O: 1, V: 1, R: 1, T: 1 }, preview: p => [mk(p)], nosnapDefault: true });
       if (r === null) return;
-      if (r.key === "R") { const v = await getNumber("Angolo della linea di quota (°)", 0); rotA = (typeof v === "number" ? v : 0) / R2D; force = "R"; continue; }
-      if (r.key === "T") { mem.dimText = await askText("Testo della quota", "Testo (<> = misura)", "<>"); continue; }
+      if (r.key === "R") { const v = await getNumber(tr("cadedit.angolo_linea_quota"), 0); rotA = (typeof v === "number" ? v : 0) / R2D; force = "R"; continue; }
+      if (r.key === "T") { mem.dimText = await askText(tr("cadedit.testo_quota"), tr("cadedit.testo_misura"), "<>"); continue; }
       if (r.key) { force = r.key; continue; }
       const e = mk(r);
       if (mem.dimText) { e.text = mem.dimText; mem.dimText = null; }
@@ -687,56 +688,56 @@ export function createCadEditor(o) {
       return;
     }
   }, "dim");
-  def("dimali", "Allineata", "Quota allineata (DAL): due punti, poi la posizione", ["DAL", "DIMALI", "DIMALIGNED", "QUOTALL"], async () => {
+  def("dimali", tr("cadedit.allineata"), tr("cadedit.quota_allineata_due_punti_poi"), ["DAL", "DIMALI", "DIMALIGNED", "QUOTALL"], async () => {
     const [a, b] = await twoPoints();
     const mk = p => dimEntity("aligned", { p1: P(a), p2: P(b), loc: P(p) });
-    const r = await needPoint("Posizione della linea di quota", { base: b, preview: p => [mk(p)] });
+    const r = await needPoint(tr("cadedit.posizione_linea_quota"), { base: b, preview: p => [mk(p)] });
     const e = mk(r);
     command([], () => add(e));
     mem.lastDim = e;
   }, "dim");
-  def("dimang", "Angolare", "Quota angolare (DAN): due linee (o un arco); Invio = vertice e due punti", ["DAN", "DIMANG", "DIMANGULAR", "QUOTANG"], async () => {
+  def("dimang", tr("cadedit.angolare"), tr("cadedit.quota_angolare_dan_due_linee"), ["DAN", "DIMANG", "DIMANGULAR", "QUOTANG"], async () => {
     let c, p1, p2;
-    const pk = await getEntity("Seleziona la prima linea o un arco (Invio = specifica il vertice)", e => ["LINE", "ARC", "LWPOLYLINE", "POLYLINE2D", "CIRCLE"].includes(e?.type));
+    const pk = await getEntity(tr("cadedit.seleziona_prima_linea_arco_invio"), e => ["LINE", "ARC", "LWPOLYLINE", "POLYLINE2D", "CIRCLE"].includes(e?.type));
     if (!pk) {
-      c = await needPoint("Vertice dell'angolo");
-      p1 = await needPoint("Punto sul primo lato", { base: c });
-      p2 = await needPoint("Punto sul secondo lato", { base: c });
+      c = await needPoint(tr("cadedit.vertice_dell_angolo"));
+      p1 = await needPoint(tr("cadedit.punto_primo_lato"), { base: c });
+      p2 = await needPoint(tr("cadedit.punto_secondo_lato"), { base: c });
     } else if (pk.item.t === "A") {
       const it = pk.item;
       c = [it.cx, it.cy]; p1 = G.arcPoint(it, it.sw > 0 ? 0 : 1); p2 = G.arcPoint(it, it.sw > 0 ? 1 : 0);
     } else {
-      const pk2 = await getEntity("Seleziona la seconda linea", e => ["LINE", "LWPOLYLINE", "POLYLINE2D"].includes(e?.type));
+      const pk2 = await getEntity(tr("cadedit.seleziona_seconda_linea"), e => ["LINE", "LWPOLYLINE", "POLYLINE2D"].includes(e?.type));
       if (!pk2 || pk2.item.t !== "L") throw CANCEL;
       const X = G.intersect(pk.item, pk2.item, true, true)[0];
-      if (!X) { toast("Le linee sono parallele", true); return; }
+      if (!X) { toast(tr("cadedit.linee_sono_parallele"), true); return; }
       c = [X.x, X.y];
       const side = (it, q) => { const a = [it.x1, it.y1], b = [it.x2, it.y2]; const far = dist(a, c) > dist(b, c) ? a : b; const d = [far[0] - c[0], far[1] - c[1]]; return (q[0] - c[0]) * d[0] + (q[1] - c[1]) * d[1] >= 0 ? far : [2 * c[0] - far[0], 2 * c[1] - far[1]]; };
       p1 = side(pk.item, pk.pt); p2 = side(pk2.item, pk2.pt);
     }
     const mk = p => dimEntity("angular", { c: P(c), p1: P(p1), p2: P(p2), loc: P(p) });
-    const r = await needPoint("Posizione dell'arco di quota", { base: c, preview: p => [mk(p)] });
+    const r = await needPoint(tr("cadedit.posizione_dell_arco_quota"), { base: c, preview: p => [mk(p)] });
     command([], () => add(mk(r)));
   }, "dim");
   const radial = kind => async () => {
-    const pk = await getEntity("Seleziona l'arco o il cerchio", e => ["ARC", "CIRCLE", "LWPOLYLINE", "POLYLINE2D"].includes(e?.type));
+    const pk = await getEntity(tr("cadedit.seleziona_l_arco_cerchio"), e => ["ARC", "CIRCLE", "LWPOLYLINE", "POLYLINE2D"].includes(e?.type));
     if (!pk) return;
-    if (pk.item.t !== "A") { toast("Seleziona un arco o un cerchio (o un lato ad arco di polilinea)", true); return; }
+    if (pk.item.t !== "A") { toast(tr("cadedit.seleziona_arco_cerchio_lato_ad"), true); return; }
     const it = pk.item, c = [it.cx, it.cy];
     const mk = p => dimEntity(kind, { c: P(c), r: it.r, loc: P(p) });
-    const r = await needPoint("Posizione della quota", { base: c, preview: p => [mk(p)] });
+    const r = await needPoint(tr("cadedit.posizione_quota"), { base: c, preview: p => [mk(p)] });
     command([], () => add(mk(r)));
   };
-  def("dimrad", "Raggio", "Quota raggio (DRA): seleziona arco o cerchio, poi la posizione", ["DRA", "DIMRAD", "DIMRADIUS", "QUOTARAG"], radial("radius"), "dim");
-  def("dimdia", "Diametro", "Quota diametro (DDI): seleziona arco o cerchio, poi la posizione", ["DDI", "DIMDIA", "DIMDIAMETER", "QUOTADIA"], radial("diameter"), "dim");
-  def("dimord", "Coordinata", "Quota coordinata (DOR): punto, poi estremo della direttrice; X/Y per forzare", ["DOR", "DIMORD", "DIMORDINATE", "QUOTACOO"], async () => {
+  def("dimrad", tr("cadedit.raggio"), tr("cadedit.quota_raggio_dra_seleziona_arco"), ["DRA", "DIMRAD", "DIMRADIUS", "QUOTARAG"], radial("radius"), "dim");
+  def("dimdia", tr("cadedit.diametro"), tr("cadedit.quota_diametro_ddi_seleziona_arco"), ["DDI", "DIMDIA", "DIMDIAMETER", "QUOTADIA"], radial("diameter"), "dim");
+  def("dimord", tr("cadedit.coordinata"), tr("cadedit.quota_coordinata_dor_punto_poi"), ["DOR", "DIMORD", "DIMORDINATE", "QUOTACOO"], async () => {
     let force = null;
     for (;;) {
-      const f = await getPoint("Punto da quotare (Invio per finire)");
+      const f = await getPoint(tr("cadedit.punto_quotare_invio_finire"));
       if (f === null) return;
       const mk = p => dimEntity("ordinate", { feat: P(f), leader: P(p), origin: { x: 0, y: 0, z: 0 }, axis: force || (Math.abs(p[1] - f[1]) >= Math.abs(p[0] - f[0]) ? "x" : "y") });
       for (;;) {
-        const r = await getPoint("Estremo della direttrice [Coordinata X (X) / Coordinata Y (Y)]", { base: f, keys: { X: 1, Y: 1 }, preview: p => [mk(p)] });
+        const r = await getPoint(tr("cadedit.estremo_direttrice_coordinata_x_x"), { base: f, keys: { X: 1, Y: 1 }, preview: p => [mk(p)] });
         if (r === null) return;
         if (r.key) { force = r.key.toLowerCase(); continue; }
         command([], () => add(mk(r)));
@@ -744,12 +745,12 @@ export function createCadEditor(o) {
       }
     }
   }, "dim");
-  def("dimcont", "Continua", "Quota continua (DCO): prosegue dall'ultima quota lineare o allineata", ["DCO", "DIMCONT", "DIMCONTINUE", "QUOTACON"], async () => chainDim(false), "dim");
-  def("dimbase", "Linea di base", "Quote da linea di base (DBA): partono tutte dal primo punto dell'ultima quota", ["DBA", "DIMBASE", "DIMBASELINE"], async () => chainDim(true), "dim");
+  def("dimcont", tr("cadedit.continua"), tr("cadedit.quota_continua_dco_prosegue_dall"), ["DCO", "DIMCONT", "DIMCONTINUE", "QUOTACON"], async () => chainDim(false), "dim");
+  def("dimbase", tr("cadedit.linea_base"), tr("cadedit.quote_linea_base_dba_partono"), ["DBA", "DIMBASE", "DIMBASELINE"], async () => chainDim(true), "dim");
   async function chainDim(baseline) {
     let last = mem.lastDim;
     if (!last || !(last.dimKind === "linear" || last.dimKind === "aligned")) {
-      const pk = await getEntity("Seleziona una quota lineare o allineata da cui continuare", e => e?.type === "DIMENSION" && (e.dimKind === "linear" || e.dimKind === "aligned"));
+      const pk = await getEntity(tr("cadedit.seleziona_quota_lineare_allineata_cui"), e => e?.type === "DIMENSION" && (e.dimKind === "linear" || e.dimKind === "aligned"));
       if (!pk) return;
       last = pk.e;
     }
@@ -772,24 +773,24 @@ export function createCadEditor(o) {
         }
         return e;
       };
-      const r = await getPoint("Origine della linea di estensione successiva (Invio per finire)", { base: XY(from), preview: p => [mk(p)] });
+      const r = await getPoint(tr("cadedit.origine_linea_estensione_successiva_invio"), { base: XY(from), preview: p => [mk(p)] });
       if (r === null) return;
       const e = mk(r);
       command([], () => add(e));
       last = mem.lastDim = e;
     }
   }
-  def("dimstyle", "Stile quota", "Stile delle quote nuove: altezza testo, frecce, scala, decimali", ["DST", "DIMSTYLE", "STILEQUOTA", "D"], async () => {
+  def("dimstyle", tr("cadedit.stile_quota"), tr("cadedit.stile_quote_nuove_altezza_testo"), ["DST", "DIMSTYLE", "STILEQUOTA", "D"], async () => {
     const f = {};
     const row = (k, label, v) => { f[k] = el("input", { type: "text", class: "field", value: fmt(v), style: { width: "100px" } }); return [el("span", {}, label), f[k]]; };
-    const arr = el("select", { class: "field" }, el("option", { value: "0", selected: !dimStyle.tick || undefined }, "Frecce piene"), el("option", { value: "1", selected: dimStyle.tick || undefined }, "Tratto obliquo (architettonico)"));
-    const sep = el("select", { class: "field" }, el("option", { value: ",", selected: dimStyle.sep === "," || undefined }, "Virgola (12,5)"), el("option", { value: ".", selected: dimStyle.sep === "." || undefined }, "Punto (12.5)"));
-    const ok = await modal("Stile quota", el("div", { style: { display: "grid", gridTemplateColumns: "auto auto", gap: "8px 12px", alignItems: "center" } },
-      ...row("scale", "Scala globale", dimStyle.scale), ...row("txt", "Altezza testo", dimStyle.txt), ...row("asz", "Dimensione frecce", dimStyle.asz),
-      ...row("dec", "Decimali", dimStyle.dec), ...row("adec", "Decimali angoli", dimStyle.adec), ...row("exo", "Distanza dall'oggetto", dimStyle.exo),
-      ...row("exe", "Prolungamento oltre la quota", dimStyle.exe), ...row("gap", "Distanza del testo", dimStyle.gap), el("span", {}, "Terminatori"), arr, el("span", {}, "Separatore decimale"), sep,
-      el("span", { class: "note", style: { gridColumn: "1/3" } }, "Le misure si moltiplicano per la scala globale (come DIMSCALE in AutoCAD). Valgono per le quote nuove e per quelle selezionate.")),
-    [{ label: "Annulla", value: null }, { label: "Applica", primary: true, value: true }]);
+    const arr = el("select", { class: "field" }, el("option", { value: "0", selected: !dimStyle.tick || undefined }, tr("cadedit.frecce_piene")), el("option", { value: "1", selected: dimStyle.tick || undefined }, tr("cadedit.tratto_obliquo_architettonico")));
+    const sep = el("select", { class: "field" }, el("option", { value: ",", selected: dimStyle.sep === "," || undefined }, "Virgola (12,5)"), el("option", { value: ".", selected: dimStyle.sep === "." || undefined }, tr("cadedit.punto_12_5")));
+    const ok = await modal(tr("cadedit.stile_quota"), el("div", { style: { display: "grid", gridTemplateColumns: "auto auto", gap: "8px 12px", alignItems: "center" } },
+      ...row("scale", tr("cadedit.scala_globale"), dimStyle.scale), ...row("txt", tr("cadedit.altezza_testo"), dimStyle.txt), ...row("asz", tr("cadedit.dimensione_frecce"), dimStyle.asz),
+      ...row("dec", tr("cadedit.decimali"), dimStyle.dec), ...row("adec", tr("cadedit.decimali_angoli"), dimStyle.adec), ...row("exo", tr("cadedit.distanza_dall_oggetto"), dimStyle.exo),
+      ...row("exe", tr("cadedit.prolungamento_oltre_quota"), dimStyle.exe), ...row("gap", tr("cadedit.distanza_testo"), dimStyle.gap), el("span", {}, tr("cadedit.terminatori")), arr, el("span", {}, tr("cadedit.separatore_decimale")), sep,
+      el("span", { class: "note", style: { gridColumn: "1/3" } }, tr("cadedit.misure_si_moltiplicano_scala_globale"))),
+    [{ label: tr("common.annulla"), value: null }, { label: tr("common.applica"), primary: true, value: true }]);
     if (!ok) return;
     for (const k of Object.keys(f)) { const n = num(f[k].value); if (n !== null && n >= 0) dimStyle[k] = k === "dec" || k === "adec" ? Math.round(n) : n; }
     dimStyle.tick = arr.value === "1"; dimStyle.sep = sep.value;
@@ -798,19 +799,19 @@ export function createCadEditor(o) {
   }, "dim");
 
   // .... misure
-  def("dist", "Distanza", "Misura la distanza tra due punti (DI)", ["DI", "DIST", "DISTANZA"], async () => {
-    const a = await needPoint("Primo punto"), b = await needPoint("Secondo punto", { base: a, preview: p => [{ type: "LINE", startPoint: P(a), endPoint: P(p) }] });
+  def("dist", tr("cadedit.distanza"), tr("cadedit.misura_distanza_tra_due_punti"), ["DI", "DIST", "DISTANZA"], async () => {
+    const a = await needPoint(tr("cadedit.primo_punto")), b = await needPoint(tr("cadedit.secondo_punto"), { base: a, preview: p => [{ type: "LINE", startPoint: P(a), endPoint: P(p) }] });
     const d = dist(a, b), dx = b[0] - a[0], dy = b[1] - a[1];
-    const msg = `Distanza ${fmt(d)} · ΔX ${fmt(dx)} · ΔY ${fmt(dy)} · angolo ${fmt(Math.atan2(dy, dx) * R2D)}°`;
+    const msg = tr("cadedit.distanza_0_x_1_y", fmt(d), fmt(dx), fmt(dy), fmt(Math.atan2(dy, dx) * R2D));
     ctx.status(msg); toast(msg, false, 8000);
   }, "measure");
-  def("area", "Area", "Misura area e perimetro (AREA): clic sui vertici e Invio, oppure O per un oggetto chiuso", ["AA", "AREA"], async () => {
+  def("area", tr("cadedit.area"), tr("cadedit.misura_area_perimetro_area_clic"), ["AA", "AREA"], async () => {
     const pts = [];
-    const r0 = await getPoint("Primo vertice [Oggetto (O)]", { keys: { O: 1 } });
+    const r0 = await getPoint(tr("cadedit.primo_vertice_oggetto"), { keys: { O: 1 } });
     if (r0 === null) return;
     let poly;
     if (r0.key === "O") {
-      const pk = await getEntity("Seleziona un oggetto chiuso (cerchio, polilinea chiusa, ellisse, tratteggio)");
+      const pk = await getEntity(tr("cadedit.seleziona_oggetto_chiuso_cerchio_polilinea"));
       if (!pk) return;
       const its = itemsOf(pk.key);
       if (its.length === 1 && its[0].t === "A" && Math.abs(its[0].sw) >= TAU - 1e-9) { const r = its[0].r; const msg = `Area ${fmt(Math.PI * r * r)} · Circonferenza ${fmt(TAU * r)}`; ctx.status(msg); toast(msg, false, 8000); return; }
@@ -819,7 +820,7 @@ export function createCadEditor(o) {
       pts.push(r0);
       for (;;) {
         lastPt = pts[pts.length - 1];
-        const r = await getPoint("Vertice successivo (Invio per calcolare)", { base: lastPt, preview: p => [{ type: "LWPOLYLINE", flag: 1, vertices: [...pts, p].map(([x, y]) => ({ x, y })) }] });
+        const r = await getPoint(tr("cadedit.vertice_successivo_invio_calcolare"), { base: lastPt, preview: p => [{ type: "LWPOLYLINE", flag: 1, vertices: [...pts, p].map(([x, y]) => ({ x, y })) }] });
         if (r === null) break;
         pts.push(r);
         preview = { preview: () => [{ type: "LWPOLYLINE", flag: 1, vertices: pts.map(([x, y]) => ({ x, y })) }] };
@@ -835,72 +836,72 @@ export function createCadEditor(o) {
 
   // .... modifica
   const xfPreview = A => ({ xf: A });
-  def("move", "Sposta", "Sposta (M): punto base e punto di arrivo", ["M", "SPOSTA", "MOVE", "S"], async () => {
+  def("move", tr("cadedit.sposta"), tr("cadedit.sposta_m_punto_base_punto"), ["M", "SPOSTA", "MOVE", "S"], async () => {
     const keys = await needSelection();
-    const a = await needPoint("Punto base");
+    const a = await needPoint(tr("cadedit.punto_base"));
     lastPt = a;
-    const b = await needPoint("Secondo punto", { base: a, xf: p => G.trn(p[0] - a[0], p[1] - a[1]) });
+    const b = await needPoint(tr("cadedit.secondo_punto"), { base: a, xf: p => G.trn(p[0] - a[0], p[1] - a[1]) });
     command(keys, () => keys.forEach(k => xform(getE(k), G.trn(b[0] - a[0], b[1] - a[1]), blocks)));
   }, "modify");
-  def("copy", "Copia", "Copia (CO): punto base, poi i punti di arrivo (Invio per finire)", ["CO", "CP", "COPIA", "COPY"], async () => {
+  def("copy", tr("common.copia"), tr("cadedit.copia_co_punto_base_poi"), ["CO", "CP", "COPIA", "COPY"], async () => {
     const keys = await needSelection();
-    const a = await needPoint("Punto base");
+    const a = await needPoint(tr("cadedit.punto_base"));
     for (;;) {
       lastPt = a;
-      const b = await getPoint("Secondo punto (Invio per finire)", { base: a, xf: p => G.trn(p[0] - a[0], p[1] - a[1]) });
+      const b = await getPoint(tr("cadedit.secondo_punto_invio_finire"), { base: a, xf: p => G.trn(p[0] - a[0], p[1] - a[1]) });
       if (b === null) return;
       copyWith(keys, G.trn(b[0] - a[0], b[1] - a[1]));
     }
   }, "modify");
   function copyOf(e, A) { const c = clone(e); delete c.handle; delete c._dirty; c._new = true; if (c.type === "DIMENSION" && !c.dimKind) c.type = "_skip"; return xform(c, A, blocks); }
   function copyWith(keys, ...mats) { command([], () => { for (const A of mats) keys.forEach(k => { const c = copyOf(getE(k), A); if (c.type !== "_skip") add(c); }); }); }
-  def("rotate", "Ruota", "Ruota (RO): centro, poi angolo (scritto o con un punto); C = ruota una copia", ["RO", "RUOTA", "ROTATE"], async () => {
+  def("rotate", tr("cadedit.ruota"), tr("cadedit.ruota_ro_centro_poi_angolo"), ["RO", "RUOTA", "ROTATE"], async () => {
     const keys = await needSelection();
-    const c = await needPoint("Centro di rotazione");
+    const c = await needPoint(tr("cadedit.centro_rotazione"));
     lastPt = c;
     let copy = false;
     for (;;) {
-      const r = await getPoint("Angolo di rotazione in gradi [Copia (C)]", { base: c, allowValue: true, keys: { C: 1 }, xf: p => G.rot(Math.atan2(p[1] - c[1], p[0] - c[0]), c[0], c[1]) });
+      const r = await getPoint(tr("cadedit.angolo_rotazione_gradi_copia_c"), { base: c, allowValue: true, keys: { C: 1 }, xf: p => G.rot(Math.atan2(p[1] - c[1], p[0] - c[0]), c[0], c[1]) });
       if (r === null) return;
-      if (r.key === "C") { copy = true; toast("Verra' ruotata una copia"); continue; }
+      if (r.key === "C") { copy = true; toast(tr("cadedit.verra_ruotata_copia")); continue; }
       const a = r.value !== undefined ? r.value / R2D : Math.atan2(r[1] - c[1], r[0] - c[0]);
       const A = G.rot(a, c[0], c[1]);
       if (copy) copyWith(keys, A); else command(keys, () => keys.forEach(k => xform(getE(k), A, blocks)));
       return;
     }
   }, "modify");
-  def("scale", "Scala", "Scala (SC): punto base, fattore (o R = riferimento: lunghezza attuale e nuova)", ["SC", "SCALA", "SCALE"], async () => {
+  def("scale", tr("cadedit.scala"), tr("cadedit.scala_sc_punto_base_fattore"), ["SC", "SCALA", "SCALE"], async () => {
     const keys = await needSelection();
-    const c = await needPoint("Punto base");
+    const c = await needPoint(tr("cadedit.punto_base"));
     lastPt = c;
     let k;
-    const r = await getPoint("Fattore di scala [Riferimento (R)]", { base: c, allowValue: true, keys: { R: 1 }, xf: p => G.scl(Math.max(1e-6, dist(c, p)), c[0], c[1]) });
+    const r = await getPoint(tr("cadedit.fattore_scala_riferimento_r"), { base: c, allowValue: true, keys: { R: 1 }, xf: p => G.scl(Math.max(1e-6, dist(c, p)), c[0], c[1]) });
     if (r === null) return;
-    if (r.key === "R") { const L1 = await getNumber("Lunghezza di riferimento", 1, { base: c }); const L2 = await getNumber("Nuova lunghezza", L1, { base: c }); k = L2 / L1; }
+    if (r.key === "R") { const L1 = await getNumber(tr("cadedit.lunghezza_riferimento"), 1, { base: c }); const L2 = await getNumber(tr("cadedit.nuova_lunghezza"), L1, { base: c }); k = L2 / L1; }
     else k = r.value !== undefined ? r.value : dist(c, r);
     if (!(k > 0) || k === 1) return;
     command(keys, () => keys.forEach(kk => xform(getE(kk), G.scl(k, c[0], c[1]), blocks)));
   }, "modify");
-  def("mirror", "Specchio", "Specchio (MI): due punti dell'asse; poi scegli se tenere gli originali", ["MI", "SPECCHIO", "MIRROR"], async () => {
+  def("mirror", tr("cadedit.specchio"), tr("cadedit.specchio_mi_due_punti_dell"), ["MI", "SPECCHIO", "MIRROR"], async () => {
     const keys = await needSelection();
-    const a = await needPoint("Primo punto dell'asse");
+    const a = await needPoint(tr("cadedit.primo_punto_dell_asse"));
     lastPt = a;
-    const b = await needPoint("Secondo punto dell'asse", { base: a, xf: p => (dist(a, p) > 1e-9 ? G.mirror(a[0], a[1], p[0], p[1]) : G.I) });
+    const b = await needPoint(tr("cadedit.secondo_punto_dell_asse"), { base: a, xf: p => (dist(a, p) > 1e-9 ? G.mirror(a[0], a[1], p[0], p[1]) : G.I) });
     if (dist(a, b) < 1e-12) return;
     const A = G.mirror(a[0], a[1], b[0], b[1]);
-    const r = await getPoint("Cancellare gli oggetti originali? [Si (S) / No (N)] <No>", { keys: { S: 1, N: 1, SI: 1 } });
+    const r = await getPoint(tr("cadedit.cancellare_oggetti_originali_si_s"), { keys: { S: 1, N: 1, SI: 1 } });
     if (r?.key === "S" || r?.key === "SI") command(keys, () => keys.forEach(k => xform(getE(k), A, blocks)));
     else copyWith(keys, A);
   }, "modify");
-  def("array", "Serie", "Serie (AR): copie in righe e colonne o attorno a un centro", ["AR", "SERIE", "ARRAY"], async mode => {
+  def("array", tr("cadedit.serie"), tr("cadedit.serie_ar_copie_righe_colonne"), ["AR", "SERIE", "ARRAY"], async mode => {
     const keys = await needSelection();
     const f = {};
     const inp = (k, v) => (f[k] = el("input", { type: "text", class: "field", value: fmt(v), style: { width: "90px" } }));
-    const kind = el("select", { class: "field" }, el("option", { value: "r" }, "Rettangolare"), el("option", { value: "p", selected: mode === "p" || undefined }, "Polare (attorno a un centro)"));
+    const kind = el("select", { class: "field" }, el("option", { value: "r" }, tr("cadedit.rettangolare")), el("option", { value: "p", selected: mode === "p" || undefined }, tr("cadedit.polare_attorno_centro")));
     const rot2 = el("input", { type: "checkbox", checked: true });
-    const ok = await modal("Serie", el("div", { style: { display: "grid", gridTemplateColumns: "auto auto", gap: "8px 12px", alignItems: "center" } },
-      "Tipo", kind, "Righe", inp("rows", 2), "Colonne", inp("cols", 3), "Distanza tra le righe", inp("dy", mem.ady || 10), "Distanza tra le colonne", inp("dx", mem.adx || 10),
-      "Numero di elementi (polare)", inp("n", 6), "Angolo da riempire (°)", inp("ang", 360), "Ruota gli elementi (polare)", rot2), [{ label: "Annulla", value: null }, { label: "Continua", primary: true, value: true }]);
+    const ok = await modal(tr("cadedit.serie"), el("div", { style: { display: "grid", gridTemplateColumns: "auto auto", gap: "8px 12px", alignItems: "center" } },
+      tr("cadedit.tipo"), kind, tr("cadedit.righe"), inp("rows", 2), tr("cadedit.colonne"), inp("cols", 3), tr("cadedit.distanza_tra_righe"), inp("dy", mem.ady || 10), tr("cadedit.distanza_tra_colonne"), inp("dx", mem.adx || 10),
+      tr("cadedit.numero_elementi_polare"), inp("n", 6), tr("cadedit.angolo_riempire"), inp("ang", 360), tr("cadedit.ruota_elementi_polare"), rot2), [{ label: tr("common.annulla"), value: null }, { label: tr("cadedit.continua"), primary: true, value: true }]);
     if (!ok) return;
     const v = k => num(f[k].value) ?? 0;
     if (kind.value === "r") {
@@ -910,7 +911,7 @@ export function createCadEditor(o) {
       for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (r || c) mats.push(G.trn(c * dx, r * dy));
       if (mats.length) copyWith(keys, ...mats);
     } else {
-      const c = await needPoint("Centro della serie");
+      const c = await needPoint(tr("cadedit.centro_serie"));
       const n = Math.max(2, Math.round(v("n"))), tot = v("ang") / R2D, step = Math.abs(Math.abs(tot) - TAU) < 1e-9 ? tot / n : tot / (n - 1);
       const mats = [];
       const bb = selBox(keys), mid = [(bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2];
@@ -921,81 +922,81 @@ export function createCadEditor(o) {
       copyWith(keys, ...mats);
     }
   }, "modify");
-  def("offset", "Offset", "Offset (O): distanza, poi oggetto e lato (Invio per finire)", ["O", "OFFSET", "EQ"], async () => {
-    const d = await getNumber("Distanza di offset", mem.offset);
+  def("offset", tr("cadedit.offset"), tr("cadedit.offset_distanza_poi_oggetto_lato"), ["O", "OFFSET", "EQ"], async () => {
+    const d = await getNumber(tr("cadedit.distanza_offset"), mem.offset);
     if (!(d > 0)) return;
     mem.offset = d;
     for (;;) {
-      const pk = await getEntity("Seleziona l'oggetto (Invio per finire)", (e, k) => isTop(k) && ["LINE", "CIRCLE", "ARC", "LWPOLYLINE", "POLYLINE2D"].includes(e?.type));
+      const pk = await getEntity(tr("cadedit.seleziona_l_oggetto_invio_finire"), (e, k) => isTop(k) && ["LINE", "CIRCLE", "ARC", "LWPOLYLINE", "POLYLINE2D"].includes(e?.type));
       if (!pk) return;
       sel.clear(); sel.add(pk.key); o.draw();
-      const side = await needPoint("Punto dal lato dell'offset", { nosnap: true, preview: p => { const r = offsetEnt(pk.e, d, p); return r ? [r] : []; } });
+      const side = await needPoint(tr("cadedit.punto_lato_dell_offset"), { nosnap: true, preview: p => { const r = offsetEnt(pk.e, d, p); return r ? [r] : []; } });
       const r = offsetEnt(pk.e, d, side);
       sel.clear();
-      if (r) command([], () => add(r)); else toast("Offset impossibile a questa distanza", true);
+      if (r) command([], () => add(r)); else toast(tr("cadedit.offset_impossibile_questa_distanza"), true);
     }
   }, "modify");
-  def("trim", "Taglia", "Taglia (TR): clic sulle parti da togliere; i bordi sono tutti gli oggetti visibili", ["TR", "TAGLIA", "TRIM"], async () => {
+  def("trim", tr("common.taglia"), tr("cadedit.taglia_tr_clic_sulle_parti"), ["TR", "TAGLIA", "TRIM"], async () => {
     for (;;) {
-      const pk = await getEntity("Clic sulla parte da tagliare (Invio per finire)", (e, k) => isTop(k) && ["LINE", "CIRCLE", "ARC", "LWPOLYLINE", "POLYLINE2D"].includes(e?.type));
+      const pk = await getEntity(tr("cadedit.clic_parte_tagliare_invio_finire"), (e, k) => isTop(k) && ["LINE", "CIRCLE", "ARC", "LWPOLYLINE", "POLYLINE2D"].includes(e?.type));
       if (!pk) return;
-      if (!trimAt(pk.key, pk.pt)) toast("Nessun bordo di taglio incrocia l'oggetto", true);
+      if (!trimAt(pk.key, pk.pt)) toast(tr("cadedit.nessun_bordo_taglio_incrocia_l"), true);
     }
   }, "modify");
-  def("extend", "Estendi", "Estendi (EX): clic vicino all'estremo da allungare fino al primo oggetto", ["EX", "ESTENDI", "EXTEND"], async () => {
+  def("extend", tr("cadedit.estendi"), tr("cadedit.estendi_ex_clic_vicino_all"), ["EX", "ESTENDI", "EXTEND"], async () => {
     for (;;) {
-      const pk = await getEntity("Clic vicino all'estremo da estendere (Invio per finire)", (e, k) => isTop(k) && ["LINE", "ARC", "LWPOLYLINE", "POLYLINE2D"].includes(e?.type));
+      const pk = await getEntity(tr("cadedit.clic_vicino_all_estremo_estendere"), (e, k) => isTop(k) && ["LINE", "ARC", "LWPOLYLINE", "POLYLINE2D"].includes(e?.type));
       if (!pk) return;
-      if (!extendAt(pk.key, pk.pt)) toast("Nessun oggetto da raggiungere in quella direzione", true);
+      if (!extendAt(pk.key, pk.pt)) toast(tr("cadedit.nessun_oggetto_raggiungere_quella_direzione"), true);
     }
   }, "modify");
-  def("fillet", "Raccordo", "Raccordo (F): due linee; R = raggio (0 = spigolo vivo)", ["F", "RACCORDO", "FILLET"], async () => {
+  def("fillet", tr("cadedit.raccordo"), "Raccordo (F): due linee; R = raggio (0 = spigolo vivo)", ["F", "RACCORDO", "FILLET"], async () => {
     for (;;) {
-      const p1 = await getEntity(`Prima linea [Raggio (R) = ${fmt(mem.fillet)}]`, (e, k) => isTop(k) && e?.type === "LINE", { keys: { R: 1 } });
+      const p1 = await getEntity(tr("cadedit.prima_linea_raggio_r_0", fmt(mem.fillet)), (e, k) => isTop(k) && e?.type === "LINE", { keys: { R: 1 } });
       if (!p1) return;
-      if (p1.key === "R") { const r = await getNumber("Raggio di raccordo", mem.fillet); if (r >= 0) mem.fillet = r; continue; }
+      if (p1.key === "R") { const r = await getNumber(tr("cadedit.raggio_raccordo"), mem.fillet); if (r >= 0) mem.fillet = r; continue; }
       sel.clear(); sel.add(p1.key); o.draw();
-      const p2 = await getEntity("Seconda linea", (e, k) => isTop(k) && e?.type === "LINE" && k !== p1.key);
+      const p2 = await getEntity(tr("cadedit.seconda_linea"), (e, k) => isTop(k) && e?.type === "LINE" && k !== p1.key);
       sel.clear();
       if (!p2) return;
-      if (!cornerLines(p1, p2, "fillet")) toast("Raccordo impossibile (linee parallele o raggio troppo grande)", true);
+      if (!cornerLines(p1, p2, "fillet")) toast(tr("cadedit.raccordo_impossibile_linee_parallele_raggio"), true);
       return;
     }
   }, "modify");
-  def("chamfer", "Cimatura", "Cimatura (CHA): due linee; D = distanze", ["CHA", "CIMA", "CIMATURA", "CHAMFER"], async () => {
+  def("chamfer", tr("cadedit.cimatura"), tr("cadedit.cimatura_cha_due_linee_d"), ["CHA", "CIMA", "CIMATURA", "CHAMFER"], async () => {
     for (;;) {
-      const p1 = await getEntity(`Prima linea [Distanze (D) = ${fmt(mem.ch1)} / ${fmt(mem.ch2)}]`, (e, k) => isTop(k) && e?.type === "LINE", { keys: { D: 1 } });
+      const p1 = await getEntity(tr("cadedit.prima_linea_distanze_d_0", fmt(mem.ch1), fmt(mem.ch2)), (e, k) => isTop(k) && e?.type === "LINE", { keys: { D: 1 } });
       if (!p1) return;
-      if (p1.key === "D") { mem.ch1 = await getNumber("Prima distanza", mem.ch1); mem.ch2 = await getNumber("Seconda distanza", mem.ch1); continue; }
+      if (p1.key === "D") { mem.ch1 = await getNumber(tr("cadedit.prima_distanza"), mem.ch1); mem.ch2 = await getNumber(tr("cadedit.seconda_distanza"), mem.ch1); continue; }
       sel.clear(); sel.add(p1.key); o.draw();
-      const p2 = await getEntity("Seconda linea", (e, k) => isTop(k) && e?.type === "LINE" && k !== p1.key);
+      const p2 = await getEntity(tr("cadedit.seconda_linea"), (e, k) => isTop(k) && e?.type === "LINE" && k !== p1.key);
       sel.clear();
       if (!p2) return;
-      if (!cornerLines(p1, p2, "chamfer")) toast("Cimatura impossibile (linee parallele o distanze troppo grandi)", true);
+      if (!cornerLines(p1, p2, "chamfer")) toast(tr("cadedit.cimatura_impossibile_linee_parallele_distanze"), true);
       return;
     }
   }, "modify");
-  def("explode", "Esplodi", "Esplodi (X): blocchi, polilinee e quote diventano oggetti semplici", ["X", "ESPLODI", "EXPLODE"], async () => {
+  def("explode", tr("cadedit.esplodi"), tr("cadedit.esplodi_x_blocchi_polilinee_quote"), ["X", "ESPLODI", "EXPLODE"], async () => {
     const keys = await needSelection();
     let n = 0;
     command(keys, () => keys.forEach(k => { const parts = explode(getE(k)); if (parts) { getE(k)._deleted = true; parts.forEach(p => add(p)); n++; } }));
     sel.clear(); renderProps();
-    toast(n ? `${n} oggetti esplosi` : "Niente da esplodere (seleziona blocchi, polilinee o quote)", !n);
+    toast(n ? tr("cadedit.0_oggetti_esplosi", n) : tr("cadedit.niente_esplodere_seleziona_blocchi_polilinee"), !n);
   }, "modify");
-  def("stretch", "Stira", "Stira (ST): finestra d'intersezione attorno ai vertici da spostare, poi punto base e secondo punto", ["ST", "STIRA", "STRETCH"], async () => {
-    const a = await needPoint("Primo angolo della finestra d'intersezione", { nosnap: true });
+  def("stretch", tr("cadedit.stira"), tr("cadedit.stira_st_finestra_d_intersezione"), ["ST", "STIRA", "STRETCH"], async () => {
+    const a = await needPoint(tr("cadedit.primo_angolo_finestra_d_intersezione"), { nosnap: true });
     const rectEnt = q => ({ type: "LWPOLYLINE", flag: 1, vertices: [[a[0], a[1]], [q[0], a[1]], [q[0], q[1]], [a[0], q[1]]].map(([x, y]) => ({ x, y })) });
-    const b = await needPoint("Angolo opposto", { nosnap: true, preview: q => [rectEnt(q)] });
+    const b = await needPoint(tr("cadedit.angolo_opposto"), { nosnap: true, preview: q => [rectEnt(q)] });
     const x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), y0 = Math.min(a[1], b[1]), y1 = Math.max(a[1], b[1]);
     const ins = (x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
     const keys = inRect(x0, y0, x1, y1, true);
-    if (!keys.length) { toast("Nessun oggetto nella finestra", true); return; }
+    if (!keys.length) { toast(tr("cadedit.nessun_oggetto_finestra"), true); return; }
     sel.clear(); keys.forEach(k => sel.add(k)); gripCache = null; o.draw();
-    const p1 = await needPoint("Punto base");
+    const p1 = await needPoint(tr("cadedit.punto_base"));
     lastPt = p1;
     const whole = new Map(keys.map(k => [k, itemsOf(k).every(it => it.bb && it.bb[0] >= x0 && it.bb[2] <= x1 && it.bb[1] >= y0 && it.bb[3] <= y1)]));
     const apply = (k, e, dx, dy) => stretchEnt(e, dx, dy, ins, whole.get(k));
-    const p2 = await needPoint("Secondo punto", { base: p1, preview: q => keys.map(k => apply(k, clone(getE(k)), q[0] - p1[0], q[1] - p1[1])) });
+    const p2 = await needPoint(tr("cadedit.secondo_punto"), { base: p1, preview: q => keys.map(k => apply(k, clone(getE(k)), q[0] - p1[0], q[1] - p1[1])) });
     command(keys, () => keys.forEach(k => apply(k, getE(k), p2[0] - p1[0], p2[1] - p1[1])));
     sel.clear();
   }, "modify");
@@ -1017,13 +1018,13 @@ export function createCadEditor(o) {
     }
     return e;
   }
-  def("matchprop", "Copia proprietà", "Copia proprietà (MA): oggetto di origine, poi gli oggetti di destinazione (layer, colore, tipo linea, spessore, altezza testo, stile quota)", ["MA", "COPIAPROP", "MATCHPROP", "PAINTER"], async () => {
-    const src = await getEntity("Seleziona l'oggetto di origine");
+  def("matchprop", tr("cadedit.copia_proprieta"), tr("cadedit.copia_proprieta_ma_oggetto_origine"), ["MA", "COPIAPROP", "MATCHPROP", "PAINTER"], async () => {
+    const src = await getEntity(tr("cadedit.seleziona_l_oggetto_origine"));
     if (!src) return;
     const e0 = clone(src.e);
     const isTxt = e => ["TEXT", "MTEXT", "ATTRIB"].includes(e?.type);
     for (;;) {
-      const t = await getEntity("Seleziona gli oggetti di destinazione (Invio per finire)");
+      const t = await getEntity(tr("cadedit.seleziona_oggetti_destinazione_invio_finire"));
       if (!t) return;
       command([t.key], () => {
         const x = getE(t.key);
@@ -1037,49 +1038,49 @@ export function createCadEditor(o) {
   async function copyToClip(withBase) {
     const keys = await needSelection();
     let bp;
-    if (withBase) bp = await needPoint("Punto base");
+    if (withBase) bp = await needPoint(tr("cadedit.punto_base"));
     else { const bb = selBox(keys); bp = [bb[0], bb[1]]; }
     CLIP = { base: bp, ents: keys.map(k => clone(getE(k))).filter(e => !(e.type === "DIMENSION" && !e.dimKind)), blocks: Object.fromEntries([...blocks].map(([n, b]) => [n, true])) };
-    toast(`${CLIP.ents.length} oggetti copiati negli appunti${withBase ? " con punto base" : ""}`);
+    toast(tr("cadedit.0_oggetti_copiati_negli_appunti", CLIP.ents.length, withBase ? tr("cadedit.punto_base_2") : ""));
   }
-  def("copyclip", "Copia negli appunti", "Copia negli appunti (Ctrl+C); con punto base: Ctrl+Maiusc+C", ["COPYCLIP"], async () => copyToClip(false), "clip");
-  def("copybase", "Copia con punto base", "Copia negli appunti con punto base (Ctrl+Maiusc+C)", ["COPYBASE"], async () => copyToClip(true), "clip");
-  def("paste", "Incolla", "Incolla dagli appunti (Ctrl+V): punto di inserimento", ["PASTECLIP", "INCOLLA"], async () => {
-    if (!CLIP?.ents.length) { toast("Gli appunti sono vuoti: seleziona e premi Ctrl+C", true); return; }
+  def("copyclip", tr("cadedit.copia_negli_appunti"), tr("cadedit.copia_negli_appunti_ctrl_c"), ["COPYCLIP"], async () => copyToClip(false), "clip");
+  def("copybase", tr("cadedit.copia_punto_base"), tr("cadedit.copia_negli_appunti_punto_base"), ["COPYBASE"], async () => copyToClip(true), "clip");
+  def("paste", tr("common.incolla"), tr("cadedit.incolla_dagli_appunti_ctrl_v"), ["PASTECLIP", "INCOLLA"], async () => {
+    if (!CLIP?.ents.length) { toast(tr("cadedit.appunti_sono_vuoti_seleziona_premi"), true); return; }
     const ok = CLIP.ents.filter(e => e.type !== "INSERT" || blocks.has(e.name));
     const skipped = CLIP.ents.length - ok.length;
     const at = q => ok.map(e => { const c = clone(e); delete c.handle; delete c._dirty; c._new = true; return xform(c, G.trn(q[0] - CLIP.base[0], q[1] - CLIP.base[1]), blocks); });
-    const q = await needPoint("Punto di inserimento", { base: CLIP.base, preview: at });
+    const q = await needPoint(tr("cadedit.punto_inserimento"), { base: CLIP.base, preview: at });
     command([], () => at(q).forEach(e => add(e)));
-    if (skipped) toast(`${skipped} blocchi non incollati: la loro definizione non esiste in questo disegno`, true, 6000);
+    if (skipped) toast(tr("cadedit.0_blocchi_non_incollati_loro", skipped), true, 6000);
   }, "clip");
-  def("zoomext", "Estensioni", "Zoom estensioni (Z E): mostra tutto il disegno", ["ZE", "ZOOMEST", "ZOOMEXT"], async () => o.zoomTo(model().bbox), "view");
-  def("zoomwin", "Finestra", "Zoom finestra (Z F): due angoli della zona da ingrandire", ["ZW", "ZF", "ZOOMFIN", "ZOOM"], async () => {
-    const a = await needPoint("Primo angolo", { nosnap: true });
-    const b = await needPoint("Angolo opposto", { nosnap: true, preview: q => [{ type: "LWPOLYLINE", flag: 1, vertices: [[a[0], a[1]], [q[0], a[1]], [q[0], q[1]], [a[0], q[1]]].map(([x, y]) => ({ x, y })) }] });
+  def("zoomext", tr("cadedit.estensioni"), tr("cadedit.zoom_estensioni_z_mostra_tutto"), ["ZE", "ZOOMEST", "ZOOMEXT"], async () => o.zoomTo(model().bbox), "view");
+  def("zoomwin", tr("cadedit.finestra"), tr("cadedit.zoom_finestra_z_f_due"), ["ZW", "ZF", "ZOOMFIN", "ZOOM"], async () => {
+    const a = await needPoint(tr("cadedit.primo_angolo"), { nosnap: true });
+    const b = await needPoint(tr("cadedit.angolo_opposto"), { nosnap: true, preview: q => [{ type: "LWPOLYLINE", flag: 1, vertices: [[a[0], a[1]], [q[0], a[1]], [q[0], q[1]], [a[0], q[1]]].map(([x, y]) => ({ x, y })) }] });
     if (dist(a, b) > 0) o.zoomTo([Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])]);
   }, "view");
-  def("layercur", "Corrente da oggetto", "Rendi corrente il layer di un oggetto (LAYMCUR)", ["LAYMCUR", "LAYCUR"], async () => {
-    const t = await getEntity("Seleziona l'oggetto del layer da rendere corrente");
+  def("layercur", tr("cadedit.corrente_oggetto"), tr("cadedit.rendi_corrente_layer_oggetto_laymcur"), ["LAYMCUR", "LAYCUR"], async () => {
+    const t = await getEntity(tr("cadedit.seleziona_l_oggetto_layer_rendere"));
     if (!t) return;
-    cur.layer = t.e.layer || "0"; fillLayers(); toast(`Layer corrente: ${cur.layer}`);
+    cur.layer = t.e.layer || "0"; fillLayers(); toast(tr("cadedit.layer_corrente_0", cur.layer));
   }, "layer");
-  def("layernew", "Nuovo layer", "Crea un nuovo layer e lo rende corrente", ["LAYNEW", "NUOVOLAYER"], async () => {
-    const n = await askText("Nuovo layer", "Nome del layer");
+  def("layernew", tr("cadedit.nuovo_layer"), tr("cadedit.crea_nuovo_layer_rende_corrente"), ["LAYNEW", "NUOVOLAYER"], async () => {
+    const n = await askText(tr("cadedit.nuovo_layer"), tr("cadedit.nome_layer"));
     if (n) { newLayers.set(n, { name: n, aci: 7 }); cur.layer = n; ctx.setDirty(true); fillLayers(); }
   }, "layer");
-  def("selectall", "Seleziona tutto", "Seleziona tutti gli oggetti visibili (Ctrl+A)", ["TUTTO", "SELALL"], async () => selectAll(), "util");
-  def("props", "Proprietà", "Mostra o nasconde la tavolozza Proprietà (Ctrl+1)", ["PR", "PROPRIETA", "PROPERTIES"], async () => { propsHidden = !propsHidden; renderProps(); }, "util");
-  def("erase", "Elimina", "Elimina (E o Canc)", ["E", "CANCELLA", "ELIMINA", "ERASE"], async () => { const keys = await needSelection(); removeKeys(keys); }, "modify");
-  def("undo", "Annulla", "Annulla (Ctrl+Z)", ["U", "ANNULLA", "UNDO"], async () => doUndo(), "edit");
-  def("redo", "Ripeti", "Ripeti (Ctrl+Y)", ["RIPETI", "REDO"], async () => doRedo(), "edit");
-  def("select", "Seleziona", "Seleziona: clic, finestra (da sinistra) o intersezione (da destra); Maiusc toglie; Ctrl = dentro i blocchi", ["SEL", "SELECT"], async () => { cancelTask(); }, "edit");
+  def("selectall", tr("cadedit.seleziona_tutto"), tr("cadedit.seleziona_tutti_oggetti_visibili_ctrl"), ["TUTTO", "SELALL"], async () => selectAll(), "util");
+  def("props", tr("cadedit.proprieta"), tr("cadedit.mostra_nasconde_tavolozza_proprieta_ctrl"), ["PR", "PROPRIETA", "PROPERTIES"], async () => { propsHidden = !propsHidden; renderProps(); }, "util");
+  def("erase", tr("common.elimina"), tr("cadedit.elimina_canc"), ["E", "CANCELLA", "ELIMINA", "ERASE"], async () => { const keys = await needSelection(); removeKeys(keys); }, "modify");
+  def("undo", tr("common.annulla_op"), tr("cadedit.annulla_ctrl_z"), ["U", "ANNULLA", "UNDO"], async () => doUndo(), "edit");
+  def("redo", tr("common.ripeti"), tr("cadedit.ripeti_ctrl_y"), ["RIPETI", "REDO"], async () => doRedo(), "edit");
+  def("select", tr("cadedit.seleziona"), tr("cadedit.seleziona_clic_finestra_sinistra_intersezione"), ["SEL", "SELECT"], async () => { cancelTask(); }, "edit");
 
   function removeKeys(keys) {
     const top = keys.filter(isTop), nested = keys.filter(k => !isTop(k));
     if (!keys.length) return;
     command(keys, () => keys.forEach(k => { getE(k)._deleted = true; }));
-    if (nested.length) toast(`${nested.length} elementi tolti dalla definizione del blocco (tutte le copie)`);
+    if (nested.length) toast(tr("cadedit.0_elementi_tolti_definizione_blocco", nested.length));
     sel.clear(); renderProps(); o.draw();
     return top;
   }
@@ -1313,7 +1314,7 @@ export function createCadEditor(o) {
       if (it.t === "N" || it.t === "Q" || it.hatch || layerOff(it)) continue;
       const pts = G.curvePts(it);
       for (let k = 1; k < pts.length; k++) if (dist(pts[k - 1], pts[k]) > 1e-12) segs.push([pts[k - 1], pts[k]]);
-      if (segs.length > 6000) { toast("Troppi oggetti visibili: ingrandisci la zona da tratteggiare", true); return null; }
+      if (segs.length > 6000) { toast(tr("cadedit.troppi_oggetti_visibili_ingrandisci_zona"), true); return null; }
     }
     // spezza i tratti negli incroci
     const L = segs.map(([a, b]) => ({ t: "L", x1: a[0], y1: a[1], x2: b[0], y2: b[1], us: [0, 1], bb: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])] }));
@@ -1433,7 +1434,7 @@ export function createCadEditor(o) {
       g2.strokeStyle = "rgba(255,255,255,.55)"; g2.setLineDash([4 * d, 4 * d]); g2.lineWidth = 1 * d;
       g2.beginPath(); g2.moveTo(ax, ay); g2.lineTo(bx, by); g2.stroke(); g2.setLineDash([]);
       const L = dist(base, cp), an = Math.atan2(cp[1] - base[1], cp[0] - base[0]) * R2D;
-      const label = `${polarHit ? "Polare: " : ""}${fmt(+L.toFixed(4))}  <  ${fmt(+((an + 360) % 360).toFixed(2))}°`;
+      const label = `${polarHit ? tr("cadedit.polare") : ""}${fmt(+L.toFixed(4))}  <  ${fmt(+((an + 360) % 360).toFixed(2))}°`;
       g2.font = `${12 * d}px Segoe UI, sans-serif`;
       const w = g2.measureText(label).width + 10 * d;
       g2.fillStyle = "rgba(20,24,30,.85)"; g2.fillRect(bx + 14 * d, by - 30 * d, w, 18 * d);
@@ -1521,7 +1522,7 @@ export function createCadEditor(o) {
     const c = candidates(cursor[0], cursor[1], sub);
     if (pending?.kind === "entity") {
       const f = pending.opts?.filter, ok = c.filter(x => !f || f(getE(x.key), x.key));
-      if (c.length && !ok.length) toast("Tipo di oggetto non adatto a questo comando", true);
+      if (c.length && !ok.length) toast(tr("cadedit.tipo_oggetto_non_adatto_questo"), true);
       if (ok.length) {
         const k = ok[0].key, its = itemsOf(k);
         let bi = null, bd = Infinity;
@@ -1541,10 +1542,10 @@ export function createCadEditor(o) {
       pickKey = c[i].key;
       if (!e.shiftKey) sel.delete(c[lastPick.i].key);
       lastPick.i = i;
-      ctx.status(`Oggetti sovrapposti: ${i + 1} di ${c.length} (clic di nuovo per il successivo)`);
+      ctx.status(tr("cadedit.oggetti_sovrapposti_0_1_clic", i + 1, c.length));
     } else lastPick = { px, py, keys: c.map(x => x.key), i: 0 };
     if (e.shiftKey) sel.delete(pickKey); else sel.add(pickKey);
-    if (c.length > 1 && !same) ctx.status(`Qui ci sono ${c.length} oggetti sovrapposti: clic di nuovo nello stesso punto per passare al successivo`);
+    if (c.length > 1 && !same) ctx.status(tr("cadedit.qui_ci_sono_0_oggetti", c.length));
     gripCache = null;
     renderProps();
     o.draw();
@@ -1571,7 +1572,7 @@ export function createCadEditor(o) {
       // anteprima: il grip si applica a una copia dell'entita'
       const tmp = q => { const c = clone(before); const g = gripsOf(gp.key, c)[gp.i]; if (g) g.fn(q); return c; };
       try {
-        const q = await needPoint("Punto di arrivo del grip (Esc annulla)", { base: [gp.x, gp.y], preview: p => [tmp(p)] });
+        const q = await needPoint(tr("cadedit.punto_arrivo_grip_esc_annulla"), { base: [gp.x, gp.y], preview: p => [tmp(p)] });
         command([gp.key], () => { const g = gripsOf(gp.key)[gp.i]; if (g) g.fn(q); });
       } finally { hotGrip = null; gripCache = null; }
     });
@@ -1619,8 +1620,8 @@ export function createCadEditor(o) {
       if (e.type === "MTEXT") {
         const ta = el("textarea", { rows: 6, style: { width: "100%", minWidth: "360px" } });
         ta.value = String(e.text || "").replace(/\\P/g, "\n");
-        s = await modal("Modifica testo multiriga", ta, [{ label: "Annulla", value: null }, { label: "OK", primary: true, value: () => ta.value.replace(/\r?\n/g, "\\P") }]);
-      } else s = await askText("Modifica testo", e.type === "ATTRIB" ? `Attributo ${e.tag || ""}` : "Testo", e.text || "");
+        s = await modal(tr("cadedit.modifica_testo_multiriga"), ta, [{ label: tr("common.annulla"), value: null }, { label: "OK", primary: true, value: () => ta.value.replace(/\r?\n/g, "\\P") }]);
+      } else s = await askText(tr("cadedit.modifica_testo"), e.type === "ATTRIB" ? tr("cadedit.attributo_0", e.tag || "") : tr("cadedit.testo"), e.text || "");
       if (s !== null && s !== undefined) command([k], () => { getE(k).text = s; });
     } else { sel.clear(); sel.add(isTop(k) ? k : String(parseKey(k)[0])); gripCache = null; renderProps(); o.draw(); }
   }
@@ -1649,23 +1650,23 @@ export function createCadEditor(o) {
     const counts = {};
     ents.forEach(e => { const n = TYPE_IT[e.type] || e.type; counts[n] = (counts[n] || 0) + 1; });
     props.append(el("b", {}, one ? (one.dimKind ? G.DIM_KIND_IT[one.dimKind] : TYPE_IT[one.type] || one.type) : `${list.length} oggetti: ` + Object.entries(counts).map(([n, c]) => `${c} ${n}`).join(", ")));
-    if (list.some(k => !isTop(k))) props.append(el("div", { class: "note", style: { marginTop: "4px" } }, "Dentro un blocco: le modifiche valgono per la definizione del blocco (tutte le sue copie)."));
+    if (list.some(k => !isTop(k))) props.append(el("div", { class: "note", style: { marginTop: "4px" } }, tr("cadedit.dentro_blocco_modifiche_valgono_definizione")));
     const dl = el("dl", { class: "kv stack", style: { marginTop: "6px" } });
     const allSame = f => ents.every(e => f(e) === f(ents[0]));
     const setAllK = (fn) => command(list, () => list.forEach(k => fn(getE(k))));
-    dl.append(...selectField("Layer", layerNames().map(n => [n, n]), ents[0].layer, v => setAllK(e => { e.layer = v; }), !allSame(e => e.layer)));
+    dl.append(...selectField(tr("cadedit.layer"), layerNames().map(n => [n, n]), ents[0].layer, v => setAllK(e => { e.layer = v; }), !allSame(e => e.layer)));
     const cval = e => (e.colorIndex === undefined && typeof e.color === "number" ? "tc" : e.colorIndex ?? 256);
     const copts = COLORS.map(([v, n]) => [v, `${n}${v > 0 && v < 256 ? " (" + v + ")" : ""}`]);
-    if (allSame(cval) && !COLORS.some(([v]) => String(v) === String(cval(ents[0])))) copts.push([cval(ents[0]), cval(ents[0]) === "tc" ? "Colore RGB" : `Indice ${cval(ents[0])}`]);
-    dl.append(...selectField("Colore", copts, cval(ents[0]), v => { if (v === "tc") return; setAllK(e => { e.colorIndex = +v; delete e.color; }); }, !allSame(cval)));
+    if (allSame(cval) && !COLORS.some(([v]) => String(v) === String(cval(ents[0])))) copts.push([cval(ents[0]), cval(ents[0]) === "tc" ? tr("cadedit.colore_rgb") : tr("cadedit.indice_0", cval(ents[0]))]);
+    dl.append(...selectField(tr("common.colore"), copts, cval(ents[0]), v => { if (v === "tc") return; setAllK(e => { e.colorIndex = +v; delete e.color; }); }, !allSame(cval)));
     const ltv = e => (e.lineType || "ByLayer").replace(/^bylayer$/i, "ByLayer").replace(/^byblock$/i, "ByBlock");
-    dl.append(...selectField("Tipo linea", ltypeNames().map(n => [n, n === "ByLayer" ? "DaLayer" : n === "ByBlock" ? "DaBlocco" : n]), ltv(ents[0]), v => setAllK(e => { e.lineType = v; }), !allSame(ltv)));
+    dl.append(...selectField(tr("cadedit.tipo_linea"), ltypeNames().map(n => [n, n === "ByLayer" ? tr("cadedit.dalayer") : n === "ByBlock" ? tr("cadedit.dablocco") : n]), ltv(ents[0]), v => setAllK(e => { e.lineType = v; }), !allSame(ltv)));
     const lwv = e => e.lineweight ?? -1;
     const lwopts = [...LWEIGHTS];
     if (allSame(lwv) && !lwopts.some(([v]) => v === lwv(ents[0]))) lwopts.push([lwv(ents[0]), `${(lwv(ents[0]) / 100).toFixed(2).replace(".", ",")} mm`]);
-    dl.append(...selectField("Spessore", lwopts, lwv(ents[0]), v => setAllK(e => { e.lineweight = +v; }), !allSame(lwv)));
-    dl.append(...field("Scala tipo linea", allSame(e => e.lineTypeScale ?? 1) ? f4(ents[0].lineTypeScale ?? 1) : "", v => { const n = num(v); if (n > 0) setAllK(e => { e.lineTypeScale = n; }); }));
-    if (ents.every(e => ["TEXT", "MTEXT", "ATTRIB"].includes(e.type)) && !one) dl.append(...field("Altezza testo", allSame(e => e.textHeight) ? f4(ents[0].textHeight) : "", v => { const n = num(v); if (n > 0) setAllK(e => { e.textHeight = n; }); }));
+    dl.append(...selectField(tr("cadedit.spessore"), lwopts, lwv(ents[0]), v => setAllK(e => { e.lineweight = +v; }), !allSame(lwv)));
+    dl.append(...field(tr("cadedit.scala_tipo_linea"), allSame(e => e.lineTypeScale ?? 1) ? f4(ents[0].lineTypeScale ?? 1) : "", v => { const n = num(v); if (n > 0) setAllK(e => { e.lineTypeScale = n; }); }));
+    if (ents.every(e => ["TEXT", "MTEXT", "ATTRIB"].includes(e.type)) && !one) dl.append(...field(tr("cadedit.altezza_testo"), allSame(e => e.textHeight) ? f4(ents[0].textHeight) : "", v => { const n = num(v); if (n > 0) setAllK(e => { e.textHeight = n; }); }));
     if (one) {
       const k = list[0], e = one, pt = (key, lbl) => {
         if (!e[key]) return;
@@ -1673,65 +1674,65 @@ export function createCadEditor(o) {
         dl.append(...field(lbl + " Y", f4(e[key].y), v => { const n = num(v); if (n !== null) edit(k, x => { x[key].y = n; }); }));
       };
       const ro = (label, v) => dl.append(el("dt", {}, label), el("dd", {}, String(v)));
-      if (e.handle) ro("Handle", e.handle);
-      if (e.type === "LINE") { pt("startPoint", "Inizio"); pt("endPoint", "Fine"); const dx = e.endPoint.x - e.startPoint.x, dy = e.endPoint.y - e.startPoint.y; ro("Lunghezza", fmt(+Math.hypot(dx, dy).toFixed(4))); ro("Angolo", fmt(+((Math.atan2(dy, dx) * R2D + 360) % 360).toFixed(3)) + "°"); }
+      if (e.handle) ro(tr("cadedit.handle"), e.handle);
+      if (e.type === "LINE") { pt("startPoint", tr("cadedit.inizio")); pt("endPoint", tr("cadedit.fine")); const dx = e.endPoint.x - e.startPoint.x, dy = e.endPoint.y - e.startPoint.y; ro(tr("cadedit.lunghezza"), fmt(+Math.hypot(dx, dy).toFixed(4))); ro(tr("cadedit.angolo"), fmt(+((Math.atan2(dy, dx) * R2D + 360) % 360).toFixed(3)) + "°"); }
       if (e.type === "CIRCLE" || e.type === "ARC") {
-        pt("center", "Centro");
-        dl.append(...field("Raggio", f4(e.radius), v => { const n = num(v); if (n > 0) edit(k, x => { x.radius = n; }); }));
-        dl.append(...field("Diametro", f4(e.radius * 2), v => { const n = num(v); if (n > 0) edit(k, x => { x.radius = n / 2; }); }));
-        if (e.type === "CIRCLE") { ro("Circonferenza", fmt(+(TAU * e.radius).toFixed(4))); ro("Area", fmt(+(Math.PI * e.radius ** 2).toFixed(4))); }
+        pt("center", tr("cadedit.centro"));
+        dl.append(...field(tr("cadedit.raggio"), f4(e.radius), v => { const n = num(v); if (n > 0) edit(k, x => { x.radius = n; }); }));
+        dl.append(...field(tr("cadedit.diametro"), f4(e.radius * 2), v => { const n = num(v); if (n > 0) edit(k, x => { x.radius = n / 2; }); }));
+        if (e.type === "CIRCLE") { ro(tr("cadedit.circonferenza"), fmt(+(TAU * e.radius).toFixed(4))); ro(tr("cadedit.area"), fmt(+(Math.PI * e.radius ** 2).toFixed(4))); }
       }
       if (e.type === "ARC") {
-        dl.append(...field("Angolo iniziale (°)", f4(e.startAngle * R2D), v => { const n = num(v); if (n !== null) edit(k, x => { x.startAngle = n / R2D; }); }));
-        dl.append(...field("Angolo finale (°)", f4(e.endAngle * R2D), v => { const n = num(v); if (n !== null) edit(k, x => { x.endAngle = n / R2D; }); }));
-        ro("Lunghezza arco", fmt(+(G.normA(e.endAngle - e.startAngle) * e.radius).toFixed(4)));
+        dl.append(...field(tr("cadedit.angolo_iniziale"), f4(e.startAngle * R2D), v => { const n = num(v); if (n !== null) edit(k, x => { x.startAngle = n / R2D; }); }));
+        dl.append(...field(tr("cadedit.angolo_finale"), f4(e.endAngle * R2D), v => { const n = num(v); if (n !== null) edit(k, x => { x.endAngle = n / R2D; }); }));
+        ro(tr("cadedit.lunghezza_arco"), fmt(+(G.normA(e.endAngle - e.startAngle) * e.radius).toFixed(4)));
       }
-      if (e.type === "ELLIPSE") { pt("center", "Centro"); dl.append(...field("Rapporto assi", f4(e.axisRatio), v => { const n = num(v); if (n > 0 && n <= 1) edit(k, x => { x.axisRatio = n; }); })); }
+      if (e.type === "ELLIPSE") { pt("center", tr("cadedit.centro")); dl.append(...field(tr("cadedit.rapporto_assi"), f4(e.axisRatio), v => { const n = num(v); if (n > 0 && n <= 1) edit(k, x => { x.axisRatio = n; }); })); }
       if (e.type === "TEXT" || e.type === "MTEXT" || e.type === "ATTRIB") {
-        dl.append(...field("Testo", e.type === "MTEXT" ? String(e.text || "").replace(/\\P/g, " ¶ ") : e.text, v => edit(k, x => { x.text = e.type === "MTEXT" ? v.replace(/ ?¶ ?/g, "\\P") : v; })));
-        dl.append(...field("Altezza", f4(e.textHeight), v => { const n = num(v); if (n > 0) edit(k, x => { x.textHeight = n; }); }));
-        dl.append(...field("Rotazione (°)", f4((e.rotation || 0) * R2D), v => { const n = num(v); if (n !== null) edit(k, x => { x.rotation = n / R2D; if (x.direction) x.direction = { x: Math.cos(n / R2D), y: Math.sin(n / R2D), z: 0 }; }); }));
+        dl.append(...field(tr("cadedit.testo"), e.type === "MTEXT" ? String(e.text || "").replace(/\\P/g, " ¶ ") : e.text, v => edit(k, x => { x.text = e.type === "MTEXT" ? v.replace(/ ?¶ ?/g, "\\P") : v; })));
+        dl.append(...field(tr("common.altezza"), f4(e.textHeight), v => { const n = num(v); if (n > 0) edit(k, x => { x.textHeight = n; }); }));
+        dl.append(...field(tr("cadedit.rotazione"), f4((e.rotation || 0) * R2D), v => { const n = num(v); if (n !== null) edit(k, x => { x.rotation = n / R2D; if (x.direction) x.direction = { x: Math.cos(n / R2D), y: Math.sin(n / R2D), z: 0 }; }); }));
         if (e.type === "TEXT") {
-          const H2 = [[0, "Sinistra"], [1, "Centro"], [2, "Destra"], [4, "Mezzo"]], V2 = [[0, "Linea di base"], [1, "Basso"], [2, "Medio"], [3, "Alto"]];
-          dl.append(...selectField("Allineamento orizz.", H2, e.halign || 0, v => edit(k, x => { const p = (x.halign || x.valign) && x.endPoint ? { ...x.endPoint } : { ...x.startPoint }; x.halign = +v; x.startPoint = { ...p }; x.endPoint = { ...p }; })));
-          dl.append(...selectField("Allineamento vert.", V2, e.valign || 0, v => edit(k, x => { const p = (x.halign || x.valign) && x.endPoint ? { ...x.endPoint } : { ...x.startPoint }; x.valign = +v; x.startPoint = { ...p }; x.endPoint = { ...p }; })));
+          const H2 = [[0, tr("cadedit.sinistra")], [1, tr("cadedit.centro")], [2, tr("cadedit.destra")], [4, tr("cadedit.mezzo")]], V2 = [[0, tr("cadedit.linea_base")], [1, tr("cadedit.basso")], [2, tr("cadedit.medio")], [3, tr("cadedit.alto")]];
+          dl.append(...selectField(tr("cadedit.allineamento_orizz"), H2, e.halign || 0, v => edit(k, x => { const p = (x.halign || x.valign) && x.endPoint ? { ...x.endPoint } : { ...x.startPoint }; x.halign = +v; x.startPoint = { ...p }; x.endPoint = { ...p }; })));
+          dl.append(...selectField(tr("cadedit.allineamento_vert"), V2, e.valign || 0, v => edit(k, x => { const p = (x.halign || x.valign) && x.endPoint ? { ...x.endPoint } : { ...x.startPoint }; x.valign = +v; x.startPoint = { ...p }; x.endPoint = { ...p }; })));
         }
-        if (e.type === "MTEXT") dl.append(...field("Larghezza riquadro", f4(e.rectWidth || 0), v => { const n = num(v); if (n !== null && n >= 0) edit(k, x => { x.rectWidth = n; }); }));
-        pt(e.type === "MTEXT" ? "insertionPoint" : (e.halign || e.valign) && e.endPoint ? "endPoint" : "startPoint", "Inserimento");
+        if (e.type === "MTEXT") dl.append(...field(tr("cadedit.larghezza_riquadro"), f4(e.rectWidth || 0), v => { const n = num(v); if (n !== null && n >= 0) edit(k, x => { x.rectWidth = n; }); }));
+        pt(e.type === "MTEXT" ? "insertionPoint" : (e.halign || e.valign) && e.endPoint ? "endPoint" : "startPoint", tr("cadedit.inserimento"));
       }
       if (e.type === "LWPOLYLINE" || e.type === "POLYLINE2D") {
         const cb = el("input", { type: "checkbox", checked: !!(e.flag & 1) });
         cb.addEventListener("change", () => edit(k, x => { x.flag = cb.checked ? (x.flag | 1) : (x.flag & ~1); }));
         const path = pathOf(e), len = path.segs.reduce((s, c) => s + G.curveLen(c), 0);
-        ro("Vertici", (e.vertices || []).length); ro("Lunghezza", fmt(+len.toFixed(4)));
-        if (path.closed) { const pts = path.segs.flatMap(c => G.curvePts(c)); ro("Area", fmt(+Math.abs(G.polyArea(pts)).toFixed(4))); }
-        dl.append(el("dt", {}, "Chiusa"), el("dd", {}, cb));
-        dl.append(...field("Larghezza costante", f4(e.constantWidth || 0), v => { const n = num(v); if (n !== null && n >= 0) edit(k, x => { x.constantWidth = n; }); }));
+        ro(tr("cadedit.vertici"), (e.vertices || []).length); ro(tr("cadedit.lunghezza"), fmt(+len.toFixed(4)));
+        if (path.closed) { const pts = path.segs.flatMap(c => G.curvePts(c)); ro(tr("cadedit.area"), fmt(+Math.abs(G.polyArea(pts)).toFixed(4))); }
+        dl.append(el("dt", {}, tr("cadedit.chiusa")), el("dd", {}, cb));
+        dl.append(...field(tr("cadedit.larghezza_costante"), f4(e.constantWidth || 0), v => { const n = num(v); if (n !== null && n >= 0) edit(k, x => { x.constantWidth = n; }); }));
       }
       if (e.type === "INSERT") {
-        ro("Nome blocco", e.name || "");
-        pt("insertionPoint", "Inserimento");
-        dl.append(...field("Scala X", f4(e.xScale || 1), v => { const n = num(v); if (n) edit(k, x => { x.xScale = n; }); }));
-        dl.append(...field("Scala Y", f4(e.yScale || 1), v => { const n = num(v); if (n) edit(k, x => { x.yScale = n; }); }));
-        dl.append(...field("Rotazione (°)", f4((e.rotation || 0) * R2D), v => { const n = num(v); if (n !== null) edit(k, x => { x.rotation = n / R2D; }); }));
-        for (const [i, a] of (e.attribs || []).entries()) dl.append(...field(`Attributo ${a.tag || i + 1}`, a.text, v => edit(k, x => { x.attribs[i].text = v; })));
+        ro(tr("cadedit.nome_blocco"), e.name || "");
+        pt("insertionPoint", tr("cadedit.inserimento"));
+        dl.append(...field(tr("cadedit.scala_x"), f4(e.xScale || 1), v => { const n = num(v); if (n) edit(k, x => { x.xScale = n; }); }));
+        dl.append(...field(tr("cadedit.scala_y"), f4(e.yScale || 1), v => { const n = num(v); if (n) edit(k, x => { x.yScale = n; }); }));
+        dl.append(...field(tr("cadedit.rotazione"), f4((e.rotation || 0) * R2D), v => { const n = num(v); if (n !== null) edit(k, x => { x.rotation = n / R2D; }); }));
+        for (const [i, a] of (e.attribs || []).entries()) dl.append(...field(tr("cadedit.attributo_0", a.tag || i + 1), a.text, v => edit(k, x => { x.attribs[i].text = v; })));
       }
-      if (e.type === "POINT") pt("position", "Posizione");
+      if (e.type === "POINT") pt("position", tr("cadedit.posizione"));
       if (e.type === "HATCH") {
-        ro("Motivo", e.patternName || (e.solidFill ? "SOLID" : ""));
+        ro(tr("cadedit.motivo"), e.patternName || (e.solidFill ? "SOLID" : ""));
         if (!e.solidFill) {
-          dl.append(...field("Scala motivo", f4(e.patternScale || 1), v => { const n = num(v); if (n > 0) edit(k, x => { const r = n / (x.patternScale || 1); x.patternScale = n; if (x.definitionLines) x.definitionLines.forEach(dd => { dd.offset.x *= r; dd.offset.y *= r; dd.base.x *= r; dd.base.y *= r; dd.dashLengths = (dd.dashLengths || []).map(q => q * r); }); }); }));
-          dl.append(...field("Angolo motivo (°)", f4((e.patternAngle || 0) * R2D), v => { const n = num(v); if (n !== null) edit(k, x => { const da = n / R2D - (x.patternAngle || 0); x.patternAngle = n / R2D; if (x.definitionLines) x.definitionLines.forEach(dd => { const c = Math.cos(da), s = Math.sin(da); dd.angle += da; dd.offset = { x: dd.offset.x * c - dd.offset.y * s, y: dd.offset.x * s + dd.offset.y * c }; }); }); }));
+          dl.append(...field(tr("cadedit.scala_motivo"), f4(e.patternScale || 1), v => { const n = num(v); if (n > 0) edit(k, x => { const r = n / (x.patternScale || 1); x.patternScale = n; if (x.definitionLines) x.definitionLines.forEach(dd => { dd.offset.x *= r; dd.offset.y *= r; dd.base.x *= r; dd.base.y *= r; dd.dashLengths = (dd.dashLengths || []).map(q => q * r); }); }); }));
+          dl.append(...field(tr("cadedit.angolo_motivo"), f4((e.patternAngle || 0) * R2D), v => { const n = num(v); if (n !== null) edit(k, x => { const da = n / R2D - (x.patternAngle || 0); x.patternAngle = n / R2D; if (x.definitionLines) x.definitionLines.forEach(dd => { const c = Math.cos(da), s = Math.sin(da); dd.angle += da; dd.offset = { x: dd.offset.x * c - dd.offset.y * s, y: dd.offset.x * s + dd.offset.y * c }; }); }); }));
         }
       }
       if (e.type === "DIMENSION") {
         if (e.dimKind) {
-          ro("Misura", G.dimText({ ...e, text: undefined }));
-          dl.append(...field("Testo (<> = misura)", e.text || "<>", v => edit(k, x => { x.text = v === "<>" ? undefined : v; })));
-          dl.append(...field("Altezza testo", f4(e.style.txt), v => { const n = num(v); if (n > 0) edit(k, x => { x.style.txt = n; }); }));
-          dl.append(...field("Scala quota", f4(e.style.scale), v => { const n = num(v); if (n > 0) edit(k, x => { x.style.scale = n; }); }));
-          dl.append(...field("Decimali", e.style.dec, v => { const n = num(v); if (n >= 0) edit(k, x => { x.style.dec = Math.round(n); }); }));
-        } else { if (e.measurement !== undefined) ro("Misura", fmt(+(+e.measurement).toFixed(4))); if (e.text) ro("Testo", e.text); if (e.styleName) ro("Stile", e.styleName); }
+          ro(tr("cadedit.misura"), G.dimText({ ...e, text: undefined }));
+          dl.append(...field(tr("cadedit.testo_misura"), e.text || "<>", v => edit(k, x => { x.text = v === "<>" ? undefined : v; })));
+          dl.append(...field(tr("cadedit.altezza_testo"), f4(e.style.txt), v => { const n = num(v); if (n > 0) edit(k, x => { x.style.txt = n; }); }));
+          dl.append(...field(tr("cadedit.scala_quota"), f4(e.style.scale), v => { const n = num(v); if (n > 0) edit(k, x => { x.style.scale = n; }); }));
+          dl.append(...field(tr("cadedit.decimali"), e.style.dec, v => { const n = num(v); if (n >= 0) edit(k, x => { x.style.dec = Math.round(n); }); }));
+        } else { if (e.measurement !== undefined) ro(tr("cadedit.misura"), fmt(+(+e.measurement).toFixed(4))); if (e.text) ro(tr("cadedit.testo"), e.text); if (e.styleName) ro(tr("cadedit.stile"), e.styleName); }
       }
     }
     props.append(dl, el("div", { style: { display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "6px" } },
@@ -1762,7 +1763,7 @@ export function createCadEditor(o) {
     const setV = v => { curV = v; ico.replaceChildren(cadIcon(v.icon || ICO[v.id] || v.id, size)); lab.textContent = opts.label || CMDS[v.id].label; main.title = tip(v.id, v.label); btns[v.id] = main; };
     btns[curV.id] = main;
     if (!variants) return main;
-    const dd = el("button", { class: `cad-dd cad-dd-${kind}`, title: "Altre opzioni", onclick: ev => { ev.stopPropagation(); openMenu(wrap, variants, v => { setV(v); startCmd(v.id, v.arg); }); } }, "▾");
+    const dd = el("button", { class: `cad-dd cad-dd-${kind}`, title: tr("cadedit.altre_opzioni"), onclick: ev => { ev.stopPropagation(); openMenu(wrap, variants, v => { setV(v); startCmd(v.id, v.arg); }); } }, "▾");
     const wrap = el("span", { class: `cad-split cad-split-${kind}` }, main, dd);
     return wrap;
   }
@@ -1771,12 +1772,12 @@ export function createCadEditor(o) {
   const panel = (title, ...c) => el("div", { class: "cad-panel" }, el("div", { class: "cad-panel-body" }, ...c), el("div", { class: "cad-panel-t" }, title));
   const labeled = (icon, title, ctl) => el("label", { class: "cad-field", title }, cadIcon(icon, 16), ctl);
 
-  const layerPick = el("select", { class: "field cad-layersel", title: "Layer corrente: i nuovi oggetti vanno su questo layer" });
-  const colorPick = el("select", { class: "field", title: "Colore dei nuovi oggetti" }, ...COLORS.filter(([v]) => v !== 0).map(([v, n]) => el("option", { value: v }, n)));
+  const layerPick = el("select", { class: "field cad-layersel", title: tr("cadedit.layer_corrente_i_nuovi_oggetti") });
+  const colorPick = el("select", { class: "field", title: tr("cadedit.colore_nuovi_oggetti") }, ...COLORS.filter(([v]) => v !== 0).map(([v, n]) => el("option", { value: v }, n)));
   colorPick.addEventListener("change", () => { cur.color = +colorPick.value; });
-  const ltPick = el("select", { class: "field", title: "Tipo di linea dei nuovi oggetti" }, ...ltypeNames().map(n => el("option", { value: n }, n === "ByLayer" ? "DaLayer" : n === "ByBlock" ? "DaBlocco" : n)));
+  const ltPick = el("select", { class: "field", title: tr("cadedit.tipo_linea_nuovi_oggetti") }, ...ltypeNames().map(n => el("option", { value: n }, n === "ByLayer" ? tr("cadedit.dalayer") : n === "ByBlock" ? tr("cadedit.dablocco") : n)));
   ltPick.addEventListener("change", () => { cur.lineType = ltPick.value; });
-  const lwPick = el("select", { class: "field", title: "Spessore di linea dei nuovi oggetti" }, ...LWEIGHTS.filter(([v]) => v !== -2).map(([v, n]) => el("option", { value: v }, n)));
+  const lwPick = el("select", { class: "field", title: tr("cadedit.spessore_linea_nuovi_oggetti") }, ...LWEIGHTS.filter(([v]) => v !== -2).map(([v, n]) => el("option", { value: v }, n)));
   lwPick.addEventListener("change", () => { cur.lineweight = +lwPick.value; });
   layerPick.addEventListener("change", async () => {
     if (layerPick.value === "__new") { layerPick.value = cur.layer; startCmd("layernew"); }
@@ -1788,37 +1789,37 @@ export function createCadEditor(o) {
     if (!names.includes(cur.layer)) cur.layer = names.includes("0") || !names.length ? "0" : names[0];
     if (!names.includes(cur.layer)) names.unshift(cur.layer);
     for (const n of names) layerPick.append(el("option", { value: n, selected: n === cur.layer || undefined }, n));
-    layerPick.append(el("option", { value: "__new" }, "+ Nuovo layer..."));
+    layerPick.append(el("option", { value: "__new" }, tr("cadedit.nuovo_layer_2")));
   }
-  const hInput = el("input", { type: "text", class: "field", value: fmt(cur.textH), title: "Altezza dei nuovi testi", style: { width: "64px" } });
+  const hInput = el("input", { type: "text", class: "field", value: fmt(cur.textH), title: tr("cadedit.altezza_nuovi_testi"), style: { width: "64px" } });
   hInput.addEventListener("change", () => { const n = num(hInput.value); if (n > 0) cur.textH = n; });
 
   const DIMS = [{ id: "dimlin" }, { id: "dimali" }, { id: "dimang" }, { id: "dimrad" }, { id: "dimdia" }, { id: "dimord" }];
   const tabHome = el("div", { class: "cad-tabpage" },
-    panel("Disegna", big("line"), big("pline"),
-      big("circle", { menu: [{ id: "circle", label: "Centro, raggio", icon: "circle" }, { id: "circle", arg: "d", label: "Centro, diametro", icon: "circled" }, { id: "circle", arg: "3p", label: "3 punti", icon: "circle3p" }] }),
-      big("arc", { menu: [{ id: "arc", label: "3 punti", icon: "arc" }, { id: "arc", arg: "cse", label: "Centro, inizio, fine", icon: "arccse" }] }),
+    panel(tr("cadedit.disegna"), big("line"), big("pline"),
+      big("circle", { menu: [{ id: "circle", label: tr("cadedit.centro_raggio"), icon: "circle" }, { id: "circle", arg: "d", label: tr("cadedit.centro_diametro"), icon: "circled" }, { id: "circle", arg: "3p", label: "3 punti", icon: "circle3p" }] }),
+      big("arc", { menu: [{ id: "arc", label: "3 punti", icon: "arc" }, { id: "arc", arg: "cse", label: tr("cadedit.centro_inizio_fine"), icon: "arccse" }] }),
       col(small("rect"), small("ellipse"), small("hatch"))),
-    panel("Modifica",
+    panel(tr("cadedit.modifica"),
       col(small("move"), small("rotate"), small("trim", { menu: [{ id: "trim" }, { id: "extend" }] })),
       col(small("copy"), small("mirror"), small("fillet", { menu: [{ id: "fillet" }, { id: "chamfer" }] })),
-      col(small("stretch"), small("scale"), small("array", { menu: [{ id: "array", label: "Serie rettangolare", icon: "array" }, { id: "array", arg: "p", label: "Serie polare", icon: "arraypolar" }] })),
+      col(small("stretch"), small("scale"), small("array", { menu: [{ id: "array", label: tr("cadedit.serie_rettangolare"), icon: "array" }, { id: "array", arg: "p", label: tr("cadedit.serie_polare"), icon: "arraypolar" }] })),
       col(small("erase"), small("explode"), small("offset"))),
-    panel("Annotazione",
-      big("mtext", { menu: [{ id: "mtext", label: "Testo multiriga" }, { id: "text", label: "Testo su riga singola" }] }),
+    panel(tr("cadedit.annotazione"),
+      big("mtext", { menu: [{ id: "mtext", label: tr("cadedit.testo_multiriga") }, { id: "text", label: tr("cadedit.testo_riga_singola") }] }),
       big("dimlin", { menu: DIMS }),
       col(small("dimstyle"), small("dimcont"), small("dimbase"))),
-    panel("Layer", col(labeled("layer", "Layer corrente", layerPick), el("div", { class: "cad-row" }, small("layernew", { label: "Nuovo" }), small("layercur", { label: "Da oggetto" })))),
-    panel("Proprietà", big("matchprop"), col(labeled("props", "Colore", colorPick), labeled("line", "Tipo di linea", ltPick), labeled("pline", "Spessore di linea", lwPick))),
-    panel("Utilità", big("dist", { menu: [{ id: "dist" }, { id: "area" }] }), col(small("selectall", { label: "Sel. tutto" }), small("props"))),
-    panel("Appunti", big("paste"), col(small("copyclip", { label: "Copia" }), small("copybase", { label: "Copia base" }))));
+    panel(tr("cadedit.layer"), col(labeled("layer", tr("cadedit.layer_corrente"), layerPick), el("div", { class: "cad-row" }, small("layernew", { label: tr("cadedit.nuovo") }), small("layercur", { label: tr("cadedit.oggetto") })))),
+    panel(tr("cadedit.proprieta"), big("matchprop"), col(labeled("props", tr("common.colore"), colorPick), labeled("line", tr("cadedit.tipo_linea_2"), ltPick), labeled("pline", tr("cadedit.spessore_linea"), lwPick))),
+    panel(tr("cadedit.utilita"), big("dist", { menu: [{ id: "dist" }, { id: "area" }] }), col(small("selectall", { label: tr("cadedit.sel_tutto") }), small("props"))),
+    panel(tr("cadedit.appunti"), big("paste"), col(small("copyclip", { label: tr("common.copia") }), small("copybase", { label: tr("cadedit.copia_base") }))));
   const tabAnnot = el("div", { class: "cad-tabpage", hidden: true },
-    panel("Testo", big("mtext"), big("text"), col(labeled("text", "Altezza dei nuovi testi", hInput))),
-    panel("Quote", big("dimlin", { menu: DIMS }), col(small("dimali"), small("dimang"), small("dimord")), col(small("dimrad"), small("dimdia"), small("dimstyle")), big("dimcont"), big("dimbase")),
-    panel("Misura", big("dist"), big("area")));
+    panel(tr("cadedit.testo"), big("mtext"), big("text"), col(labeled("text", tr("cadedit.altezza_nuovi_testi"), hInput))),
+    panel(tr("cadedit.quote"), big("dimlin", { menu: DIMS }), col(small("dimali"), small("dimang"), small("dimord")), col(small("dimrad"), small("dimdia"), small("dimstyle")), big("dimcont"), big("dimbase")),
+    panel(tr("cadedit.misura"), big("dist"), big("area")));
   const tabView = el("div", { class: "cad-tabpage", hidden: true },
-    panel("Navigazione", big("zoomext"), big("zoomwin")),
-    panel("Tavolozze", big("props")));
+    panel(tr("cadedit.navigazione"), big("zoomext"), big("zoomwin")),
+    panel(tr("cadedit.tavolozze"), big("props")));
   const pages = { Inizio: tabHome, Annota: tabAnnot, Vista: tabView };
   const tabBtns = Object.keys(pages).map(n => el("button", { class: "cad-tab" + (n === "Inizio" ? " on" : ""), onclick: ev => { for (const [k, pg] of Object.entries(pages)) pg.hidden = k !== n; tabBtns.forEach(b => b.classList.toggle("on", b === ev.currentTarget)); } }, n));
   const quick = el("span", { class: "cad-quick" }, ...["undo", "redo"].map(id => (btns[id] = el("button", { class: "cad-qa", title: tip(id), onclick: () => startCmd(id) }, cadIcon(id, 16)))));
@@ -1826,10 +1827,10 @@ export function createCadEditor(o) {
 
   // ---- riga di comando e barra di stato (in basso, come in AutoCAD)
   const stBtn = (label, title, onclick) => el("button", { class: "cad-st", title, onclick }, label);
-  const gridBtn = stBtn("GRIGLIA", "Griglia (F7)", () => setGrid(!gridOn));
-  const orthoBtn = stBtn("ORTO", "Modo Orto (F8): solo direzioni orizzontali e verticali", () => setOrtho(!ortho));
-  const polarBtn = stBtn("POLARE", "Puntamento polare (F10): aggancio alle direzioni multiple dell'angolo scelto", () => setPolar(!polarOn));
-  const snapBtn = stBtn("OSNAP", "Snap ad oggetto (F3): fine, medio, centro, intersezione...", () => setOsnap(!osnapOn));
+  const gridBtn = stBtn("GRIGLIA", tr("cadedit.griglia_f7"), () => setGrid(!gridOn));
+  const orthoBtn = stBtn("ORTO", tr("cadedit.modo_orto_f8_solo_direzioni"), () => setOrtho(!ortho));
+  const polarBtn = stBtn("POLARE", tr("cadedit.puntamento_polare_f10_aggancio_alle"), () => setPolar(!polarOn));
+  const snapBtn = stBtn("OSNAP", tr("cadedit.snap_ad_oggetto_f3_fine"), () => setOsnap(!osnapOn));
   snapBtn.classList.add("on");
   const snapMenu = el("div", { class: "cad-snapmenu", hidden: true }, ...Object.keys(modes).map(k => {
     const cb = el("input", { type: "checkbox", checked: modes[k] });
@@ -1847,8 +1848,8 @@ export function createCadEditor(o) {
   function setPolar(v) { polarOn = v; if (v) { ortho = false; orthoBtn.classList.remove("on"); } polarBtn.classList.toggle("on", v); o.draw(); }
   function setOsnap(v) { osnapOn = v; snapBtn.classList.toggle("on", v); o.draw(); }
   function setGrid(v) { gridOn = v; gridBtn.classList.toggle("on", v); o.draw(); }
-  const promptEl = el("span", { class: "cad-prompt" }, "Comando:");
-  const input = el("input", { type: "text", class: "cad-input", spellcheck: false, autocomplete: "off", placeholder: "Digitare un comando (L, PL, C, DLI, M, TR, O, F...) o ? per l'elenco" });
+  const promptEl = el("span", { class: "cad-prompt" }, tr("cadedit.comando"));
+  const input = el("input", { type: "text", class: "cad-input", spellcheck: false, autocomplete: "off", placeholder: tr("cadedit.digitare_comando_l_pl_c") });
   const coordEl = el("span", { class: "cad-coord" });
   input.addEventListener("keydown", ev => {
     if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); ev.stopPropagation(); submit(input.value); }
@@ -1857,25 +1858,25 @@ export function createCadEditor(o) {
   const cmdline = el("div", { class: "cad-bottom", style: { display: "none" } },
     el("div", { class: "cad-cmdline" }, el("span", { class: "cad-cmd-ico" }, "▸"), promptEl, input),
     el("div", { class: "cad-status" }, coordEl, el("span", { class: "grow" }), el("span", { class: "cad-st-t" }, "MODELLO"), gridBtn,
-      el("span", { class: "cad-snapwrap" }, polarBtn, more(polarMenu, "Angolo del puntamento polare"), polarMenu), orthoBtn,
-      el("span", { class: "cad-snapwrap" }, snapBtn, more(snapMenu, "Punti di aggancio attivi"), snapMenu)));
+      el("span", { class: "cad-snapwrap" }, polarBtn, more(polarMenu, tr("cadedit.angolo_puntamento_polare")), polarMenu), orthoBtn,
+      el("span", { class: "cad-snapwrap" }, snapBtn, more(snapMenu, tr("cadedit.punti_aggancio_attivi")), snapMenu)));
   // scorciatoie per l'aiuto (F1)
   describeKeys(ctx, "AutoCAD", [
-    ...["line", "pline", "circle", "arc", "rect", "ellipse", "hatch", "mtext", "text"].map(id => [aliasOf(id) || CMDS[id].label, CMDS[id].label, "Disegna (scrivi e premi Invio)"]),
-    ...["move", "copy", "rotate", "scale", "mirror", "stretch", "array", "offset", "trim", "extend", "fillet", "chamfer", "explode", "erase", "matchprop"].map(id => [aliasOf(id) || CMDS[id].label, CMDS[id].label, "Modifica (scrivi e premi Invio)"]),
-    ...["dimlin", "dimali", "dimang", "dimrad", "dimdia", "dimord", "dimcont", "dimbase", "dimstyle", "dist", "area"].map(id => [aliasOf(id) || CMDS[id].label, CMDS[id].label, "Quote e misure (scrivi e premi Invio)"]),
-    ["Invio / Spazio / clic destro", "Conferma; a vuoto ripete l'ultimo comando", "Generale"], ["Esc", "Annulla il comando o la selezione", "Generale"],
-    ["Ctrl+Z", "Annulla", "Generale"], ["Ctrl+Y", "Ripeti", "Generale"], ["Canc", "Cancella la selezione", "Generale"], ["Ctrl+A", "Seleziona tutto", "Generale"],
-    ["Ctrl+C", "Copia negli appunti", "Generale"], ["Ctrl+Maiusc+C", "Copia con punto base", "Generale"], ["Ctrl+V", "Incolla", "Generale"], ["Ctrl+1", "Tavolozza Proprietà", "Generale"],
-    ["F3", "Snap ad oggetto", "Aiuti al disegno"], ["F7", "Griglia", "Aiuti al disegno"], ["F8", "Orto", "Aiuti al disegno"], ["F10", "Puntamento polare", "Aiuti al disegno"],
-    ["Maiusc+clic", "Toglie dalla selezione", "Selezione"], ["Ctrl+clic", "Seleziona dentro un blocco", "Selezione"], ["Clic ripetuto", "Oggetto sovrapposto successivo", "Selezione"],
-    ["Trascina da sinistra / da destra", "Finestra / intersezione", "Selezione"], ["Doppio clic su un testo", "Modifica il testo", "Selezione"],
-    ["x,y · @dx,dy · @d<a · numero", "Coordinate assolute, relative, polari, distanza diretta", "Riga di comando"],
+    ...["line", "pline", "circle", "arc", "rect", "ellipse", "hatch", "mtext", "text"].map(id => [aliasOf(id) || CMDS[id].label, CMDS[id].label, tr("cadedit.disegna_scrivi_premi_invio")]),
+    ...["move", "copy", "rotate", "scale", "mirror", "stretch", "array", "offset", "trim", "extend", "fillet", "chamfer", "explode", "erase", "matchprop"].map(id => [aliasOf(id) || CMDS[id].label, CMDS[id].label, tr("cadedit.modifica_scrivi_premi_invio")]),
+    ...["dimlin", "dimali", "dimang", "dimrad", "dimdia", "dimord", "dimcont", "dimbase", "dimstyle", "dist", "area"].map(id => [aliasOf(id) || CMDS[id].label, CMDS[id].label, tr("cadedit.quote_misure_scrivi_premi_invio")]),
+    [tr("cadedit.invio_spazio_clic_destro"), tr("cadedit.conferma_vuoto_ripete_l_ultimo"), tr("cadedit.generale")], ["Esc", tr("cadedit.annulla_comando_selezione"), tr("cadedit.generale")],
+    ["Ctrl+Z", tr("common.annulla_op"), tr("cadedit.generale")], ["Ctrl+Y", tr("common.ripeti"), tr("cadedit.generale")], ["Canc", tr("cadedit.cancella_selezione"), tr("cadedit.generale")], ["Ctrl+A", tr("cadedit.seleziona_tutto"), tr("cadedit.generale")],
+    ["Ctrl+C", tr("cadedit.copia_negli_appunti"), tr("cadedit.generale")], ["Ctrl+Maiusc+C", tr("cadedit.copia_punto_base"), tr("cadedit.generale")], ["Ctrl+V", tr("common.incolla"), tr("cadedit.generale")], ["Ctrl+1", tr("cadedit.tavolozza_proprieta"), tr("cadedit.generale")],
+    ["F3", tr("cadedit.snap_ad_oggetto"), tr("cadedit.aiuti_disegno")], ["F7", tr("cadedit.griglia"), tr("cadedit.aiuti_disegno")], ["F8", tr("cadedit.orto"), tr("cadedit.aiuti_disegno")], ["F10", tr("cadedit.puntamento_polare"), tr("cadedit.aiuti_disegno")],
+    ["Maiusc+clic", tr("cadedit.toglie_selezione"), tr("cadedit.selezione")], ["Ctrl+clic", tr("cadedit.seleziona_dentro_blocco"), tr("cadedit.selezione")], [tr("cadedit.clic_ripetuto"), tr("cadedit.oggetto_sovrapposto_successivo"), tr("cadedit.selezione")],
+    [tr("cadedit.trascina_sinistra_destra"), tr("cadedit.finestra_intersezione"), tr("cadedit.selezione")], [tr("cadedit.doppio_clic_testo"), tr("cadedit.modifica_testo_2"), tr("cadedit.selezione")],
+    ["x,y · @dx,dy · @d<a · numero", tr("cadedit.coordinate_assolute_relative_polari_distanza"), tr("cadedit.riga_comando")],
   ]);
   function showHelp() {
     const rows = Object.values(CMDS).map(c => el("tr", {}, el("td", {}, c.label), el("td", { class: "note" }, Object.entries(ALIAS).filter(([, v]) => v === c.id).map(([a]) => a).filter(a => a.length <= 4).join(", ")), el("td", {}, c.title)));
-    modal("Comandi dell'editor CAD", el("div", { style: { maxHeight: "60vh", overflow: "auto" } }, el("table", { class: "grid" }, ...rows),
-      el("p", { class: "note" }, "Coordinate: x;y oppure x,y (decimali col punto) · @dx;dy relative · @distanza<angolo polari · un numero = distanza nella direzione del cursore. Invio o clic destro confermano, Esc annulla, Invio a vuoto ripete l'ultimo comando. F3 aggancio, F8 ortogonale.")));
+    modal(tr("cadedit.comandi_dell_editor_cad"), el("div", { style: { maxHeight: "60vh", overflow: "auto" } }, el("table", { class: "grid" }, ...rows),
+      el("p", { class: "note" }, tr("cadedit.coordinate_x_y_oppure_x"))));
   }
 
   return {
@@ -1886,7 +1887,7 @@ export function createCadEditor(o) {
       bar.style.display = on ? "flex" : "none";
       ddMenu.hidden = true;
       cmdline.style.display = on ? "flex" : "none";
-      if (on) { fillLayers(); ctx.status("Editor attivo: clic per selezionare, comandi dalla barra o scrivendo (es. L, C, DLI, TR). ? = elenco comandi"); }
+      if (on) { fillLayers(); ctx.status(tr("cadedit.editor_attivo_clic_selezionare_comandi")); }
       else { cancelTask(); sel.clear(); box = null; clickBox = null; hover = null; }
       renderProps();
       o.draw();

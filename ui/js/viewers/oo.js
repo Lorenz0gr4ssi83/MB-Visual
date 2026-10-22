@@ -1,6 +1,7 @@
 // Word, Excel e PowerPoint nell'editor ONLYOFFICE integrato (gira dentro MB Visual, senza server esterni):
 // formattazione completa, formule con suggerimenti e selezione delle celle mentre si scrive la formula, revisioni.
 // Il file viene passato all'editor come byte e torna indietro come byte al salvataggio.
+import { t as tr } from "../i18n.js";
 import { api, el, extOf, readBytes, toast } from "../core.js";
 import { describeKeys } from "../shortcuts.js";
 
@@ -14,13 +15,13 @@ export async function mount(ctx) {
   const ext = extOf(ctx.path), kind = KIND(ext);
   // l'editor ONLYOFFICE usa gli stessi tasti di Microsoft Office: qui solo l'elenco dei principali (F1)
   describeKeys(ctx, kind === "cell" ? "Excel" : kind === "slide" ? "PowerPoint" : "Word", [
-    ["Ctrl+B / Ctrl+I / Ctrl+U", "Grassetto / corsivo / sottolineato", "Formato"], ["Ctrl+C / Ctrl+X / Ctrl+V", "Copia / taglia / incolla", "Modifica"],
-    ["Ctrl+Z / Ctrl+Y", "Annulla / ripeti", "Modifica"], ["Ctrl+F / Ctrl+H", "Trova / sostituisci", "Modifica"], ["Ctrl+P", "Stampa", "File"], ["Ctrl+S", "Salva", "File"],
-    ...(kind === "cell" ? [["F2", "Modifica la cella", "Celle"], ["F4", "Riferimento assoluto ($A$1) mentre scrivi una formula", "Celle"], ["Alt+=", "Somma automatica", "Celle"],
-      ["Ctrl+frecce", "Bordo dei dati", "Celle"], ["Ctrl+Maiusc+L", "Filtro", "Celle"], ["Ctrl+1", "Formato celle", "Celle"], ["Ctrl+;", "Data di oggi", "Celle"]]
-      : kind === "slide" ? [["F5 / Maiusc+F5", "Presentazione dall'inizio / dalla diapositiva corrente", "Presentazione"], ["Ctrl+M", "Nuova diapositiva", "Presentazione"], ["Ctrl+D", "Duplica", "Presentazione"]]
-      : [["Ctrl+E / Ctrl+L / Ctrl+R / Ctrl+J", "Centrato / sinistra / destra / giustificato", "Formato"], ["Ctrl+Invio", "Interruzione di pagina", "Inserisci"], ["Ctrl+K", "Collegamento", "Inserisci"],
-        ["Ctrl+Maiusc+C / Ctrl+Maiusc+V", "Copia / incolla formato", "Formato"]]),
+    ["Ctrl+B / Ctrl+I / Ctrl+U", tr("v_oo.grassetto_corsivo_sottolineato"), tr("v_oo.formato")], ["Ctrl+C / Ctrl+X / Ctrl+V", tr("v_oo.copia_taglia_incolla"), tr("v_oo.modifica")],
+    ["Ctrl+Z / Ctrl+Y", tr("v_oo.annulla_ripeti"), tr("v_oo.modifica")], ["Ctrl+F / Ctrl+H", tr("v_oo.trova_sostituisci"), tr("v_oo.modifica")], ["Ctrl+P", tr("v_oo.stampa"), tr("v_oo.file")], ["Ctrl+S", tr("common.salva"), tr("v_oo.file")],
+    ...(kind === "cell" ? [["F2", tr("v_oo.modifica_cella"), tr("v_oo.celle")], ["F4", tr("v_oo.riferimento_assoluto_1_mentre_scrivi"), tr("v_oo.celle")], ["Alt+=", tr("v_oo.somma_automatica"), tr("v_oo.celle")],
+      ["Ctrl+frecce", tr("v_oo.bordo_dati"), tr("v_oo.celle")], ["Ctrl+Maiusc+L", tr("v_oo.filtro"), tr("v_oo.celle")], ["Ctrl+1", tr("v_oo.formato_celle"), tr("v_oo.celle")], ["Ctrl+;", tr("v_oo.data_oggi"), tr("v_oo.celle")]]
+      : kind === "slide" ? [["F5 / Maiusc+F5", tr("v_oo.presentazione_dall_inizio_diapositiva_corrente"), tr("v_oo.presentazione")], ["Ctrl+M", tr("v_oo.nuova_diapositiva"), tr("v_oo.presentazione")], ["Ctrl+D", tr("v_oo.duplica"), tr("v_oo.presentazione")]]
+      : [["Ctrl+E / Ctrl+L / Ctrl+R / Ctrl+J", tr("v_oo.centrato_sinistra_destra_giustificato"), tr("v_oo.formato")], ["Ctrl+Invio", tr("v_oo.interruzione_pagina"), tr("v_oo.inserisci")], ["Ctrl+K", tr("v_oo.collegamento"), tr("v_oo.inserisci")],
+        ["Ctrl+Maiusc+C / Ctrl+Maiusc+V", tr("v_oo.copia_incolla_formato"), tr("v_oo.formato")]]),
   ]);
   const { url } = await api("onlyoffice");
   const frame = el("iframe", {
@@ -28,7 +29,7 @@ export async function mount(ctx) {
     allow: "cross-origin-isolated; clipboard-read; clipboard-write; fullscreen",
     src: `${url}/editor.html?embed=1&locale=it&embedOrigin=${encodeURIComponent(location.origin)}`,
   });
-  const wait = el("div", { class: "center", style: { position: "absolute", inset: 0, background: "var(--bg)" } }, el("div", {}, el("div", { class: "spinner" }), "Avvio dell'editor ONLYOFFICE..."));
+  const wait = el("div", { class: "center", style: { position: "absolute", inset: 0, background: "var(--bg)" } }, el("div", {}, el("div", { class: "spinner" }), tr("v_oo.avvio_dell_editor_onlyoffice")));
   ctx.el.append(el("div", { style: { position: "relative", height: "100%" } }, frame, wait));
 
   // ---- messaggi con l'editor
@@ -49,7 +50,7 @@ export async function mount(ctx) {
     const p = id && pending.get(id);
     if (!p) { if (type === "document:error") toast("ONLYOFFICE: " + (payload?.message || "errore"), true, 6000); return; }
     pending.delete(id);
-    if (type === "document:error") p.reject(new Error(payload?.message || "errore dell'editor"));
+    if (type === "document:error") p.reject(new Error(payload?.message || tr("v_oo.errore_dell_editor")));
     else p.resolve(payload);
   };
   window.addEventListener("message", onMessage);
@@ -66,7 +67,7 @@ export async function mount(ctx) {
     throw e;
   }
   wait.remove();
-  ctx.status("Editor ONLYOFFICE · modifiche salvate con Salva (Ctrl+S)");
+  ctx.status(tr("v_oo.editor_onlyoffice_modifiche_salvate_salva"));
 
   // Ctrl+S dentro l'editor: l'iframe ha la tastiera, quindi la scorciatoia si ripete qui
   const keyFix = e => { if (e.ctrlKey && e.key.toLowerCase() === "s" && document.activeElement === frame) { e.preventDefault(); } };

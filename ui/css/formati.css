@@ -1,0 +1,89 @@
+/* Stili dei visualizzatori aggiunti: DICOM, calendari, contatti, certificati, iWork, plotter, dati scientifici, Revit */
+.fx-split { display: grid; grid-template-columns: 1fr; height: 100%; min-height: 0; }
+.fx-split.with-right { grid-template-columns: 1fr minmax(300px, 34%); }
+.fx-split.with-left { grid-template-columns: 250px 1fr; }
+.fx-split.with-left.with-right { grid-template-columns: 250px 1fr minmax(300px, 32%); }
+.fx-split > * { min-width: 0; min-height: 0; overflow: auto; }
+.fx-pane { background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; }
+.fx-pane.left { border-left: 0; border-right: 1px solid var(--line); }
+.fx-pane > .head { display: flex; gap: 6px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 12.5px; }
+.fx-pane > .head input { flex: 1; min-width: 0; }
+.fx-pane > .scroll { overflow: auto; flex: 1; min-height: 0; }
+.fx-page { padding: 18px 22px; display: grid; gap: 14px; max-width: 1100px; align-content: start; }
+.fx-page h2 { margin: 0; font-size: 19px; }
+.fx-page h3 { margin: 0 0 6px; font-size: 14.5px; }
+.fx-muted { color: var(--muted); }
+.fx-small { font-size: 12px; }
+.fx-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.fx-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+.fx-table { border-collapse: collapse; font-size: 12.5px; width: 100%; font-variant-numeric: tabular-nums; }
+.fx-table th, .fx-table td { border-bottom: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+.fx-table th { position: sticky; top: 0; background: var(--panel); z-index: 1; font-weight: 600; }
+.fx-table td.mono, .fx-mono { font-family: var(--mono); font-size: 12px; }
+.fx-table tr.sel td { background: var(--accent-soft); }
+.fx-table tr.click { cursor: pointer; }
+.fx-table tr.click:hover td { background: var(--accent-soft); }
+.fx-table td.num, .fx-table th.num { text-align: right; }
+.fx-empty { padding: 30px; color: var(--muted); text-align: center; }
+
+/* DICOM */
+.dcm-stage { position: relative; background: #000; overflow: hidden; height: 100%; user-select: none; touch-action: none; }
+.dcm-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dcm-ov { position: absolute; color: #e8e8e8; font: 12px/1.35 var(--mono); text-shadow: 0 0 3px #000, 0 0 2px #000; pointer-events: none; white-space: pre; }
+.dcm-ov.tl { left: 10px; top: 8px; } .dcm-ov.tr { right: 10px; top: 8px; text-align: right; }
+.dcm-ov.bl { left: 10px; bottom: 8px; } .dcm-ov.br { right: 10px; bottom: 8px; text-align: right; }
+.dcm-ov.err { left: 50%; top: 45%; transform: translate(-50%, -50%); color: #ff9b8f; white-space: normal; max-width: 70%; text-align: center; font-family: var(--ui); }
+.dcm-slider { position: absolute; right: 4px; top: 50px; bottom: 50px; width: 14px; writing-mode: vertical-lr; direction: rtl; accent-color: #7fb3e0; opacity: .75; }
+.dcm-tags td.lvl1 { padding-left: 22px; } .dcm-tags td.lvl2 { padding-left: 36px; } .dcm-tags td.lvl3 { padding-left: 50px; } .dcm-tags td.lvl4 { padding-left: 64px; }
+.dcm-tags tr.priv td { color: var(--muted); }
+.dcm-tags tr.item td { font-style: italic; color: var(--muted); }
+
+/* Calendario */
+.cal-month { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.cal-month .dow { padding: 5px 8px; font-size: 11.5px; color: var(--muted); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--panel); text-transform: uppercase; letter-spacing: .04em; }
+.cal-day { min-height: 104px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 4px 5px; background: var(--panel-2); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cal-day.out { background: var(--panel); color: var(--muted); }
+.cal-day.today .n { background: var(--accent); color: var(--accent-fg); border-radius: 10px; padding: 0 6px; }
+.cal-day .n { font-size: 12px; align-self: flex-start; margin-bottom: 2px; }
+.cal-ev { font-size: 11.5px; padding: 1px 5px; border-radius: 4px; background: var(--accent-soft); border-left: 3px solid var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.cal-ev.allday { background: var(--accent); color: var(--accent-fg); }
+.cal-ev.sel { outline: 2px solid var(--accent); }
+.cal-more { font-size: 11px; color: var(--muted); cursor: pointer; }
+
+/* Contatti */
+.vc-card { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: start; cursor: pointer; }
+.vc-card.sel { outline: 2px solid var(--accent); }
+.vc-ph { width: 64px; height: 64px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-size: 22px; font-weight: 600; overflow: hidden; }
+.vc-ph img { width: 100%; height: 100%; object-fit: cover; }
+.vc-name { font-size: 15px; font-weight: 600; }
+
+/* Plotter HPGL */
+.plt-stage { position: relative; overflow: hidden; height: 100%; background: #fff; user-select: none; touch-action: none; }
+.plt-stage.dark { background: #1c1f22; }
+.plt-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.plt-pens { display: grid; gap: 4px; padding: 8px 10px; font-size: 12.5px; }
+.plt-pens label { display: flex; align-items: center; gap: 8px; }
+.plt-pens input[type="color"] { width: 26px; height: 20px; padding: 0; border: 1px solid var(--line); background: none; }
+
+/* Dati scientifici */
+.sci-chart { width: 100%; height: 260px; display: block; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+.sci-attrs { padding: 8px 12px; font-size: 12.5px; }
+.sci-grid { overflow: auto; }
+
+/* Anteprime (iWork, Revit) */
+.fx-preview { max-width: 100%; max-height: 72vh; border: 1px solid var(--line); background: #fff; box-shadow: var(--shadow); justify-self: start; }
+.fx-thumbs { display: flex; gap: 10px; flex-wrap: wrap; }
+.fx-thumbs img { max-height: 120px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+.fx-text { white-space: pre-wrap; font-size: 13.5px; line-height: 1.55; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; max-height: 60vh; overflow: auto; }
+/* telefono: i pannelli laterali vanno sotto (o sopra) invece di schiacciare il contenuto in una striscia */
+@media (max-width: 760px) {
+  .fx-split.with-right { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 40%); }
+  .fx-split.with-left { grid-template-columns: 1fr; grid-template-rows: minmax(0, 32%) minmax(0, 1fr); }
+  .fx-split.with-left.with-right { grid-template-columns: 1fr; grid-template-rows: minmax(0, 26%) minmax(0, 1fr) minmax(0, 34%); }
+  .fx-split > * + * { border-left: 0 !important; border-top: 1px solid var(--line); }
+  .cal-month .dow { padding: 4px 2px; font-size: 10px; text-align: center; letter-spacing: 0; }
+  .cal-day { min-height: 62px; padding: 2px; }
+  .cal-day .n { font-size: 11px; }
+  .cal-ev { font-size: 10px; padding: 0 2px; border-left-width: 2px; }
+  .cal-more { font-size: 10px; }
+}

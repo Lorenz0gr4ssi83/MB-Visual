@@ -1,0 +1,146 @@
+/* Editor di diagrammi in stile Visio (ui/js/vsdedit.js). Puntatore sempre a freccia (regola del progetto). */
+.vs-root { --vs-accent: #3955a3; --vs-paste: #d4d7dc; --vs-icofill: #dbe7f6; --vs-sel: #1f6fc5;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; height: 100%; min-height: 0; background: var(--bg); cursor: default; user-select: none; position: relative; }
+:root[data-theme="dark"] .vs-root { --vs-paste: #3a3e43; --vs-icofill: #33465e; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .vs-root { --vs-paste: #3a3e43; --vs-icofill: #33465e; } }
+.vs-root *, .vs-pop *, .vs-ghost { cursor: default !important; }
+
+/* schede nella barra del visualizzatore */
+.tb.vs-tb { flex-wrap: nowrap; gap: 0; padding: 0 8px; min-height: 34px; overflow-x: auto; }
+.vs-tabs { display: flex; align-items: flex-end; align-self: stretch; gap: 1px; }
+.vs-q { width: 30px; padding: 0 !important; justify-content: center; }
+.vs-tab { height: 30px !important; margin-top: 4px; padding: 0 12px !important; border: 1px solid transparent !important; border-bottom: 0 !important; border-radius: 5px 5px 0 0 !important; font-size: 12.5px; color: var(--fg); }
+.vs-tab.on { background: var(--panel-2) !important; border-color: var(--line) !important; color: var(--vs-accent); font-weight: 600; position: relative; top: 1px; }
+:root[data-theme="dark"] .vs-tab.on { color: #9fb4ef; }
+
+/* barra multifunzione */
+.vs-ribbon { background: var(--panel-2); border-bottom: 1px solid var(--line); min-width: 0; }
+.vs-panel { display: flex; align-items: stretch; padding: 4px 6px 0; overflow-x: auto; overflow-y: hidden; min-height: 96px; }
+.vs-group { display: flex; flex-direction: column; padding: 0 6px; border-right: 1px solid var(--line); flex: none; }
+.vs-gbody { display: flex; align-items: flex-start; gap: 2px; flex: 1; }
+.vs-glabel { text-align: center; font-size: 11px; color: var(--muted); padding: 3px 0 4px; white-space: nowrap; }
+.vs-col { display: flex; flex-direction: column; gap: 1px; }
+.vs-row { display: flex; align-items: center; gap: 1px; min-height: 25px; }
+.vs-big { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 52px; max-width: 80px; height: 70px; padding: 4px 4px 2px; border: 1px solid transparent; border-radius: 4px; background: none; font-size: 11.5px; line-height: 1.15; text-align: center; color: var(--fg); }
+.vs-big svg { width: 32px; height: 32px; flex: none; }
+.vs-sm { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 5px; border: 1px solid transparent; border-radius: 3px; background: none; font-size: 12px; white-space: nowrap; color: var(--fg); }
+.vs-sm.io { padding: 0 3px; }
+.vs-sm svg { width: 17px; height: 17px; flex: none; }
+.vs-caret { font-size: 9px; color: var(--muted); }
+.vs-big:hover:not(:disabled), .vs-sm:hover:not(:disabled), .vs-q:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--line-strong); }
+.vs-big.on, .vs-sm.on { background: var(--accent-soft); border-color: var(--accent); }
+.vs-big:disabled, .vs-sm:disabled { opacity: .4; }
+.vs-sel { height: 23px; border: 1px solid var(--line-strong); border-radius: 3px; background: var(--panel-2); font-size: 12px; padding: 0 3px; color: var(--fg); }
+.vs-swatch { }
+
+/* area di lavoro */
+.vs-main { display: grid; grid-template-columns: 212px minmax(0, 1fr) 250px; min-height: 0; }
+.vs-left, .vs-right { background: var(--panel); min-height: 0; overflow: auto; }
+.vs-left { border-right: 1px solid var(--line); display: flex; flex-direction: column; }
+.vs-right { border-left: 1px solid var(--line); }
+.vs-left[hidden], .vs-right[hidden] { display: none; }
+.vs-ptitle { font-size: 12px; font-weight: 600; padding: 8px 10px 6px; color: var(--fg); letter-spacing: .01em; }
+.vs-search { margin: 0 8px 6px; height: 26px; border: 1px solid var(--line-strong); border-radius: 3px; background: var(--panel-2); padding: 0 6px; font-size: 12px; color: var(--fg); }
+.vs-stencils { overflow: auto; flex: 1; padding-bottom: 8px; }
+.vs-sthead { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; border: 0; border-top: 1px solid var(--line); background: var(--panel-2); padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--fg); }
+.vs-sthead.open { color: var(--vs-accent); }
+.vs-starrow { width: 10px; font-size: 10px; color: var(--muted); }
+.vs-stgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; padding: 4px 6px; }
+.vs-stitem { display: flex; align-items: center; gap: 6px; padding: 3px 4px; border: 1px solid transparent; border-radius: 3px; font-size: 11.5px; color: var(--fg); min-width: 0; }
+.vs-stitem:hover { background: var(--accent-soft); border-color: var(--line-strong); }
+.vs-stico { flex: none; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; color: #41719c; }
+.vs-stico svg { max-width: 34px; max-height: 34px; }
+.vs-stname { overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
+.vs-ghost { position: fixed; z-index: 1000; pointer-events: none; opacity: .75; width: 34px; height: 34px; }
+
+.vs-canvas { position: relative; overflow: auto; background: var(--vs-paste); outline: none; min-width: 0; }
+.vs-stage { position: relative; }
+.vs-page { position: absolute; display: block; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .28); overflow: visible; }
+.vs-page text { user-select: none; }
+.vs-page .vs-editing text { visibility: hidden; }
+.vs-textedit { position: absolute; transform-origin: 0 0; box-sizing: border-box; border: 1px dashed var(--vs-sel); background: rgba(255, 255, 255, .92); color: #000; resize: none; outline: none; overflow: hidden; line-height: 1.2; white-space: pre-wrap; z-index: 5; }
+.vs-textedit[hidden] { display: none; }
+
+/* riquadri a destra */
+.vs-pane { border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.vs-empty { color: var(--muted); font-size: 12px; padding: 0 10px; margin: 4px 0; }
+.vs-sname { font-size: 11.5px; color: var(--muted); padding: 0 10px 6px; overflow-wrap: anywhere; }
+.vs-field { display: grid; grid-template-columns: 74px 1fr 26px; align-items: center; gap: 6px; padding: 2px 10px; font-size: 12px; color: var(--fg); }
+.vs-field small { color: var(--muted); }
+.vs-in { height: 24px; border: 1px solid var(--line-strong); border-radius: 3px; background: var(--panel-2); padding: 0 5px; font-size: 12px; color: var(--fg); min-width: 0; width: 100%; box-sizing: border-box; }
+.vs-data { display: grid; grid-template-columns: minmax(70px, 45%) 1fr; gap: 3px 6px; padding: 0 10px; align-items: center; }
+.vs-dl { font-size: 12px; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-add { margin: 6px 10px 0; }
+
+/* pagine e stato */
+.vs-pagebar { display: flex; align-items: stretch; height: 28px; background: var(--panel); border-top: 1px solid var(--line); min-width: 0; }
+.vs-pnav { display: flex; border-right: 1px solid var(--line); }
+.vs-pnav button { border: 0; background: none; width: 26px; font-size: 10px; color: var(--muted); }
+.vs-pnav button:hover { background: var(--accent-soft); color: var(--fg); }
+.vs-ptabs { display: flex; overflow-x: auto; min-width: 0; align-items: stretch; }
+.vs-ptab { border: 0; border-right: 1px solid var(--line); background: none; padding: 0 14px; font-size: 12px; white-space: nowrap; color: var(--fg); }
+.vs-ptab.on { background: var(--panel-2); color: var(--vs-accent); font-weight: 600; box-shadow: inset 0 -2px 0 var(--vs-accent); }
+.vs-ptab.bg { font-style: italic; }
+.vs-ptab:hover:not(.on) { background: var(--accent-soft); }
+.vs-padd { border: 0; background: none; width: 30px; font-size: 16px; color: var(--muted); }
+.vs-padd:hover { background: var(--accent-soft); color: var(--fg); }
+.vs-status { display: flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; background: var(--vs-accent); color: #fff; font-size: 11.5px; }
+.vs-status .grow { flex: 1; }
+.vs-st { white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+.vs-status input[type=range] { width: 120px; accent-color: #fff; }
+.vs-zb { border: 0; background: none; color: #fff; min-width: 20px; height: 20px; font-size: 14px; padding: 0 4px; display: inline-flex; align-items: center; justify-content: center; }
+.vs-zb svg { width: 15px; height: 15px; }
+.vs-zb:hover { background: rgba(255, 255, 255, .18); }
+.vs-zl { min-width: 40px; text-align: right; }
+
+/* menu e colori */
+.vs-pop { position: fixed; z-index: 1000; background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 4px; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); padding: 4px 0; max-height: 80vh; overflow: auto; }
+.vs-menu { display: flex; flex-direction: column; min-width: 220px; }
+.vs-mit { display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 6px; padding: 4px 12px 4px 6px; border: 0; background: none; font-size: 12.5px; text-align: left; color: var(--fg); }
+.vs-mit:hover:not(:disabled) { background: var(--accent-soft); }
+.vs-mit:disabled { opacity: .45; }
+.vs-mit.on .vs-mlab { font-weight: 600; }
+.vs-mico { display: flex; justify-content: center; }
+.vs-mico svg { width: 16px; height: 16px; }
+.vs-mlab { display: flex; align-items: center; gap: 8px; }
+.vs-mkey { color: var(--muted); font-size: 11px; }
+.vs-msw { width: 14px; height: 14px; border: 1px solid var(--line-strong); }
+.vs-mdash { display: inline-flex; }
+.vs-msep { height: 1px; background: var(--line); margin: 4px 0; }
+.vs-mtitle { font-size: 11px; font-weight: 700; color: var(--muted); padding: 6px 12px 3px; text-transform: none; }
+.vs-colors { padding: 2px 8px 6px; width: 228px; }
+.vs-csub { font-size: 11px; color: var(--muted); margin: 4px 0 3px; }
+.vs-cgrid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; }
+.vs-cbtn { width: 19px; height: 19px; border: 1px solid rgba(0, 0, 0, .25); padding: 0; border-radius: 2px; }
+.vs-cbtn.on, .vs-cbtn:hover { outline: 2px solid var(--vs-accent); outline-offset: 1px; }
+.vs-crow { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.vs-crow input[type=color] { width: 30px; height: 20px; padding: 0; border: 0; background: none; }
+
+/* Trova */
+.vs-find { position: absolute; right: 262px; top: 110px; z-index: 20; width: 330px; background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, .2); padding: 8px; display: grid; gap: 6px; }
+.vs-fhead { display: flex; align-items: center; font-size: 13px; }
+.vs-fhead .grow { flex: 1; }
+.vs-x { border: 0; background: none; font-size: 18px; color: var(--muted); width: 24px; }
+.vs-frow { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 12px; }
+.vs-frow label { display: inline-flex; align-items: center; gap: 4px; }
+.vs-frow .vs-in { flex: 1; }
+.vs-fres { max-height: 240px; overflow: auto; display: flex; flex-direction: column; }
+.vs-fcount { font-size: 11.5px; color: var(--muted); padding: 2px 0; }
+.vs-fhit { border: 0; background: none; text-align: left; padding: 4px 6px; font-size: 12px; border-radius: 3px; color: var(--fg); }
+.vs-fhit:hover, .vs-fhit.on { background: var(--accent-soft); }
+.vs-ltable { border-collapse: collapse; font-size: 12.5px; }
+.vs-ltable th, .vs-ltable td { border-bottom: 1px solid var(--line); padding: 4px 10px; text-align: left; }
+
+/* anteprima dei .vsd binari */
+.vs-prev { padding: 16px; display: grid; gap: 14px; justify-items: center; }
+.vs-prevnote { max-width: 900px; font-size: 13px; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; }
+.vs-prevpage img { max-width: min(1000px, 92vw); background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, .25); }
+.vs-prevtext { max-width: 900px; width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 16px 12px; font-size: 13px; user-select: text; }
+.vs-prevtext p { margin: 4px 0; white-space: pre-wrap; }
+
+@media (max-width: 760px) {
+  .vs-main { grid-template-columns: 0 minmax(0, 1fr) 0 !important; }
+  .vs-left, .vs-right { display: none; }
+  .vs-canvas { grid-column: 2; } /* senza i pannelli laterali il disegno finiva nella colonna larga 0 (schermo vuoto) */
+  .vs-find { right: 8px; left: 8px; width: auto; }
+}

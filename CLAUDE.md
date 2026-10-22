@@ -118,17 +118,12 @@ l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.m
   in un altro) e ridisegno dei tracciati estranei; immagini tolte con redazione solo in quel punto (`_take_image`,
   mai delete_image: cambierebbe l'immagine condivisa su tutte le pagine); `image_edit` (colori trasparenti multipli
   con tolleranza, opacita', rotazione, specchio, b/n); annotazioni `annot_add/update/delete`.
-  Interfaccia (1.3.2, ui/js/pdfeditor.js) - FATTO: barra unica sempre visibile (gruppi Annota / Modifica / Moduli /
-  Altro), pulsante acceso finche' si e' in modifica, opzioni nel pannello a destra; evidenzia, testo libero e penna
-  sono gli editor di pdf.js comandati con gli eventi switchannotationeditormode / switchannotationeditorparams
-  (i loro pulsanti sono nascosti con PDFJS_HIDE); un pulsante per tipo di campo (nome automatico, voci nel pannello,
-  strumento che resta attivo); Seleziona con selezione multipla e a riquadro, filtro, ingresso nei gruppi (doppio clic),
-  contagocce e anteprima a scacchi della trasparenza. Ogni modifica scrive un file NUOVO (mai sostituire quello
-  aperto da pdf.js). apply_ops lavora in `_apply_ops` + gc + nuovi tentativi: i campi di PyMuPDF tengono aperto il file.
-  `_page_draws` esclude dai disegni l'aspetto di campi e annotazioni (get_drawings li riporta).
-- Utente non vuole per ora Inventor/Creo (21/10/2026).
-- Migliorie rimandate dall'utente (21/10/2026): pulsanti "Modifica in AutoCAD/BricsCAD/Inventor"; funzioni Navisworks Manage
-  (interferenze, viste salvate, annotazioni, computo); motore ODA (a pagamento).
+  Interfaccia: rifatta il 22/10/2026, vedi sezione "Editor PDF in stile Acrobat Pro". Ogni modifica scrive un file NUOVO
+  (mai sostituire quello aperto da pdf.js). apply_ops lavora in `_apply_ops` + gc + nuovi tentativi: i campi di PyMuPDF
+  tengono aperto il file. `_page_draws` esclude dai disegni l'aspetto di campi e annotazioni (get_drawings li riporta).
+- Inventor: vedi sezione "Autodesk Inventor senza Inventor" (22/10/2026). Creo: nessun lettore realistico.
+- Migliorie rimandate dall'utente (21/10/2026): pulsanti "Modifica in AutoCAD/BricsCAD/Inventor"; motore ODA (a pagamento).
+  Funzioni Navisworks Manage: FATTE il 22/10/2026 (sezione "Funzioni di Navisworks Manage nel 3D").
 - Editor CAD professionale (21/10/2026) - FATTO. `ui/js/cadgeom.js` = geometria condivisa (matrici, impaginazione esatta dei
   testi usata sia per disegnare sia per selezionare, curve analitiche/intersezioni, osnap, retini, quote nuove).
   Causa del "riquadro fuori dall'oggetto": riquadri dei testi senza allineamento/rotazione/trasformazione del blocco; inoltre
@@ -181,12 +176,19 @@ privato (lo fa l'utente SOLO dopo che l'app per cellulari e' online su Cloudflar
 - App per cellulari: `ui/js/mlicenza.js` (solo nella build --mobile) + File -> Account tramite cookie.
 - `admin/`: MB Visual Admin (pywebview + pystray: area di notifica, notifiche di Windows ogni 20 s, avvio con Windows);
   eseguibile con `python admin/build_admin.py` -> `%USERPROFILE%\.mbvisual\dist\MB Visual Admin`.
-- ONLINE (21/10/2026): server https://mbvisual-licenze.lorenzograssi83.workers.dev (account Cloudflare dell'utente,
+- ONLINE: server https://mbvisual.mb-group.workers.dev (dal 22/10/2026: Worker "mbvisual", sottodominio dell'account "mb-group"; il vecchio
+  indirizzo con il nome dell'utente NON esiste piu' e non va mai rimesso: l'utente non vuole il suo nome negli indirizzi; account Cloudflare dell'utente,
   D1 "mbvisual-licenze" in EEUR, segreti SIGNING_KEY/ADMIN_TOKEN caricati, app per cellulari = stessa URL).
   wrangler NON gira con Node ARM64: usare Node x64 portatile in %USERPROFILE%\.mbvisual
 ode-x64 e wrangler installato in
   %USERPROFILE%\.mbvisual\server (PATH="$NODE:$PATH" "$NODE/npx.cmd" wrangler deploy|d1 ...). Ripubblicare: license_setup.py
   server, build_web.py --mobile, poi deploy dalla copia di lavoro.
+- App per cellulari (web app): si ricostruisce da una copia pulita `git worktree` in %USERPROFILE%\.mbvisual\wt-web
+  (checkout di origin/main + copia di ui/vendor), `build_web.py --mobile` -> server\public, poi `wrangler deploy`. VERSION del
+  service worker = data e ora della build (i telefoni prendono i file nuovi e la pagina si ricarica). Formati web in WEB_EXTS
+  (anche dwf, calendari, contatti, hpgl, vis3d, visio vsdx, mbpub, las/pts/xyz); restano fuori quelli che vogliono il motore
+  Python (DICOM, certificati, dati scientifici, iWork, Revit, skp, montaggio video, .vsd/.pub). `build_web.py` SENZA --mobile
+  scrive docs/ = rimando di GitHub Pages al server (sw.js cancella la vecchia copia nei telefoni).
 - Setup: `tools/build_setup.py` (Inno Setup 6 in %LOCALAPPDATA%\Programs\Inno Setup 6) -> MBVisual-Setup-<ver>.exe; release
   pubblicate con gh (account Lorenz0gr4ssi83) su https://github.com/Lorenz0gr4ssi83/MB-Visual-Rilasci (v1.4.2):
   `gh release create v<ver> <setup> --repo Lorenz0gr4ssi83/MB-Visual-Rilasci`. L'app senza OneDrive si aggiorna da li'.
@@ -194,6 +196,58 @@ ode-x64 e wrangler installato in
   `tools/license_setup.py chiavi` (scrive LICENSE_URL in license_pub.py) e fare una build SOLO quando l'utente ha creato le
   licenze per se' e i colleghi con MB Visual Admin. Poi rendere privato il repository MB-Visual (lo fa l'utente; prima
   spostare/spegnere la web app di GitHub Pages, sostituita dall'app per cellulari sul server).
+
+- QR della home per installare l'app sul cellulare (22/10/2026): `ui/js/mobileqr.js` (riquadro in basso a destra della home,
+  clic = QR grande; QR disegnato in locale con qrcode-generator 2.0.4 MIT in ui/vendor) + `license.mobile_link` (API
+  license/mobile, ogni 6 s mentre la home e' visibile). Server: POST /v1/mlink (link monouso 10 min, posti liberi, blocco),
+  GET /l/<link> (pagina del telefono), /v1/mlink/claim (attiva il cellulare: UPDATE condizionati -> un solo telefono per link e
+  blocco della licenza 1 min con `licenses.mobile_lock`, rilasciato se l'attivazione fallisce), /v1/mlink/pair (codice di 6 cifre
+  per l'app installata su iPhone, che non vede i cookie di Safari: prende lo stesso posto). Tabelle mobile_links e pair_codes
+  (migrazione `server/migrations/001_qr_cellulari.sql`; online `d1 execute --file` da' errore di autenticazione: usare --command).
+  Testi chiavi `mqr.*` (5 lingue). Le icone dei pulsanti hanno un contorno: sul QR va tolto (stroke: none) o copre i moduli.
+- App per telefono di MB Visual Admin (22/10/2026), solo per il proprietario: `server/src/adminapp.js` (+ `adminui.js` GENERATO da
+  `tools/build_admin_mobile.py` con `server/adminapp/index.html`, `sw.js` e le icone). Indirizzo segreto https://<server>/<ADMIN_PATH>/
+  (segreto del Worker; valore in chiavi.json `admin_path`, MAI in file del repo o pubblici). Accesso con il codice di gestione o con
+  un codice di 6 cifre (POST /admin/pair dall'Admin per PC: Impostazioni -> App per telefono, QR + codice, 10 minuti, una volta sola);
+  5 errori per IP = attesa 15 min. Sessione nel cookie `mbv_a` (HttpOnly, Path=/<ADMIN_PATH>/, nel database solo lo SHA-256).
+  Impronta/volto/PIN con WebAuthn (CBOR e verifica scritti a mano, ES256/RS256, UV obbligatorio, contatore): sblocco a ogni apertura e
+  dopo 10 min senza operazioni (423 = bloccata). Notifiche Web Push: ogni `event()` del Worker manda la notifica (VAPID ES256 +
+  aes128gcm RFC 8291 con WebCrypto, segreto VAPID_JWK; iscrizioni scadute 404/410 cancellate). iPhone: notifiche solo con l'app
+  installata sulla Home, e l'app installata non vede l'accesso fatto in Safari (serve un altro codice di 6 cifre).
+  Tabelle in `server/migrations/002_admin_telefono.sql`. Segreti: `tools/license_setup.py telefono` (crea e carica ADMIN_PATH/VAPID_JWK).
+  Collaudo: `node server/test/admin_mobile.mjs` (40 prove: autenticatore WebAuthn simulato e finto servizio push che verifica VAPID e
+  decifra); ambiente di prova condiviso in `server/test/shim.mjs`; `harness.mjs serve` apre l'app su /gestione-prova-locale-0000/.
+  Admin per PC: `admin/build_admin.py [--dist <cartella>]` (con l'Admin aperto i file sono bloccati: costruire altrove e sostituire dopo).
+- Notifiche a scelta e limiti modificabili (22/10/2026): `GET/POST /admin/settings` (tabella admin_settings, `{tipo: false}` = niente
+  notifica; stesse scelte per Windows nell'Admin per PC e per il push del telefono; gli avvisi restano comunque). Tipi: activation_pc,
+  activation_mobile, change, change_pending, report, expiring, expired, limit, invalid_key, revoked_use, admin_login. `update` di una
+  licenza: max_pc/max_mobile anche con dispositivi attivi; sotto i dispositivi attivi serve `free` (id da disattivare), altrimenti 409
+  `troppi_dispositivi` (le finestre chiedono quali disattivare). Scadenza da campo data = fino alle 23:59:59. Cron giornaliero (06:00 UTC,
+  wrangler.toml [triggers]) = avvisi "in scadenza" (15 giorni prima) e "scaduta", una volta sola (colonne warn_*; migrazione 003).
+
+## Archivi cloud (22/10/2026) - FATTO, collegamento reale da provare dopo la registrazione delle app
+Pannello "Cloud" accanto a Esplora (solo app per PC): SharePoint/OneDrive (Microsoft Graph), Google Drive, Dropbox,
+Autodesk Construction Cloud/BIM 360 (APS Data Management), senza sincronizzare le cartelle.
+- `mbvisual/cloud.py` (solo urllib): OAuth 2.0 + PKCE nel browser predefinito, ritorno su `http://localhost:47613/callback`
+  (porta fissa e configurabile: Dropbox e Autodesk vogliono l'indirizzo esatto; Google app desktop: `http://127.0.0.1:<porta>/`),
+  server di ritorno aperto solo durante l'accesso (senza SO_REUSEADDR). Token in `%LOCALAPPDATA%\MBVisual\cloud_token.bin`
+  cifrati con DPAPI (ctypes), rinnovo automatico, revoca/uscita. ID applicazione: `mbvisual/cloud_ids.py` (vuoti = servizio
+  nascosto) o `%LOCALAPPDATA%\MBVisual\cloud.json` scritto da Cloud -> Configura (segreto Google cifrato DPAPI).
+  Un solo ingresso API: `api_cloud` in server.py (`/api/cloud?op=stato|config|config_set|login|login_cancel|logout|list|search|
+  open|pending|aperti|upload|upload_copy|skip|check|refresh|save_new|info|guida`).
+- Apertura = download in `%TEMP%\MBVisual\cloud\<servizio>\<chiave>\<nome>` (+ `aperti.json`), poi il visualizzatore normale.
+  `ui/js/cloud.js` ogni 2,5 s chiede `pending` (file salvati e fermi da 1,5 s) e li carica con controllo di versione
+  (Graph If-Match cTag, Dropbox mode update rev, Google headRevisionId, Autodesk versione tip -> nuova versione); conflitto =
+  Salva come copia / Sovrascrivi / Apri la versione del cloud / Decidi dopo (`skip`). Ogni 60 s la scheda attiva aperta dal
+  cloud controlla la versione remota e, senza modifiche locali, la riscarica (la scheda si ricarica da checkExternalChange).
+  Documenti nativi Google: esportati in docx/xlsx/pptx, al salvataggio si propone un file nuovo. File -> "Salva nel cloud..."
+  (anche in un altro formato via api convert). app.js: solo import all'avvio e la voce di menu.
+- Guida per l'utente (registrazioni Entra, Google Cloud, Dropbox, APS + integrazione personalizzata ACC): `ui/guide/archivi-cloud.md`.
+- Testi tradotti: chiavi `cloud.*` (cloud.js, import `t as tr`: `t` e' la scheda attiva) e `srv_cloud.*` (cloud.py; la variabile
+  dei token si chiama `toks`, non `t`). La guida e' solo in italiano.
+- Collaudo SENZA account: `python tests/test_cloud.py` (finto fornitore OAuth + finte API Dropbox e Graph, 52 prove);
+  interfaccia: `python tests/cloud_demo.py` (stampa l'indirizzo; accesso simulato). Nel riquadro browser di Claude i cookie
+  `mbv` di 127.0.0.1/localhost vengono sovrascritti da altre sessioni: le API rispondono 403 dopo un po' (ricaricare con ?t=).
 
 ## Editor di pubblicazioni in stile Publisher (21/10/2026) - FATTO
 Formato proprio `.mbpub` (zip: document.json + immagini/ + anteprima.png), categoria `publisher` in formats.json (anche `.pub`,
@@ -229,6 +283,611 @@ Crea nuovo; nel lettore audio/video pulsante "Apri nel montaggio" (progetto temp
   comando restano in %TEMP%\MBVisual\video\ultima_esportazione.
 - Stabilizza = vidstab in due passate su una copia; Normalizza = volumedetect -> guadagno clip; loudnorm opzionale sul mix.
 - Prove dalla console: `MB.tabs[i].api._ve` (P, player, importPaths, placeMedia, addTransition, goto, sel...).
+
+## Firma digitale PAdES/CAdES (22/10/2026) - FATTO (prova con smart card vera: la fa l'utente)
+- `mbvisual/firma.py` (pyHanko 0.38, MIT): PAdES nei PDF (sottotipo ETSI.CAdES.detached; visibile con riquadro o invisibile;
+  campi Firma1, Firma2... con aggiornamento incrementale: le firme precedenti restano valide), CAdES .p7m / .p7s separata /
+  firma parallela su un .p7m (`_add_parallel` aggiunge il SignerInfo alla busta esistente) / busta annidata.
+  Marca temporale RFC 3161 (HTTPTimeStamper, URL/utente/password in %LOCALAPPDATA%\MBVisual\firma.json, password cifrata
+  con DPAPI). Dopo la firma verifica automatica con signed.py (+ apertura del PDF con PyMuPDF).
+- `mbvisual/winsign.py`: magazzino personale di Windows via ctypes (crypt32/ncrypt): CryptAcquireCertificatePrivateKey +
+  NCryptSignHash (RSA PKCS#1 v1.5, ECDSA) o CryptSignHash per i vecchi driver CryptoAPI; il PIN lo chiede Windows (finestra
+  agganciata a quella in primo piano), l'app non lo vede. Catena dagli intermedi presenti in Windows (senza rete).
+  `use_test_pfx` = SOLO collaudo: magazzino in memoria con chiave non salvata (stesso percorso NCrypt, nessun certificato
+  installato nel PC). Elenco: si nascondono i certificati solo di autenticazione; nell'interfaccia i non qualificati
+  (senza nonRepudiation, es. MS-Organization-Access) solo con "Mostra anche...".
+- API unica `api/firma?op=` (certificati, impostazioni, p12, anteprima, uscita; pades/cades = lavori in background).
+  Interfaccia `ui/js/firma.js` (anteprima della pagina da PyMuPDF, riquadro da trascinare); ingressi: pulsante Firma nel
+  PDF, "Aggiungi firma" nei .p7m, File -> Firma digitale... per qualsiasi file. Solo app per PC.
+- Collaudo: `python tests/test_firma.py [--tsa http://timestamp.digicert.com]` (21/21, 23/23 con marca): certificato
+  autofirmato di prova generato al momento. In un browser di prova con piu' server MB Visual aperti il cookie di
+  127.0.0.1 e' condiviso tra le porte: usare http://<nome>.localhost:<porta>/?t=... (nome a piacere: cookie separato) per non avere "non autorizzato".
+- Revisione 2 (22/10/2026), richiesta dell'utente "CIE, anche senza lettore tramite app" e firma remota:
+  * CIE con lettore: riconosciuta dall'emittente (Ministero dell'Interno) -> `cie: true`, mostrata come "CIE" (firma
+    elettronica avanzata, non qualificata), mai filtrata.
+  * Senza lettore: `mbvisual/firmaponte.py` = cartella di scambio (OneDrive, proposta da OneDriveCommercial/Consumer,
+    "MB Visual - Firma"): il documento si copia li', sul telefono si firma con CieSign (app ufficiale IPZS, NFC) o con
+    l'app del certificatore e si salva nella stessa cartella; `tel_stato` trova il file nuovo/modificato (fermo da 2 s),
+    lo verifica (firme valide + stesso documento: PDF originale come prefisso, o contenuto del p7m uguale) e `tel_salva`
+    lo copia accanto all'originale. CieSign NON ha API per altri programmi. Un ponte Wi-Fi con server sulla rete locale
+    e' stato scartato (bloccato dai permessi: niente server esposti sulla LAN).
+  * Firma remota: `mbvisual/csc.py` = client Cloud Signature Consortium v1/v2 (info, auth/login Basic, credentials/list|
+    info|sendOTP|authorize, signatures/signHash; SCAL 1/2; RSA/ECDSA) agganciato a pyHanko. Collaudato con
+    `tests/csc_mock.py` (servizio simulato su 127.0.0.1). Con Aruba/InfoCert/Namirial serve che il certificatore attivi
+    l'accesso API (indirizzo e credenziali): non verificato con un servizio reale.
+  * Testi in t() (chiavi firma.* e srv_firma.*, 5 lingue). server.py: risposta 403 chiude la connessione (la POST non
+    letta rompeva la richiesta successiva con 501).
+
+## Multilingua (22/10/2026) - REGOLA PER TUTTE LE SESSIONI
+**Ogni testo nuovo visibile all'utente passa da t() con la chiave in `ui/i18n/it.json` E in `ui/i18n/en.json`** (anche es/fr/de
+se possibile; chi manca ricade sull'inglese). Niente stringhe italiane scritte direttamente nell'interfaccia o nei messaggi del motore.
+- JS: `import { t } from "./i18n.js"` (nei file dove `t` e' gia' una variabile locale: `import { t as tr }` e si usa `tr(...)`).
+  `t("modulo.chiave", x, y)` con `{0}`, `{1}` nel testo; `t("k", { n })` con `{n}`; plurali `tn("k", n)` con chiavi `k.one`/`k.other`.
+  Numeri e date: `fmtNum`, `fmtDate`, `fmtDateTime`, `LOCALE` da i18n.js (mai "it-IT" fisso). HTML statico: `data-i18n`, `data-i18n-title`.
+- Python (mbvisual/): `from .i18n import t` e `t("srv_modulo.chiave", x)`: la lingua arriva dall'interfaccia (intestazione X-MBV-Lang).
+- Chiavi: `<modulo>.<descrizione>` (es. `imgedit.nuovo_livello`, viewer `v_pdf.*`, motore `srv_convert.*`); comuni in `common.*`
+  (Annulla = `common.annulla`, annulla azione = `common.annulla_op`, Salva, Chiudi, OK...). Nomi dei tasti: `keys.*` (Maiusc/Shift).
+- Strumenti: `python tools/i18n_scan.py <file>` elenca i testi italiani non ancora tradotti; `--plan`/`--apply` li convertono;
+  `python tools/i18n_check.py` controlla chiavi mancanti e segnaposto; `--merge file.json` unisce traduzioni
+  (`{"chiave": ["it", "en", "es", "fr", "de"]}`). Il registro formati si traduce con le chiavi `fmt.<id>.name/view/edit`.
+- Lingua: automatica da Windows (api/lang) o scelta in File > Impostazioni > Lingua (localStorage "mbv-lang", si applica ricaricando).
+- Insidie: in Python mai t() a livello di modulo (la lingua cambia per richiesta): nelle tabelle si mettono le chiavi e si traduce
+  all'uso (es. batch.py `_ops()`, convert.py `_label`, inventor.py NOMI). I testi usati come CHIAVI di dati (rapporti, valori
+  di stato, nomi di stili, dati in cache) restano fissi e si traducono solo nella visualizzazione (es. inventor3d.js `missLabel`).
+  Menu costruiti dai nomi delle chiavi (`Object.keys(MENUS)`): etichetta con t("modulo.menu_" + nome).
+- Conflitti nei rebase sui JSON: `python tools/i18n_check.py --resolve` unisce le due parti. I JSON si scrivono con "\n"
+  (in Python `write_bytes`, non `write_text` che su Windows mette CRLF e cambia tutto il file).
+- Verifica nel browser: `localStorage.setItem("mbv-lang","en")` + ricarica, poi cercare parole italiane nel DOM.
+
+## App per telefono: scansione documenti e realta' aumentata (22/10/2026) - FATTO
+Solo nella web app (window.MBV_WEB), tutto nel dispositivo, senza l'app per PC.
+- Scansione: `ui/js/scanner.js` + `ui/css/scanner.css`; voce "Scansiona documento..." nel menu Apri e pulsante nella home (testi: chiavi scanner.* e ar.* in ui/i18n)
+  (app.js `doScan`). Fotocamera (getUserMedia, posteriore) con bordi del foglio rilevati ~7 volte/s su copia a 480 px
+  (`detectQuad`: Canny + Otsu, quadrilatero convesso piu' grande), scatto automatico quando il foglio e' fermo (poi
+  aspetta che cambi), scatto manuale -> ritaglio con 4 angoli e lente, raddrizzamento (`warp`, rifilo 0,6%), filtri
+  (colore migliorato/grigi = divisione per lo sfondo stimato; B/N = soglia adattiva; originale), pagine con ordine
+  (frecce o tieni premuto e trascina), rotazione, eliminazione, importazione da galleria; PDF con pdf-lib (A4, Lettera
+  o come il foglio) e testo invisibile da OCR (Tesseract.js, lingua ita, render mode 3) -> Condividi / Salva / Apri in
+  MB Visual / Copia testo. Librerie in tools/build_web.py WEB_LIBS: OpenCV.js 4.10 (@techstark, Apache 2.0, 10 MB),
+  tesseract.js 6.0.1 + core 6.0.0 (Apache 2.0), ita.traineddata best_int (Apache 2.0). Caricate solo al primo uso.
+  ATTENZIONE: il modulo OpenCV e' "thenable" (then risolve con se stesso): mai `await cv` ne' restituirlo da una
+  funzione async senza `delete cv.then` (blocca la pagina per sempre). Prove: `window.MB_SCAN` (pages, importFiles);
+  foto di prova `tests/samples/scansione_foglio1/2.jpg`; fotocamera simulata sostituendo getUserMedia con
+  canvas.captureStream() (con riquadro del browser nascosto sostituire anche requestAnimationFrame).
+- Realta' aumentata: `ui/js/ar.js` + `ui/css/ar.css`, pulsante "Vedi in AR" in testa alla barra del visualizzatore 3D.
+  Finestra con unita' del file (mm per CAD/mesh, m per IFC/glTF/Navisworks) e scala (1:1 ... 1:1000, proposta
+  automatica se il modello supera 30 m). Android: WebXR immersive-ar + hit-test + dom-overlay (tocco = appoggia,
+  un dito ruota, due dita scala, Sposta, Ruota 90, 100%). Scene Viewer NON usabile: vuole un URL pubblico del modello.
+  iPhone: USDZExporter (quickLookCompatible, ancoraggio a piano orizzontale) + <a rel="ar"> con <img> dentro.
+  `prepareModel`: solo mesh visibili, niente copie di selezione (userData.proxy), MeshStandardMaterial, multi-materiale
+  diviso, istanze espanse, specchiature applicate ai vertici. Salva GLB/USDZ (condivisione) se l'AR non c'e'.
+  Tasto indietro: `window.MBV_BACK` (app.js goBack lo chiama per primo).
+- NON provati su telefono veri: fotocamera reale, sessione WebXR e Quick Look (vanno provati dall'utente).
+
+## Confronto tra revisioni (22/10/2026) - FATTO
+Avvio: File -> "Confronta con..." (file PDF/DWG/DXF/IFC aperto, si sceglie il secondo) oppure trascinando insieme due file
+dello stesso tipo (domanda "Confronta / Apri separatamente"). Visualizzatore `compare` (`ui/js/viewers/compare.js`, scheda
+con `compareWith`; vecchia = il file salvato prima, pulsante Inverti); moduli in `ui/js/compare/`, stile `ui/css/compare.css`.
+Salva / Salva con nome = report (pdf, xlsx, csv; `noConvert` in app.js). Tutto nel browser: funziona anche nella web app.
+Testi: chiavi `cmp.*`, `pdfcmp.*`, `cadcmp.*`, `ifccmp.*`, `v_compare.*`, `app.confront*` (it/en/es/fr/de complete).
+- `common.js`: differenze tra sequenze (Myers con limite, `diffHunks`), PDF minimo scritto a mano (JPEG + testo Helvetica
+  WinAnsi, ricercabile), tabelle del report, Excel con SheetJS (`ui/vendor/xlsx`), CSV con ";" e BOM, elenco virtuale.
+- `pdfcmp.js`: pdf.js diretto (`/vendor/pdfjs/build/pdf.mjs`, render con intent "print": con "display" pdf.js aspetta
+  requestAnimationFrame e si ferma a finestra nascosta). Sovrapposizione per pixel (grigio uguale, rosso solo vecchia, verde
+  solo nuova, tolleranza 0,6 pt), zone cambiate (celle unite) con riquadri; allineamento automatico (maschere di inchiostro,
+  ricerca grossolana + fine + piena risoluzione; scala se la larghezza pagina e' diversa) e manuale (trascina, frecce, X/Y mm,
+  %, "Tutte le pagine"); vista affiancata con scorrimento sincronizzato per pagina; differenze di testo su tutto il documento
+  (parole con posizione da getTextContent, pezzi attaccati riuniti). Le zone coperte per lo piu' da testo cambiato non si
+  ripetono nell'elenco. Pagine abbinate per numero.
+- `cadcmp.js`: `readDrawing`/`buildModel`/`ACI` esportati da cad2d.js. Abbinamento: firma (JSON canonico senza handle/owner,
+  numeri a 1e-6, contenuto dei blocchi; blocchi anonimi *D/*U per contenuto) -> handle -> stessa posizione/tipo/layer.
+  Modelli separati per uguali/eliminate/aggiunte/modificate (vecchia tratteggiata), riquadri di revisione, clic sul disegno.
+- `ifccmp.js`: web-ifc, confronto per GlobalId; proprieta' = attributi, Pset/Qto (anche del tipo), tipo, materiali,
+  contenitore; firma geometrica = triangoli + ingombro + baricentro al mm. Seconda revisione con la matrice di coordinamento
+  della prima (come i modelli federati). Dettaglio proprieta' vecchia/nuova nel pannello a destra.
+- Prove: `python tools/make_compare_samples.py` -> `tests/samples/confronto` (coppie PDF, DXF, IFC con modifiche note);
+  dalla console `MB.active.api._cmp._pc / _cc / _ic`. Nel riquadro del browser di Claude i cookie del token sono condivisi
+  con i server delle altre sessioni (403 a caso): per le prove aggiungere `t=<token>` alle fetch /api/.
+## Segnalazioni BIM BCF (22/10/2026) - FATTO
+Formato BCF (buildingSMART) 2.0/2.1/3.0, estensioni `.bcfzip`/`.bcf` (categoria `bcf` in formats.json, anche nella web app).
+- `ui/js/bcf.js` lettura/scrittura (modello unico per tutte le versioni, schema in testa al file; file non interpretati come
+  documents.xml/Documents/ e allegati delle segnalazioni conservati tali e quali). In scrittura: GUID minuscoli (3.0) e quelli
+  malformati sostituiti, colori in maiuscolo, FieldOfView 45-60 in 2.1 (limiti dello schema), ServerAssignedId solo in 3.0.
+  Valori standard in inglese nei file (Open, Clash, High...), nomi tradotti con le chiavi `bcf.status|type|priority.<valore>`
+  (`lbl`); testi del pannello/report/visualizzatore in `bcfpanel.*`, `bcfreport.*`, `v_bcf.*` (5 lingue).
+- `ui/js/bcfview.js` ponte con la scena 3D: coordinate BCF (metri, Z in alto) -> scena = C*N*mondo per IFC (C = matrice di
+  coordinamento di web-ifc, verificata con un IFC georeferenziato) e N*S(1/m)*mondo per gli altri modelli (m = metri per unita').
+  Elementi per GlobalId (`GetGuidFromExpressId`), elementi composti (facciate continue...) tramite IfcRelAggregates/IfcRelNests;
+  modelli non IFC: AuthoringToolId = posizione nell'albero ("0/3/1"). Visibilita' sugli elementi (non con Isola, che spegne le
+  mesh e non funziona con gli IFC uniti per colore); sezioni = piu' piani (`setClip` in model3d.js, voce "Sezione del punto di vista").
+  Camera ortogonale resa in prospettiva con la stessa altezza inquadrata.
+- `ui/js/bcfpanel.js` pannello (elenco con filtri, scheda, punti di vista, commenti, Salva 2.1/3.0, report) + `attach3d` per
+  il visualizzatore 3D (pulsante "Segnalazioni"; copia di recupero in IndexedDB per modello finche' non si salva in un BCF;
+  autore in localStorage `mbv-bcf-autore`). `ui/js/viewers/bcf.js` = BCF aperto da solo + "Sovrapponi al modello"
+  (modello aperto, IFC indicato nell'intestazione del BCF nella stessa cartella, o scelto). `ui/js/bcfreport.js` = report PDF
+  (scrittore PDF minimo interno, Helvetica WinAnsi + istantanee JPEG) ed Excel (SheetJS). Stili in `ui/css/bcf.css`.
+- In model3d.js solo aggiunte: `bcfHost`, pulsante, `api._bcf`, `setClip`/`clippedOut` (selezione che rispetta tutti i piani).
+- Collaudo: file di prova ufficiali del repository github.com/buildingSMART/BCF-XML (rami release_2_1 e release_3_0, cartelle
+  "Test Cases", con Architectural.ifc ed Estructura.ifc; NON copiati nel repo): 122 file letti, riscritti in 2.1 e 3.0 e
+  validati con gli XSD ufficiali (1138 documenti, 0 errori); punti di vista confrontati con le istantanee originali (camera,
+  sezione, facciata scomposta, muro nascosto); ciclo crea -> esporta -> reimporta senza perdite. Il riquadro del browser
+  integrato, se nascosto, congela la pagina: per le prove si e' usato Edge senza finestra pilotato via DevTools Protocol.
+
+## Visualizzatore GIS (22/10/2026) - FATTO
+`ui/js/viewers/gis.js` (mappa OpenLayers 10.2.1 BSD-2 in EPSG:3857), `ui/js/gisio.js` (lettori/scrittori), `ui/js/giscrs.js`
+(sistemi italiani: proj4 e WKT generati dagli stessi parametri), `ui/css/gis.css`, `mbvisual/gis.py` (API gis_tile).
+Librerie in fetch_vendor.py: ol (BSD-2), proj4 2.12.1 (MIT), geotiff 2.1.3 (MIT); jszip gia' presente. Shapefile/DBF: codice proprio.
+- Formati: .shp (con .dbf/.prj/.cpg accanto; senza .cpg: UTF-8 se valido, altrimenti Windows-1252), zip con shapefile,
+  GeoJSON (anche membro "crs") / TopoJSON, KML/KMZ (stili e icone interne), GPX, GeoPackage (via api sqlite_query + hex(geom)),
+  GeoTIFF (geotiff.js con richieste a intervalli; .tfw/.prj accanto). Categoria `gis` in formats.json: in app.js
+  `resolveCategory` le da' la precedenza, mentre TIFF e ZIP vanno alla mappa solo se `gisViewer` trova chiavi GeoTIFF / shapefile.
+- Sistemi senza .prj: ipotesi dall'estensione delle coordinate (WGS84, Gauss-Boaga Ovest/Est, UTM 32) segnata "ipotizzato".
+  RDN2008: 7791-7795 = E-N, 6707-6709/6875/6876 = N-E (stessa definizione; nei .prj si scrive il codice E-N). I .prj scritti non
+  hanno TOWGS84 (come GDAL: con TOWGS84 PROJ/QGIS non riconoscono il codice). Verifica con PROJ: UTM/RDN2008/ETRS89 identici;
+  Monte Mario con i 7 parametri nazionali (in Sicilia/Sardegna PROJ usa parametri regionali: 5-7 m di differenza).
+- Sfondo: OSM via proxy locale (User-Agent dell'app, cache %TEMP%\MBVisual\gis-tessere >= 7 giorni, solo tessere guardate,
+  attribuzione sempre visibile), ortofoto Esri/MapTiler solo con chiave dell'utente, XYZ/WMS personalizzati, "Nessuno sfondo".
+  Impostazioni in localStorage "mbv-gis-sfondo". NON incluse: ortofoto PCN (limiti d'uso), EOX Sentinel-2 (commerciale a pagamento).
+  OpenLayers: zIndex negativo = livello non disegnato (lo sfondo sta a 0, i livelli da 1).
+- Testi: chiavi v_gis.*, gisio.*, giscrs.*, srv_gis.*, fmt.gis.* in tutte e 5 le lingue (traduzioni unite con i18n_check --merge).
+- Salva con nome: GeoJSON/KML/KMZ/GPX (WGS84), shapefile zip (sistema a scelta; un file per tipo di geometria), PNG/JPG/PDF vista.
+- Campioni: `tests/samples/gis` da `tools/make_gis_samples.py` (Natural Earth pubblico dominio, Copernicus DEM GLO-90; fonti in FONTI.md;
+  serve un venv a parte con pyproj e pyshp, NON nell'app). Prove dalla console: `MB.active.api._gis` (map, layers, sel, addPaths, saveVector).
+- Prove nel riquadro browser: il cookie "mbv" e' per host e non per porta, quindi altre sessioni con un server di prova lo sovrascrivono
+  (403 "non autorizzato"): usare http://localhost:PORTA/?t=... oppure aggiungere ?t= alle richieste.
+## Nuvole di punti da rilievo (22/10/2026) - FATTO
+LAS, LAZ, E57, PTS, PTX (Leica), XYZ e PLY a soli punti (categoria `pointcloud` in formats.json, visualizzatore model3d;
+LAS resta anche tra i testi e PTX tra i RAW Pentax: decide `misc.sniff` dal contenuto, `LASF` / `ASTM-E57` / due interi in testa).
+- Motore `mbvisual/pointcloud.py` (laspy BSD-2 + lazrs MIT, pye57 MIT con libE57Format BSL-1.0 e Xerces Apache-2.0, numpy):
+  lettura a blocchi di 2 M punti (E57: pose delle scansioni, coordinate sferiche, punti non validi; PTX: matrice per scansione),
+  poi ottree con livelli di dettaglio stile Potree (codici di Morton 21 bit/asse con tabella, un punto per cella di una griglia
+  128^3 per nodo, nodi con <= 6000 punti presi interi) salvato in cache `%TEMP%\MBVisual\nuvole\<sha1 percorso|dimensione|data>`
+  (pos.f32 relativi a `offset`, rgb.u8, int.u16 normalizzata su `i_range` a percentili, cls.u8, meta.json con i nodi; max 20 GB,
+  si cancellano le meno recenti). API: `pc_open` (job), `pc_data?key&start&count` (binario di un nodo), `pc_export` (job, `clip` =
+  piani [nx,ny,nz,d] in coordinate del file). Tempi su questo PC: LAZ 19,5 M punti ~50-60 s la prima volta, poi immediato.
+- Interfaccia `ui/js/pointcloud.js` (classe Cloud): ogni fotogramma sceglie i nodi per priorita' (dimensione a schermo) entro il
+  budget (Dettaglio 1-20 M, predefinito 3 M), carica 4 nodi alla volta, scarica i meno usati oltre 1,5x il budget; colori
+  RGB/intensita'/quota (percentili del nodo radice)/classificazione ASPRS/unico con alfa = classi nascoste (alphaTest; righe per
+  classe nell'albero); raycast solo sui nodi visibili. In model3d: misura con aggancio al punto vero (marcatore anche al passaggio
+  del mouse) + in pianta e dislivello; clic = coordinate/attributi del punto; Salva con nome LAS/LAZ/E57/PLY/PTS/XYZ/TXT (tutti i
+  punti o solo la parte visibile della sezione). Web app: LAS non compresso/XYZ/PTS/PLY letti nel browser (max 5 M punti).
+- Testi tradotti: chiavi `pc.*` (interfaccia), `v_model3d.pc_*` / `v_model3d.distanza_*`, `srv_pointcloud.*` (motore), `fmt.pointcloud.*`.
+- Federazione: coordinate del file (Z in alto) -> scena con `info.coordMatrix` (stessa matrice dei modelli IFC); se la nuvola e'
+  il primo modello crea lei la traslazione comune. Verificato con un IFC di prova a coordinate UTM: angoli coincidenti nei due ordini.
+- File di prova pubblici (non nel repo): USGS 3DEP LiDAR (pubblico dominio) `USGS_LPC_ARRA_CA_GOLDENGATE_2010_000982.laz`
+  (9,4 M punti) e `USGS_LPC_NY_New_York_CMGP_SANDY_LiDAR_15_18TWL850045.laz` (19,5 M) da rockyweb.usgs.gov (ricerca con
+  tnmaccess.nationalmap.gov); E57/PTS/PTX di esempio di libE57 (e57-3d-imgfmt.sourceforge.net/data.html: bunny, pump, Station018).
+- Prove con il riquadro del browser nascosto: requestAnimationFrame e i timer sono fermi, quindi `MB.active.three`
+  (renderer, camera, controls, info.clouds) + `cloud.update(...)` e `renderer.render` a mano; il cookie `mbv` e' comune a tutti i
+  server locali (stesso host, porte diverse): con piu' sessioni aperte aggiungere `t=<token>` alle chiamate /api.
+
+
+## Stampa professionale (22/10/2026) - FATTO (prova sul plotter vero: la fa l'utente)
+File -> Stampa (Ctrl+P, anche il pulsante/Ctrl+P di pdf.js) e Stampa a lotti (Ctrl+Maiusc+P). Solo app per PC.
+- `mbvisual/stampa.py` (API print_*): sorgente -> PDF di stampa (una pagina per foglio, gia' alla dimensione della carta,
+  contenuto vettoriale con show_pdf_page) -> anteprima PNG con lo stesso stile -> stampante o PDF. Office/immagini/testo via
+  convert.py (cache in TEMP/stampa/pdf), p7m via signed.open_signed. CAD: ezdxf disegna sul foglio (Settings.scale =
+  mm per unita' x rapporto; estensioni/limiti/vista/finestra/layout, unita' da $INSUNITS, ColorPolicy per grigi/nero,
+  tabelle .ctb di AutoCAD con RenderContext(ctb=...), spessori ABSOLUTE). Layout: foglio dal LAYOUT, 1:1.
+- Stampanti: win32print.DeviceCapabilities (formati in decimi di mm, risoluzioni, copie, DC_MAXEXTENT = formati
+  personalizzati/rotoli); stampa GDI via ctypes: DEVMODE da DocumentPropertiesW (formato, DMPAPER_USER per rotoli,
+  orientamento, copie, colore), CreateDCW, ResetDCW tra pagine di formato diverso, bande rasterizzate con PyMuPDF alla
+  risoluzione del dispositivo (max 600 dpi fino ad A2, 300 oltre, o quella scelta) e StretchDIBits. "Proprieta'..." apre
+  la finestra del driver (DM_IN_PROMPT) e il DEVMODE scelto vale per quella stampa. "PDF vettoriale (MB Visual)" salva il
+  PDF di stampa (grigi/nero dei documenti non CAD: pagine rasterizzate a 300 dpi; i CAD restano vettoriali).
+- Formato automatico: stesso formato (tolleranza 1%), poi il piu' piccolo formato "da disegno" (ISO prima di ANSI/ARCH,
+  mai buste/cartoline), poi personalizzato se il driver lo consente, altrimenti il piu' grande ridotto (avviso).
+  Lotti: scala documenti "Dimensione reale" (A1 su A1), disegni "Automatica" (tavola 1:1 sul suo formato, disegno al
+  vero adattato al formato scelto) o "In scala 1:N"; area "Layout o estensioni".
+- `ui/js/print.js` + `ui/css/print.css`. Agganci: cad2d.js `printSource()` (modifiche + layer spenti -> cad_save in un
+  DXF temporaneo, vista, limiti, toWorld per "Finestra" con due clic), pdf.js `printSource()` (annotazioni non salvate)
+  e window.print dell'iframe; publisher con pubexport.exportPdfFile; model3d = immagine del canvas. DWG nei lotti: letti
+  con libredwg nell'interfaccia e passati come DXF (con ODA File Converter installato li converte il motore, layout compresi).
+- Collaudo su "Microsoft Print to PDF" (PDF misurati a 254 dpi): quadrato 100 mm -> 100,4 mm (contorno compreso),
+  pianta 10 m a 1:100 -> 100,5 mm, a 1:50 -> 200,6 mm, fogli A1/A4/A3 misti nello stesso lavoro con le misure esatte.
+  Prove dalla console: `document.querySelector(".pr-back").__pr` (S impostazioni, addList, comp).
+- Nota prove nel browser: piu' sessioni con il server su 127.0.0.1 si sovrascrivono il cookie "mbv" (porte diverse,
+  stesso host): nelle prove aggiungere `t=` alle richieste /api.
+- ezdxf tronca il foglio ai punti interi (297 mm -> 841 pt) e scala il disegno su quel valore: in compose la pagina di
+  ezdxf si posa con il fattore esatto (A0 a 1:10: 1000,003 mm invece di 999,4). Testi: chiavi `print.*` e `srv_stampa.*`.
+
+## Ricerca nel progetto (22/10/2026) - FATTO
+Pannello "Cerca nel progetto" (Ctrl+Maiusc+F o pulsante Cerca di Esplora; usa la cartella di Esplora) = `ui/js/search.js`
++ `ui/css/search.css`; motore `mbvisual/search.py` (API search/*), estrattori `mbvisual/search_extract.py`.
+- Indice SQLite FTS5 per cartella in %LOCALAPPDATA%\MBVisual\indice\<sha1>.sqlite (unicode61 senza accenti, prefix=3);
+  rowid dei blocchi = id file << 20 | n (cancellazione per intervallo). Se una cartella superiore ha gia' un indice si usa
+  quello con filtro sottocartella. Aggiornamento in thread: scansione (stat), rilettura solo dei file cambiati
+  (dimensione/data/VERSION), ricontrollo automatico ogni 120 s delle cartelle usate nell'ultima ora.
+- File solo online di OneDrive (attributi RECALL/OFFLINE): MAI letti; stato "nuvola" = solo nome e proprieta',
+  contenuto quando tornano locali. DWG: stato "dwg", testo letto nell'interfaccia (`ui/js/searchdwg.worker.js`, libredwg
+  in un worker nuovo per ogni disegno) e inviato con search/dwg_put.
+- Blocchi con posizione: loc {page|sheet|slide|line|attach|block} + pos {k: cell|handle|ifc, o: scostamenti, v: valori};
+  `_precise` sceglie la voce con piu' parole trovate. Etichette e avvisi nell'indice = chiavi `search_extract.L(...)`
+  (JSON ["srv_search.x", arg...]) tradotte alla ricerca da `search.tr_label`; i testi aggiunti al contenuto (Da:, Layer:...)
+  sono nella lingua attiva al momento dell'indicizzazione. Testi del pannello: chiavi search.* (5 lingue). Apertura al punto: PDF (pagina + ricerca pdf.js), Monaco (riga),
+  IFC (`selectExpressId` in model3d.js), DXF/DWG (zoom con `__cad` di cad2d); per ONLYOFFICE solo avviso con il punto.
+- Estrattori: PDF (testo e OCR gia' presente, note, metadati; avvisa se scansione senza testo), docx/xlsx/pptx e
+  OpenDocument via XML, doc/xls/ppt binari via olefile (testo approssimato), RTF, testo/codice/HTML, eml/msg/mbox con
+  allegati (anche il loro contenuto), DXF (parser dei codici di gruppo), IFC (STEP: nomi, Pset/Qto, materiali, piano,
+  classificazioni), STEP (PRODUCT), p7m (contenuto firmato), zip/7z (elenco), immagini (EXIF/XMP/PNG text).
+- Collaudo: `python tests/make_search_samples.py <cartella> --copie 3000` poi `python tests/test_search.py <cartella> --nuovo`
+  (47/47). NOTA: nel venv e' installato pymupdf_layout (con pymupdf4llm): `import pymupdf` carica modelli ONNX (11-18 s).
+
+## SketchUp .skp senza SketchUp (22/10/2026) - FATTO
+SDK ufficiale Trimble (SketchUp C API) NON usato: si ottiene solo su richiesta con account Trimble e accettazione dei
+termini API (download dietro login), quindi non scaricabile/collaudabile qui. Al suo posto OpenSKP 1.3.0 (MIT, lettore
+reverse-engineered, non affiliato a Trimble) + fflate (MIT), earcut (ISC), flatbuffers (Apache-2.0): `tools/fetch_vendor.py`
+li mette in ui/vendor/{openskp,fflate,earcut,flatbuffers}, riscrive gli import in percorsi relativi (il Worker non vede
+l'import map) e aggiunge due esportazioni (`_parseToRaw`, `_buildInstancedSceneFromParsed`: il file si legge una volta sola).
+- `ui/js/skpworker.js` (Worker modulo): scena a istanze (geometria per definizione + matrici), spigoli visibili per
+  definizione (non nascosti/morbidi/levigati), texture associate al materiale SketchUp, tag, scene. Coordinate: pollici
+  Z-alto -> metri Y-alto = (x, z, -y) * 0.0254. Facce senza materiale: bianco SketchUp (OpenSKP userebbe il colore del tag).
+- `ui/js/sketchup.js` (`loadSkp`, chiamato da model3d.js `loadAny`): gruppi/componenti come Group con userData (Tipo,
+  Definizione, Tag, GUID, attributi dinamici e dizionari), mesh e spigoli con `pickParent` (il clic seleziona il gruppo;
+  export3d.js fa un elemento per gruppo), voce "Tag" nell'albero, scene come viste nel menu "Vista..." (`loaded.views`).
+  Insidie risolte: la texture glTF di OpenSKP e' moltiplicata per il colore medio (qui: bianco, o "colorizzata" ricalcolata),
+  l'opacita' include l'alfa del colore (qui: transparency del materiale), fronte/retro diversi = due facce a lato singolo
+  (rispettare `doubleSided`), UV con origine in basso (createImageBitmap flipY), depth buffer logaritmico = polygonOffset
+  inutile (gli spigoli si avvicinano alla camera nello shader).
+- Collaudo (campioni pubblici in %TEMP%\skp-campioni, confrontati con la miniatura salvata nel file): 22 file su 26 aperti,
+  SketchUp 8, 14-18, 20-23, 25, 26. Non si aprono: alcuni file "legacy" 2013-2020 (errore del lettore, messaggio chiaro con
+  consiglio di risalvare da SketchUp 2021+) e file molto grandi (67 MB SketchUp 2023: memoria esaurita). Scene implementate
+  ma NON verificate (nessun campione ne aveva); testi, quote e linee di costruzione non disegnati; componenti "sempre rivolti
+  alla camera" restano fermi. Web app: .skp non abilitato (WEB_EXTS/WEB_LIBS di build_web.py).
+- Prove nel browser con altre sessioni attive: il cookie `mbv` e' per host (non per porta) e le altre app su 127.0.0.1 lo
+  sovrascrivono -> usare http://localhost:<porta>/?t=<token> e rifare `fetch("/?t=" + token)` prima di aprire.
+## Diagrammi di Visio (22/10/2026) - FATTO
+Categoria `visio` in formats.json (vsdx, vsdm, vstx, vstm, vsd; tolti vsd/vsdx/vsdm da office-lo), voce "Diagramma" in Crea nuovo
+(pacchetto vuoto generato da `vsdmodel.blankVsdx`, A4 in mm). Scritto da zero sulla specifica pubblica [MS-VSDX].
+- `ui/js/vsdmodel.js` pacchetto (JSZip + DOM XML delle parti: si modificano i DOM e si riscrivono solo le parti cambiate, tutto
+  il resto resta com'e' -> il file si riapre in Visio), ereditarieta' delle celle forma -> forma del master -> stili (LineStyle/
+  FillStyle/TextStyle) -> tema, sezioni unite riga per riga (Del="1"), valutatore delle formule (ad albero: unita', MIN/MAX/IF...,
+  Geometry1.X2, User.x, Controls.Row_1.Y, Sheet.N!Cella, ThePage!). Regola di scrittura: la formula di una cella cambiata resta
+  solo se, rivalutata con i valori nuovi, da' lo stesso valore (F="Inh" se ereditata), altrimenti diventa costante.
+  Colori "Themed": senza tema nel file = bianco/nero (come Visio); con tema = QuickStyle*Color (0-7 dk1/lt1/accent, 100 e
+  200-206 = colori della variante VariationColorIndex della pagina). Forme con Del="1" (ID 4294967295) si ignorano.
+- `ui/js/vsdrender.js` disegno unico (operazioni in punti, stesso formato del PDF delle pubblicazioni): geometrie (anche
+  ArcTo con freccia positiva a destra della corda, EllipticalArcTo, NURBS, PolylineTo, Rel*), Rounding, frecce, retini/
+  gradienti, ombre, testo con a capo/allineamenti/margini, immagini (EMF/WMF -> PNG con Pillow, API visio_metafile), livelli,
+  pagine di sfondo, scala del disegno. `ui/js/vsdops.js` modifiche (sposta, ridimensiona con ricalcolo delle formule, ruota,
+  capovolgi, connettori dinamici con Connect + _WALKGLUE/_XFTRIGGER e percorso ad angoli retti, gruppi, ordine, incolla con ID e
+  Sheet.N! rinumerati, formato, dati forma, livelli, pagine). `ui/js/vsdedit.js` interfaccia in stile Visio (schede Home/Inserisci/
+  Progettazione/Visualizza, pannello Forme con stencil di `vsdshapes.js` e "Forme del documento", linguette pagine, Dati forma,
+  Dimensioni e posizione, Trova/Sostituisci, tasti di Visio in keymap). `ui/css/visio.css`, icone `vsdicons.js` (+ pubicons).
+- Salva con nome: vsdx/vsdm/vstx/vstm (tipo del pacchetto cambiato su una copia; senza "m" si toglie il progetto VBA), PDF
+  vettoriale (riusa `publisher.export_pdf`, API visio_pdf), SVG e PNG una per pagina.
+- `.vsd` binari (`mbvisual/visio.py`, API visio_vsd): con Visio installato conversione COM in .vsdx (non provata: Visio non c'e'
+  su questo PC); con LibreOffice pagine come immagini; altrimenti anteprima del file e testi delle pagine (flussi LZSS
+  decompressi, blocchi 0x0E) per la versione 11+.
+- Testi in 5 lingue: chiavi vsdedit.*, vsdshapes.*, vsdops.*, vsdmodel.*, v_visio.*, srv_visio.*, fmt.visio.* (plurali con tn).
+- Prove: file pubblici in `tests/samples/visio` (fonti in FONTI.md), `tests/check_vsdx.py` controlla la struttura del file
+  salvato. Confronto visivo utile: `docProps/thumbnail.emf` dentro ogni vsdx e' l'anteprima disegnata da Visio.
+  Dalla console: `MB.tabs[i].api._vs` (doc, page, model, sel, run, exportPdf...). Se il server di prova risponde "non
+  autorizzato", il cookie e' stato sovrascritto da un altro server su 127.0.0.1: aggiungere ?t=token alle richieste.
+
+## Conversione a lotti (22/10/2026) - FATTO
+File -> "Conversione a lotti..." e clic destro nel pannello Esplora (cartella o file). `mbvisual/batch.py` (API unica
+`api/batch?op=scan|start|status|cancel|list|take|client`) + `ui/js/batch.js` (finestra, avanzamento, riquadro ridotto) +
+`ui/css/batch.css`. Coda sequenziale nel motore (un lotto alla volta, gli altri aspettano), annullabile (FFmpeg fermato subito,
+gli altri dopo il file in corso), rapporto CSV (riusciti / saltati / falliti con il motivo leggibile, `_reason`), uscita accanto
+agli originali o in una cartella con la struttura replicata; mai sopra l'originale; esistente = numero / sostituisci / salta.
+- Operazioni: PDF, altro formato (convert.py), immagini (ridimensiona/converti/comprimi con Pillow), unisci in un PDF
+  (segnalibri per file, gli altri documenti convertiti prima), comprimi PDF, OCR, video MP4 (H.264 CRF + altezza max).
+- Office: un'istanza di Word/Excel/PowerPoint per tutto il lotto (`_office_convert`; avviarli a ogni file costava 30-100 s e un
+  riavvio a ridosso del precedente faceva fallire il file successivo); password finta per non bloccare la coda sui file protetti.
+- DWG/DXF -> PDF/SVG/PNG con ezdxf (`cad_render`): modello e/o fogli (pagina per foglio, segnalibri), formato carta, scala 1:N
+  esatta (Settings.scale = mm per unita' / N), colori/b-n. DXF letti da ezdxf; DWG: con ODA File Converter -> DXF, senza ODA la
+  PAGINA decodifica il DWG con libredwg (`decodeDwg` esportata da cad2d.js) e manda il database: `doc_from_db` ricostruisce
+  modello (cadedit._from_db/_create) e fogli con le finestre (la prima VIEWPORT di ogni foglio e' il foglio stesso: saltata).
+- 3D/BIM -> GLB/STEP/IFC/STL/OBJ...: la pagina monta `viewers/model3d.js` in un contenitore fuori schermo (.bt-hidden) e usa il
+  suo save(). Compiti della pagina: il motore li pubblica in `status.task`, la pagina fa `take` e risponde con `client`; se la
+  pagina non interroga per 45 s (o 30 min dopo aver preso il compito) il file fallisce con un motivo chiaro.
+- Prove: cartella mista in scratchpad (Office, email .msg/.eml, PDF reali, PDF rotto, immagini, video, DWG reali, IFC, STEP, STL).
+  libredwg-web NON legge i DXF: i fogli DWG si provano con un database sintetico (struttura di libredwg) -> doc_from_db.
+- Prove nel browser con piu' sessioni: il cookie `mbv` e' per host (non per porta), le app di prova delle altre sessioni lo
+  sovrascrivono -> aprire l'app con un nome unico, es. http://mbvlotti.localhost:PORTA/?t=TOKEN.
+
+## Integrazione con Esplora risorse (22/10/2026)
+Miniature, riquadro di anteprima, "Apri con", icone dei tipi e "Apri con MB Visual" nel tasto destro, SOLO per l'utente (HKCU).
+- `tools/mbvshell/` DLL COM in C++ (MSVC, `build.cmd` -> `bin/shell/mbvshell-arm64.dll` e `-x64.dll`, si caricano quella
+  dell'architettura del PC: Esplora su ARM64 vuole ARM64). IThumbnailProvider (IInitializeWithStream, processo isolato) e
+  IPreviewHandler (prevhost, DisableLowILProcessIsolation=1, pulsante "Apri in MB Visual"). Prima le immagini incorporate
+  (anteprima DWG all'offset 0x0D, proprieta' Thumbnail e flussi "Preview" dei file OLE, PNG degli SketchUp), poi
+  `MBVisual.exe --miniatura <file> <png> <lato>` con cache in %LOCALAPPDATA%\MBVisual\miniature\cache (le miniature
+  ricevono un flusso: la DLL ne fa una copia in miniature\sorgenti). Prova senza registro: `obj-arm64\prova.exe <dll> <file>
+  <png>` con MBVSHELL_Comando nell'ambiente (ogni valore di HKCU\Software\MB Visual\Integrazione si puo' dare cosi').
+- `mbvisual/miniature.py`: il primo processo diventa "servizio" (finestra WebView2 fuori schermo, porta/token in
+  miniature\servizio.json, si chiude dopo 90 s senza richieste), gli altri gli passano le richieste. `ui/js/thumbmode.js`
+  apre il file col visualizzatore normale: 3D = disegno dedicato su sfondo trasparente (tab.three), 2D = canvas ritagliato
+  sul contenuto. NON avviare la finestra con SW_HIDE (WebView2 nascosto carica in 75 s invece di 3) e non toccare
+  window.native da altri thread (blocca tutto): la finestra si toglie dalla barra con Win32 (WS_EX_TOOLWINDOW).
+  Tempi su questo PC: avvio a freddo ~3-8 s, poi DXF/DWG/STEP/IFC 2-15 s; DWG con anteprima incorporata 0,1-1 s.
+- `mbvisual/shellint.py`: ProgID MBVisual.<ext> per tutte le estensioni di formats.json (tranne programmi/collegamenti),
+  icone generate con Pillow in %LOCALAPPDATA%\MBVisual\icone, OpenWithProgids, Capabilities + RegisteredApplications,
+  gestori sotto SystemFileAssociations (se AutoCAD & co. hanno un gestore loro, resta il loro: elencati in AltriGestori),
+  predefinito solo per le estensioni SENZA programma (opzione "libere"). DLL copiata in %LOCALAPPDATA%\MBVisual\shell con
+  nome per versione (Esplora la tiene aperta). `--integrazione attiva|rimuovi|stato`; all'avvio dell'app
+  `refresh_if_needed` riscrive se cambiano exe o versione. Interfaccia: File > Integrazione con Windows (`ui/js/shellint.js`),
+  casella in "Installa su questo PC" (update.install integrazione=True), attivita' "integrazione" dell'installer Inno Setup
+  (disinstallazione = rimuovi).
+- DA PROVARE con l'utente: registrazione reale su questo PC (la scrittura nel registro era bloccata dai permessi della sessione),
+  miniature in Esplora, riquadro di anteprima, PC x64. Windows 11: la voce del tasto destro sta in "Mostra altre opzioni"
+  (il menu nuovo richiede un pacchetto MSIX firmato).
+
+## JT, U3D e modelli 3D dei PDF (22/10/2026) - FATTO (PRC no)
+Categoria `vis3d` in formats.json (jt, u3d) -> visualizzatore 3D. Lettori propri in JS, eseguiti in un Web Worker
+(`ui/js/neutral3dworker.js`); `ui/js/neutral3d.js` costruisce la scena (albero, colori per mesh `mc`, matrici, proprieta' in
+userData) e salva la conversione in cache nel motore (`mbvisual/model3dcache.py`, API `model_cache`, %TEMP%\MBVisual\modelli3d,
+chiave = percorso+dimensione+data+`CACHE_VER`: alzare CACHE_VER quando cambia l'uscita di un lettore). model3d.js: `NEUTRAL`.
+- JT (`ui/js/jt.js` + `ui/js/jtcodec.js`), scritto sulla specifica pubblica JT File Format Reference v8.1/v9.5/v10.5 (PDF in
+  github.com/Arsanias/Delphi-JT-Loader/docs). LSG (partizioni anche in file esterni, istanze, parti, LOD = primo figlio,
+  switch), materiali, trasformazioni (F32 o F64: si capisce dalla lunghezza dell'elemento), Property Table + metadati
+  (Property Proxy). Mesh: JT 8 strisce (Int32CDP: bitlength, Huffman con heap come l'implementazione di riferimento -
+  i pareggi decidono l'albero -, aritmetico; vertici con/senza perdita), JT 9/10 compressione topologica (Appendice E,
+  `decodeDualMesh`). JT 10: segmenti XZ/LZMA2 (decodificatore proprio), versioni U8, Bitlength con "nibble" da 4 bit,
+  coordinate senza perdita = bit IEEE con Lag1, intestazione di elemento incorporata prima dei dati topologici.
+  Non letti (avviso): B-rep XT/JT, PMI, ULP/LWPA, Polyline/Point/Primitive set, texture.
+- U3D (`ui/js/u3d.js`): ECMA-363 4a ed. (lettore di bit dall'implementazione informativa dell'Annex A), catene, nodi
+  gruppo/modello, shading -> lit texture shader -> materiale, mesh CLOD di BASE. Mancano: aggiornamenti progressivi
+  (blocchi 0xFFFFFF3C: avviso "risoluzione di base"; i file con risoluzione minima 0 restano vuoti), linee, punti, texture.
+- PDF 3D: `mbvisual/pdf3d.py` (API `pdf3d`) estrae i flussi U3D/PRC (annotazioni /3D, 3DRef, RichMedia, allegati) in
+  %TEMP%\MBVisual\pdf3d; `ui/js/pdf3d.js` aggiunge "Modello 3D" nel visualizzatore PDF (solo app per PC).
+  PRC: elencati ma NON letti (nessuna specifica gratuita; ISO 14739 a pagamento). Strada possibile: interprete dello
+  schema MIT `prc.json` di github.com/ralovich/prc-rs (+ riferimento MIT CalyPdf/Caly.Rendering.Scene3D); NON usare nanoPRC (AGPL).
+- `.prc` resta anche "codice" (procedure PL/SQL). Riconoscimento dal contenuto in misc.sniff: "U3D\0", "Version N.N JT".
+- Collaudo (file pubblici NON nel repo): JT da github.com/Arsanias/Delphi-JT-Loader/Examples (MIT) e bitbybit3d/dxjt_toolkit
+  /samples: 15 file 8.0-10.3 tutti aperti, stesso modello in 8/9.5/10 = stesso ingombro; U3D da github.com/ralovich/u3d-db
+  (21 file); PDF: media9.pdf da CTAN (2 U3D + 1 PRC). Visto nell'app: motore radiale, CoffeeMaker, dado di media9.
+
+## SolidWorks, Solid Edge e Parasolid senza i programmi originali (22/10/2026) - FATTO
+Categoria `solidcad` in formats.json (sldprt/sldasm/slddrw/prtdot/asmdot/drwdot, par/psm/asm/dft/pwd, x_t/x_b/xmt_*/p_t/p_b);
+`.asm`/`.psm` condivise con testo/audio: vince solidcad se il contenuto e' OLE (SNIFF_FAMILY.ole in app.js).
+Visualizzatore `ui/js/viewers/solidcad.js` (pannello anteprima/proprieta'/configurazioni/componenti + resoconto; il 3D e'
+`model3d.js` montato su uno STEP convertito; Salva con nome STEP = copia dello STEP esatto). API `solid_info`, `solid_step` (job).
+Tutto scritto da zero, niente codice di terzi:
+- `mbvisual/parasolid.py`: lettore XT testo e binario neutro dalla specifica pubblica "Parasolid XT Format Reference" (2006).
+  Schema di base SCH_13006 scritto a mano dalla specifica; gli schemi incorporati (V14+) si applicano come modifiche (C/D/I/A/Z).
+  Campi utente dopo OGNI nodo. Vecchi (verificati): fino alla V11 fin senza attributi e ATTRIB_DEF senza field_names con
+  13 proprietari; V9 anche corpo senza nom_geom_state. Limite: x_t salvati "per una versione precedente" SENZA schema
+  incorporato (es. SCH_2400000_20000) non si leggono (servirebbe il file di schema di Parasolid).
+- `mbvisual/xt2step.py`: B-rep -> STEP AP214 in mm. Esatti: piano, cilindro, cono (asse STEP opposto: verso u invertito ->
+  flip), sfera, toro (DEGENERATE_TOROIDAL se R<=r), B-spline/NURBS (poli: v piu' veloce, verificato), offset, estrusa,
+  rivoluzione, rette/cerchi/ellissi. Approssimati: intersezioni (polilinea dalla chart), SP-curve e spigoli tolleranti
+  (campionati), raccordi a palla 'R' ed 'E' (NURBS dai punti di contatto, parametrizzati come Parasolid cosi' SP-curve e
+  proiezioni sui raccordi funzionano). same_sense = senso faccia == senso superficie (xor flip). Assiemi XT annidati
+  con NAUO + ITEM_DEFINED_TRANSFORMATION. Resoconto con codici (faces, faces_ok, skip:<codice>...) tradotti nell'interfaccia.
+- `mbvisual/solidcad.py`: contenitori. SW <=2014 e Solid Edge = OLE (olefile); SW 2015+ = sezioni `14 00 06 00 08 00`,
+  nome a semibyte scambiati, deflate grezzo (si tiene l'ultima copia valida). Flussi SW compressi a pezzi:
+  [GUID 231dd571...][u32 esteso][u32 compresso][zlib]... (`sw_records`, `_unzlb`). Geometria SW: Contents/Config-N-Partition
+  (partizione neutra binaria); se e' vuota i corpi stanno in Config-N-FeatureBodies/LocalBodies. Solid Edge:
+  PARASOLID/STREAM0.X_B (o .P_B; SKETCH.P_B = schizzi, ignorato). Assiemi SW: swXmlContents/COMPINSTANCETREE (file, modelli,
+  riferimenti con swTransform: 16 numeri a vettore riga, metri) + file delle parti cercati in cartella/sottocartelle/percorso
+  salvato. Proprieta' OLE con `mbvisual/olepropset.py` (anche sezione personalizzata e set Solid Edge), SW 2015+ da docProps/*.xml;
+  anteprima PreviewPNG / Preview (DIB) / "Large DIB" di Solid Edge. Cache in TEMP_DIR/solidcad (VERSION nel modulo).
+- Collaudo: `python tools/fetch_solidcad_samples.py` (file pubblici GitHub, fonti nel file) poi `python tests/test_solidcad.py --occt`.
+  Risultato 22/10/2026: 171 file, 145 con geometria, 143 convertiti (2 x_t senza schema incorporato), 14.027/14.027 facce;
+  OpenCascade legge 143/143 STEP, 139 facce su 15.532 (0,9%) restano senza triangoli. Estrusioni con sezione B-spline
+  scritte come B-spline limitate: la SURFACE_OF_LINEAR_EXTRUSION infinita bloccava la triangolazione dell'intero solido;
+  assieme SW 1690-20-8300 composto dalle matrici: 40/40 componenti coincidono entro 0,5 mm con l'x_t ufficiale.
+- DA FARE: assiemi Solid Edge (ora solo elenco componenti; posizioni non decodificate: Attachments / Preview/Structure/IOT;
+  mesh di visualizzazione in Preview/Display/Scene0/Geometries), mesh di visualizzazione SW (DisplayLists) come ripiego,
+  sotto-assiemi SW non descritti nell'albero del padre, x_t senza schema incorporato, parti SE vecchie con solo schizzi.
+
+## Autodesk Inventor senza Inventor (22/10/2026) - FATTO
+Lettore scritto da zero (nessun codice GPL: InventorLoader NON usato; librerie: olefile BSD, OpenCascade/occt-import-js LGPL
+gia' presente). Categorie `inventor` (ipt, iam -> model3d) e `inventor-doc` (idw, ipn -> `ui/js/viewers/inventor.js`). Solo app per PC.
+- `mbvisual/inventor.py`: file OLE. iProperties dagli insiemi MS-OLEPS (parser proprio: olefile legge male le stringhe
+  UTF-16; nomi italiani in `NOMI`, 58/59/60/61 = massa g / area cm2 / volume cm3 / densita'), anteprima = proprieta' 17 di
+  "Inventor Summary Information" (PNG, o DIB). RSeStorage: flusso M<x> = meta col nome del tipo di segmento (UTF-16 con
+  lunghezza), B<x> = dati zlib dopo 18 byte. Il solido sta nel segmento `PmBRepSegment` come "ASM BinaryFile4" non compresso.
+  Colore: nome dell'aspetto da `_Private Model Information` prop 16 (StyleName), definizione nel segmento PmApp/AmApp
+  (nome, descrizione, "1:nome", id libreria, GUID testuale, poi RGBA float ambiente/diffuso...).
+- Assiemi: `UFRxDoc` = elenco file (percorso UTF-16 con lunghezza, poi GUID documento) + blocchi per occorrenza
+  (`01 03 01 00 00 00 03` + GUID del documento, `01 05 ... 05` + nome). Con piu' stati del modello l'elenco e' ripetuto per
+  intero: si tiene il primo periodo. Posizioni: segmento `AmRx*`, una matrice 4x4 per occorrenza nello STESSO ordine,
+  compatta: uint32 di indicatori (bit k = elemento k vale 1, con bit k+16 = -1; solo bit k+16 = 0), poi i double rimanenti
+  (righe, cm). Si riconoscono dall'ultima riga 0 0 0 1 (indicatori & 0x70008000) + rotazione ortonormale (`find_transforms`).
+  File copiati con "Salva con nome" hanno lo STESSO GUID: abbinamento GUID unico -> GUID+nome file -> nome visualizzato
+  (scritto in UFRxDoc tra percorso e GUID) -> nome. Ricerca dei file: percorso originale, stessa struttura relativa,
+  cartella e sottocartelle, 3 livelli sopra (`_Finder`).
+- `mbvisual/acis.py`: lettore SAB (valori con byte di tipo; record chiusi da 0x11; i sottotipi `{ }` sono numerati in
+  ordine di scrittura, i `{ ref n }` NON contano). Punti di controllo delle B-spline: u varia piu' in fretta.
+  Estremi dei nodi ACIS con molteplicita' = grado (STEP = grado+1, `_bspline_knots`).
+- `mbvisual/acis_step.py`: STEP AP214 (mm; unita' ACIS dall'intestazione, Inventor = cm). Piani, coni/cilindri (normale
+  verso l'esterno se cos>0; coni ellittici come cono circolare), sfere/tori (raggio negativo = normale invertita),
+  B-spline esatte o approssimazioni delle procedurali (prima B-spline al livello del blocco), estrusioni/rivoluzioni
+  ricostruite, eliche: `helix_int_cur`, `helix_spl_line` (segmento L = componenti su raggio, raggio ruotato, asse),
+  `helix_spl_circ` (tubo di raccordo; verso invertito se il valore dopo gli intervalli e' pi) come B-spline di Hermite;
+  formula elica C + (1+k t/2pi)(M cos t + N sin t) + P t/2pi (k = conicita' dei filetti NPT) verificata sui vertici.
+  Elemento non convertibile: la faccia si salta e finisce nel rapporto (mostrato nell'app).
+- Cache: `api/inventor` (lavoro in background) -> TEMP_DIR/inventor/<hash percorso+data+lettore>/ (modello.stp, info.json,
+  anteprima.png). Interfaccia `ui/js/inventor3d.js`: worker OpenCascade persistente (`ui/js/occtworker.js`, il motore si
+  carica una volta), ogni parte tassellata una volta e ripetuta nelle occorrenze; proprieta' nella scheda (formato navisProps).
+- Collaudo (file pubblici, fuori dal repo in %USERPROFILE%\.mbvisual\ipt-campioni): github.com/gdh-uniandes/gpr20_vna_holder e
+  gpr20_cartesian_arm (32 parti + STL di confronto: dimensioni/area/volume identici; 3 assiemi = anteprime di Inventor) e
+  github.com/RespiraWorks/Ventilator (Apache-2.0, Inventor 2019-2023: 134/134 parti, tutte le facce dopo le eliche;
+  39/39 assiemi senza componenti mancanti; ventilator.iam = 380 componenti, 87 parti, ~3,5 min la prima volta per la
+  scheda da 98 MB; tavole .idw ok). Script di prova nella cartella scratchpad della sessione (non nel repo).
+- Da provare con file dell'utente: nessun file Inventor sul PC. Mai visti: file pre-2010 ("ACIS BinaryFile" vecchio), .ipn,
+  saldature (geometria nell'assieme), pattern di componenti, componenti soppressi, sostituzioni di colore nell'assieme.
+
+## Formati aggiuntivi (22/10/2026) - FATTO
+DICOM, calendari, contatti, certificati, Apple iWork, plotter HP-GL, HDF5/NetCDF/Parquet/Arrow, Revit. Registro con
+`python tools/add_fx_formats.py` (rilanciabile: toglie e rimette le 8 categorie; sposta ics/vcf/cer/crt/pem/csr da "text"
+e p7b da "signed"), poi `tools/gen_elenco.py`. Backend: UNA sola API `api/fx?op=...` (server.py `api_fx` -> `mbvisual/formati.py`,
+che ritorna JSON oppure (byte, intestazioni) per i dati binari). Stili in `ui/css/formati.css`. Riconoscimento dal contenuto
+in `misc.sniff`: kind `dicom` (DICM a 128), `scidata` (CDF/HDF5), `iwork` (`_is_iwork` legge l'indice dello zip).
+I DICOM SENZA estensione (o con nome numerico) si aprono col visualizzatore DICOM se il contenuto lo conferma (app.js resolveCategory).
+- DICOM `fx_dicom.py` + `viewers/dicom.js`: serie = file della cartella con lo stesso SeriesInstanceUID (anche senza
+  estensione), ordinati lungo la normale; DICOMDIR (nome senza estensione -> NAME_AS_EXT dicomdir). Pixel con LUT di
+  modalita' mandati grezzi (i16/f32 o RGB u8, intestazioni X-W/X-H/X-C/X-T): finestra/livello nel browser con LUT a 65536 voci.
+  Compressi via python-gdcm. Tasto destro = finestra, centrale = sposta, rotella = sezioni, Ctrl+rotella = zoom.
+- Certificati `fx_cert.py` + `viewers/cert.js`: la password .p12 va solo nel corpo della richiesta di lettura; le
+  esportazioni (PEM/CRT/CER/P7B/TXT) usano i PEM pubblici gia' letti, mai la password. Catena verificata con
+  `verify_directly_issued_by`, poi archivio di Windows (ssl.enum_certificates ROOT/CA).
+- Calendari/contatti `ui/js/pim.js` (iCalendar con RRULE/EXDATE/fusi IANA e Windows, vCard 2.1-4.0 con quoted-printable e foto),
+  `viewers/calendar.js`, `viewers/contacts.js`: funzionano anche nella web app; PDF via `html_pdf` (PyMuPDF Story), Excel via `xlsx`.
+- HP-GL `ui/js/hpgl.js` (interprete scritto da zero: PE compresso base 64/32, PM/FP, CI/AA/AT, SC/IP, LB, PC/PW, RO) +
+  `viewers/hpgl.js`; SVG in mm, PDF = SVG -> PyMuPDF (`svg_pdf`) a dimensione reale.
+- Dati `fx_sci.py` + `viewers/scidata.js`: HDF5/NetCDF-4 con h5py, NetCDF 3 letto a mano (classe NC3, anche CDF-5),
+  Parquet a gruppi di righe, Feather/Arrow; grafico (serie o mappa) da un campione con passo.
+- iWork `fx_iwork.py` + `viewers/iwork.js`: Snappy + protobuf scritti a mano. Testi = oggetti tipo 2001 (TSWP.StorageArchive,
+  campo 3); tabelle Numbers = 6001 (modello) -> tile 6002 -> celle; formato celle v4 (2013-2018) decifrato e verificato
+  sui file di Tika; v5 (dal 2019, campi 6/7 delle righe) scritto ma NON collaudato (manca un file di prova).
+  iWork '09 = XML (index.xml/index.apxl). Anteprime: preview.jpg, QuickLook/Thumbnail.jpg, QuickLook/Preview.pdf.
+- Revit `fx_revit.py` + `viewers/revit.js`: olefile; BasicFileInfo (versione, build, condivisione, centrale), RevitPreview4.0 (PNG),
+  PartAtom (famiglie: categoria, parametri, tipi), TransmissionData (collegamenti esterni). Geometria non leggibile.
+- Prove: `python tools/make_fx_samples.py [--pubblici]` -> tests/samples/fx (campioni generati + `pubblici/` da Apache Tika e
+  DynamoRevit, Apache-2.0, vedi FONTI.md), poi `python tests/test_fx_formats.py` (46 controlli).
+- Testi in 5 lingue: chiavi v_dicom.*, v_cert.*, v_calendar.*, v_contacts.*, v_hpgl.*, v_scidata.*, v_iwork.*, v_revit.*, pim.*,
+  srv_fx_*.*, srv_formati.*, fmt.<id>.*. Nei moduli Python le etichette fisse sono funzioni (_names(), _labels()...) perche' la lingua
+  e' quella della richiesta, non quella dell'importazione; le chiavi tecniche (BasicFileInfo di Revit, blocchi PEM) restano in inglese.
+- Librerie nuove (requirements.txt + hidden import in build_portable.py): pydicom MIT, python-gdcm Apache-2.0/BSD, h5py BSD-3,
+  pyarrow Apache-2.0, olefile BSD-2.
+
+## Autodesk DWF / DWFx (22/10/2026) - FATTO
+Visualizzatore `ui/js/viewers/dwf.js` (categoria `dwf` in formats.json: .dwf .dwfx .w2d .xps; .xps spostato qui da office-lo perche'
+senza LibreOffice non si apriva; .oxps resta in office-lo, non collaudato), tutto in JS (anche web app), scritto da zero.
+- Pacchetto `ui/js/dwfpkg.js`: DWF 6 (zip dopo "(DWF V06.xx)": JSZip riceve il file intero), DWF <= 5.5 (un solo W2D), DWFx/XPS
+  (manifest, descrittori ePlot/eModel, risorse ?dwfresource_N = Canvas della FixedPage). Fogli in coordinate della carta (y in su),
+  layer, oggetti (ObjectDefinition 6.0, content.xml + SectionContent 6.2/DWFx, nodi W2D/W2X), marcature (MarkupObjectDefinition),
+  unita' (matrice Units + trasformazione del descrittore; riquadri W2D con Units propri; DWFx: viewport W2X per elemento -> `vpUnits`).
+- `ui/js/w2d.js` (specifica WHIP! di Autodesk): coordinate relative con somma a 32 bit senza segno; angoli delle immagini e riquadro dei
+  testi Ctrl-X sono RELATIVI (aggiornano il punto corrente; ordine reale: sopra/sotto-lineato, riquadro, riservati). Compressione zlib/LZ con
+  cronologia precaricata `ui/js/w2dpreload.js` (dati del formato dal DWF Toolkit, Adler-32 5CBC15B9); `ui/js/inflate.js` = inflate proprio.
+  Testi: il riquadro (P0->P1 base, P0->P3 alto) da' orientamento e larghezza veri; flag 1 = testo verticale (lettere impilate).
+- `ui/js/xpspage.js`: FixedPage (Path, Glyphs con Indices, Canvas, dizionari, ImageBrush, gradienti); caratteri .odttf de-offuscati con la GUID.
+- Disegno `ui/js/dwfdraw.js` (gruppi Path2D, ritagli, selezione, aggancio), esportazioni `ui/js/dwfexport.js` (SVG, PNG 200 dpi, PDF vettoriale
+  scritto a mano con Helvetica adattata in larghezza; Salva con nome PDF = tutti i fogli 2D).
+- 3D: `ui/js/hsf.js` (HSF/W3D: specifica v10 + opcode delle versioni 11-12 ricavati dai dati: sfera 0x1a, ':' attributi geometria, archi con
+  byte in piu' dalla 12.00, Rendering_Options con riallineamento), `ui/js/edgebreaker.js` (Edgebreaker da Rossignac 1999/2001: anello iniziale
+  k = T - 2C + 2 per componente, "tappo" virtuale, zip in un solo verso; vertici fittizi e patch come differenze progressive, nuovo indice
+  delle patch = numerazione finale; i punti sono float in chiaro dopo il blocco), `ui/js/w3d.js` (scena three.js: inclusioni ?Include Library,
+  colori, spigoli, nodo = indice di tag HSF -> proprieta' via navisId/navisProps). model3d.js: aggancio `ctx.preloaded`.
+  NB: i sorgenti w3dtk del DWF Toolkit portano un avviso "trade secret" Tech Soft 3D: NON usarli (consultati solo per l'ordine dei campi
+  della shell, il formato dei bit a parole di 32 bit e l'opcode 0xE0; nessun codice copiato).
+- Collaudo (campioni pubblici: repo aspose-cad/Aspose.CAD-for-.NET MIT, kveretennicov/dwf-toolkit samples Autodesk, esempi di
+  flyfish-dev/dwf-viewer solo come file di prova): 2D fedeli alle miniature originali; 3D Inventor/Revit/esempi corretti (9.500+ componenti
+  edgebreaker chiuse, 0 errori). Texture dei materiali (titolo della risorsa nel descrittore = nome dell'immagine nel flusso; Revit lo usa
+  come colore diffuso, Inventor passa da TKE_Texture) con UV dove ci sono, altrimenti colore medio. Immagini CCITT Group 4: `ui/js/ccittg4.js`
+  (T.6 + TIFF, collaudato con TIFF di Pillow). Non gestiti: macro W2D, NURBS, normali compresse (si ricalcolano).
+
+## Interfaccia premium "Grafite di precisione" (22/10/2026) - FATTO
+Direzione approvata dall'utente sul mockup https://claude.ai/artifact/Wwi8B75nmM8pTZofAqvk45 (home, CAD, PDF, BIM, palette, sistema).
+- Regole dell'utente: il logo `ui/img/logo.png` e' il PROTAGONISTA (grande al centro della home) ma MAI ripetuto nella barra del titolo sotto quello della cornice della finestra (richiesta dell'utente, ribadita il 22/10/2026);
+  sopra il logo una quota con "MB GROUP" nel grigio del logo (#8A8C89 = `--brand`); NIENTE diciture inventate (niente
+  "Professional", copyright, slogan): solo testi gia' presenti o dati dall'utente. Avvio (solo mockup): "Passepartout App" e "MB Group".
+  Niente caselle "Cosa apre" nella home: i formati si consultano nella scheda Formati (pseudo-scheda accanto ai file aperti).
+- Token in testa a `ui/css/app.css` (tema chiaro predefinito, scuro con data-theme o prefers-color-scheme): cornice sempre grafite
+  (`--t0`, `--chrome*`), superfici `--bg/--panel/--panel-2`, `--hover`, accento unico arancione MB `--accent` (#F07D2E in scuro,
+  #EA7426 in chiaro) con testo `--accent-fg` quasi nero sopra l'arancione e `--accent-ink` per il testo arancione leggibile,
+  ombre `--sh-1/2/3` (`--shadow` = `--sh-3`), raggi `--r-sm/md/lg/xl`, badge tenui (`.badge` con `--c` = colore del tipo `--t-*`).
+  Gli editor usano solo questi token; Premiere (blu della testina), Publisher (verde acqua) e Visio (blu) tengono il loro
+  accento come i programmi originali, con i grigi allineati.
+- Caratteri OFL inclusi in `ui/fonts` (`tools/fetch_fonts.py`, Fontsource 5.3.0, sottoinsiemi latin + latin-ext, licenze accanto):
+  IBM Plex Sans (interfaccia), Space Grotesk variabile (titoli, `--display`), IBM Plex Mono (`--mono`). server.py: tipo font/woff2.
+- Struttura (`ui/index.html`): barra del titolo (logo, schede, ricerca comandi) -> barra comandi (File, Apri, comandi del file,
+  `#ctx-tools`, percorso `#crumb`) -> `.workspace` con barra laterale `#rail` (Home, Esplora, Cloud aggiunto da cloud.js dopo
+  `#btn-explorer`, Cerca nel progetto, Formati; in basso Scorciatoie e Tema) + pannelli + `#stage` -> barra di stato.
+  Su schermi stretti la barra laterale va in basso come barra delle schede. ID invariati (cloud.js, search.js li usano).
+- Palette dei comandi `ui/js/palette.js` (Ctrl+K o la ricerca nella barra del titolo): comandi dell'app, file aperti, recenti,
+  ".ext" = come si apre un formato. Ctrl+K resta all'editor quando il programma originale lo usa (Premiere, Publisher, Office:
+  `editorOwnsCtrlK` legge `active.shortcuts`) o nei campi di testo. Chiavi `pal.*` nelle 5 lingue.
+- Home: `body.at-home`; trascinando file sulla finestra `body.dragging` illumina il riquadro del logo (fuori dalla home resta
+  il riquadro "Rilascia per aprire"). Scorciatoie "Crea nuovo" = `createNew({ ext })` (newfile.js) senza galleria.
+- pdf.js: colori della sua barra presi dai token dell'app (`viewers/pdf.js`, anche al cambio tema). Finestra di Windows 11:
+  cornice grafite con DwmSetWindowAttribute (`_graphite_frame` in app.py; su Windows 10 resta quella di sistema).
+- Prove in modalita' browser: per lavorare in un worktree serve una COPIA di ui/vendor (con un collegamento/junction il server
+  rifiuta i file fuori dalla cartella ui: pdf.js dava "Non trovato").
+
+## Funzioni di Navisworks Manage nel 3D (22/10/2026) - FATTO (da provare sui modelli veri dell'utente)
+Tre pulsanti nella barra del visualizzatore 3D dopo "Segnalazioni": Interferenze, Viste, Computo = un pannello a schede a destra
+(`ui/js/navmanage.js`, larghezza trascinabile; chiude il pannello BCF e viceversa). Stili `ui/css/navis.css` (token esistenti).
+- Clash Detective (`ui/js/clashpanel.js`): test con schede Regole / Selezione / Risultati / Rapporto. Insiemi A e B per modello
+  federato, classe (nome del gruppo IFC, classe Navisworks o layer Rhino), livello (piano IFC, `qtocore.levelMap`) o selezione
+  salvata (chiavi degli elementi). Tipi: compenetrazione con tolleranza, distanza minima, duplicati; "ignora coppie dello stesso
+  modello"; raggruppamento delle interferenze vicine (raggio). Stati come Navisworks: nuovo -> attivo alla riesecuzione,
+  rivisto/approvato restano, scomparse -> risolto (`mergeRun`), "Compatta" toglie le risolte. Clic = elemento 1 rosso, 2 verde,
+  resto trasparente/nascosto/normale, zoom sulla zona (intersezione degli ingombri) spostato nella parte non coperta dal pannello;
+  frecce su/giu' nell'elenco; nota e assegnatario per interferenza. Massimo 20.000 risultati per test.
+- Motore (`ui/js/clashcore.js`, puro, nessuna libreria: BVH di triangoli scritto qui) in un Web Worker modulo
+  (`ui/js/clashworker.js`); la geometria si manda a blocchi (Float32 in coordinate della scena; dei modelli uniti per colore si
+  copiano solo i vertici usati dalle copie di selezione). Fase larga = ordinamento e scorrimento degli ingombri. Compenetrazione =
+  spigoli che attraversano l'altro elemento (gli estremi e le facce complanari non contano: elementi appoggiati non sono
+  interferenze); profondita' = massima distanza dalla superficie dell'altro dei punti che gli stanno dentro (centri dei tratti di
+  spigolo tra due attraversamenti, vertici), dentro/fuori con 3 raggi a maggioranza; anche "tutto dentro l'altro". Distanza minima
+  = BVH contro BVH con distanze triangolo-triangolo (Ericson). Interrompi = il worker si chiude.
+- Rapporto (`ui/js/clashreport.js`): HTML unico con immagini incluse, PDF (scrittore di `bcfreport.js`, ora esporta PdfDoc,
+  toJpeg, wrap, ellipsis, textW), CSV (;), BCF: file .bcfzip o "Aggiungi alle segnalazioni" nel pannello BCF del modello
+  (tipo Clash, punto di vista con selezione e colori A/B, istantanea; `clash.bcf` = GUID della segnalazione: riesportando si
+  aggiorna). Stati -> BCF: nuovo/attivo Open, rivisto In Progress, approvato Closed, risolto Resolved.
+- Viste salvate (in navmanage.js): punto di vista BCF del ponte (`bcfview.js`, coordinate del progetto: camera, sezioni,
+  visibilita', colori) + distanza dal punto di mira + miniatura. "Colora" = colore di sostituzione (`bridge.colorize`, nuovo),
+  "Ripristina" = colori, sezioni e visibilita' originali. Il ponte BCF ora e' unico per segnalazioni e viste (`getBridge` in
+  model3d.js, terzo argomento di `attach3d`).
+- File `.mbvnav` (`ui/js/navdoc.js`, JSON) accanto al modello (stesso nome), salvato da solo ~1 s dopo ogni modifica (nella web
+  app solo "Salva con nome" = download); contiene viste, test con risultati (punti in coordinate del progetto, distanze in metri),
+  elenco dei modelli federati: riaprendo il primo modello l'app propone di ricaricare gli altri della stessa cartella (come un NWF).
+  Tolleranze salvate in metri e mostrate in m (IFC, Navisworks, glTF, SketchUp) o mm (CAD e mesh).
+- Computo (`ui/js/qtopanel.js` + `ui/js/qtocore.js` puro): per elemento IFC classe, tipo (IfcRelDefinesByType), livello,
+  quantita' delle IfcElementQuantity e misure dei Pset (IfcLength/Area/Volume/MassMeasure), convertite in SI con le unita' del
+  progetto. Quantita' principali per nomi preferiti (`MAIN`; lunghezze solo Length/NetLength/GrossLength). Raggruppamento
+  Classe/Tipo/Livello (5 ordini), tutto / solo visibili / solo selezione, clic = selezione nel 3D, doppio clic = inquadra; Excel con
+  foglio Riepilogo e foglio Elementi (tutte le quantita', una colonna per "set · nome"). Solo modelli IFC.
+- model3d.js: aggiunte puntuali (bcfHost con `unitOf`, `bcf`, `addModels`; `addModels` estratta da "Aggiungi modello" che ora
+  aggiorna anche `parts`; pulsanti; `api._nav`; controllo del .mbvnav all'apertura). Testi `nav.*`, `clash.*`, `clashrep.*`,
+  `qto.*`, `v_model3d.interferenze|viste|computo*` in 5 lingue.
+- Collaudo: `node tests/test_clash.mjs` (34 prove, senza browser: web-ifc in Node con fetch del .wasm dal disco) su
+  `tests/samples/interferenze` (`python tools/make_clash_samples.py`: struttura.ifc con trave nei muri e pilastro duplicato,
+  impianti.ifc con tubo nei muri, canale nelle travi, tubo a 3 cm da una trave) + solidi sintetici + 20.200 elementi (~3 s).
+  Prova di carico nell'app: `python tools/make_clash_samples.py --grande <file.ifc> 112` (16 MB, 25.200 elementi, modello unito
+  per colore): 12.544 interferenze in 2 s, interfaccia viva, Interrompi provato. Provati nell'app (server avviato senza app.py
+  per non toccare l'integrazione con Esplora): federazione, stati, gruppi, rapporti HTML/PDF/CSV/BCF, viste, Excel, modello OBJ.
+- Da provare con i file veri: modelli Revit/Archicad con aperture (IfcOpeningElement escluso dalla lettura) e elementi non chiusi
+  (dentro/fuori a maggioranza), Navisworks NWD grandi, prestazioni oltre 100.000 elementi, unita' imperiali nel computo.
+
+## Editor PDF in stile Acrobat Pro (22/10/2026) - FATTO
+Richiesta dell'utente: niente pulsanti grandi con testo, TUTTO IN UNA RIGA raggruppato per tipo di modifica, funzioni da
+Acrobat Pro / PDF-XChange / Foxit. Solo app per PC (la web app tiene la barra semplice con pdf-lib, `viewers/pdf.js`).
+- Riga unica (`ui/js/pdfedbar.js`, in `ctx.tb` con classe `pe-tbrow`): pagina / zoom / ricerca (la barra di pdf.js e'
+  nascosta con PDFJS_CHROME) + gruppi con icone, didascalia sotto e menu "altro": Seleziona (V, H), Modifica (T testo,
+  W aggiungi testo, I immagine, R forme ▾, menu: collegamento, bianchetto, copia/incolla, gruppi, ordine), Commenti (S nota,
+  U evidenzia ▾ sottolinea/barra/ondulato, X casella, D penna, N forme di commento ▾ con nuvola di revisione, K timbro ▾),
+  Moduli (Q campo ▾ 7 tipi), Pagine (organizza, inserisci ▾, ruota, C ritaglia, menu: estrai, elimina, dividi, unisci...),
+  Proteggi (Y oscura area, oscura testo cercato, firma, menu: applica oscuramenti, password, rimuovi info nascoste...),
+  Documento (intestazione/pie', filigrana, Bates, OCR, menu: sfondo, ottimizza, confronta, proprieta', segnalibri...),
+  Annulla/Ripeti con il nome del passo, pannello. Se non ci sta spariscono le didascalie (`compact`), poi scorre.
+  Misure: ~1380 px; a 1366 px di finestra sta in una riga in modo compatto.
+- `ui/js/pdfeditor.js` = nucleo (oggetto E: stato, coda delle modifiche, copia di lavoro, annulla/ripeti, strati sulle
+  pagine, strumenti, selezione con 8 maniglie + rotazione (Maiusc 15°), guide di allineamento (Alt = senza), allinea/
+  distribuisci, ordine, copia/taglia/incolla tra pagine (obj_copy), gruppi Ctrl+G (solo nella sessione), tasti di Acrobat).
+  `pdfedpanel.js` pannello a destra (schede Proprieta'/Commenti, sezioni richiudibili, posizione X/Y/L/A in mm e rotazione),
+  `pdfcomments.js` elenco commenti (filtri, risposte, stato Review, CSV), `pdfpages.js` Organizza pagine (miniature,
+  trascina per riordinare, ruota, duplica, elimina, estrai, inserisci, sostituisci), `pdfdocs.js` finestre di pagine e
+  documento (anteprima per intestazioni e filigrana), `colorpick.js` selettore colori (HEX/RGB/CMYK, opacita',
+  contagocce EyeDropper o sulla pagina, colori del documento, recenti), `pdfedicons.js`, `ui/css/pdfeditor.css`.
+  Prove dalla console: `MB.active.api._pe` (E: setMode, sel, ops, align, paste, pageCmd, docCmd...).
+- Motore: `mbvisual/pdfobjects.py` (oggetti, ops su oggetti e commenti, `annots_list`, `image_export`, `paths_hit`) +
+  `mbvisual/pdfdoc.py` (OPS di pagine e documento: page_order/replace/insert/blank/delete/rotate/duplicate, crop con
+  margini o reset, header_footer, bates, watermark, background, redact_search/redact_apply, sanitize, metadata, toc, flatten).
+  API nuove: pdf_annots, pdf_image_export, pdf_hit. Angoli in gradi orari come si vedono (filigrana: antiorari come Acrobat).
+- Insidie scoperte (PyMuPDF 2.0): Pixmap(doc, xref) da' un canale alfa TUTTO OPACO senza applicare SMask -> la maschera
+  si applica a mano (`_image_bytes`, anche /Mask a chiave di colore e /ImageMask di stencil col colore letto dalla pagina);
+  prima spostando un logo trasparente diventava un rettangolo nero. TextWriter va creato con page.rect (rettangolo visibile)
+  e morph ruota in verso antiorario: sulle pagine ruotate le righe si compongono nel verso di lettura e si riportano attorno
+  al centro. fill_textbox scrive spazi non separabili: le righe si compongono in `_write_block`. Con i caratteri di Windows
+  MuPDF scrive ToUnicode con U+00A0/U+00AD per spazio e trattino: `pdfedit.fix_tounicode` li corregge (anche nel vecchio
+  editor). I sottoinsiemi incorporati non hanno cmap: `_font_with_cmap` la ricostruisce dalla ToUnicode con fontTools e il
+  testo riscritto usa il carattere originale se ha tutti i glifi (altrimenti il carattere di Windows piu' simile).
+  Campi nuovi: proprieta' PRIMA di add_widget (nasce un /Parent). Conteggio immagini condivise dalle risorse
+  (get_image_info con xrefs decodifica tutto: 194 s su una pagina con 1951 tasselli).
+- Testo: paragrafi ricostruiti (righe piene unite, pallino + testo sulla stessa linea di base con tabulazione), allineamento
+  riconosciuto (titoli centrati sull'area del testo), una riga sola si allarga invece di andare a capo (`fit`).
+- Tavole CAD con oltre 25.000 tracciati: non si elencano; clic su un tratto / riquadro = `pdf_hit` (cache dei disegni per
+  file+pagina in memoria): 0,5 s sulla tavola da 64.830 tracciati, modifica del colore ~4 s.
+- Collaudo: `python tests/test_pdfeditor.py [cartella_pdf_reali]` (50 prove sintetiche + per ogni PDF reale lettura,
+  modifiche, immagini con maschera). Interfaccia provata con PDF reali (relazioni, tavole CAD, scansione OCR, moduli) in
+  Edge senza finestra via DevTools; schermate prima/dopo nella cartella della sessione.
 
 ## Editor immagini con IA locale (21/10/2026)
 Richiesta dell'utente: modifiche per moda, marketing, campionati IFBB senza i filtri dei servizi online. Filtri al MINIMO

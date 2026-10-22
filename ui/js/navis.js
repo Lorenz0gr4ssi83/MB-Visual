@@ -2,22 +2,23 @@
 // gerarchia + proprieta' (json) e geometria (bin, coordinate di mondo in metri); qui si costruisce la scena three.js.
 import * as THREE from "three";
 import { api, fileUrl } from "./core.js";
+import { t, LOCALE } from "./i18n.js";
 
 export async function loadNavis(ctx, ld) {
-  ld.set(0.15, "Lettura del file Navisworks (senza Navisworks)");
+  ld.set(0.15, t("navis.lettura_file_navisworks_senza_navisworks"));
   const r = await api("nwd_convert", { path: ctx.path });
-  ld.set(0.45, "Caricamento della geometria");
+  ld.set(0.45, t("navis.caricamento_geometria"));
   const [meta, bin] = await Promise.all([
     fetch(fileUrl(r.json)).then(x => x.json()),
     fetch(fileUrl(r.bin)).then(x => x.arrayBuffer()),
   ]);
-  ld.set(0.7, "Preparazione del modello");
+  ld.set(0.7, t("navis.preparazione_modello"));
   const root = new THREE.Group();
   root.name = ctx.name;
   // un gruppo per ogni nodo della gerarchia di Navisworks
   // i nodi senza nome (parti, solidi) prendono il nome del componente che li contiene, come in Navisworks
   const names = [];
-  meta.nodes.forEach(([parent, name, cls], i) => { names[i] = name || (parent >= 0 && parent < i ? names[parent] : "") || (cls || "Elemento").replace(/^lcatfconsumer_|^LcOp|^LcDWG/, ""); });
+  meta.nodes.forEach(([parent, name, cls], i) => { names[i] = name || (parent >= 0 && parent < i ? names[parent] : "") || (cls || t("navis.elemento")).replace(/^lcatfconsumer_|^LcOp|^LcDWG/, ""); });
   const groups = meta.nodes.map(([, name, cls], i) => {
     const g = new THREE.Group();
     g.name = names[i];
@@ -81,7 +82,7 @@ export async function loadNavis(ctx, ld) {
   const item = i => (items[i] ??= { name: groups[i].name + (kids[i].length ? ` (${kids[i].length})` : ""), obj: groups[i], children: [] });
   for (let i = 0; i < groups.length; i++) if (hasGeom[i]) item(i).children = kids[i].map(item);
   const tree = tops.map(item);
-  ctx.navisInfo = `Navisworks: ${meta.nodes.length.toLocaleString("it-IT")} nodi, ${Math.round(tri).toLocaleString("it-IT")} triangoli` + (meta.skipped ? ` · ${meta.skipped} elementi non disegnabili (testi, nuvole di punti esterne)` : "");
+  ctx.navisInfo = t("navis.navisworks_0_nodi_1_triangoli", meta.nodes.length.toLocaleString(LOCALE), Math.round(tri).toLocaleString(LOCALE)) + (meta.skipped ? t("navis.0_elementi_non_disegnabili_testi", meta.skipped) : "");
   return { root, tree };
 }
 
@@ -96,9 +97,9 @@ export function navisSheet(props, el, toast) {
   for (const [cat, rows] of byCat) {
     const dl = el("dl", { class: "kv stack" });
     for (const [k, v] of rows) dl.append(el("dt", {}, k || "-"), el("dd", {}, v));
-    root.append(el("details", { open: true }, el("summary", {}, cat || "Proprieta'"), dl));
+    root.append(el("details", { open: true }, el("summary", {}, cat || t("navis.proprieta")), dl));
   }
-  const copy = el("button", { class: "btn", onclick: () => navigator.clipboard?.writeText(props.map(r => r.join("\t")).join("\n")).then(() => toast("Proprieta' copiate")) }, "Copia proprieta'");
+  const copy = el("button", { class: "btn", onclick: () => navigator.clipboard?.writeText(props.map(r => r.join("\t")).join("\n")).then(() => toast(t("navis.proprieta_copiate"))) }, t("navis.copia_proprieta"));
   return el("div", {}, el("div", { style: { margin: "8px 0 4px" } }, copy), root);
 }
 

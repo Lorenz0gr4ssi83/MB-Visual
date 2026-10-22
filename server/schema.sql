@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS licenses (
   max_pc      INTEGER NOT NULL DEFAULT 1,
   max_mobile  INTEGER NOT NULL DEFAULT 2,
   expires     TEXT,                           -- scadenza facoltativa (ISO), null = senza scadenza
+  mobile_lock TEXT,                           -- ultima attivazione di un cellulare dal QR (blocco di qualche minuto)
+  warn_expiring TEXT,                         -- avviso "in scadenza" gia' dato (si azzera cambiando la scadenza)
+  warn_expired TEXT,                          -- avviso "scaduta" gia' dato
   created     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -49,4 +52,68 @@ CREATE TABLE IF NOT EXISTS events (
   text        TEXT NOT NULL,
   read        INTEGER NOT NULL DEFAULT 0,
   created     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- QR della home del PC: link monouso (server/migrations/001_qr_cellulari.sql per i database gia' creati)
+CREATE TABLE IF NOT EXISTS mobile_links (
+  token       TEXT PRIMARY KEY,
+  license_key TEXT NOT NULL,
+  expires     TEXT NOT NULL,
+  used        TEXT,
+  device_id   INTEGER,
+  created     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+-- codice di 6 cifre per l'app installata su iPhone (non vede i cookie di Safari): stesso posto del browser
+CREATE TABLE IF NOT EXISTS pair_codes (
+  code        TEXT PRIMARY KEY,
+  license_key TEXT NOT NULL,
+  device_id   INTEGER NOT NULL,
+  expires     TEXT NOT NULL,
+  used        TEXT
+);
+
+-- App per telefono di MB Visual Admin (server/src/adminapp.js): sessioni, impronta/PIN (WebAuthn), codici di 6 cifre,
+-- tentativi sbagliati e iscrizioni alle notifiche push
+CREATE TABLE IF NOT EXISTS admin_sessions (
+  n              INTEGER PRIMARY KEY AUTOINCREMENT,
+  token_hash     TEXT NOT NULL UNIQUE,           -- SHA-256 del cookie (il cookie vero resta solo nel telefono)
+  name           TEXT NOT NULL DEFAULT '',
+  created        TEXT NOT NULL DEFAULT (datetime('now')),
+  last_seen      TEXT NOT NULL DEFAULT (datetime('now')),
+  expires        TEXT NOT NULL,
+  revoked        INTEGER NOT NULL DEFAULT 0,
+  cred_id        TEXT,                           -- passkey del telefono (impronta / volto / PIN)
+  cred_key       TEXT,                           -- chiave pubblica (JWK)
+  cred_alg       INTEGER,
+  cred_count     INTEGER NOT NULL DEFAULT 0,
+  unlocked_until TEXT
+);
+CREATE TABLE IF NOT EXISTS admin_challenges (
+  id      TEXT PRIMARY KEY,
+  session INTEGER NOT NULL,
+  kind    TEXT NOT NULL,
+  expires TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS admin_pairs (
+  code    TEXT PRIMARY KEY,                      -- SHA-256 del codice di 6 cifre
+  expires TEXT NOT NULL,
+  used    TEXT
+);
+CREATE TABLE IF NOT EXISTS admin_fails (
+  ip    TEXT PRIMARY KEY,
+  n     INTEGER NOT NULL DEFAULT 0,
+  first TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS admin_push (
+  endpoint TEXT PRIMARY KEY,
+  session  INTEGER NOT NULL,
+  p256dh   TEXT NOT NULL,
+  auth     TEXT NOT NULL,
+  created  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- impostazioni dell'app di gestione (notifiche a scelta): server/migrations/003_impostazioni.sql
+CREATE TABLE IF NOT EXISTS admin_settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
 );

@@ -2,6 +2,7 @@
 // 3MF (stampa 3D), DXF 3D (facce 3DFACE per layer), VRML. Funziona con qualsiasi modello aperto nel visualizzatore
 // (IFC, STEP, Rhino, Navisworks, mesh...): si esporta cio' che e' visibile, con nomi e colori degli oggetti.
 // Coordinate: la scena di three.js ha l'asse Y verso l'alto; i formati tecnici usano Z verso l'alto (x, -z, y).
+import { t as tr } from "./i18n.js";
 import * as THREE from "three";
 
 // ---------------------------------------------------------------- raccolta degli oggetti
@@ -14,7 +15,7 @@ export function collectElements(model, metersPerUnit = 1) {
     if (!m.isMesh || !m.geometry?.attributes?.position || m.userData.merged || !visible(m)) return;
     let owner = m;
     for (let x = m.parent; x && x !== model; x = x.parent) if (x.userData.expressID !== undefined || x.userData.navisId !== undefined) { owner = x; break; }
-    if (owner === m && m.userData.proxy && m.parent) owner = m.parent;
+    if (owner === m && (m.userData.proxy || m.userData.pickParent) && m.parent) owner = m.parent; // SketchUp: un elemento per gruppo/componente
     if (!owners.has(owner)) owners.set(owner, []);
     owners.get(owner).push(m);
   });
@@ -45,7 +46,7 @@ export function collectElements(model, metersPerUnit = 1) {
       }
     }
     if (idx.length < 3) continue;
-    out.push({ name: owner.name || meshes[0].name || "Oggetto", type: owner.userData.ifcType || owner.name || "", color: color || [0.75, 0.75, 0.75], opacity,
+    out.push({ name: owner.name || meshes[0].name || tr("export3d.oggetto"), type: owner.userData.ifcType || owner.name || "", color: color || [0.75, 0.75, 0.75], opacity,
       pos: Float64Array.from(pos), idx: Uint32Array.from(idx) });
   }
   return out;

@@ -16,6 +16,7 @@ import tempfile
 from pathlib import Path
 
 from .paths import IS_MAC, NO_WINDOW, TEMP_DIR
+from .i18n import t as tr
 
 DEG = 180 / math.pi
 # entita' i cui dati geometrici si riscrivono direttamente; le altre (quote, tratteggi, spline...) si trasformano
@@ -543,7 +544,7 @@ def save(src: str, out: str, edits: dict) -> dict:
     elif ext in (".pdf", ".svg", ".png"):
         _render(doc, out, ext)
     else:
-        raise ValueError("Formati del disegno: DXF, DWG, PDF, SVG, PNG")
+        raise ValueError(tr("srv_cadedit.formati_disegno_dxf_dwg_pdf"))
     return {"ok": True, "path": out, "non_scritti": skipped}
 
 
@@ -559,8 +560,7 @@ def find_oda():
 def _to_dwg(doc, out):
     exe = find_oda()
     if not exe:
-        raise RuntimeError("Per scrivere file DWG serve ODA File Converter (gratuito, www.opendesign.com/guestfiles/oda_file_converter). "
-                           "Intanto puoi salvare in DXF: AutoCAD e tutti i programmi CAD lo aprono.")
+        raise RuntimeError(tr("srv_cadedit.scrivere_file_dwg_serve_oda"))
     tmp_in = Path(tempfile.mkdtemp(dir=TEMP_DIR))
     tmp_out = Path(tempfile.mkdtemp(dir=TEMP_DIR))
     name = Path(out).stem
@@ -568,7 +568,7 @@ def _to_dwg(doc, out):
     subprocess.run([exe, str(tmp_in), str(tmp_out), "ACAD2018", "DWG", "0", "1", "*.DXF"], capture_output=True, timeout=600, creationflags=NO_WINDOW)
     res = tmp_out / (name + ".dwg")
     if not res.exists():
-        raise RuntimeError("Conversione in DWG non riuscita")
+        raise RuntimeError(tr("srv_cadedit.conversione_dwg_non_riuscita"))
     shutil.move(str(res), out)
 
 

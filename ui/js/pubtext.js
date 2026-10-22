@@ -6,6 +6,7 @@
 // Le larghezze si misurano carattere per carattere con la crenatura disattivata: la stessa misura vale per il
 // disegno sullo schermo, per il cursore e per l'esportazione PDF (PyMuPDF non applica la crenatura).
 import { S, FIELD, fontName } from "./pubmodel.js";
+import { LOCALE } from "./i18n.js";
 
 const LS = "\u2028"; // a capo manuale (Maiusc+Invio)
 const mctx = (() => { const c = document.createElement("canvas"); const g = c.getContext("2d"); try { g.fontKerning = "none"; } catch { /* */ } return g; })();
@@ -35,7 +36,7 @@ export function textWidth(doc, s, str, scale = 1) {
 export function fieldText(f, env) {
   if (f === "page") return String((env.pageNo ?? 0) + 1);
   if (f === "pages") return String(env.pageCount || 1);
-  if (f === "date") return new Date().toLocaleDateString("it-IT");
+  if (f === "date") return new Date().toLocaleDateString(LOCALE);
   if (f && f.startsWith("merge:")) {
     const name = f.slice(6);
     if (env.record) return String(env.record[name] ?? "");

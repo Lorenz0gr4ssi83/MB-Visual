@@ -2,6 +2,7 @@
 // Pagine e registra l'elenco delle operazioni per l'esportazione PDF (RecordPainter -> mbvisual/publisher.py),
 // cosi' il PDF e' identico a cio' che si vede. Qui anche le forme (percorsi M/L/C/Z) e l'impaginazione di tutte le
 // storie del documento (catene di caselle collegate, celle delle tabelle, adattamento automatico del testo).
+import { t as tr } from "./i18n.js";
 import { color, fontName, walk, FIELD } from "./pubmodel.js";
 import { layoutStory, fontCss, textWidth } from "./pubtext.js";
 
@@ -34,17 +35,17 @@ function regular(w, h, n, rot = -Math.PI / 2) {
 }
 // [id, nome, gruppo]
 export const SHAPES = [
-  ["line", "Linea", "Linee"], ["arrow", "Freccia", "Linee"], ["darrow", "Freccia doppia", "Linee"],
-  ["rect", "Rettangolo", "Rettangoli"], ["round", "Rettangolo arrotondato", "Rettangoli"], ["snip", "Rettangolo con angolo tagliato", "Rettangoli"],
-  ["ellipse", "Ovale", "Forme di base"], ["triangle", "Triangolo isoscele", "Forme di base"], ["rtriangle", "Triangolo rettangolo", "Forme di base"],
-  ["diamond", "Rombo", "Forme di base"], ["parallelogram", "Parallelogramma", "Forme di base"], ["trapezoid", "Trapezio", "Forme di base"],
-  ["pentagon", "Pentagono", "Forme di base"], ["hexagon", "Esagono", "Forme di base"], ["octagon", "Ottagono", "Forme di base"],
-  ["cross", "Croce", "Forme di base"], ["donut", "Anello", "Forme di base"], ["heart", "Cuore", "Forme di base"], ["moon", "Luna", "Forme di base"],
-  ["arrowR", "Freccia a destra", "Frecce a blocchi"], ["arrowL", "Freccia a sinistra", "Frecce a blocchi"], ["arrowU", "Freccia in su", "Frecce a blocchi"],
-  ["arrowD", "Freccia in giu'", "Frecce a blocchi"], ["chevron", "Gallone", "Frecce a blocchi"], ["homeplate", "Pentagono freccia", "Frecce a blocchi"],
-  ["star5", "Stella a 5 punte", "Stelle e decorazioni"], ["star8", "Stella a 8 punte", "Stelle e decorazioni"], ["star16", "Stella a 16 punte", "Stelle e decorazioni"],
-  ["burst", "Esplosione", "Stelle e decorazioni"], ["ribbon", "Nastro", "Stelle e decorazioni"],
-  ["callout", "Fumetto rettangolare", "Callout"], ["ocallout", "Fumetto ovale", "Callout"], ["cloud", "Nuvola", "Callout"],
+  ["line", tr("pubrender.linea"), tr("pubrender.linee")], ["arrow", tr("pubrender.freccia"), tr("pubrender.linee")], ["darrow", tr("pubrender.freccia_doppia"), tr("pubrender.linee")],
+  ["rect", tr("pubrender.rettangolo"), tr("pubrender.rettangoli")], ["round", tr("pubrender.rettangolo_arrotondato"), tr("pubrender.rettangoli")], ["snip", tr("pubrender.rettangolo_angolo_tagliato"), tr("pubrender.rettangoli")],
+  ["ellipse", tr("pubrender.ovale"), tr("pubrender.forme_base")], ["triangle", tr("pubrender.triangolo_isoscele"), tr("pubrender.forme_base")], ["rtriangle", tr("pubrender.triangolo_rettangolo"), tr("pubrender.forme_base")],
+  ["diamond", tr("pubrender.rombo"), tr("pubrender.forme_base")], ["parallelogram", tr("pubrender.parallelogramma"), tr("pubrender.forme_base")], ["trapezoid", tr("pubrender.trapezio"), tr("pubrender.forme_base")],
+  ["pentagon", tr("pubrender.pentagono"), tr("pubrender.forme_base")], ["hexagon", tr("pubrender.esagono"), tr("pubrender.forme_base")], ["octagon", tr("pubrender.ottagono"), tr("pubrender.forme_base")],
+  ["cross", tr("pubrender.croce"), tr("pubrender.forme_base")], ["donut", tr("pubrender.anello"), tr("pubrender.forme_base")], ["heart", tr("pubrender.cuore"), tr("pubrender.forme_base")], ["moon", tr("pubrender.luna"), tr("pubrender.forme_base")],
+  ["arrowR", tr("pubrender.freccia_destra"), tr("pubrender.frecce_blocchi")], ["arrowL", tr("pubrender.freccia_sinistra"), tr("pubrender.frecce_blocchi")], ["arrowU", tr("pubrender.freccia_2"), tr("pubrender.frecce_blocchi")],
+  ["arrowD", tr("pubrender.freccia_giu"), tr("pubrender.frecce_blocchi")], ["chevron", tr("pubrender.gallone"), tr("pubrender.frecce_blocchi")], ["homeplate", tr("pubrender.pentagono_freccia"), tr("pubrender.frecce_blocchi")],
+  ["star5", tr("pubrender.stella_5_punte"), tr("pubrender.stelle_decorazioni")], ["star8", tr("pubrender.stella_8_punte"), tr("pubrender.stelle_decorazioni")], ["star16", tr("pubrender.stella_16_punte"), tr("pubrender.stelle_decorazioni")],
+  ["burst", tr("pubrender.esplosione"), tr("pubrender.stelle_decorazioni")], ["ribbon", tr("pubrender.nastro"), tr("pubrender.stelle_decorazioni")],
+  ["callout", tr("pubrender.fumetto_rettangolare"), tr("pubrender.callout")], ["ocallout", tr("pubrender.fumetto_ovale"), tr("pubrender.callout")], ["cloud", tr("pubrender.nuvola"), tr("pubrender.callout")],
 ];
 export function shapeCmds(shape, w, h, o = {}) {
   switch (shape) {

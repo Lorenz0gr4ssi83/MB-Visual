@@ -1,5 +1,6 @@
 // Archivi (7-Zip): contenuto ad albero, apertura diretta dei file interni, estrazione, aggiunta/eliminazione/rinomina.
 import { api, askText, button, confirmBox, el, fmtSize, loading, modal, pickFiles, pickFolder, toast } from "../core.js";
+import { t as _t } from "../i18n.js";
 
 export async function mount(ctx) {
   let password = null;
@@ -8,11 +9,11 @@ export async function mount(ctx) {
   ctx.fillBody(true);
 
   async function load() {
-    loading(ctx.el, "Lettura dell'archivio");
+    loading(ctx.el, _t("v_archive.lettura_dell_archivio"));
     data = await api("archive_list", password ? { path: ctx.path, password } : { path: ctx.path }, { allowFail: true });
     if (!data.ok) throw new Error(data.errore);
     if (data.items.some(i => i.encrypted) && !password) {
-      const p = await askText("Archivio protetto", "Password dell'archivio", "");
+      const p = await askText(_t("v_archive.archivio_protetto"), _t("v_archive.password_dell_archivio"), "");
       if (p) { password = p; }
     }
     ctx.el.innerHTML = "";
@@ -40,7 +41,7 @@ export async function mount(ctx) {
     let acc = "";
     for (const part of cwd ? cwd.split("/") : []) { acc = acc ? acc + "/" + part : part; const target = acc; crumbs.append(" / ", el("button", { class: "link", onclick: () => { cwd = target; render(); } }, part)); }
     const t = el("table", { class: "grid", style: { width: "100%" } },
-      el("thead", {}, el("tr", {}, el("th", { style: { width: "28px" } }, ""), el("th", {}, "Nome"), el("th", {}, "Dimensione"), el("th", {}, "Compresso"), el("th", {}, "Modificato"))));
+      el("thead", {}, el("tr", {}, el("th", { style: { width: "28px" } }, ""), el("th", {}, _t("common.nome")), el("th", {}, _t("v_archive.dimensione")), el("th", {}, _t("v_archive.compresso")), el("th", {}, _t("v_archive.modificato")))));
     const tb = el("tbody");
     for (const r of rows) {
       const name = filter ? r.path : r.path.split("/").pop();
@@ -54,57 +55,57 @@ export async function mount(ctx) {
     t.append(tb);
     list.append(crumbs, t);
     const files = items.filter(i => !i.dir);
-    ctx.status(`${files.length} file · ${fmtSize(files.reduce((s, i) => s + i.size, 0))} non compressi` + (data.type ? " · formato " + data.type : ""));
+    ctx.status(_t("v_archive.0_file_1_non_compressi", files.length, fmtSize(files.reduce((s, i) => s + i.size, 0))) + (data.type ? _t("v_archive.formato") + data.type : ""));
   }
 
   async function openEntry(entry) {
-    toast("Estrazione di " + entry.split("/").pop() + "...");
+    toast(_t("v_archive.estrazione") + entry.split("/").pop() + "...");
     const r = await api("archive_extract", { path: ctx.path }, { json: { entry, password } });
     ctx.openFile(r.path);
   }
 
-  const search = el("input", { type: "search", placeholder: "Cerca nell'archivio", id: "arc-q-" + ctx.tab.name, style: { width: "200px" } });
+  const search = el("input", { type: "search", placeholder: _t("v_archive.cerca_nell_archivio"), id: "arc-q-" + ctx.tab.name, style: { width: "200px" } });
   search.addEventListener("input", () => { filter = search.value.trim().toLowerCase(); render(); });
   const editable = () => data?.editable;
   async function add(paths) {
-    if (!editable()) return toast("Questo tipo di archivio e' in sola lettura: si possono solo estrarre i file.", true);
+    if (!editable()) return toast(_t("v_archive.questo_tipo_archivio_sola_lettura"), true);
     await api("archive_add", { path: ctx.path }, { json: { files: paths, folder: cwd } });
-    toast(`${paths.length} elemento/i aggiunti all'archivio`);
+    toast(_t("v_archive.0_elemento_i_aggiunti_all", paths.length));
     await load();
   }
   ctx.tb.append(search, el("span", { class: "sep" }),
-    button("Apri", "open", () => { const f = [...selected].find(p => !data.items.find(i => i.path === p)?.dir); if (f) openEntry(f); else toast("Seleziona un file (o fai doppio clic)"); }),
-    button("Estrai selezionati", "download", async () => {
+    button(_t("v_archive.apri"), "open", () => { const f = [...selected].find(p => !data.items.find(i => i.path === p)?.dir); if (f) openEntry(f); else toast(_t("v_archive.seleziona_file_fai_doppio_clic")); }),
+    button(_t("v_archive.estrai_selezionati"), "download", async () => {
       const dest = await pickFolder();
       if (!dest) return;
       const sel = [...selected];
-      if (!sel.length) return toast("Seleziona almeno un elemento", true);
+      if (!sel.length) return toast(_t("v_archive.seleziona_almeno_elemento"), true);
       for (const e of sel) await api("archive_extract", { path: ctx.path }, { json: { entry: e, dest, password } });
-      toast("Estratti in " + dest);
+      toast(_t("v_archive.estratti") + dest);
     }),
-    button("Estrai tutto", "download", async () => {
+    button(_t("v_archive.estrai_tutto"), "download", async () => {
       const dest = await pickFolder();
       if (!dest) return;
       await api("archive_extract", { path: ctx.path }, { json: { dest, password } });
-      toast("Archivio estratto in " + dest);
+      toast(_t("v_archive.archivio_estratto") + dest);
     }),
     el("span", { class: "sep" }),
-    button("Aggiungi file", "plus", async () => { const ps = await pickFiles(); if (ps?.length) add(ps); }),
-    button("Rinomina", "edit", async () => {
+    button(_t("v_archive.aggiungi_file"), "plus", async () => { const ps = await pickFiles(); if (ps?.length) add(ps); }),
+    button(_t("common.rinomina"), "edit", async () => {
       const [one] = [...selected];
-      if (!one || selected.size !== 1) return toast("Seleziona un solo elemento", true);
-      const nn = await askText("Rinomina", "Nuovo nome", one.split("/").pop());
+      if (!one || selected.size !== 1) return toast(_t("v_archive.seleziona_solo_elemento"), true);
+      const nn = await askText(_t("common.rinomina"), _t("v_archive.nuovo_nome"), one.split("/").pop());
       if (!nn) return;
       await api("archive_rename", { path: ctx.path }, { json: { old: one, new: one.replace(/[^/]*$/, nn) } });
       selected.clear(); await load();
     }),
-    button("Elimina", "trash", async () => {
-      if (!selected.size) return toast("Seleziona gli elementi da eliminare", true);
-      if (!(await confirmBox("Elimina dall'archivio", `Eliminare ${selected.size} elemento/i dall'archivio? L'operazione modifica il file.`, "Elimina", true))) return;
+    button(_t("common.elimina"), "trash", async () => {
+      if (!selected.size) return toast(_t("v_archive.seleziona_elementi_eliminare"), true);
+      if (!(await confirmBox(_t("v_archive.elimina_dall_archivio"), _t("v_archive.eliminare_0_elemento_i_dall", selected.size), _t("common.elimina"), true))) return;
       await api("archive_delete", { path: ctx.path }, { json: { entries: [...selected] } });
       selected.clear(); await load();
     }),
-    el("span", { class: "grow" }), el("span", { class: "note" }, "Doppio clic per aprire · trascina file qui per aggiungerli"));
+    el("span", { class: "grow" }), el("span", { class: "note" }, _t("v_archive.doppio_clic_aprire_trascina_file")));
   await load();
 
   return {
@@ -116,8 +117,8 @@ export async function mount(ctx) {
     },
     async acceptDrop(paths) {
       if (!editable()) return false;
-      const choice = await modal("File trascinati", `<p>Aggiungere ${paths.length} elemento/i all'archivio <b>${ctx.name}</b>${cwd ? " nella cartella " + cwd : ""}, oppure aprirli?</p>`,
-        [{ label: "Aprili", value: "open" }, { label: "Aggiungi all'archivio", value: "add", primary: true }]);
+      const choice = await modal(_t("v_archive.file_trascinati"), _t("v_archive.p_aggiungere_0_elemento_i", paths.length, ctx.name, cwd ? _t("v_archive.cartella") + cwd : ""),
+        [{ label: _t("v_archive.aprili"), value: "open" }, { label: _t("v_archive.aggiungi_all_archivio"), value: "add", primary: true }]);
       if (choice === "add") { await add(paths); return true; }
       return false;
     },

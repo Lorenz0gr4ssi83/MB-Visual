@@ -1,6 +1,7 @@
 // Fogli di calcolo (SheetJS): tutti i fogli, modifica celle e formule, righe/colonne; salvataggio nel formato originale.
 import { api, button, el, extOf, loadScript, readBytes, toast, withExt } from "../core.js";
 import { describeKeys } from "../shortcuts.js";
+import { t as _t, LOCALE } from "../i18n.js";
 
 const MAX_R = 3000, MAX_C = 200;
 const WRITE = { xlsx: "xlsx", xlsm: "xlsm", xlsb: "xlsb", xls: "biff8", xltx: "xlsx", xltm: "xlsm", xlt: "biff8", ods: "ods",
@@ -24,7 +25,7 @@ export async function mount(ctx) {
   let sel = { r: 0, c: 0 };
 
   // ---- interfaccia
-  const formulaBar = el("input", { type: "text", class: "field", id: "fx-" + ctx.tab.name, style: { flex: "1", minWidth: "200px", fontFamily: "var(--mono)" }, placeholder: "Valore o formula (es. =SOMMA(A1:A3) va scritta =SUM(A1:A3))" });
+  const formulaBar = el("input", { type: "text", class: "field", id: "fx-" + ctx.tab.name, style: { flex: "1", minWidth: "200px", fontFamily: "var(--mono)" }, placeholder: _t("v_sheet.valore_formula_es_somma_a1") });
   const cellRef = el("span", { class: "note", style: { minWidth: "52px", fontFamily: "var(--mono)" } }, "A1");
   const tabsBar = el("div", { class: "tb", style: { borderTop: "1px solid var(--line)", borderBottom: "0" } });
   const gridBox = el("div", { style: { overflow: "auto", height: "100%" } });
@@ -33,11 +34,11 @@ export async function mount(ctx) {
   ctx.el.append(layout);
   ctx.tb.append(cellRef, formulaBar,
     el("span", { class: "sep" }),
-    button("Riga +", "plus", () => structural("row", 1), { title: "Inserisci una riga sotto la cella selezionata" }),
-    button("Riga -", "trash", () => structural("row", -1), { title: "Elimina la riga selezionata" }),
-    button("Colonna +", "plus", () => structural("col", 1), { title: "Inserisci una colonna a destra" }),
-    button("Colonna -", "trash", () => structural("col", -1), { title: "Elimina la colonna selezionata" }),
-    button("Nuovo foglio", "plus", () => { const n = "Foglio" + (wb.SheetNames.length + 1); X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet([[]]), n); sheetName = n; ctx.setDirty(true); render(); }));
+    button(_t("v_sheet.riga"), "plus", () => structural("row", 1), { title: _t("v_sheet.inserisci_riga_sotto_cella_selezionata") }),
+    button(_t("v_sheet.riga_2"), "trash", () => structural("row", -1), { title: _t("v_sheet.elimina_riga_selezionata") }),
+    button(_t("v_sheet.colonna"), "plus", () => structural("col", 1), { title: _t("v_sheet.inserisci_colonna_destra") }),
+    button(_t("v_sheet.colonna_2"), "trash", () => structural("col", -1), { title: _t("v_sheet.elimina_colonna_selezionata") }),
+    button(_t("v_sheet.nuovo_foglio"), "plus", () => { const n = _t("v_sheet.foglio") + (wb.SheetNames.length + 1); X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet([[]]), n); sheetName = n; ctx.setDirty(true); render(); }));
 
   const ws = () => wb.Sheets[sheetName];
   const addr = (r, c) => X.utils.encode_cell({ r, c });
@@ -60,7 +61,7 @@ export async function mount(ctx) {
         const cell = s[addr(r, c)];
         const td = el("td", { "data-r": r, "data-c": c });
         if (cell) {
-          td.textContent = cell.w !== undefined ? cell.w : cell.v !== undefined ? String(cell.v instanceof Date ? cell.v.toLocaleDateString("it-IT") : cell.v) : cell.f ? "=" + cell.f : "";
+          td.textContent = cell.w !== undefined ? cell.w : cell.v !== undefined ? String(cell.v instanceof Date ? cell.v.toLocaleDateString(LOCALE) : cell.v) : cell.f ? "=" + cell.f : "";
           if (cell.t === "n") td.style.textAlign = "right";
           if (cell.f) td.title = "=" + cell.f;
         }
@@ -75,21 +76,21 @@ export async function mount(ctx) {
     t.append(tb);
     gridBox.innerHTML = "";
     gridBox.append(t);
-    if (ref.e.r >= MAX_R || ref.e.c >= MAX_C) gridBox.append(el("p", { class: "note", style: { padding: "8px" } }, `Mostrate le prime ${MAX_R} righe e ${MAX_C} colonne; il file completo viene comunque salvato.`));
+    if (ref.e.r >= MAX_R || ref.e.c >= MAX_C) gridBox.append(el("p", { class: "note", style: { padding: "8px" } }, _t("v_sheet.mostrate_prime_0_righe_1", MAX_R, MAX_C)));
     showSel();
-    ctx.status(`${sheetName} · ${ref.e.r + 1} righe × ${ref.e.c + 1} colonne`);
+    ctx.status(_t("v_sheet.0_1_righe_2_colonne", sheetName, ref.e.r + 1, ref.e.c + 1));
   }
 
   function showSel() {
     const cell = ws()[addr(sel.r, sel.c)];
     cellRef.textContent = addr(sel.r, sel.c);
-    formulaBar.value = cell ? (cell.f ? "=" + cell.f : cell.v instanceof Date ? cell.v.toLocaleDateString("it-IT") : cell.v ?? "") : "";
+    formulaBar.value = cell ? (cell.f ? "=" + cell.f : cell.v instanceof Date ? cell.v.toLocaleDateString(LOCALE) : cell.v ?? "") : "";
     gridBox.querySelectorAll("td.sel").forEach(x => x.classList.remove("sel"));
     gridBox.querySelector(`td[data-r="${sel.r}"][data-c="${sel.c}"]`)?.classList.add("sel");
   }
 
   const undoStack = [], redoStack = [];
-  const rawOf = (r, c) => { const cell = ws()[addr(r, c)]; return cell ? (cell.f ? "=" + cell.f : cell.v instanceof Date ? cell.v.toLocaleDateString("it-IT") : cell.v ?? "") : ""; };
+  const rawOf = (r, c) => { const cell = ws()[addr(r, c)]; return cell ? (cell.f ? "=" + cell.f : cell.v instanceof Date ? cell.v.toLocaleDateString(LOCALE) : cell.v ?? "") : ""; };
   function setCell(r, c, raw, track = true) {
     if (track) { const old = rawOf(r, c); if (String(old) === String(raw ?? "")) return; undoStack.push([sheetName, r, c, old, raw]); redoStack.length = 0; }
     const s = ws();
@@ -182,7 +183,7 @@ export async function mount(ctx) {
     const it = from.pop();
     if (!it) return;
     const [sh, r, c, oldV, newV] = it;
-    if (sh !== sheetName) { from.push(it); return toast("Annulla vale per il foglio in uso"); }
+    if (sh !== sheetName) { from.push(it); return toast(_t("v_sheet.annulla_vale_foglio_uso")); }
     setCell(r, c, from === undoStack ? oldV : newV, false);
     to.push(it);
     sel = { r, c };
@@ -214,23 +215,23 @@ export async function mount(ctx) {
     if (ctrl && k.toLowerCase() === "v") {
       e.preventDefault();
       let t = "";
-      try { t = await navigator.clipboard.readText(); } catch { return toast("Appunti non leggibili", true); }
+      try { t = await navigator.clipboard.readText(); } catch { return toast(_t("v_sheet.appunti_non_leggibili"), true); }
       // testo a righe e colonne (da Excel o da un altro foglio): incolla a partire dalla cella selezionata
       t.replace(/\r?\n$/, "").split(/\r?\n/).forEach((line, i) => line.split("\t").forEach((v, j) => setCell(sel.r + i, sel.c + j, v)));
       render();
       return;
     }
-    if (ctrl && k === ";") { e.preventDefault(); setCell(sel.r, sel.c, e.shiftKey ? new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : new Date().toLocaleDateString("it-IT")); render(); return; }
+    if (ctrl && k === ";") { e.preventDefault(); setCell(sel.r, sel.c, e.shiftKey ? new Date().toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit" }) : new Date().toLocaleDateString(LOCALE)); render(); return; }
     if (k.length === 1 && !ctrl && !e.altKey) { e.preventDefault(); editCell(k, true); }
   });
   describeKeys(ctx, "Excel", [
-    ["Scrivere", "Sostituisce il contenuto della cella e inizia la modifica", "Celle"], ["F2", "Modifica la cella (testo attuale)", "Celle"],
-    ["Invio / Maiusc+Invio", "Conferma e scende / sale", "Celle"], ["Tab / Maiusc+Tab", "Conferma e va a destra / sinistra", "Celle"],
-    ["Esc", "Annulla la modifica", "Celle"], ["Canc", "Svuota la cella", "Celle"], ["Backspace", "Svuota e modifica", "Celle"],
-    ["Ctrl+Z / Ctrl+Y", "Annulla / Ripeti", "Modifica"], ["Ctrl+C / Ctrl+X / Ctrl+V", "Copia / Taglia / Incolla (anche blocchi da Excel)", "Modifica"],
-    ["Ctrl+;  /  Ctrl+Maiusc+;", "Data / ora di oggi", "Modifica"],
-    ["Ctrl+frecce", "Salta al bordo dei dati", "Movimento"], ["Ctrl+Home / Ctrl+Fine", "Prima cella / ultima cella usata", "Movimento"],
-    ["Home", "Inizio della riga", "Movimento"], ["Pag su / Pag giu'", "Su / giu' di 20 righe", "Movimento"],
+    [_t("v_sheet.scrivere"), _t("v_sheet.sostituisce_contenuto_cella_inizia_modifica"), _t("v_sheet.celle")], ["F2", _t("v_sheet.modifica_cella_testo_attuale"), _t("v_sheet.celle")],
+    ["Invio / Maiusc+Invio", _t("v_sheet.conferma_scende_sale"), _t("v_sheet.celle")], ["Tab / Maiusc+Tab", _t("v_sheet.conferma_va_destra_sinistra"), _t("v_sheet.celle")],
+    ["Esc", _t("v_sheet.annulla_modifica"), _t("v_sheet.celle")], ["Canc", _t("v_sheet.svuota_cella"), _t("v_sheet.celle")], ["Backspace", _t("v_sheet.svuota_modifica"), _t("v_sheet.celle")],
+    ["Ctrl+Z / Ctrl+Y", _t("v_sheet.annulla_ripeti"), _t("v_sheet.modifica")], ["Ctrl+C / Ctrl+X / Ctrl+V", _t("v_sheet.copia_taglia_incolla_anche_blocchi"), _t("v_sheet.modifica")],
+    ["Ctrl+;  /  Ctrl+Maiusc+;", _t("v_sheet.data_ora_oggi"), _t("v_sheet.modifica")],
+    ["Ctrl+frecce", _t("v_sheet.salta_bordo_dati"), _t("v_sheet.movimento")], ["Ctrl+Home / Ctrl+Fine", _t("v_sheet.prima_cella_ultima_cella_usata"), _t("v_sheet.movimento")],
+    ["Home", _t("v_sheet.inizio_riga"), _t("v_sheet.movimento")], ["Pag su / Pag giu'", _t("v_sheet.giu_20_righe"), _t("v_sheet.movimento")],
   ]);
   render();
 
@@ -249,7 +250,7 @@ export async function mount(ctx) {
         data = new Uint8Array(X.write(wb, { bookType, type: "array", compression: true, bookVBA: true }));
       }
       await api("save", { path: target }, { body: data });
-      if (!WRITE[ext]) toast("Salvato in formato Excel XLSX");
+      if (!WRITE[ext]) toast(_t("v_sheet.salvato_formato_excel_xlsx"));
     },
   };
 }

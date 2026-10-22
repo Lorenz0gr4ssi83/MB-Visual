@@ -13,43 +13,17 @@ import worker from "../src/index.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-// ---- D1 imitato
-function d1(db) {
-  const stmt = (sql, args = []) => ({
-    bind: (...a) => stmt(sql, a),
-    first: async () => db.prepare(sql).get(...args) ?? null,
-    all: async () => ({ results: db.prepare(sql).all(...args) }),
-    run: async () => { const r = db.prepare(sql).run(...args); return { meta: { changes: r.changes } }; },
-    _exec: () => db.prepare(sql).run(...args),
-  });
-  return {
-    prepare: sql => stmt(sql),
-    batch: async list => { db.exec("BEGIN"); try { list.forEach(s => s._exec()); db.exec("COMMIT"); } catch (e) { db.exec("ROLLBACK"); throw e; } return []; },
-  };
-}
-// file statici dell'app per cellulari (binding ASSETS) letti da una cartella
-const TYPES = { html: "text/html; charset=utf-8", js: "text/javascript", css: "text/css", json: "application/json", png: "image/png", webmanifest: "application/manifest+json", wasm: "application/wasm", svg: "image/svg+xml" };
-function assets(dir) {
-  return { fetch: async req => {
-    let p = decodeURIComponent(new URL(req.url).pathname);
-    if (p.endsWith("/")) p += "index.html";
-    const f = join(dir, p);
-    if (!f.startsWith(dir) || !existsSync(f) || !statSync(f).isFile()) return new Response("Non trovato", { status: 404 });
-    return new Response(readFileSync(f), { headers: { "content-type": TYPES[f.split(".").pop()] || "application/octet-stream" } });
-  } };
-}
-function makeEnv(file = ":memory:", publicDir = null) {
-  const db = new DatabaseSync(file);
-  db.exec(readFileSync(join(here, "..", "schema.sql"), "utf8"));
-  const keys = JSON.parse(readFileSync(join(homedir(), ".mbvisual", "licenze", "chiavi.json"), "utf8"));
-  return { DB: d1(db), SIGNING_KEY: keys.private_pkcs8, PUBLIC_KEY: keys.public_raw, ADMIN_TOKEN: process.env.MBV_ADMIN_PROVA || keys.admin_token, _db: db, ...(publicDir ? { ASSETS: assets(publicDir) } : {}) }; // MBV_ADMIN_PROVA: codice di prova al posto di quello vero
-}
+import { makeEnv, assets } from "./shim.mjs";
 
 if (process.argv[2] === "serve") {
   const dir = join(homedir(), ".mbvisual", "server-prova");
   mkdirSync(dir, { recursive: true });
   const pub = join(homedir(), ".mbvisual", "server", "public");
   const env = makeEnv(join(dir, "prova.sqlite"), existsSync(pub) ? pub : null);
+  // app per telefono di MB Visual Admin: http://127.0.0.1:<porta>/<percorso>/ (in prova senza https: il cookie Secure vale anche su 127.0.0.1)
+  env.ADMIN_PATH = process.env.MBV_ADMIN_PATH || "gestione-prova-locale-0000";
+  const vk = await crypto.subtle.exportKey("jwk", (await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign"])).privateKey);
+  env.VAPID_JWK = JSON.stringify({ d: vk.d, x: vk.x, y: vk.y });
   const port = +(process.argv[3] || 8787);
   createServer(async (req, res) => {
     const chunks = [];
@@ -174,6 +148,75 @@ if (process.argv[2] === "serve") {
   ok(dch.nuova_chiave && /Max-Age=0/.test(rch.headers.get("set-cookie") || ""), "cambio dal cellulare: chiave nuova e cookie tolto");
   const rc2 = await worker.fetch(new Request("https://x/v1/check", { method: "POST", headers: { cookie: ck }, body: "{}" }), env);
   ok(rc2.status === 410 && /Max-Age=0/.test(rc2.headers.get("set-cookie") || ""), "vecchio cellulare: licenza sostituita, cookie tolto");
+
+  // ---- QR della home del PC: link monouso, blocco, limite, codice di 6 cifre
+  const post = async (path, body, cookie) => { const r = await worker.fetch(new Request("https://lic.test" + path, { method: "POST", headers: cookie ? { cookie } : {}, body: JSON.stringify(body) }), env); return { r, d: await r.clone().json() }; };
+  const qk = (await call("/admin/licenses", { customer: "QR" }, true)).key;
+  const qpc = (await call("/v1/activate", { key: qk, device: "pc-qr", kind: "pc" })).token;
+  let ml = (await post("/v1/mlink", { token: qpc })).d;
+  ok(ml.ok && ml.liberi === 2 && ml.totali === 2 && /^https:\/\/lic\.test\/l\/[A-Za-z0-9_-]{30,}$/.test(ml.url), "QR: link monouso, 2 cellulari liberi", ml.url);
+  ok((await post("/v1/mlink", { token: qpc })).d.url === ml.url, "QR: stesso link finche' non e' usato o scaduto");
+  const page = await get(new URL(ml.url).pathname);
+  const pageText = await page.text();
+  ok(page.status === 200 && pageText.includes("/v1/mlink/claim") && pageText.includes("Copia link") && pageText.includes("x-safari-"), "QR: pagina del telefono pubblica (con Apri in Safari / Copia link)");
+  const lp = pageText.match(/<script>([\s\S]*)<\/script>/)[1];
+  ok(lp.includes("CriOS") && /GSA\\\//.test(lp), "QR: la pagina riconosce i browser sbagliati (espressioni intatte)");
+  const linkTok = ml.url.split("/").pop();
+  // due telefoni aprono lo stesso link nello stesso istante: ne passa uno solo
+  const [c1, c2] = await Promise.all([post("/v1/mlink/claim", { link: linkTok, device: "tel-a", name: "Android A" }), post("/v1/mlink/claim", { link: linkTok, device: "tel-b", name: "Android B" })]);
+  const okOne = [c1, c2].filter(x => x.d.ok);
+  ok(okOne.length === 1, "QR: lo stesso link attiva un solo telefono anche con richieste contemporanee", [c1, c2].map(x => x.r.status).join("/"));
+  const claimed = okOne[0];
+  ok(/^\d{6}$/.test(claimed.d.codice) && /mbv_m=[^;]+/.test(claimed.r.headers.get("set-cookie") || ""), "QR: telefono attivato (cookie) + codice di 6 cifre");
+  ml = (await post("/v1/mlink", { token: qpc })).d;
+  ok(ml.liberi === 1 && !ml.url && ml.attesa_fino > Date.now() + 30000, "QR: dopo l'attivazione 1 libero e blocco di 1 minuto senza link");
+  env._db.prepare("INSERT INTO mobile_links (token, license_key, expires) VALUES ('altro-link-di-prova-123456789', ?, datetime('now','+10 minutes'))").run(qk);
+  ok((await post("/v1/mlink/claim", { link: "altro-link-di-prova-123456789", device: "tel-c" })).r.status === 429, "QR: durante il blocco il server rifiuta altre attivazioni via link");
+  // stesso telefono, altro browser (iPhone: aperto prima in Chrome, poi in Safari): il link vale ancora e il posto si sposta
+  const again = await post("/v1/mlink/claim", { link: linkTok, device: "tel-z", name: "iPhone Safari" });
+  const mobNow = (await call("/admin/licenses", undefined, true)).licenze.find(l => l.key === qk).dispositivi.filter(d => d.kind === "mobile" && d.status === "active");
+  ok(again.d.ok && /^\d{6}$/.test(again.d.codice) && mobNow.length === 1 && mobNow[0].device === "tel-z", "QR: link riaperto da un altro browser entro 20 minuti: stesso posto, nessun posto in piu'");
+  env._db.prepare("UPDATE mobile_links SET used = datetime('now','-30 minutes') WHERE token = ?").run(linkTok);
+  ok((await post("/v1/mlink/claim", { link: linkTok, device: "tel-y" })).r.status === 410, "QR: link gia' usato da piu' di 20 minuti rifiutato");
+  env._db.prepare("UPDATE mobile_links SET used = datetime('now') WHERE token = ?").run(linkTok);
+  // browser che non installano l'app: rifiutati SENZA consumare il link
+  const UA = { safari: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+    chromeIos: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/129.0.6668.69 Mobile/15E148 Safari/604.1",
+    googleApp: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) GSA/333.0.676048549 Mobile/15E148 Safari/604.1",
+    inApp: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+    android: "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36",
+    androidWv: "Mozilla/5.0 (Linux; Android 14; Pixel 8; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0.0.0 Mobile Safari/537.36" };
+  const qk2 = (await call("/admin/licenses", { customer: "QR iPhone", max_mobile: 3 }, true)).key;
+  const qpc2 = (await call("/v1/activate", { key: qk2, device: "pc-qr2", kind: "pc" })).token;
+  const tok2 = (await post("/v1/mlink", { token: qpc2 })).d.url.split("/").pop();
+  const claimUa = (ua, device) => worker.fetch(new Request("https://lic.test/v1/mlink/claim", { method: "POST", headers: { "user-agent": ua }, body: JSON.stringify({ link: tok2, device, name: "iPhone" }) }), env).then(async r => ({ status: r.status, d: await r.json() }));
+  for (const [k, label] of [["chromeIos", "Chrome su iPhone"], ["googleApp", "app Google su iPhone"], ["inApp", "browser interno di un'app su iPhone"], ["androidWv", "browser interno di un'app su Android"]]) {
+    const r = await claimUa(UA[k], "dev-" + k);
+    ok(r.status === 403 && r.d.stato === "browser", `QR: ${label} rifiutato senza usare il link`, r.d.errore);
+  }
+  const sf = await claimUa(UA.safari, "dev-safari");
+  ok(sf.d.ok && !sf.d.gia_attivo, "QR: poi Safari sullo stesso iPhone attiva normalmente (link ancora valido)");
+  const lk = (await call("/admin/licenses", undefined, true)).licenze.find(l => l.key === qk2).dispositivi.filter(d => d.kind === "mobile" && d.status === "active");
+  ok(lk.length === 1, "QR: un solo posto occupato dopo i tentativi dai browser sbagliati");
+  ok((await claimUa(UA.android, "dev-android")).d.gia_attivo === true, "QR: Chrome su Android riapre il link entro 20 minuti senza prendere un altro posto");
+  // codice di 6 cifre: l'app installata (iPhone) prende il posto del browser, senza posti in piu'
+  const pr = await post("/v1/mlink/pair", { code: claimed.d.codice, device: "tel-a-app", name: "iPhone app" });
+  ok(pr.d.ok && /mbv_m=/.test(pr.r.headers.get("set-cookie") || ""), "QR: codice di 6 cifre nell'app installata");
+  ok((await post("/v1/mlink/pair", { code: claimed.d.codice, device: "tel-x" })).r.status === 410, "QR: codice usabile una volta sola");
+  const mob = (await call("/admin/licenses", undefined, true)).licenze.find(l => l.key === qk).dispositivi.filter(d => d.kind === "mobile" && d.status === "active");
+  ok(mob.length === 1 && mob[0].device === "tel-a-app", "QR: un solo cellulare occupato dopo l'abbinamento");
+  // fine del blocco (simulata) -> secondo cellulare -> QR esaurito
+  env._db.prepare("UPDATE licenses SET mobile_lock = datetime('now','-6 minutes') WHERE key = ?").run(qk);
+  ml = (await post("/v1/mlink", { token: qpc })).d;
+  ok(ml.liberi === 1 && ml.url && ml.url.split("/").pop() !== linkTok, "QR: dopo il blocco un link nuovo");
+  ok((await post("/v1/mlink/claim", { link: ml.url.split("/").pop(), device: "tel-d", name: "Android D" })).d.ok, "QR: secondo cellulare attivato");
+  env._db.prepare("UPDATE licenses SET mobile_lock = datetime('now','-6 minutes') WHERE key = ?").run(qk);
+  ml = (await post("/v1/mlink", { token: qpc })).d;
+  ok(ml.ok && ml.liberi === 0 && !ml.url, "QR: posti esauriti -> nessun link (il QR sparisce)");
+  env._db.prepare("INSERT INTO mobile_links (token, license_key, expires) VALUES ('link-oltre-il-limite-12345678', ?, datetime('now','+10 minutes'))").run(qk);
+  ok((await post("/v1/mlink/claim", { link: "link-oltre-il-limite-12345678", device: "tel-e" })).r.status === 409, "QR: oltre il limite il server rifiuta");
+  const mtry = await post("/v1/mlink", { token: pr.d.token });
+  ok(mtry.r.status === 403 && /PC/.test(mtry.d.errore), "QR: un cellulare non puo' generare il QR");
 
   console.log(fails ? `\n${fails} prove NON riuscite` : "\nTutte le prove riuscite");
   process.exit(fails ? 1 : 0);

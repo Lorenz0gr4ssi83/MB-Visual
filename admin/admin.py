@@ -60,9 +60,10 @@ def call(method: str, path: str, body=None):
         return {"ok": False, "errore": f"Server non raggiungibile: {getattr(e, 'reason', e)}"}
 
 
-TITLES = {"activation": "Nuova attivazione", "change": "Cambio dispositivo", "change_pending": "Cambio dispositivo DA APPROVARE",
+TITLES = {"activation": "Nuova attivazione", "activation_pc": "Nuovo PC attivato", "activation_mobile": "Nuovo cellulare attivato",
+          "expiring": "Licenza in scadenza", "expired": "Licenza scaduta", "change": "Cambio dispositivo", "change_pending": "Cambio dispositivo DA APPROVARE",
           "report": "Nuova segnalazione", "limit": "Limite dispositivi raggiunto", "invalid_key": "Chiave non valida usata",
-          "revoked_use": "Uso di licenza non valida"}
+          "revoked_use": "Uso di licenza non valida", "admin_login": "Accesso alla gestione dal telefono"}
 
 
 class Api:
@@ -99,6 +100,17 @@ class Api:
         else:
             p.unlink(missing_ok=True)
         return self.config()
+
+    def pair(self):
+        """Codice di 6 cifre (10 minuti, una volta sola) e link per il QR: collega l'app per telefono di MB Visual Admin."""
+        return call("POST", "/admin/pair", {})
+
+    def qr_lib(self):
+        """Sorgente del generatore di QR (qrcode-generator, MIT): la pagina lo carica come modulo da un Blob."""
+        for p in (HERE / "qrcode.mjs", HERE.parent / "ui" / "vendor" / "qrcode-generator" / "dist" / "qrcode.mjs"):
+            if p.exists():
+                return p.read_text(encoding="utf-8")
+        return ""
 
     def copy(self, text):
         import subprocess
@@ -138,13 +150,16 @@ class Notifier:
         while True:
             r = call("GET", f"/admin/events?after={st.get('ultimo_avviso', 0)}")
             if r.get("ok") and r.get("avvisi"):
-                new = r["avvisi"]
-                st["ultimo_avviso"] = new[-1]["id"]
+                # notifiche a scelta (Impostazioni, salvate sul server e uguali per l'app per telefono): gli avvisi spenti
+                # restano nell'elenco ma non diventano notifiche di Windows
+                sel = call("GET", "/admin/settings").get("notifiche") or {}
+                new = [ev for ev in r["avvisi"] if sel.get(ev["kind"], True)]
+                st["ultimo_avviso"] = r["avvisi"][-1]["id"]
                 _save_state(st)
-                if not first or len(new) <= 5:
+                if new and (not first or len(new) <= 5):
                     for ev in new[-5:]:
                         self.notify(TITLES.get(ev["kind"], "MB Visual"), ev["text"])
-                else:
+                elif new:
                     self.notify("MB Visual Admin", f"{len(new)} nuovi avvisi dall'ultima apertura")
                 if self.api._window:
                     try:

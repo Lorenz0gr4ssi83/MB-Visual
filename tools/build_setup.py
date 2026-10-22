@@ -24,6 +24,10 @@ def iscc() -> Path:
 
 def main() -> int:
     info = json.loads((APP / "_internal" / "build.json").read_text(encoding="utf-8"))
+    # attivita' "Integra con Esplora risorse" dell'installazione: servono le DLL di tools/mbvshell (ARM64 e x64)
+    for arch in ("arm64", "x64"):
+        if not (APP / "_internal" / "bin" / "shell" / f"mbvshell-{arch}.dll").is_file():
+            print(f"Attenzione: manca bin\\shell\\mbvshell-{arch}.dll (tools\\mbvshell\\build.cmd): niente miniature in Esplora")
     ver = info["versione"]
     cmd = [str(iscc()), f"/DAppVersion={ver}", f"/DSourceDir={APP}", f"/DOutDir={DIST}", "/Q", str(ROOT / "installer" / "mbvisual.iss")]
     subprocess.run(cmd, check=True)

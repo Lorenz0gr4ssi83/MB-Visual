@@ -1,6 +1,9 @@
-"""Crea la web app installabile (PWA) di MB Visual nella cartella docs/ (pubblicata da GitHub Pages).
+"""Web app installabile (PWA) di MB Visual per i cellulari.
 
-Uso:  python tools/build_web.py
+Uso:  python tools/build_web.py --mobile   app completa, protetta da licenza, in %USERPROFILE%/.mbvisual/server/public
+                                          (poi `wrangler deploy` dalla copia di lavoro del server: vedi CLAUDE.md, Licenze)
+      python tools/build_web.py            docs/ (GitHub Pages) = solo un rimando all'app sul server delle licenze: il service
+                                          worker toglie la vecchia app salvata nei telefoni e li porta all'indirizzo nuovo
 - usa la stessa interfaccia di ui/ con il motore nel browser (ui/js/webapi.js) al posto di quello Python
 - elenco formati ridotto a quelli che si aprono davvero nel browser (docs/formats.json)
 - manifest, service worker (uso offline, "Condividi > MB Visual" sul telefono), icone
@@ -26,7 +29,9 @@ if MOBILE:
 # si costruisce fuori da OneDrive (che blocca i file durante la sincronizzazione) e poi si allinea docs/ con robocopy
 OUT = Path.home() / ".mbvisual" / "webbuild"
 CACHE = Path.home() / ".mbvisual" / "webvendor"
-VERSION = "2026.10.21-15"
+# versione del service worker: cambia a ogni build, cosi' i telefoni scaricano davvero i file nuovi (cache per versione)
+import time as _time
+VERSION = _time.strftime("%Y.%m.%d-%H%M%S")
 
 # librerie usate solo dalla web app: (cartella, tarball npm, {file nel pacchetto: destinazione})
 WEB_LIBS = [
@@ -38,6 +43,13 @@ WEB_LIBS = [
     ("utif", "https://registry.npmjs.org/utif/-/utif-3.1.0.tgz", {"package/UTIF.js": "UTIF.js"}),
     ("heic2any", "https://registry.npmjs.org/heic2any/-/heic2any-0.0.4.tgz", {"package/dist/heic2any.min.js": "heic2any.min.js"}),
     ("html-docx", "https://registry.npmjs.org/html-docx-js/-/html-docx-js-0.3.1.tgz", {"package/dist/html-docx.js": "html-docx.js"}),
+    # scansione documenti (ui/js/scanner.js): OpenCV.js Apache 2.0, Tesseract.js Apache 2.0, dati "ita" di tessdata Apache 2.0
+    ("opencv", "https://registry.npmjs.org/@techstark/opencv-js/-/opencv-js-4.10.0-release.1.tgz", {"package/dist/opencv.js": "opencv.js", "package/LICENSE": "LICENSE"}),
+    ("tesseract", "https://registry.npmjs.org/tesseract.js/-/tesseract.js-6.0.1.tgz",
+     {"package/dist/tesseract.min.js": "tesseract.min.js", "package/dist/worker.min.js": "worker.min.js", "package/LICENSE.md": "LICENSE.md"}),
+    ("tesseract", "https://registry.npmjs.org/tesseract.js-core/-/tesseract.js-core-6.0.0.tgz",
+     {"package/tesseract-core-lstm.wasm.js": "tesseract-core-lstm.wasm.js", "package/tesseract-core-simd-lstm.wasm.js": "tesseract-core-simd-lstm.wasm.js"}),
+    ("tesseract", "https://registry.npmjs.org/@tesseract.js-data/ita/-/ita-1.0.0.tgz", {"package/4.0.0_best_int/ita.traineddata.gz": "ita.traineddata.gz"}),
 ]
 
 # estensioni che la web app apre davvero (per categoria del registro); le categorie assenti non sono disponibili
@@ -48,11 +60,16 @@ WEB_EXTS = {
               "tif", "tiff", "heic", "heif", "hif", "heics", "heifs", "psd", "ora"],
     "media": ["mp4", "m4v", "mov", "webm", "ogv", "3gp", "mkv"],
     "audio": ["mp3", "wav", "wave", "flac", "ogg", "oga", "opus", "m4a", "aac"],
-    "cad2d": ["dwg", "dxf", "dwt"], "cad3d": "*", "mesh3d": "*",
+    "cad2d": ["dwg", "dxf", "dwt"], "cad3d": "*", "mesh3d": "*", "bcf": "*",
     "archive": ["zip", "zipx", "7z", "rar", "tar", "ova", "gz", "gzip", "tgz", "tpz", "bz2", "bzip2", "tbz", "tbz2", "xz", "txz", "lzma", "z", "taz",
                 "cab", "lzh", "lha", "cpio", "rpm", "deb", "ar", "a", "iso", "xar", "pkg", "xip", "jar", "war", "ear", "apk", "aab", "xapk", "ipa",
                 "appx", "msix", "appxbundle", "nupkg", "vsix", "xpi", "whl", "egg", "cbz", "cbr", "cb7"],
-    "email": ["eml", "mbox", "mbx"], "ebook": "*", "font": ["ttf", "otf", "woff", "woff2"], "database": "*",
+    "email": ["eml", "mbox", "mbx"], "ebook": "*", "font": ["ttf", "otf", "woff", "woff2"], "database": "*", "gis": "*",
+    # visualizzatori che funzionano anche senza il motore Python (22/10/2026)
+    "dwf": "*", "calendar": "*", "contacts": "*", "hpgl": "*", "vis3d": "*",
+    "visio": ["vsdx", "vsdm", "vstx", "vstm"],          # i .vsd binari richiedono il motore
+    "publisher": ["mbpub"],                              # i .pub di Publisher richiedono il motore
+    "pointcloud": ["las", "pts", "xyz"],                 # LAZ/E57/PTX richiedono il motore
 }
 WEB_NOTES = {
     "media": "Riproduzione dei formati supportati dal browser del dispositivo (la conversione di altri formati e' nella versione per PC)",
@@ -124,13 +141,18 @@ HEAD = """<meta name="theme-color" content="#1e2225">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script>window.MBV_WEB = true; window.MBV_ROOT = new URL(".", location.href).href;
-if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js"));</script>
+if ("serviceWorker" in navigator) {
+  addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
+  // versione nuova appena installata: si ricarica una volta per usare i file nuovi (non alla prima installazione)
+  const had = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (had && !window.__mbvReload) { window.__mbvReload = true; location.reload(); } });
+}</script>
 """
 
 MANIFEST = {
     "name": "MB Visual", "short_name": "MB Visual", "id": "./", "start_url": "./", "scope": "./", "display": "standalone",
     "background_color": "#eff0ee", "theme_color": "#1e2225", "lang": "it",
-    "description": "Visualizzatore di documenti, disegni CAD, modelli 3D e BIM, firme digitali e archivi",
+    "description": "Powered by MB Group",
     "icons": [{"src": "img/icon-192.png", "sizes": "192x192", "type": "image/png"},
               {"src": "img/icon-512.png", "sizes": "512x512", "type": "image/png"},
               {"src": "img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}],
@@ -183,8 +205,53 @@ def icons(img_dir: Path) -> None:
     bg.save(img_dir / "icon-maskable-512.png")
 
 
+REDIRECT_HTML = """<!doctype html><html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MB Visual</title><meta http-equiv="refresh" content="0; url=__URL__/">
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#17191b;color:#e6e8e5;font:15px system-ui,sans-serif;text-align:center;padding:20px}a{color:#f07d2e}</style>
+<script>
+// la web app si e' spostata sul server delle licenze: via la vecchia app salvata (service worker e cache), poi l'indirizzo nuovo
+(async () => {
+  try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch (e) {}
+  try { for (const k of await caches.keys()) await caches.delete(k); } catch (e) {}
+  location.replace("__URL__/");
+})();
+</script></head><body><p>MB Visual si e' spostata a un nuovo indirizzo.<br><a href="__URL__/">__URL__</a></p></body></html>
+"""
+
+REDIRECT_SW = r"""// La web app si e' spostata sul server delle licenze: questo service worker sostituisce quello vecchio,
+// cancella la copia salvata e porta le finestre aperte all'indirizzo nuovo.
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", e => e.waitUntil((async () => {
+  for (const k of await caches.keys()) await caches.delete(k);
+  await self.registration.unregister();
+  for (const c of await self.clients.matchAll({ type: "window" })) c.navigate("__URL__/");
+})()));
+"""
+
+
+def redirect_docs() -> None:
+    """docs/ (GitHub Pages) = rimando all'app per cellulari sul server delle licenze."""
+    sys.path.insert(0, str(ROOT))
+    from mbvisual import license_pub
+    url = (license_pub.LICENSE_URL or "").rstrip("/")
+    if not url:
+        raise SystemExit("LICENSE_URL vuoto in mbvisual/license_pub.py: niente rimando")
+    out = OUT.parent / "webbuild-rimando"
+    shutil.rmtree(out, ignore_errors=True)
+    out.mkdir(parents=True)
+    (out / "index.html").write_bytes(REDIRECT_HTML.replace("__URL__", url).encode("utf-8"))
+    (out / "sw.js").write_bytes(REDIRECT_SW.replace("__URL__", url).encode("utf-8"))
+    (out / ".nojekyll").write_bytes(b"")
+    sys.path.insert(0, str(ROOT / "tools"))
+    from synctree import sync_tree
+    print(f"docs/ = rimando a {url}:", sync_tree(out, FINAL))
+
+
 def main() -> None:
     global OUT
+    if not MOBILE:
+        return redirect_docs()
     import time
     # cartella nuova a ogni compilazione (Windows a volte trattiene le cartelle appena usate); le vecchie si rimuovono se possibile
     for old in OUT.parent.glob("webbuild*"):
@@ -203,6 +270,10 @@ def main() -> None:
         # app per cellulari servita dal server delle licenze: controllo della licenza e menu Account
         html = html.replace("window.MBV_WEB = true;", "window.MBV_WEB = true; window.MBV_MOBILE = true;")
         html = html.replace('<script type="module" src="js/webapi.js"></script>', '<script type="module" src="js/mlicenza.js"></script>\n<script type="module" src="js/webapi.js"></script>')
+        # dicitura chiesta dall'utente sotto il logo (marchio: non si traduce; div e non p: app.js riscrive il primo p della home)
+        h1 = '<h1 data-i18n="idx.trascina_qui_i_file_aprire">'
+        assert h1 in html
+        html = html.replace(h1, '<div style="margin:0 0 6px;color:var(--brand);font:600 12px var(--mono);letter-spacing:.14em;text-transform:uppercase">Powered by MB Group</div>\n            ' + h1)
     (OUT / "index.html").write_text(html, encoding="utf-8")
     (OUT / "formats.json").write_text(json.dumps(web_registry(), ensure_ascii=False, indent=1), encoding="utf-8")
     (OUT / "manifest.webmanifest").write_text(json.dumps(MANIFEST, ensure_ascii=False, indent=1), encoding="utf-8")
