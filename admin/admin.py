@@ -60,7 +60,8 @@ def call(method: str, path: str, body=None):
         return {"ok": False, "errore": f"Server non raggiungibile: {getattr(e, 'reason', e)}"}
 
 
-TITLES = {"activation": "Nuova attivazione", "change": "Cambio dispositivo", "change_pending": "Cambio dispositivo DA APPROVARE",
+TITLES = {"activation": "Nuova attivazione", "activation_pc": "Nuovo PC attivato", "activation_mobile": "Nuovo cellulare attivato",
+          "expiring": "Licenza in scadenza", "expired": "Licenza scaduta", "change": "Cambio dispositivo", "change_pending": "Cambio dispositivo DA APPROVARE",
           "report": "Nuova segnalazione", "limit": "Limite dispositivi raggiunto", "invalid_key": "Chiave non valida usata",
           "revoked_use": "Uso di licenza non valida", "admin_login": "Accesso alla gestione dal telefono"}
 
@@ -149,13 +150,16 @@ class Notifier:
         while True:
             r = call("GET", f"/admin/events?after={st.get('ultimo_avviso', 0)}")
             if r.get("ok") and r.get("avvisi"):
-                new = r["avvisi"]
-                st["ultimo_avviso"] = new[-1]["id"]
+                # notifiche a scelta (Impostazioni, salvate sul server e uguali per l'app per telefono): gli avvisi spenti
+                # restano nell'elenco ma non diventano notifiche di Windows
+                sel = call("GET", "/admin/settings").get("notifiche") or {}
+                new = [ev for ev in r["avvisi"] if sel.get(ev["kind"], True)]
+                st["ultimo_avviso"] = r["avvisi"][-1]["id"]
                 _save_state(st)
-                if not first or len(new) <= 5:
+                if new and (not first or len(new) <= 5):
                     for ev in new[-5:]:
                         self.notify(TITLES.get(ev["kind"], "MB Visual"), ev["text"])
-                else:
+                elif new:
                     self.notify("MB Visual Admin", f"{len(new)} nuovi avvisi dall'ultima apertura")
                 if self.api._window:
                     try:

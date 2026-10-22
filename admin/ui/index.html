@@ -34,6 +34,14 @@
   .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
   #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--panel2); border: 1px solid var(--line); padding: 8px 14px; border-radius: 6px; display: none; }
   .err { color: var(--bad); }
+  .mback { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; z-index: 20; }
+  .modal { width: min(560px, 94vw); max-height: 90vh; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: grid; gap: 10px; }
+  .modal .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .modal label input, .modal label textarea { width: 100%; }
+  textarea { background: var(--panel2); color: var(--fg); border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px; font: inherit; }
+  .pick { border: 1px solid var(--warn); border-radius: 8px; padding: 8px 10px; display: grid; gap: 4px; }
+  .pick label, .nsw { display: flex; gap: 8px; align-items: center; color: var(--fg); font-size: 13px; }
+  .nsw { padding: 3px 0; }
+  .modal .pick label input, .nsw input { width: auto; flex: none; }
   .pair { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
   .pair .qr { background: #fff; padding: 10px; border-radius: 8px; line-height: 0; }
   .pair .qr svg * { stroke: none !important; }
@@ -58,7 +66,11 @@
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = s => s ? new Date(s.replace(" ", "T") + "Z").toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" }) : "";
-const KIND = { activation: "Attivazione", change: "Cambio dispositivo", change_pending: "Cambio DA APPROVARE", report: "Segnalazione", limit: "Limite raggiunto", invalid_key: "Chiave non valida", revoked_use: "Licenza non valida in uso", admin_login: "Accesso dal telefono" };
+const KIND = { activation: "Attivazione", activation_pc: "Nuovo PC attivato", activation_mobile: "Nuovo cellulare attivato", expiring: "Licenza in scadenza", expired: "Licenza scaduta", change: "Cambio dispositivo", change_pending: "Cambio DA APPROVARE", report: "Segnalazione", limit: "Limite raggiunto", invalid_key: "Chiave non valida", revoked_use: "Licenza non valida in uso", admin_login: "Accesso dal telefono" };
+const NOTIFY = { activation_pc: "Nuova attivazione di un PC", activation_mobile: "Nuova attivazione di un cellulare", change: "Cambio dispositivo (chiave nuova generata)",
+  change_pending: "Cambio oltre il limite da approvare", report: "Segnalazione dall'app", expiring: "Licenza in scadenza (15 giorni prima)", expired: "Licenza scaduta",
+  limit: "Tentativi oltre il limite di dispositivi", invalid_key: "Tentativi con chiave non valida o sostituita", revoked_use: "Uso di una licenza revocata o scaduta",
+  admin_login: "Accesso alla gestione da un telefono" };
 const STATO = { active: "attiva", revoked: "revocata", replaced: "sostituita", open: "aperta", pending: "in attesa", done: "completata", closed: "chiusa" };
 let view = "panoramica", data = {};
 function toast(t, bad) { const e = $("#toast"); e.textContent = t; e.className = bad ? "err" : ""; e.style.display = "block"; clearTimeout(e._h); e._h = setTimeout(() => (e.style.display = "none"), 3500); }
@@ -95,7 +107,7 @@ function render() {
         <td><b>${esc(l.customer)}</b><br><span class="muted">${esc(l.email)}</span>${l.notes ? `<br><span class="muted">${esc(l.notes)}</span>` : ""}</td>
         <td>PC ${devs.filter(d => d.kind === "pc").length}/${l.max_pc}<br>Cell. ${devs.filter(d => d.kind === "mobile").length}/${l.max_mobile}</td>
         <td class="muted">${fmt(l.created)}${l.expires ? "<br>scade " + esc(l.expires) : ""}</td>
-        <td><button class="b" onclick="copyKey('${l.key}')">Copia</button>${l.status === "active" ? `<button class="b" onclick="act('${l.key}','replace','Generare una chiave nuova? Questa smettera\\' di funzionare su tutti i dispositivi.')">Nuova chiave</button><button class="b d" onclick="act('${l.key}','revoke','Revocare la licenza? Tutte le app si bloccano.')">Revoca</button>` : l.status === "revoked" ? `<button class="b" onclick="act('${l.key}','reactivate')">Riattiva</button>` : ""}</td></tr>`
+        <td><button class="b" onclick="copyKey('${l.key}')">Copia</button>${l.status === "active" ? `<button class="b" onclick="editLic('${l.key}')">Modifica</button><button class="b" onclick="act('${l.key}','replace','Generare una chiave nuova? Questa smettera\\' di funzionare su tutti i dispositivi.')">Nuova chiave</button><button class="b d" onclick="act('${l.key}','revoke','Revocare la licenza? Tutte le app si bloccano.')">Revoca</button>` : l.status === "revoked" ? `<button class="b" onclick="act('${l.key}','reactivate')">Riattiva</button>` : ""}</td></tr>`
         + devs.map(d => `<tr class="sub"><td></td><td colspan="2">${d.kind === "pc" ? "PC" : "Cellulare"} · <b>${esc(d.name || "-")}</b> <span class="muted">${esc(d.version)}</span></td><td class="muted">attivato ${fmt(d.activated)}<br>ultimo uso ${fmt(d.last_seen)}</td><td><button class="b d" onclick="freeDev(${d.id})">Libera</button></td></tr>`).join("");
     }).join("");
     m.innerHTML = `<form class="new" onsubmit="return newLic(event)"><label>Cliente<input name="customer" required></label><label>Email<input name="email" type="email"></label>
@@ -127,6 +139,38 @@ async function newLic(e) {
   try { const r = await call("POST", "/admin/licenses", { ...f, max_pc: +f.max_pc, max_mobile: +f.max_mobile }); await window.pywebview.api.copy(r.key); toast("Licenza creata e copiata: " + r.key); e.target.reset(); adminRefresh(); } catch (x) { toast(x.message, true); }
   return false;
 }
+// modifica: limiti di PC e cellulari anche con la licenza in uso. Sotto i dispositivi gia' attivi si sceglie quali disattivare.
+function editLic(key) {
+  const l = data.lic.find(x => x.key === key); if (!l) return;
+  const active = k => l.dispositivi.filter(d => d.status === "active" && d.kind === k);
+  const back = document.createElement("div"); back.className = "mback";
+  back.innerHTML = `<div class="modal"><h3>Modifica licenza <span class="mono muted" style="font-size:12px">${esc(l.key)}</span></h3>
+    <label>Cliente<input id="e-c" value="${esc(l.customer)}"></label><label>Email<input id="e-e" value="${esc(l.email)}"></label>
+    <div class="g2"><label>PC abilitati<input id="e-p" type="number" min="1" value="${l.max_pc}"></label><label>Cellulari abilitati<input id="e-m" type="number" min="0" value="${l.max_mobile}"></label></div>
+    <div class="muted">In uso: ${active("pc").length} PC e ${active("mobile").length} cellulari. Aumentando, i posti nuovi sono subito disponibili (anche il QR dell'app per PC si aggiorna).</div>
+    <div id="e-pick"></div>
+    <label>Scadenza (facoltativa)<input id="e-x" type="date" value="${esc((l.expires || "").slice(0, 10))}"></label>
+    <label>Note<textarea id="e-n" rows="2">${esc(l.notes)}</textarea></label>
+    <div class="err" id="e-err"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="b" id="e-no">Annulla</button><button class="b p" id="e-ok">Salva</button></div></div>`;
+  document.body.append(back);
+  const q = id => back.querySelector(id);
+  const need = () => ({ pc: Math.max(0, active("pc").length - (+q("#e-p").value || 1)), mobile: Math.max(0, active("mobile").length - Math.max(0, +q("#e-m").value || 0)) });
+  const draw = () => { const n = need(), keep = new Set([...back.querySelectorAll("#e-pick input:checked")].map(i => +i.value));
+    q("#e-pick").innerHTML = ["pc", "mobile"].filter(k => n[k] > 0).map(k => `<div class="pick"><b>${k === "pc" ? "PC" : "Cellulari"}: scegli ${n[k] === 1 ? "quale disattivare" : `quali ${n[k]} disattivare`}</b>
+      <span class="muted">Il nuovo limite e' sotto i ${k === "pc" ? "PC" : "cellulari"} gia' attivi. Sui dispositivi scelti l'app si blocca e il posto si libera.</span>
+      ${active(k).map(d => `<label><input type="checkbox" value="${d.id}" data-k="${k}" ${keep.has(d.id) ? "checked" : ""}> ${esc(d.name || "-")} <span class="muted">ultimo uso ${fmt(d.last_seen)}</span></label>`).join("")}</div>`).join(""); };
+  q("#e-p").oninput = q("#e-m").oninput = draw;
+  q("#e-no").onclick = () => back.remove();
+  q("#e-ok").onclick = async () => {
+    const n = need(), chosen = [...back.querySelectorAll("#e-pick input:checked")];
+    for (const k of ["pc", "mobile"]) { const c = chosen.filter(i => i.dataset.k === k).length; if (c < n[k]) { q("#e-err").textContent = `Scegli ancora ${n[k] - c} ${k === "pc" ? "PC" : "cellulari"} da disattivare.`; return; } }
+    const body = { customer: q("#e-c").value.trim(), email: q("#e-e").value.trim(), notes: q("#e-n").value.trim(), max_pc: Math.max(1, +q("#e-p").value || 1),
+      max_mobile: Math.max(0, +q("#e-m").value || 0), expires: q("#e-x").value || "", free: chosen.map(i => +i.value) };
+    if (body.free.length && !confirm(`Disattivare ${body.free.length} dispositivi? Su quei dispositivi l'app si blocca.`)) return;
+    try { const r = await call("POST", `/admin/licenses/${encodeURIComponent(key)}/update`, body); back.remove(); toast(r.liberati ? `Licenza aggiornata: ${r.liberati} dispositivi disattivati` : "Licenza aggiornata"); adminRefresh(); }
+    catch (x) { q("#e-err").textContent = x.message; }
+  };
+}
 async function act(key, what, ask) { if (ask && !confirm(ask)) return; try { const r = await call("POST", `/admin/licenses/${encodeURIComponent(key)}/${what}`, {}); if (r.key) { await window.pywebview.api.copy(r.key); toast("Nuova chiave copiata: " + r.key); } else toast("Fatto"); adminRefresh(); } catch (x) { toast(x.message, true); } }
 async function freeDev(id) { if (!confirm("Liberare il dispositivo? L'app su quel dispositivo si blocca e il posto torna disponibile.")) return; try { await call("POST", `/admin/devices/${id}/revoke`, {}); toast("Dispositivo liberato"); adminRefresh(); } catch (x) { toast(x.message, true); } }
 async function reqAct(id, what) { try { const r = await call("POST", `/admin/requests/${id}/${what}`, {}); if (r.key) { await window.pywebview.api.copy(r.key); toast("Approvato: nuova chiave copiata " + r.key); } else toast("Fatto"); adminRefresh(); } catch (x) { toast(x.message, true); } }
@@ -135,14 +179,28 @@ async function copyKey(k) { await window.pywebview.api.copy(k); toast("Chiave co
 async function renderSettings(m) {
   const c = await window.pywebview.api.config();
   m.innerHTML = `<div class="card" style="max-width:640px;display:grid;gap:12px"><h3>Impostazioni</h3>
-    <label>Indirizzo del server delle licenze<input id="url" value="${esc(c.url)}" placeholder="https://mbvisual-licenze.xxxxx.workers.dev"></label>
+    <label>Indirizzo del server delle licenze<input id="url" value="${esc(c.url)}" placeholder="https://mbvisual.xxxxx.workers.dev"></label>
     <div><button class="b p" onclick="saveUrl()">Salva indirizzo</button></div>
     <label style="display:flex;gap:8px;align-items:center;color:var(--fg)"><input type="checkbox" id="auto" ${c.autostart ? "checked" : ""} onchange="setAuto()"> Avvia con Windows (nascosta nell'area di notifica)</label>
     <p class="muted">Chiudendo la finestra l'app resta attiva nell'area di notifica e ti avvisa di attivazioni, richieste e segnalazioni. Per uscire: clic destro sull'icona → Esci.</p></div>
+    <div class="card" style="max-width:640px;display:grid;gap:8px;margin-top:14px"><h3>Notifiche da ricevere</h3>
+    <p class="muted" style="margin:0">Valgono per le notifiche di Windows e per l'app per telefono. Gli avvisi restano comunque nella Panoramica.</p><div id="nsel" class="muted">...</div></div>
     <div class="card" style="max-width:640px;display:grid;gap:12px;margin-top:14px"><h3>App per telefono</h3>
     <p class="muted" style="margin:0">Gestisci licenze, dispositivi e richieste anche dal telefono, con le notifiche. Inquadra il QR con il telefono e installa l'app sulla schermata Home.
       Su iPhone l'app installata non vede l'accesso fatto in Safari: aprila e scrivi un nuovo codice di 6 cifre. Il codice vale 10 minuti e una volta sola.</p>
     <div id="pair"></div><div><button class="b p" onclick="newPair()">Collega un telefono</button></div></div>`;
+  loadNotify();
+}
+async function loadNotify() {
+  const box = $("#nsel"); if (!box) return;
+  try {
+    const st = await call("GET", "/admin/settings");
+    box.innerHTML = st.tipi.map(k => `<label class="nsw"><input type="checkbox" data-n="${k}" ${st.notifiche[k] ? "checked" : ""}> ${esc(NOTIFY[k] || k)}</label>`).join("");
+    box.querySelectorAll("[data-n]").forEach(i => i.onchange = async () => {
+      const n = Object.fromEntries([...box.querySelectorAll("[data-n]")].map(x => [x.dataset.n, x.checked]));
+      try { await call("POST", "/admin/settings", { notifiche: n }); toast(i.checked ? "Notifica attivata" : "Notifica disattivata"); } catch (x) { i.checked = !i.checked; toast(x.message, true); }
+    });
+  } catch (x) { box.innerHTML = `<span class="err">${esc(x.message)}</span>`; }
 }
 let pairTimer = 0;
 async function newPair() {

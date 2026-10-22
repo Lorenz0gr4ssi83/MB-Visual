@@ -197,6 +197,7 @@ function build(db) {
               for (let i = 1; i < v.length; i++) bulgePts(v[i - 1], v[i], v[i - 1].bulge, pts);
               bulgePts(v[v.length - 1], v[0], v[v.length - 1].bulge || 0, pts);
             } else for (const ed of path.edges || []) {
+              if (!ed) continue; // DWG reali: bordi vuoti nei contorni dei retini (libredwg)
               if (ed.type === 1) pts.push([ed.start.x, ed.start.y], [ed.end.x, ed.end.y]);
               else if (ed.type === 2) pts.push(...arcPts(ed.center.x, ed.center.y, ed.radius, ed.radius, 0, ed.isCCW === false ? -ed.startAngle : ed.startAngle, ed.isCCW === false ? -ed.endAngle : ed.endAngle, ed.isCCW !== false));
               else if (ed.type === 3) { const r = Math.hypot(ed.end.x, ed.end.y); pts.push(...arcPts(ed.center.x, ed.center.y, r, ed.lengthOfMinorAxis * (ed.lengthOfMinorAxis < 1.0001 ? r : 1), Math.atan2(ed.end.y, ed.end.x), ed.startAngle, ed.endAngle, ed.isCCW !== false)); }

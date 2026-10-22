@@ -23,7 +23,7 @@ const sqlTime = ms => new Date(ms).toISOString().replace("T", " ").slice(0, 19);
 const sha256 = async data => new Uint8Array(await crypto.subtle.digest("SHA-256", typeof data === "string" ? enc.encode(data) : data));
 const hex = bytes => [...bytes].map(b => b.toString(16).padStart(2, "0")).join("");
 const concat = (...parts) => { const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0)); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; } return out; };
-const KIND = { activation: "Attivazione", change: "Cambio dispositivo", change_pending: "Cambio da approvare", report: "Segnalazione", limit: "Limite raggiunto",
+const KIND = { activation: "Attivazione", activation_pc: "Nuovo PC attivato", activation_mobile: "Nuovo cellulare attivato", expiring: "Licenza in scadenza", expired: "Licenza scaduta", change: "Cambio dispositivo", change_pending: "Cambio da approvare", report: "Segnalazione", limit: "Limite raggiunto",
   invalid_key: "Chiave non valida", revoked_use: "Licenza non valida in uso", admin_login: "Accesso alla gestione" };
 
 export const adminPath = env => (/^[A-Za-z0-9_-]{16,}$/.test(env.ADMIN_PATH || "") ? env.ADMIN_PATH : "");

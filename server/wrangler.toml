@@ -11,6 +11,10 @@ directory = "./public"
 binding = "ASSETS"
 run_worker_first = true
 
+# controllo giornaliero delle licenze in scadenza o scadute (avvisi e notifiche)
+[triggers]
+crons = ["0 6 * * *"]
+
 [vars]
 PUBLIC_KEY = "__PUBLIC_KEY__"
 

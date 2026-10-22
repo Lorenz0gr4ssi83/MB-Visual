@@ -88,6 +88,11 @@
   .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
   .dev { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
   .dev > div { flex: 1; min-width: 0; }
+  .pick { display: grid; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--warn); }
+  .pick label { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+  .pick input, .sw input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+  .sw { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+  .sw:last-child { border-bottom: 0; } .sw span { flex: 1; }
   #toast { position: fixed; left: 16px; right: 16px; bottom: calc(80px + var(--bottom)); z-index: 60; padding: 12px 14px; border-radius: 10px; background: #2b3035; border: 1px solid var(--line);
     box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
   #toast.bad { border-color: var(--bad); }
@@ -142,8 +147,13 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 const fmt = s => s ? new Date(s.replace(" ", "T") + "Z").toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" }) : "";
 const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
-const KIND = { activation: "Attivazione", change: "Cambio dispositivo", change_pending: "Cambio DA APPROVARE", report: "Segnalazione", limit: "Limite raggiunto",
+const KIND = { activation: "Attivazione", activation_pc: "Nuovo PC attivato", activation_mobile: "Nuovo cellulare attivato", expiring: "Licenza in scadenza", expired: "Licenza scaduta", change: "Cambio dispositivo", change_pending: "Cambio DA APPROVARE", report: "Segnalazione", limit: "Limite raggiunto",
   invalid_key: "Chiave non valida", revoked_use: "Licenza non valida in uso", admin_login: "Accesso alla gestione" };
+// notifiche a scelta (stesse impostazioni dell'app per PC, salvate sul server)
+const NOTIFY = { activation_pc: "Nuova attivazione di un PC", activation_mobile: "Nuova attivazione di un cellulare", change: "Cambio dispositivo (chiave nuova generata)",
+  change_pending: "Cambio oltre il limite da approvare", report: "Segnalazione dall'app", expiring: "Licenza in scadenza (15 giorni prima)", expired: "Licenza scaduta",
+  limit: "Tentativi oltre il limite di dispositivi", invalid_key: "Tentativi con chiave non valida o sostituita", revoked_use: "Uso di una licenza revocata o scaduta",
+  admin_login: "Accesso alla gestione da un telefono" };
 const STATO = { active: "attiva", revoked: "revocata", replaced: "sostituita", open: "aperta", pending: "in attesa", done: "completata", closed: "chiusa" };
 const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -337,22 +347,43 @@ function licSheet(key) {
   });
 }
 function licForm(l) {
+  const active = k => l ? l.dispositivi.filter(d => d.status === "active" && d.kind === k) : [];
   const s = sheet(`<h3>${l ? "Modifica licenza" : "Nuova licenza"}</h3>
     <label class="field">Cliente<input id="f-c" value="${esc(l?.customer)}" autocomplete="off"></label>
     <label class="field">Email<input id="f-e" type="email" value="${esc(l?.email)}" autocomplete="off"></label>
-    <div class="grid2"><label class="field">PC<input id="f-p" type="number" min="1" inputmode="numeric" value="${l?.max_pc ?? 1}"></label>
-      <label class="field">Cellulari<input id="f-m" type="number" min="0" inputmode="numeric" value="${l?.max_mobile ?? 2}"></label></div>
+    <div class="grid2"><label class="field">PC abilitati<input id="f-p" type="number" min="1" inputmode="numeric" value="${l?.max_pc ?? 1}"></label>
+      <label class="field">Cellulari abilitati<input id="f-m" type="number" min="0" inputmode="numeric" value="${l?.max_mobile ?? 2}"></label></div>
+    ${l ? `<div class="note">In uso: ${active("pc").length} PC e ${active("mobile").length} cellulari. Aumentando, i posti nuovi sono subito disponibili.</div>` : ""}
+    <div id="f-pick"></div>
+    <label class="field">Scadenza (facoltativa)<input id="f-x" type="date" value="${esc((l?.expires || "").slice(0, 10))}"></label>
     <label class="field">Note<textarea id="f-n" rows="2">${esc(l?.notes)}</textarea></label>
     <div class="err" id="f-err"></div><button class="btn p w" id="f-ok">${l ? "Salva" : "Crea licenza"}</button>`);
+  // limite sotto i dispositivi gia' attivi: si sceglie quali disattivare (su quei dispositivi l'app si blocca)
+  const need = () => ({ pc: Math.max(0, active("pc").length - (+s.querySelector("#f-p").value || 1)), mobile: Math.max(0, active("mobile").length - Math.max(0, +s.querySelector("#f-m").value || 0)) });
+  const pick = s.querySelector("#f-pick");
+  function drawPick() {
+    const n = need(), keep = new Set([...pick.querySelectorAll("input:checked")].map(i => +i.value));
+    pick.innerHTML = ["pc", "mobile"].filter(k => n[k] > 0).map(k => `<div class="pick"><b>${k === "pc" ? "PC" : "Cellulari"}: scegli ${n[k] === 1 ? "quale disattivare" : `quali ${n[k]} disattivare`}</b>
+      <span class="note">Il nuovo limite e' sotto i ${k === "pc" ? "PC" : "cellulari"} gia' attivi. Sui dispositivi scelti l'app si blocca e il posto si libera.</span>
+      ${active(k).map(d => `<label><input type="checkbox" value="${d.id}" data-k="${k}" ${keep.has(d.id) ? "checked" : ""}><span>${esc(d.name || "-")}<br><span class="note">ultimo uso ${fmt(d.last_seen)}</span></span></label>`).join("")}</div>`).join("");
+  }
+  s.querySelector("#f-p").oninput = s.querySelector("#f-m").oninput = drawPick;
   s.querySelector("#f-ok").onclick = async () => {
     const body = { customer: s.querySelector("#f-c").value.trim(), email: s.querySelector("#f-e").value.trim(), notes: s.querySelector("#f-n").value.trim(),
-      max_pc: +s.querySelector("#f-p").value || 1, max_mobile: Math.max(0, +s.querySelector("#f-m").value || 0), expires: l?.expires || null };
-    if (!body.customer) { s.querySelector("#f-err").textContent = "Scrivi il nome del cliente."; return; }
+      max_pc: Math.max(1, +s.querySelector("#f-p").value || 1), max_mobile: Math.max(0, +s.querySelector("#f-m").value || 0), expires: s.querySelector("#f-x").value || "" };
+    const err = s.querySelector("#f-err");
+    if (!body.customer) { err.textContent = "Scrivi il nome del cliente."; return; }
+    if (l) {
+      const n = need(), chosen = [...pick.querySelectorAll("input:checked")];
+      for (const k of ["pc", "mobile"]) if (chosen.filter(i => i.dataset.k === k).length < n[k]) { err.textContent = `Scegli ancora ${n[k] - chosen.filter(i => i.dataset.k === k).length} ${k === "pc" ? "PC" : "cellulari"} da disattivare.`; return; }
+      body.free = chosen.map(i => +i.value);
+      if (body.free.length && !confirm(`Disattivare ${body.free.length} dispositivi? Su quei dispositivi l'app si blocca.`)) return;
+    }
     try {
       const r = await api("POST", l ? `admin/licenses/${encodeURIComponent(l.key)}/update` : "admin/licenses", body);
       s.remove(); await refresh();
-      if (!l) keySheet("Licenza creata", r.key, body.customer); else toast("Licenza aggiornata");
-    } catch (e) { s.querySelector("#f-err").textContent = e.message; }
+      if (!l) keySheet("Licenza creata", r.key, body.customer); else toast(r.liberati ? `Licenza aggiornata: ${r.liberati} dispositivi disattivati` : "Licenza aggiornata");
+    } catch (e) { err.textContent = e.message; }
   };
 }
 $("fab").onclick = () => licForm(null);
@@ -376,6 +407,8 @@ async function renderSettings(m) {
         : sub ? `<div>Attive su questo telefono: attivazioni, richieste, segnalazioni e accessi alla gestione.</div><div class="actions"><button class="btn s" id="p-test">Prova</button><button class="btn s d" id="p-off">Disattiva</button></div>`
         : `<div class="muted">${Notification.permission === "denied" ? "Le notifiche sono bloccate nelle impostazioni del telefono per questa app." : "Ricevi un avviso per ogni attivazione, richiesta o segnalazione."}</div>${Notification.permission === "denied" ? "" : `<div class="actions"><button class="btn s p" id="p-on">Attiva notifiche</button></div>`}`}
     </div></div>
+    <div class="sec"><h3>Notifiche da ricevere</h3></div><div class="note" style="margin:-4px 2px 0">Valgono per il telefono e per MB Visual Admin sul PC. Gli avvisi restano comunque nella Panoramica.</div>
+    <div class="box" id="nsel"><div class="empty">...</div></div>
     <div class="sec"><h3>Impronta / PIN</h3></div><div class="box"><div class="row">
       ${state.impronta ? `<div>L'app chiede l'impronta, il volto o il PIN a ogni apertura e dopo ${10} minuti senza operazioni.</div><div class="actions"><button class="btn s" id="w-lock">Blocca ora</button><button class="btn s d" id="w-off">Rimuovi</button></div>`
         : wa ? `<div class="muted">Non attivo: chi apre questo telefono sbloccato puo' gestire le licenze.</div><div class="actions"><button class="btn s p" id="w-on">Attiva impronta / PIN</button></div>`
@@ -385,6 +418,14 @@ async function renderSettings(m) {
       <div class="note">collegato ${fmt(p.creato)} · ultimo uso ${fmt(p.ultimo)}</div>${p.questo ? "" : `<div class="actions"><button class="btn s d" data-off="${p.n}">Scollega</button></div>`}</div>`).join("") || `<div class="empty">-</div>`}</div>
     <button class="btn w d" id="logout">Esci da questo telefono</button>
     <div class="note" style="text-align:center">Per collegare un altro telefono: MB Visual Admin sul PC → Impostazioni → App per telefono.</div>`;
+  api("GET", "admin/settings").then(st => {
+    const box = $("nsel"); if (!box) return;
+    box.innerHTML = st.tipi.map(k => `<label class="sw"><span>${esc(NOTIFY[k] || k)}</span><input type="checkbox" data-n="${k}" ${st.notifiche[k] ? "checked" : ""}></label>`).join("");
+    box.querySelectorAll("[data-n]").forEach(i => i.onchange = async () => {
+      const n = Object.fromEntries([...box.querySelectorAll("[data-n]")].map(x => [x.dataset.n, x.checked]));
+      try { await api("POST", "admin/settings", { notifiche: n }); toast(i.checked ? "Notifica attivata" : "Notifica disattivata"); } catch (e) { i.checked = !i.checked; toast(e.message, true); }
+    });
+  }).catch(e => { const box = $("nsel"); if (box) box.innerHTML = `<div class="empty err">${esc(e.message)}</div>`; });
   $("p-on")?.addEventListener("click", async () => {
     try {
       if (await Notification.requestPermission() !== "granted") throw new Error("Permesso per le notifiche non concesso.");

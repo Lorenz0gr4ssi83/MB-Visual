@@ -153,13 +153,62 @@ ok(pt.inviate === 1 && first.vapidOk && first.enc === "aes128gcm" && first.msg?.
 ok(first.claims?.aud === new URL(ep).origin && first.claims?.sub === ORIGIN, "VAPID: destinatario = servizio push, mittente = indirizzo del server");
 const act = await call("/v1/activate", { body: { key: nl.d.key, device: "pc-prova", kind: "pc", name: "PC ufficio" } });
 const last = received.at(-1) || {};
-ok(act.d.ok && last.msg?.title === "Attivazione" && last.msg?.body?.includes("PC ufficio") && last.msg?.url === `${P}/#panoramica`, "attivazione di un PC -> notifica sul telefono", last.msg?.body || "");
+ok(act.d.ok && last.msg?.title === "Nuovo PC attivato" && last.msg?.body?.includes("PC ufficio") && last.msg?.url === `${P}/#panoramica`, "attivazione di un PC -> notifica sul telefono", last.msg?.body || "");
 reply = 410;
 await api("push/test", {});
 reply = 201;
 const before = received.length;
 await api("push/test", {});
 ok(received.length === before, "iscrizione scaduta (410) cancellata dal server");
+
+// ---- notifiche a scelta
+await api("push/sub", { endpoint: ep + "-bis", keys: { p256dh: b64u(uaPub), auth: b64u(authSecret) } }); // la prima iscrizione e' stata cancellata (410)
+const nOn = received.length;
+await call("/v1/activate", { body: { key: nl.d.key, device: "tel-rumore", kind: "mobile", name: "Tel con notifica" } });
+ok(received.length === nOn + 1 && received.at(-1).msg.title === "Nuovo cellulare attivato", "notifica accesa: push del nuovo cellulare");
+const st0 = (await api("admin/settings")).d;
+ok(st0.notifiche.activation_pc === true && st0.tipi.includes("expiring") && st0.tipi.includes("activation_mobile"), "impostazioni: tutte le notifiche attive all'inizio");
+await api("admin/settings", { notifiche: { ...st0.notifiche, activation_mobile: false } });
+const nAct = received.length;
+await call("/v1/activate", { body: { key: nl.d.key, device: "tel-silenzio", kind: "mobile", name: "Tel silenzioso" } });
+ok(received.length === nAct && (await api("admin/events?after=0")).d.avvisi.some(e => e.kind === "activation_mobile"), "notifica spenta: nessun push, l'avviso resta nell'elenco");
+ok((await call("/admin/settings", { bearer: env.ADMIN_TOKEN })).d.notifiche.activation_mobile === false, "le scelte valgono anche per l'app per PC (stesse impostazioni sul server)");
+const over = await call("/v1/activate", { body: { key: nl.d.key, device: "pc-2b", kind: "pc", name: "PC due" } });
+ok(over.status === 409 && received.at(-1).msg.title === "Limite raggiunto", "PC oltre il limite: rifiutato, con notifica (tentativi oltre il limite)");
+
+// ---- numero di PC e cellulari modificabile con la licenza in uso
+const lic0 = () => api("admin/licenses").then(r => r.d.licenze.find(l => l.key === nl.d.key));
+const up = (b) => api(`admin/licenses/${nl.d.key}/update`, b);
+ok((await up({ max_pc: 2, max_mobile: 2 })).d.ok, "aumento a 2 PC");
+const pc2 = await call("/v1/activate", { body: { key: nl.d.key, device: "pc-2b", kind: "pc", name: "PC due" } });
+ok(pc2.d.ok, "posto nuovo subito disponibile: secondo PC attivato");
+const down = await up({ max_pc: 1, max_mobile: 2 });
+ok(down.status === 409 && down.d.stato === "troppi_dispositivi" && down.d.pc_attivi === 2, "riduzione sotto i PC attivi senza sceglierli: rifiutata con i conteggi", down.d.errore);
+const pcs = (await lic0()).dispositivi.filter(d => d.kind === "pc" && d.status === "active");
+const down2 = await up({ max_pc: 1, max_mobile: 2, free: [pcs[1].id] });
+ok(down2.d.ok && down2.d.liberati === 1, "riduzione con il PC scelto da disattivare");
+ok((await call("/v1/check", { body: { token: pc2.d.token } })).d.stato === "dispositivo_revocato", "il PC disattivato si blocca");
+const pcTok = act.d.token;
+let ml = (await call("/v1/mlink", { body: { token: pcTok } })).d;
+const before2 = ml.liberi;
+await up({ max_pc: 1, max_mobile: 4 });
+ml = (await call("/v1/mlink", { body: { token: pcTok } })).d;
+ok(ml.liberi === before2 + 2 && ml.totali === 4, "QR del PC: posti per i cellulari aggiornati subito", `${before2} -> ${ml.liberi}`);
+ok((await lic0()).customer === "Cliente telefono", "modifica dei limiti senza perdere gli altri dati");
+
+// ---- scadenza: avvisi una volta sola
+await up({ max_pc: 1, max_mobile: 4, expires: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10) });
+ok(/23:59:59$/.test((await lic0()).expires), "scadenza dal campo data: fino a fine giornata");
+const nExp = received.length;
+await worker._expiryCheck(env); await worker._expiryCheck(env);
+let av = (await api("admin/events?after=0")).d.avvisi.filter(e => e.license_key === nl.d.key && e.kind === "expiring");
+ok(av.length === 1 && received.length === nExp + 1 && received.at(-1).msg.title === "Licenza in scadenza", "licenza in scadenza: un avviso e una notifica");
+env._db.prepare("UPDATE licenses SET expires = datetime('now','-1 hours') WHERE key = ?").run(nl.d.key);
+await worker._expiryCheck(env); await worker._expiryCheck(env);
+av = (await api("admin/events?after=0")).d.avvisi.filter(e => e.license_key === nl.d.key && e.kind === "expired");
+ok(av.length === 1, "licenza scaduta: un avviso");
+await up({ max_pc: 1, max_mobile: 4, expires: "" });
+ok((await lic0()).expires === null && (await call("/v1/check", { body: { token: pcTok } })).d.ok, "scadenza tolta: la licenza torna valida");
 
 // ---- telefoni collegati, uscita
 const tel = (await api("sessions")).d.telefoni;

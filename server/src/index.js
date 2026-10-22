@@ -65,7 +65,29 @@ async function event(env, kind, key, text) {
   await env.DB.prepare("INSERT INTO events (kind, license_key, text) VALUES (?, ?, ?)").bind(kind, key || null, text).run();
   // notifica sui telefoni dell'app di gestione (dopo la risposta, senza rallentare chi attiva)
   const P = adminPath(env);
-  if (P && env.VAPID_JWK) { const pr = notifyAdmins(env, pushFor(kind, text, "/" + P)).catch(() => {}); if (env._wait) env._wait(pr); else await pr; }
+  if (P && env.VAPID_JWK && (await notifySettings(env))[kind] !== false) { const pr = notifyAdmins(env, pushFor(kind, text, "/" + P)).catch(() => {}); if (env._wait) env._wait(pr); else await pr; }
+}
+// notifiche scelte nell'app di gestione (PC e telefono): { tipo: false } = niente notifica (l'avviso resta nell'elenco)
+const NOTIFY_KINDS = ["activation_pc", "activation_mobile", "change", "change_pending", "report", "expiring", "expired", "limit", "invalid_key", "revoked_use", "admin_login"];
+async function notifySettings(env) {
+  const r = await env.DB.prepare("SELECT value FROM admin_settings WHERE key = 'notifiche'").first();
+  try { return r ? JSON.parse(r.value) : {}; } catch { return {}; }
+}
+// scadenza da un campo data (AAAA-MM-GG): vale fino alla fine di quel giorno
+const normExpires = v => { const s = String(v || "").trim(); return !s ? null : /^\d{4}-\d{2}-\d{2}$/.test(s) ? s + " 23:59:59" : s.replace("T", " ").slice(0, 19); };
+// controllo giornaliero (cron): licenze in scadenza entro 15 giorni e scadute, un avviso per ciascuna
+async function expiryCheck(env) {
+  const soon = new Date(Date.now() + 15 * 86400000).toISOString().replace("T", " ").slice(0, 19);
+  const lics = (await env.DB.prepare("SELECT * FROM licenses WHERE status = 'active' AND expires IS NOT NULL AND expires < ?").bind(soon).all()).results;
+  for (const l of lics) {
+    if (l.expires < now() && !l.warn_expired) {
+      await env.DB.prepare("UPDATE licenses SET warn_expired = ? WHERE key = ?").bind(now(), l.key).run();
+      await event(env, "expired", l.key, `Licenza scaduta il ${l.expires.slice(0, 10)}: ${l.customer || l.key}`);
+    } else if (l.expires >= now() && !l.warn_expiring) {
+      await env.DB.prepare("UPDATE licenses SET warn_expiring = ? WHERE key = ?").bind(now(), l.key).run();
+      await event(env, "expiring", l.key, `Licenza in scadenza il ${l.expires.slice(0, 10)}: ${l.customer || l.key}`);
+    }
+  }
 }
 const getLicense = (env, key) => env.DB.prepare("SELECT * FROM licenses WHERE key = ?").bind(key).first();
 function licenseProblem(lic) {
@@ -94,7 +116,7 @@ async function activate(env, b) {
     }
     await env.DB.prepare("INSERT INTO devices (license_key, kind, device, name, version) VALUES (?, ?, ?, ?, ?)").bind(key, kind, device, String(b.name || "").slice(0, 80), String(b.version || "")).run();
     dev = await env.DB.prepare("SELECT * FROM devices WHERE license_key = ? AND device = ? AND kind = ? AND status = 'active'").bind(key, device, kind).first();
-    await event(env, "activation", key, `Attivato ${kind === "pc" ? "PC" : "cellulare"} "${dev.name}" per ${lic.customer || key}`);
+    await event(env, kind === "pc" ? "activation_pc" : "activation_mobile", key, `Attivato ${kind === "pc" ? "PC" : "cellulare"} "${dev.name}" per ${lic.customer || key}`);
   }
   return json({ ok: true, token: await makeToken(env, lic, dev), cliente: lic.customer });
 }
@@ -176,6 +198,15 @@ async function admin(env, req, url, sub) {
   const p = (sub ?? url.pathname.replace(/^\/admin\/?/, "")).split("/");
   const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
   const all = async (sql, ...a) => (await env.DB.prepare(sql).bind(...a).all()).results;
+  if (p[0] === "settings") {
+    if (req.method === "POST") {
+      const n = {};
+      for (const k of NOTIFY_KINDS) if (body.notifiche && body.notifiche[k] === false) n[k] = false;
+      await env.DB.prepare("INSERT INTO admin_settings (key, value) VALUES ('notifiche', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(JSON.stringify(n)).run();
+    }
+    const n = await notifySettings(env);
+    return json({ ok: true, tipi: NOTIFY_KINDS, notifiche: Object.fromEntries(NOTIFY_KINDS.map(k => [k, n[k] !== false])) });
+  }
   if (p[0] === "pair" && req.method === "POST") return json(await newPairCode(env, url.origin)); // codice di 6 cifre per collegare il telefono
   if (p[0] === "summary") {
     const one = async sql => (await env.DB.prepare(sql).first()).n;
@@ -187,7 +218,7 @@ async function admin(env, req, url, sub) {
     if (req.method === "POST") {
       const key = newKey();
       await env.DB.prepare("INSERT INTO licenses (key, root, customer, email, notes, max_pc, max_mobile, expires) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-        .bind(key, key, String(body.customer || ""), String(body.email || ""), String(body.notes || ""), +body.max_pc || 1, body.max_mobile ?? 2, body.expires || null).run();
+        .bind(key, key, String(body.customer || ""), String(body.email || ""), String(body.notes || ""), Math.max(1, +body.max_pc || 1), Math.max(0, +(body.max_mobile ?? 2)), normExpires(body.expires)).run();
       return json({ ok: true, key });
     }
     const lics = await all("SELECT * FROM licenses ORDER BY created DESC");
@@ -198,8 +229,24 @@ async function admin(env, req, url, sub) {
     const key = decodeURIComponent(p[1]);
     if (p[2] === "revoke") await env.DB.prepare("UPDATE licenses SET status='revoked' WHERE key=?").bind(key).run();
     else if (p[2] === "reactivate") await env.DB.prepare("UPDATE licenses SET status='active' WHERE key=? AND status='revoked'").bind(key).run();
-    else if (p[2] === "update") await env.DB.prepare("UPDATE licenses SET customer=?, email=?, notes=?, max_pc=?, max_mobile=?, expires=? WHERE key=?")
-      .bind(String(body.customer || ""), String(body.email || ""), String(body.notes || ""), +body.max_pc || 1, +(body.max_mobile ?? 2), body.expires || null, key).run();
+    else if (p[2] === "update") {
+      // numero di PC e cellulari modificabile anche con la licenza in uso: aumentare libera subito posti nuovi; diminuire sotto i
+      // dispositivi attivi richiede di scegliere quali disattivare (free = id dei dispositivi), altrimenti 409 con i conteggi
+      const lic = await getLicense(env, key);
+      if (!lic) return fail(404, "Licenza inesistente");
+      const maxPc = Math.max(1, +body.max_pc || 1), maxMob = Math.max(0, +(body.max_mobile ?? lic.max_mobile));
+      const free = new Set((Array.isArray(body.free) ? body.free : []).map(Number));
+      const devs = (await env.DB.prepare("SELECT id, kind FROM devices WHERE license_key = ? AND status = 'active'").bind(key).all()).results;
+      const left = k => devs.filter(d => d.kind === k && !free.has(d.id)).length;
+      if (left("pc") > maxPc || left("mobile") > maxMob)
+        return fail(409, `Troppi dispositivi attivi per i nuovi limiti: scegli quali disattivare (PC attivi ${left("pc")} su ${maxPc}, cellulari attivi ${left("mobile")} su ${maxMob}).`,
+          { stato: "troppi_dispositivi", pc_attivi: left("pc"), cellulari_attivi: left("mobile") });
+      for (const d of devs) if (free.has(d.id)) await env.DB.prepare("UPDATE devices SET status='revoked' WHERE id=?").bind(d.id).run();
+      const exp = body.expires === undefined ? lic.expires : normExpires(body.expires);
+      await env.DB.prepare("UPDATE licenses SET customer=?, email=?, notes=?, max_pc=?, max_mobile=?, expires=?, warn_expiring = CASE WHEN expires IS ? THEN warn_expiring END, warn_expired = CASE WHEN expires IS ? THEN warn_expired END WHERE key=?")
+        .bind(String(body.customer ?? lic.customer), String(body.email ?? lic.email), String(body.notes ?? lic.notes), maxPc, maxMob, exp, exp, exp, key).run();
+      return json({ ok: true, liberati: [...free].filter(id => devs.some(d => d.id === id)).length });
+    }
     else if (p[2] === "replace") { const lic = await getLicense(env, key); if (!lic) return fail(404, "Licenza inesistente"); return json({ ok: true, key: await replaceKey(env, lic) }); }
     else return fail(404, "Operazione sconosciuta");
     return json({ ok: true });
@@ -282,7 +329,7 @@ async function claimLink(env, b) {
     const r = await env.DB.prepare("INSERT OR IGNORE INTO pair_codes (code, license_key, device_id, expires) VALUES (?, ?, ?, ?)").bind(c, lic.key, dev.id, minutesAhead(PAIR_MIN)).run();
     if (r.meta?.changes) code = c;
   }
-  await event(env, "activation", lic.key, `Attivato cellulare "${name}" dal codice QR per ${lic.customer || lic.key}`);
+  await event(env, "activation_mobile", lic.key, `Attivato cellulare "${name}" dal codice QR per ${lic.customer || lic.key}`);
   return json({ ok: true, token: await makeToken(env, lic, dev), cliente: lic.customer, codice: code, codice_minuti: PAIR_MIN });
 }
 
@@ -413,6 +460,11 @@ $("go").onclick = async () => {
 </script></body></html>`;
 
 export default {
+  async scheduled(controller, env, ctx) {
+    env = Object.assign(Object.create(env), { _wait: pr => ctx.waitUntil(pr) });
+    await expiryCheck(env);
+  },
+  _expiryCheck: expiryCheck, // prove (harness)
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
     if (req.method === "OPTIONS") return json({});

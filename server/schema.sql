@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS licenses (
   max_mobile  INTEGER NOT NULL DEFAULT 2,
   expires     TEXT,                           -- scadenza facoltativa (ISO), null = senza scadenza
   mobile_lock TEXT,                           -- ultima attivazione di un cellulare dal QR (blocco di qualche minuto)
+  warn_expiring TEXT,                         -- avviso "in scadenza" gia' dato (si azzera cambiando la scadenza)
+  warn_expired TEXT,                          -- avviso "scaduta" gia' dato
   created     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -108,4 +110,10 @@ CREATE TABLE IF NOT EXISTS admin_push (
   p256dh   TEXT NOT NULL,
   auth     TEXT NOT NULL,
   created  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- impostazioni dell'app di gestione (notifiche a scelta): server/migrations/003_impostazioni.sql
+CREATE TABLE IF NOT EXISTS admin_settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
 );
