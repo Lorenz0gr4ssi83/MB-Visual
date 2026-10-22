@@ -229,6 +229,13 @@ function addW2D(sheet, parsed, T, opts) {
       if (p.flags & 4) L = mul(L, [1, 0, 0, -1, 0, 0]);
       const fam = p.font || "Arial";
       if (p.flags & 1) L = [c * h, s * h, -s * h, c * h, p.x, p.y]; // testo verticale: lettere impilate, senza fattore di larghezza
+      else if (p.bounds && p.bounds.length >= 8 && !p.s.includes("\n")) {
+        // riquadro del testo (P0->P1 linea di base, P0->P3 verso l'alto): orientamento e larghezza reali
+        const b = p.bounds, bx = b[2] - b[0], by = b[3] - b[1], ux = b[6] - b[0], uy = b[7] - b[1];
+        const Lb = Math.hypot(bx, by), Hu = Math.hypot(ux, uy), em = h || Hu;
+        const W = measureEm(p.s, p.font, p.bold, p.italic);
+        if (Lb > 0 && Hu > 0 && W > 0) { const sx = Lb / W; L = [bx / Lb * sx, by / Lb * sx, ux / Hu * em, uy / Hu * em, p.x, p.y]; }
+      }
       sheet.prims.push({ t: "x", m: mul(T, L), s: p.s, font: fam, bold: p.bold, italic: p.italic, color: p.color, hidden: p.hidden || !h, bounds: p.bounds ? xfRing(p.bounds, T) : null, sp: p.sp, vertical: !!(p.flags & 1), ...base });
     } else if (p.t === "m") {
       const [x, y] = apply(T, p.x, p.y);
@@ -240,6 +247,16 @@ function addW2D(sheet, parsed, T, opts) {
       sheet.prims.push({ t: "i", m: mul(T, [p.x2 - p.x1, 0, 0, -(p.y2 - p.y1), p.x1, p.y2]), src: key, placeholder: p.mime === "image/tiff", ...base });
     }
   }
+}
+// larghezza di una stringa in em con il carattere indicato (misura del browser)
+let MEAS = null;
+function measureEm(s, font, bold, italic) {
+  try {
+    MEAS ||= document.createElement("canvas").getContext("2d");
+    const f = String(font || "Arial").replace(/^@/, "");
+    MEAS.font = `${italic ? "italic " : ""}${bold ? "bold " : ""}100px ${/^[\w-]+$/.test(f) ? f : `"${f}"`}, Arial, sans-serif`;
+    return MEAS.measureText(s).width / 100;
+  } catch { return s.length * 0.6; }
 }
 function xfRing(r, T) {
   const out = new Float64Array(r.length);
@@ -263,6 +280,9 @@ function finish(sheet) {
   sheet.prims.forEach((p, i) => {
     if (p.obj) { const o = sheet.objects.get(p.obj); if (o) (o.prims ||= []).push(i); }
   });
+  // marcature senza definizione (flussi di marcatura privi di nodi): una voce per flusso
+  const known = new Set(sheet.markups.map(m => m.key));
+  for (const p of sheet.prims) if (p.mk && !known.has(p.mk)) { known.add(p.mk); sheet.markups.push({ key: p.mk, label: "Marcatura " + (sheet.markups.length + 1), props: [] }); }
   for (const m of sheet.markups) {
     let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
     sheet.prims.forEach((p, i) => {
@@ -327,7 +347,7 @@ async function buildW2DSheet(title, streams, descriptor, extra) {
         const inf = nodeInfo.get(node);
         const nm = parsed.info.nodes.get(node);
         if (!inf && !nm && !markup) return null;
-        sheet.objects.set(key, { key, label: inf?.label || nm || "Oggetto " + node, props: inf?.props || [], markup: !!markup });
+        sheet.objects.set(key, { key, label: (markup && inf?.props.find(p => p.name === "Label")?.value) || inf?.label || nm || "Oggetto " + node, props: inf?.props || [], markup: !!markup });
         if (markup) sheet.markups.push({ key, label: inf?.props.find(p => p.name === "Label")?.value || inf?.label || "Marcatura", props: inf?.props || [] });
       }
       return key;
@@ -436,7 +456,7 @@ async function buildXpsSheet(pkg, title, pageUri, d) {
       const nm = nodeNames.get(n);
       const markup = /markup/i.test(resRole);
       if (!inf && !nm && !markup) return null;
-      sheet.objects.set(key, { key, label: inf?.label || nm || "Oggetto " + n, props: inf?.props || [], markup });
+      sheet.objects.set(key, { key, label: (markup && inf?.props.find(p => p.name === "Label")?.value) || inf?.label || nm || "Oggetto " + n, props: inf?.props || [], markup });
       if (markup) sheet.markups.push({ key, label: inf?.props.find(p => p.name === "Label")?.value || inf?.label || "Marcatura", props: inf?.props || [] });
     }
     return key;

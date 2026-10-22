@@ -1,5 +1,5 @@
 // Esportazioni dei fogli DWF/DWFx: SVG (vettoriale, un foglio), PDF (vettoriale, piu' pagine), PNG (immagine).
-import { prepareSheet, drawSheet, cssFont } from "./dwfdraw.js";
+import { prepareSheet, drawSheet, cssFont, verticalLayout } from "./dwfdraw.js";
 
 const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const f = v => (Math.abs(v) < 1e-9 ? "0" : +v.toFixed(5) + "");
@@ -59,6 +59,9 @@ export async function sheetToSvg(sheet, opts = {}) {
         const dash = p.dash?.world ? ` stroke-dasharray="${p.dash.world.map(f).join(" ")}"` : p.dash?.px ? ` stroke-dasharray="${p.dash.px.map(v => f(v * 0.25 * (sheet.paper?.units === "in" ? 1 / 25.4 : 1))).join(" ")}"` : "";
         out.push(`<path d="${d}" fill="none" stroke="${rgb}"${a < 1 ? ` stroke-opacity="${f(a)}"` : ""} stroke-width="${lw > 0 ? f(lw) : "1"}"${lw > 0 ? "" : ' vector-effect="non-scaling-stroke"'} stroke-linecap="${p.cap || "round"}" stroke-linejoin="${p.join || "round"}"${dash}${clip}/>`);
       }
+    } else if (p.t === "x" && !p.hidden && opts.showText !== false && p.vertical) {
+      const fam = esc(String(p.font || "Arial").replace(/^@/, ""));
+      for (const g of verticalLayout(p)) out.push(`<text transform="matrix(${[g.em / 100, 0, 0, -g.em / 100, g.x, g.y].map(f).join(" ")})" x="0" y="0" text-anchor="middle" font-family="${fam}, Arial" font-size="100" fill="${rgb}"${clip}>${esc(g.ch)}</text>`);
     } else if (p.t === "x" && !p.hidden && opts.showText !== false) {
       const m = p.m;
       const fam = esc(String(p.font || "Arial").replace(/^@/, ""));
@@ -177,6 +180,12 @@ export async function sheetsToPdf(sheets, opts = {}) {
           s += `${rgb} RG ${N(lw)} w ${p.cap === "butt" ? 0 : p.cap === "square" ? 2 : 1} J ${p.join === "miter" ? 0 : p.join === "bevel" ? 2 : 1} j ${dash}${pathOps(p)} S`;
         }
         cs.push(s + " Q");
+      } else if (p.t === "x" && !p.hidden && opts.showText !== false && p.vertical) {
+        const font = p.bold ? "/FB" : "/FR";
+        let t = `q ${hasClip ? clipOps(p.clip) + " " : ""}${rgb} rg BT ${font} 1 Tf `;
+        MEASURE.font = `100px Helvetica, Arial, sans-serif`;
+        for (const g of verticalLayout(p)) { const w = MEASURE.measureText(g.ch).width / 100 * g.em; t += `${N(g.em * k)} 0 0 ${N(g.em * k)} ${N((g.x - w / 2 - x0) * k)} ${N((g.y - y0) * k)} Tm ${pdfStr(g.ch)} Tj `; }
+        cs.push(t + "ET Q");
       } else if (p.t === "x" && !p.hidden && opts.showText !== false) {
         const m = p.m;
         const font = p.bold && p.italic ? "/FBI" : p.bold ? "/FB" : p.italic ? "/FI" : "/FR";

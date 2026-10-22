@@ -116,6 +116,7 @@ export async function mount(ctx) {
     cur = s;
     if (s.kind === "3d") return open3d(s);
     if (s.kind === "data") { toast("Questa sezione contiene solo dati (struttura e proprieta'), senza grafica", false, 4000); return; }
+    if (api3d) { try { api3d.dispose?.(); } catch { /* */ } api3d = null; host3d.innerHTML = ""; tb3dBox.innerHTML = ""; }
     host3d.style.display = "none"; stage.style.display = "block"; tb2dBox.style.display = "contents"; tb3dBox.style.display = "none";
     const ov = el("div", { style: { position: "absolute", inset: "0", display: "grid", placeItems: "center", background: "rgba(0,0,0,.25)", color: "#fff", fontSize: "14px" } }, el("div", { style: { background: "rgba(0,0,0,.7)", padding: "10px 16px", borderRadius: "6px" } }, "Lettura del foglio \"" + s.title + "\"..."));
     stage.append(ov);
