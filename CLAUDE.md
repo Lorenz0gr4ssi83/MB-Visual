@@ -435,6 +435,43 @@ Librerie in fetch_vendor.py: ol (BSD-2), proj4 2.12.1 (MIT), geotiff 2.1.3 (MIT)
   serve un venv a parte con pyproj e pyshp, NON nell'app). Prove dalla console: `MB.active.api._gis` (map, layers, sel, addPaths, saveVector).
 - Prove nel riquadro browser: il cookie "mbv" e' per host e non per porta, quindi altre sessioni con un server di prova lo sovrascrivono
   (403 "non autorizzato"): usare http://localhost:PORTA/?t=... oppure aggiungere ?t= alle richieste.
+## Disegni e tavole sulla mappa (22/10/2026) - FATTO
+DWG/DXF e PDF come livelli del visualizzatore GIS. Ingressi: pulsante "Mostra sulla mappa" nel CAD 2D (`ctx.openAs("gis")`: il GIS
+apre il disegno come primo file), "Aggiungi disegno..." nella barra del GIS, trascinamento di dwg/dxf/pdf sulla mappa (acceptDrop).
+- `ui/js/georef.js` = solo calcolo (collaudo `node tests/test_georef.mjs`, 41 prove): affine X = aX+bY+c, Y = dx+ey+f ai minimi
+  quadrati su coordinate ridotte ai baricentri; metodi rigida (scala nota: unita' del disegno o scala della tavola, 1+ punti,
+  rotazione data con un punto), similarita' (2+), affine (3+); scarti per punto e RMS in metri, punti escludibili (off).
+  GEODATA: DXF letto dal testo (`geodataFromDxf`), DWG con l'API dinamica di libredwg (`dwgGeodata` in cad2d.js, solo se
+  `ctx.geodata`): punto di progetto -> punto di riferimento (tipo 3 = lon/lat, proiettato nel sistema), scala orizzontale,
+  rotazione dalla direzione del nord; sistema da `<Alias id="EPSG">` dell'XML di AutoCAD/Map 3D, WKT o nome (`epsgFromCsDef`).
+  Coordinate gia' georeferenziate riconosciute dall'estensione (`guessFromExtent`: Gauss-Boaga O/E, fuso Italia, UTM -> 7791).
+- `ui/js/gisdraw.js`: ogni disegno ha una proiezione OpenLayers "MBVDRAW:n" (piano del disegno) collegata con
+  addCoordinateTransforms a TUTTI i sistemi di giscrs (affine + proj4): riproiezione, esportazioni GeoJSON/KML/shapefile
+  (exportFeatures di gis.js) e raster PDF riproiettato (ImageStatic con projection = quella del disegno) funzionano senza casi
+  speciali. CAD: `readDrawing`/`buildModel` -> un MultiLineString / MultiPolygon ogni 2000 tratti per gruppo layer+colore (non
+  un elemento per entita': troppi oggetti OpenLayers), testi = punti con stile in pixel da altezza x scala / risoluzione; bianco
+  ACI 7 -> scuro; layer CAD accendibili (`L.drawing.cadLayers`; quelli spenti non si esportano). PDF: pagina resa con pdf.js
+  (max 8192 px / 36 Mpx), bianco reso trasparente (si puo' togliere). Ordine iniziale: `<file>.mbgeo` -> GEODATA -> coordinate
+  -> posizione provvisoria al centro della mappa (pannello di georeferenziazione aperto da solo; "Sposta qui" la porta al centro
+  della vista e sceglie il fuso UTM 32/33 dalla longitudine).
+- Pannello (in alto a destra della mappa): sistema, metodo, unita' (mm/cm/m...) o scala 1:N, rotazione, "Aggiungi punti"
+  (clic sul disegno, poi sulla mappa; Esc finisce), "Quota nota" (due clic sul disegno + distanza reale = scala), tabella con
+  E/N modificabili a mano, scarti (in evidenza se > 3 x RMS), riepilogo scala/rotazione/RMS, opacita'. Aggancio GEOMETRICO
+  (indice spaziale delle sorgenti, non la hit detection di OpenLayers che dipende dal disegno a schermo): prima le entita'
+  PUNTO (`D.nodes`; la crocetta disegnata ha estremi a +-0,5 unita' e ingannava l'aggancio), poi i vertici; sul lato mappa i
+  vertici degli altri livelli vettoriali (anche un altro disegno gia' georeferenziato). Misure Distanza/Area agganciate ai
+  vertici dei disegni (ol.interaction.Snap, fino a ~300.000 vertici).
+- `.mbgeo` = JSON accanto al file con il nome completo (`lotto.dxf.mbgeo`, cosi' lotto.dxf e lotto.pdf non si scontrano):
+  crs, method, unit, transform, points, rms, page/pdfScale per i PDF. Si scrive solo con "Salva georeferenziazione" (nella
+  web app si scarica). Testi: chiavi `gisdraw.*` (5 lingue).
+- Campioni: `python tools/make_georef_samples.py` -> `tests/samples/georef` (stesso lotto a Bologna: UTM 32N in metri, locale
+  in mm ruotato di 25 gradi, locale con GEODATA, tavola PDF A3 1:500, `punti_controllo.json`). Provato nell'app: UTM e GEODATA
+  si sovrappongono da soli (errore 0), locale con 3 punti (uno con 4 cm di errore) RMS 1,6 cm e vertice di verifica a 1,5 mm,
+  PDF 1:500 con 2 punti; .mbgeo salvato e riapplicato; GeoJSON e shapefile (.prj RDN2008/UTM 32N) corretti; DWG reale
+  (libredwg) in 0,5 s. NON provato: GEODATA dentro un DWG vero (nessun campione; i nomi dei campi sono quelli di libredwg).
+- Prove nel riquadro del browser nascosto: OpenLayers non disegna (rAF fermo) -> `map.renderSync()` prima dei clic simulati
+  (`MB.active.api._gis.drw.onMapClick({ coordinate, pixel })`).
+
 ## Nuvole di punti da rilievo (22/10/2026) - FATTO
 LAS, LAZ, E57, PTS, PTX (Leica), XYZ e PLY a soli punti (categoria `pointcloud` in formats.json, visualizzatore model3d;
 LAS resta anche tra i testi e PTX tra i RAW Pentax: decide `misc.sniff` dal contenuto, `LASF` / `ASTM-E57` / due interi in testa).

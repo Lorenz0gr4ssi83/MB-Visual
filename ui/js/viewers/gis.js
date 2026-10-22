@@ -6,6 +6,7 @@ import { api, baseName, button, dirName, el, extOf, loadCss, loadScript, loading
 import * as io from "../gisio.js";
 import { CRS, codeFromPrj, crsChoices, crsName, registerAll, useCrs, wktFor } from "../giscrs.js";
 import { LOCALE, t as tr, tn } from "../i18n.js";
+import { createDrawingSupport, DRAW_EXT } from "../gisdraw.js";
 
 const VIEW = "EPSG:3857";
 const OL_JS = "/vendor/ol/dist/ol.js";
@@ -205,6 +206,7 @@ export async function mount(ctx) {
   const tableBtn = button(tr("v_gis.tabella_attributi"), "table", () => showTable(tableWrap.hidden), { title: tr("v_gis.mostra_nasconde_tabella_attributi_livello") });
   ctx.tb.append(
     button(tr("v_gis.aggiungi_livello"), "plus", () => addFromPicker()),
+    button(tr("gisdraw.aggiungi_disegno"), '<svg viewBox="0 0 24 24"><path d="M4 20h16M6 16l8-8 3 3-8 8H6z"/><path d="M14 4l6 6"/></svg>', () => addDrawing(), { title: tr("gisdraw.aggiungi_disegno_tip") }),
     el("span", { class: "sep" }),
     el("label", {}, tr("v_gis.sfondo"), baseSel),
     button("", '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
@@ -225,13 +227,18 @@ export async function mount(ctx) {
   );
   applyBase();
 
+  // ---------- disegni DWG/DXF e tavole PDF sulla mappa (ui/js/gisdraw.js)
+  const drw = createDrawingSupport({ ol, map, view, VIEW, mapBox, layers, reproject, setTool, message, layerExtent, fitExtent, changed: () => renderLayers() });
+
   // ---------- strumenti di misura
-  let draw = null, sketchTip = null;
+  let draw = null, sketchTip = null, snaps = [];
   const tips = [];
   function setTool(id) {
     tool = id;
     Object.entries(tools).forEach(([k, b]) => b.classList.toggle("on", k === id));
     if (draw) { map.removeInteraction(draw); draw = null; }
+    snaps.forEach(s => map.removeInteraction(s)); snaps = [];
+    if (id !== "georef" && drw?.panelLayer) drw.closePanel();
     if (id === "length" || id === "area") {
       draw = new ol.interaction.Draw({ source: measureSrc, type: id === "length" ? "LineString" : "Polygon", stopClick: true,
         style: new ol.style.Style({ stroke: new ol.style.Stroke({ color: "#e4572e", width: 2, lineDash: [6, 4] }), fill: new ol.style.Fill({ color: "rgba(228,87,46,.12)" }),
@@ -244,6 +251,11 @@ export async function mount(ctx) {
       });
       draw.on("drawend", () => { if (sketchTip) { sketchTip.getElement().classList.add("done"); tips.push(sketchTip); sketchTip = null; } });
       map.addInteraction(draw);
+      // misure agganciate ai vertici dei disegni (se non sono enormi)
+      const dl = layers.filter(L => L.drawing && L.kind === "vector" && L.visible);
+      if (dl.reduce((n, L) => n + L.features.reduce((m, f) => m + (f.getGeometry()?.getFlatCoordinates().length || 0), 0), 0) < 600000)
+        snaps = dl.map(L => new ol.interaction.Snap({ source: L.source, pixelTolerance: 10 }));
+      snaps.forEach(s => map.addInteraction(s));
     }
     popup.hidden = true;
   }
@@ -327,7 +339,7 @@ export async function mount(ctx) {
     L.opacity = 1;
     L.cache = new Map();
     L.cats = new Map();
-    let code = useCrs(ol, proj4, L.crs);
+    let code = L.drawing ? L.code : useCrs(ol, proj4, L.crs);
     L.guessed = false;
     if (!code && L.kind === "vector") { const g = guessCrs(L); code = g ? "EPSG:" + g : null; L.guessed = true; }
     if (!code && L.kind === "raster") { const [x0, y0, x1, y1] = L.extent; if (x0 >= -180 && x1 <= 360 && y0 >= -90 && y1 <= 90) code = "EPSG:4326"; L.guessed = true; }
@@ -365,6 +377,7 @@ export async function mount(ctx) {
     L.cache.clear();
   }
   function setRasterSource(L) {
+    if (L.drawing) return drw.setSource(L);
     if (L.band) L.canvas = io.paintBand(L);
     L.ol.setSource(new ol.source.ImageStatic({ url: L.canvas.toDataURL("image/png"), imageExtent: L.extent, projection: L.code, interpolate: !L.band }));
   }
@@ -379,14 +392,16 @@ export async function mount(ctx) {
   }
   function fitAll() {
     const ext = ol.extent.createEmpty();
-    layers.filter(L => L.visible).forEach(L => { const e = layerExtent(L); if (e) ol.extent.extend(ext, e); });
-    fitExtent(ext);
+    const list = layers.filter(L => L.visible && !drw.isProvisional(L));
+    list.forEach(L => { const e = layerExtent(L); if (e) ol.extent.extend(ext, e); });
+    fitExtent(ext, list.length && list.every(L => L.drawing) ? 20 : 18); // i disegni sono piccoli: si ingrandisce di piu'
   }
   function removeLayer(L) {
     map.removeLayer(L.ol);
     layers.splice(layers.indexOf(L), 1);
     L.features?.forEach(f => sel.delete(f));
     L.dispose?.();
+    drw.layerRemoved(L);
     if (active === L) setActive(layers.filter(x => x.kind === "vector").pop() || null);
     reorder(); renderLayers(); updateStatus();
   }
@@ -409,9 +424,10 @@ export async function mount(ctx) {
       const card = el("div", { class: "gis-layer" + (L === active ? " active" : "") },
         el("div", { class: "gis-layer-row" }, vis, swatch(L),
           el("span", { class: "gis-layer-name", title: L.name, onclick: () => { if (L.kind === "vector") setActive(L); } }, L.name),
-          button("", "search", () => fitExtent(layerExtent(L)), { iconOnly: true, title: tr("v_gis.zoom_livello") }),
+          button("", "search", () => fitExtent(layerExtent(L), L.drawing ? 21 : 18), { iconOnly: true, title: tr("v_gis.zoom_livello") }),
           button("", '<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6"/><circle cx="18" cy="16" r="3"/></svg>', () => { openStyle.has(L) ? openStyle.delete(L) : openStyle.add(L); renderLayers(); }, { iconOnly: true, title: tr("v_gis.stile_proprieta_livello"), class: openStyle.has(L) ? "on" : "" })),
-        el("div", { class: "gis-layer-sub" }, el("span", { class: L.guessed ? "warn" : "" }, (L.guessed ? tr("v_gis.ipotizzato") : "") + crsName(L.code)), " · ", count),
+        L.drawing ? el("div", { class: "gis-layer-sub" }, ...drw.sub(L))
+          : el("div", { class: "gis-layer-sub" }, el("span", { class: L.guessed ? "warn" : "" }, (L.guessed ? tr("v_gis.ipotizzato") : "") + crsName(L.code)), " · ", count),
         L.note ? el("div", { class: "gis-layer-sub note" }, L.note) : null,
         openStyle.has(L) ? styleEditor(L, idx) : null);
       layerList.append(card);
@@ -447,7 +463,7 @@ export async function mount(ctx) {
     const box = el("div", { class: "gis-style" });
     const op = el("input", { type: "range", min: 0, max: 1, step: 0.05, value: L.opacity });
     op.addEventListener("input", () => { L.opacity = +op.value; L.ol.setOpacity(L.opacity); });
-    box.append(row(tr("v_gis.sistema"), crsSelect(L)), row(tr("v_gis.opacita"), op));
+    box.append(L.drawing ? drw.props(L) : row(tr("v_gis.sistema"), crsSelect(L)), row(tr("v_gis.opacita"), op));
     if (L.kind === "vector") {
       const s = L.style;
       const inp = (type, key, attrs = {}) => {
@@ -522,6 +538,7 @@ export async function mount(ctx) {
   }
 
   map.on("singleclick", e => {
+    if (drw.onMapClick(e)) return;
     if (tool !== "select") return;
     let hit = null;
     map.forEachFeatureAtPixel(e.pixel, (f, lyr) => { if (f.__L && lyr === f.__L.ol) { hit = f; return true; } return false; }, { hitTolerance: 4 });
@@ -691,6 +708,7 @@ export async function mount(ctx) {
   async function readAny(path, name) {
     const ext = extOf(name);
     const plain = name.replace(/\.[^.]+$/, "");
+    if (DRAW_EXT.has(ext)) return [await drw.read(path, name)];
     if (RASTER_EXT.has(ext)) return [await io.readGeoTiff(path, plain)];
     if (ext === "shp") return [await io.readShapefileFromDisk(ol, path, name)];
     if (ext === "gpkg") return io.readGpkg(ol, path);
@@ -711,20 +729,29 @@ export async function mount(ctx) {
     }
     if (fit && added.length) {
       const ext = ol.extent.createEmpty();
-      added.forEach(L => { const x = layerExtent(L); if (x) ol.extent.extend(ext, x); });
+      added.filter(L => !drw.isProvisional(L)).forEach(L => { const x = layerExtent(L); if (x) ol.extent.extend(ext, x); });
       fitExtent(ext);
     }
+    // disegno in coordinate locali: si apre subito la georeferenziazione
+    const prov = added.find(L => drw.isProvisional(L));
+    if (prov) setTimeout(() => drw.openPanel(prov), 0);
     return added;
   }
   async function addFromPicker() {
     const paths = await pickFiles();
-    if (paths?.length) await addPaths(paths.filter(p => GIS_EXT.has(extOf(p)) || extOf(p) === "json"));
+    if (paths?.length) await addPaths(paths.filter(p => GIS_EXT.has(extOf(p)) || DRAW_EXT.has(extOf(p)) || extOf(p) === "json"));
+  }
+  async function addDrawing() {
+    const paths = await pickFiles();
+    const ok = (paths || []).filter(p => DRAW_EXT.has(extOf(p)));
+    if (paths?.length && !ok.length) toast(tr("gisdraw.solo_disegni"), true, 4000);
+    if (ok.length) await addPaths(ok);
   }
 
   prog.set?.(0.3, tr("v_gis.lettura_file"));
   const first = await addPaths([ctx.path], false);
   if (!first.length) throw new Error(tr("v_gis.nessun_dato_geografico_leggibile_questo"));
-  if (first.some(L => L.kind === "vector")) showTable(first.reduce((s, L) => s + (L.features?.length || 0), 0) <= 50000);
+  if (first.some(L => L.kind === "vector" && !L.drawing)) showTable(first.reduce((s, L) => s + (L.features?.length || 0), 0) <= 50000);
   requestAnimationFrame(() => requestAnimationFrame(() => { map.updateSize(); fitAll(); }));
 
   // ---------- esportazione della vista (PNG / JPG / PDF)
@@ -804,6 +831,7 @@ export async function mount(ctx) {
     const out = [];
     L.features.forEach((f, i) => {
       if (onlySel && !sel.has(f)) return;
+      if (L.drawing?.cadLayers?.get(f.get("layer"))?.off) return; // layer del disegno spenti: non si esportano
       const nf2 = new ol.Feature(io.props(f));
       const g = L.src[i];
       if (g) nf2.setGeometry(L.code === target ? g.clone() : g.clone().transform(L.code, target));
@@ -864,7 +892,7 @@ export async function mount(ctx) {
     if (ext === "zip") {
       const zip = new window.JSZip();
       for (const L of opt.layers) {
-        const code = opt.crs || L.code;
+        const code = opt.crs || L.drawing?.geo.crs || L.code;
         const wkt = wktFor(code) || (code === L.code && L.prj) || null;
         const files = io.writeShapefiles([{ name: L.name, features: exportFeatures(L, code, opt.onlySel) }], wkt);
         if (!wkt) toast(tr("v_gis.0_sistema_1_senza_prj", L.name, code), true, 6000);
@@ -877,13 +905,14 @@ export async function mount(ctx) {
 
   const onKey = e => {
     if (!ctx.el.isConnected || ctx.el.offsetParent === null) return;
+    if (drw.onKey(e)) return;
     if (e.key === "Escape") { if (draw) draw.abortDrawing(); if (tool !== "select") setTool("select"); else if (sel.size) { sel.clear(); selectionChanged(false); } popup.hidden = true; }
   };
   window.addEventListener("keydown", onKey);
 
   const SAVE = ["geojson", "kml", "kmz", "gpx", "zip", "png", "jpg", "pdf"];
   return {
-    _gis: { map, layers, sel, addPaths, setTool, io, ol, viewCanvas, saveVector, active: () => active },
+    _gis: { map, layers, sel, addPaths, drw, setTool, io, ol, viewCanvas, saveVector, active: () => active },
     onShow() { requestAnimationFrame(() => map.updateSize()); },
     saveInPlace: false,
     saveFormats: SAVE,
@@ -902,13 +931,14 @@ export async function mount(ctx) {
       return { switchTo: false };
     },
     async acceptDrop(paths) {
-      const ok = paths.filter(p => GIS_EXT.has(extOf(p)) || extOf(p) === "json");
+      const ok = paths.filter(p => GIS_EXT.has(extOf(p)) || DRAW_EXT.has(extOf(p)) || extOf(p) === "json");
       if (!ok.length || ok.length !== paths.length) return false;
       await addPaths(ok);
       return true;
     },
     dispose() {
       window.removeEventListener("keydown", onKey);
+      drw.closePanel();
       ro.disconnect();
       layers.forEach(L => L.dispose?.());
       map.setTarget(null);

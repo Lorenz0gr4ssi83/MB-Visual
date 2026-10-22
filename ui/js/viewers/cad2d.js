@@ -326,6 +326,7 @@ export async function decodeDwg(bytes, ctx, ld) { // usata anche dalla conversio
       const data = lib.dwg_read_data(bytes.buffer, type);
       if (data === undefined || data === null) throw new Error(tr("v_cad2d.file_dwg_non_leggibile_versione"));
       const db = lib.convert(data);
+      if (ctx.geodata) try { db.geodata = dwgGeodata(lib, data, m); } catch { /* */ } // mappa (ui/js/gisdraw.js)
       try { lib.dwg_free(data); } catch { /* */ }
       return db;
     } catch (e) {
@@ -337,6 +338,23 @@ export async function decodeDwg(bytes, ctx, ld) { // usata anche dalla conversio
       throw e;
     }
   }
+}
+
+// GEODATA del DWG (georeferenziazione di AutoCAD): libredwg-web non lo converte, si legge con l'API dinamica
+function dwgGeodata(lib, data, m) {
+  const type = m.Dwg_Object_Type?.DWG_TYPE_GEODATA ?? 639;
+  const n = lib.dwg_get_num_objects(data);
+  for (let i = 0; i < n; i++) {
+    const obj = lib.dwg_get_object(data, i);
+    if (!obj || lib.dwg_object_get_fixedtype(obj) !== type) continue;
+    const tio = lib.dwg_object_to_object_tio(obj);
+    if (!tio) continue;
+    const v = f => { try { return lib.dwg_dynapi_entity_data(tio, f); } catch { return undefined; } };
+    const xy = (p, d) => (p && typeof p === "object" ? [+p.x || 0, +p.y || 0] : d);
+    return { type: +v("coord_type") || 2, design: xy(v("design_pt"), [0, 0]), ref: xy(v("ref_pt"), [0, 0]), scale: +v("unit_scale_horiz") || 1,
+      units: +v("units_value_horiz") || 0, north: xy(v("north_dir"), [0, 1]), def: String(v("coord_system_def") || "") };
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------- visualizzatore
@@ -391,6 +409,7 @@ export async function mount(ctx) {
   ctx.tb.append(...[button(tr("v_cad2d.adatta"), "fit", fit), button("", "zoomIn", () => zoomAt(1.4), { iconOnly: true, title: tr("v_cad2d.ingrandisci") }), button("", "zoomOut", () => zoomAt(1 / 1.4), { iconOnly: true, title: tr("v_cad2d.riduci") }),
     el("span", { class: "sep" }), editor ? null : mBtn, tBtn, lwBtn, bgBtn, el("span", { class: "sep" }),
     button("PNG", "download", () => exportPng()), button("SVG", "download", () => exportSvg()), button("PDF", "download", () => exportPdf()),
+    button(tr("gisdraw.mostra_mappa"), '<svg viewBox="0 0 24 24"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>', () => ctx.openAs("gis"), { title: tr("gisdraw.mostra_mappa_tip") }),
     ctx.ext === "dxf" ? button(tr("v_cad2d.modifica_dxf_testo"), "code", () => ctx.openAs("text")) : null,
     ctx.tools.trueview ? button(tr("v_cad2d.apri_dwg_trueview"), "open", () => api("open_external", { path: ctx.path, app: "trueview" })) : null,
     el("span", { class: "grow" }), el("span", { class: "note" }, tr("v_cad2d.rotella_zoom_trascina_tasto_centrale"))].filter(Boolean));
