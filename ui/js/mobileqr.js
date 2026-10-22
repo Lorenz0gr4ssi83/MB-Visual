@@ -1,7 +1,7 @@
 // QR della home (solo app per PC con licenza): installa MB Visual sul cellulare senza scrivere la chiave.
 // Il QR contiene un link monouso del server delle licenze (mbvisual/license.py mobile_link -> /v1/mlink). Sotto: quanti
 // cellulari si possono ancora attivare; a posti finiti il riquadro sparisce. Dopo ogni attivazione dal QR il server blocca
-// la licenza per qualche minuto: il QR si spegne e mostra il conto alla rovescia (il blocco vale anche sul server).
+// la licenza per un minuto: il QR si spegne e mostra il conto alla rovescia (il blocco vale anche sul server).
 // Aggiornamento ogni 6 s mentre la home e' visibile (cosi' il QR si spegne subito dopo la scansione), fermo altrimenti.
 import { api, el, WEB } from "./core.js";
 import { t, tn } from "./i18n.js";

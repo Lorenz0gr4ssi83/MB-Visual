@@ -260,7 +260,7 @@ async function claimLink(env, b) {
   // blocco della licenza e consumo del link: aggiornamenti condizionati, vince una sola richiesta
   const stamp = now();
   const got = await env.DB.prepare("UPDATE licenses SET mobile_lock = ? WHERE key = ? AND (mobile_lock IS NULL OR mobile_lock < ?)").bind(stamp, lic.key, minutesAgo(LOCK_MIN)).run();
-  if (!got.meta?.changes) return fail(429, "Un'altra installazione e' in corso: riprova tra qualche minuto.", { stato: "attesa" });
+  if (!got.meta?.changes) return fail(429, "Un'altra installazione e' in corso: riprova tra un minuto.", { stato: "attesa" });
   // attivazione non avvenuta: il blocco preso qui si rilascia (solo se e' ancora il nostro)
   const release = () => env.DB.prepare("UPDATE licenses SET mobile_lock = NULL WHERE key = ? AND mobile_lock = ?").bind(lic.key, stamp).run();
   const used = await env.DB.prepare("UPDATE mobile_links SET used = ? WHERE token = ? AND used IS NULL").bind(now(), link.token).run();
