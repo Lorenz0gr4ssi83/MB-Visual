@@ -328,6 +328,13 @@ se possibile; chi manca ricade sull'inglese). Niente stringhe italiane scritte d
   `python tools/i18n_check.py` controlla chiavi mancanti e segnaposto; `--merge file.json` unisce traduzioni
   (`{"chiave": ["it", "en", "es", "fr", "de"]}`). Il registro formati si traduce con le chiavi `fmt.<id>.name/view/edit`.
 - Lingua: automatica da Windows (api/lang) o scelta in File > Impostazioni > Lingua (localStorage "mbv-lang", si applica ricaricando).
+- Insidie: in Python mai t() a livello di modulo (la lingua cambia per richiesta): nelle tabelle si mettono le chiavi e si traduce
+  all'uso (es. batch.py `_ops()`, convert.py `_label`, inventor.py NOMI). I testi usati come CHIAVI di dati (rapporti, valori
+  di stato, nomi di stili, dati in cache) restano fissi e si traducono solo nella visualizzazione (es. inventor3d.js `missLabel`).
+  Menu costruiti dai nomi delle chiavi (`Object.keys(MENUS)`): etichetta con t("modulo.menu_" + nome).
+- Conflitti nei rebase sui JSON: `python tools/i18n_check.py --resolve` unisce le due parti. I JSON si scrivono con "\n"
+  (in Python `write_bytes`, non `write_text` che su Windows mette CRLF e cambia tutto il file).
+- Verifica nel browser: `localStorage.setItem("mbv-lang","en")` + ricarica, poi cercare parole italiane nel DOM.
 
 ## App per telefono: scansione documenti e realta' aumentata (22/10/2026) - FATTO
 Solo nella web app (window.MBV_WEB), tutto nel dispositivo, senza l'app per PC.
