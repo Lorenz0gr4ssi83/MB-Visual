@@ -1,7 +1,7 @@
 // "Crea nuovo": galleria come la schermata "Nuovo" di Office (categorie a sinistra, ricerca, schede con l'icona del
 // programma e la miniatura del modello). File vuoti dei formati modificabili, aperti subito nel loro editor.
 // Office, PDF, DXF e database partono dai modelli in ui/templates (tools/make_templates.py); gli altri si generano qui.
-import { api, el, toast, WEB } from "./core.js";
+import { api, askText, confirmBox, el, pickFolder, toast, WEB } from "./core.js";
 import { t as tr } from "./i18n.js";
 
 const enc = s => new TextEncoder().encode(s);
@@ -26,6 +26,7 @@ const TYPES = [
     ["pptx", tr("newfile.presentazione_powerpoint"), tr("newfile.nuova_presentazione"), () => tpl("vuoto.pptx"), "slide", tr("newfile.diapositive")],
     ["mbpub", tr("newfile.pubblicazione"), tr("newfile.nuova_pubblicazione"), () => import("./pubmodel.js").then(m => m.blankMbpub()), "pub", tr("newfile.volantini_brochure_biglietti_newsletter")],
     ["vsdx", tr("newfile.diagramma"), tr("newfile.nuovo_diagramma"), () => import("./vsdmodel.js").then(m => m.blankVsdx()), "diagram-l", tr("newfile.diagrammi_flusso_schemi_visio")],
+    ["mbcomm", tr("newfile.pratica_edilizia"), tr("newfile.nuova_pratica"), () => enc(JSON.stringify({ tipo: "mbvisual-commessa", versione: 1 })), "pratica", tr("newfile.pratica_nota")],
     ["mbvid", tr("newfile.progetto_video"), tr("newfile.nuovo_progetto_video"), () => import("./vidmodel.js").then(m => enc(JSON.stringify(m.newProject(), null, 1))), "video-l", tr("newfile.montaggio_video_audio_titoli_transizioni")],
     ["pdf", tr("newfile.documento_pdf"), tr("newfile.nuovo_pdf"), () => tpl("vuoto_A4.pdf"), "page", tr("newfile.moduli_testi_immagini")],
     ["dxf", tr("newfile.disegno_cad"), tr("newfile.nuovo_disegno"), () => tpl("vuoto.dxf"), "cad", tr("newfile.si_apre_autocad_ogni_cad")],
@@ -35,11 +36,11 @@ const TYPES = [
 ];
 
 // nella web app (telefono) il montaggio video non c'e' (serve il motore dell'app per PC): niente modello che poi non si apre
-const WEB_SKIP = new Set(["mbvid"]);
+const WEB_SKIP = new Set(["mbvid", "mbcomm"]);
 
 // icona del programma (colori e iniziale come le app originali, senza marchi)
 const APP = {
-  docx: ["#185abd", "W"], xlsx: ["#107c41", "X"], csv: ["#107c41", "a,b"], pptx: ["#c43e1c", "P"], mbpub: ["#077568", "P"], vsdx: ["#3955a3", "V"], mbvid: ["#3b2d8f", "VID"], pdf: ["#d93025", "PDF"], dxf: ["#c0392b", "DXF"],
+  docx: ["#185abd", "W"], xlsx: ["#107c41", "X"], csv: ["#107c41", "a,b"], pptx: ["#c43e1c", "P"], mbpub: ["#077568", "P"], vsdx: ["#3955a3", "V"], mbvid: ["#3b2d8f", "VID"], mbcomm: ["#8a5a2b", "PE"], pdf: ["#d93025", "PDF"], dxf: ["#c0392b", "DXF"],
   txt: ["#5f6b76", "TXT"], md: ["#37474f", "MD"], html: ["#e65100", "</>"], json: ["#6a4fb3", "{ }"], xml: ["#00838f", "XML"], py: ["#2b6cb0", "PY"], bat: ["#3c3c3c", "BAT"],
   png: ["#0078d4", "PNG"], jpg: ["#0078d4", "JPG"], svg: ["#f57c00", "SVG"], sqlite: ["#0f6d8c", "DB"],
 };
@@ -77,6 +78,12 @@ function thumb(kind, color) {
     inner = bx(22, 14, 26, 10, 5) + ar(22, 19, 22, 30) + bx(22, 37, 26, 13, 1)
       + `<path d="M${x + 70} ${y + 26}l13 11 -13 11 -13 -11z" fill="${color}" opacity=".55"/>` + ar(35, 37, 56, 37) + ar(83, 37, 96, 37)
       + bx(102, 37, 12, 13, 1) + `<path d="M${x + 70} ${y + 48}V${y + 60}H${x + 22}V${y + 56}" fill="none" stroke="#7a8691" stroke-width="1.2"/>` + bx(22, 63, 26, 10, 5);
+  }
+  else if (kind === "pratica") {
+    // fascicolo: modulo con caselle e campi, timbro di firma
+    inner = Array.from({ length: 5 }, (_, i) => `<rect x="${x + 9}" y="${y + 12 + i * 12}" width="6" height="6" fill="none" stroke="${color}" stroke-width="1.2"/>`
+      + `<rect x="${x + 19}" y="${y + 13 + i * 12}" width="${W - 30 - (i % 2) * 12}" height="3.5" rx="1.5" fill="#dfe3e7"/>`).join("")
+      + `<path d="M${x + W - 30} ${y + H - 14} c4 -6 7 4 11 -2 s5 3 8 0" fill="none" stroke="${color}" stroke-width="1.3"/>`;
   }
   else if (kind.startsWith("page")) inner = "";
   else if (kind === "cad") inner = `<path d="M${x + 20} ${y + 55} L${x + 50} ${y + 25} L${x + 85} ${y + 45}" fill="none" stroke="${color}" stroke-width="1.4"/><circle cx="${x + 50}" cy="${y + 25}" r="2" fill="${color}"/><circle cx="${x + 68}" cy="${y + 50}" r="12" fill="none" stroke="#7a8691"/>`;
@@ -140,6 +147,7 @@ export async function createNew({ openFile, ext = null }) {
     const { ext, base, make } = chosen;
     let bytes;
     try { bytes = await make(); } catch (e) { return toast(e.message, true); }
+    if (ext === "mbcomm") return createPratica(bytes, base, openFile);
     if (WEB) {
       // web app: il file nasce nella memoria del dispositivo; si scarica con Salva
       const path = window.MBV_API.register(new Blob([bytes]), `${base}.${ext}`);
@@ -154,4 +162,26 @@ export async function createNew({ openFile, ext = null }) {
     } catch (e) { return toast(tr("newfile.creazione_non_riuscita") + e.message, true); }
     return openFile(path, null, { untitled: true });
   });
+}
+
+// Pratica edilizia: l'anagrafica (.mbcomm) nasce subito nella cartella di commessa scelta, perche' i moduli si generano
+// accanto a lei (cartella "<nome> - moduli"); poi si apre il pannello della pratica con la finestra dei dati.
+async function createPratica(bytes, base, openFile) {
+  const dir = await pickFolder();
+  if (!dir || dir.startsWith("download://")) return;
+  const name = ((await askText(tr("newfile.pratica_edilizia"), tr("newfile.nome_pratica"), base)) || "").replace(/[<>:"/\\|?*]+/g, "-").trim();
+  if (!name) return;
+  const path = `${dir.replace(/[\\/]+$/, "")}\\${name}.mbcomm`;
+  let exists = false;
+  try { await api("stat", { path }); exists = true; } catch { /* non esiste */ }
+  if (exists) {
+    if (!(await confirmBox(tr("newfile.pratica_edilizia"), tr("newfile.pratica_esiste", `${name}.mbcomm`), tr("newfile.apri_esistente")))) return;
+    return openFile(path);
+  }
+  try {
+    const data = JSON.parse(new TextDecoder().decode(bytes));
+    data.commessa = { codice: "", nome: name };
+    await api("save", { path }, { body: new TextEncoder().encode(JSON.stringify(data, null, 1)) });
+  } catch (e) { return toast(tr("newfile.creazione_non_riuscita") + e.message, true); }
+  return openFile(path);
 }

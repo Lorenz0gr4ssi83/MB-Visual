@@ -1,0 +1,91 @@
+/* Pratiche edilizie (ui/js/viewers/pratica.js, ui/js/pratica.js): solo token di app.css ("Grafite di precisione") */
+.pte-view { display: grid; grid-template-columns: minmax(360px, 1fr) minmax(380px, 1.05fr); gap: 16px; padding: 16px; height: 100%; overflow: auto;
+  align-items: start; background: var(--bg); }
+@media (max-width: 980px) { .pte-view { grid-template-columns: 1fr; } }
+.pte-col { display: grid; gap: 16px; min-width: 0; }
+.pte-panel { display: grid; gap: 10px; padding: 14px 16px; }
+.pte-panel-h { display: flex; align-items: center; gap: 10px; }
+.pte-panel-h h3 { margin: 0; font-family: var(--display); font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+.pte-panel .grow, .pte-actions .grow { flex: 1; }
+.pte-code { font-family: var(--mono); font-size: 11.5px; color: var(--accent-ink); background: var(--accent-soft); padding: 2px 7px; border-radius: var(--r-sm); }
+.pte-dl { display: grid; gap: 0; margin: 0; border-top: 1px solid var(--line); }
+.pte-kv { display: grid; grid-template-columns: 140px 1fr; gap: 12px; padding: 7px 4px; border-bottom: 1px solid var(--line); border-radius: var(--r-sm); }
+.pte-kv:hover { background: var(--hover); }
+.pte-kv dt { color: var(--muted); font-size: 12px; }
+.pte-kv dd { margin: 0; font-size: 12.5px; overflow-wrap: anywhere; white-space: pre-line; max-height: 7.5em; overflow: hidden; }
+.pte-empty { color: var(--faint); }
+.pte-missing { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; padding: 8px 10px; border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--warn) 12%, transparent); font-size: 12.5px; }
+.pte-missing b { color: var(--warn); font-weight: 600; }
+.pte-ok { padding: 8px 10px; border-radius: var(--r-md); background: color-mix(in srgb, var(--ok) 12%, transparent); color: var(--ok); font-size: 12.5px; }
+.pte-warn { margin: 0; padding: 8px 10px; border-left: 3px solid var(--warn); background: color-mix(in srgb, var(--warn) 9%, transparent);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0; font-size: 12.5px; }
+.pte-note { margin: 0; color: var(--muted); font-size: 12px; }
+.pte-group { margin-top: 6px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+.pte-mod { display: grid; gap: 4px; padding: 8px 10px; border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--line); }
+.pte-mod.on { box-shadow: inset 0 0 0 1px var(--accent-line); background: var(--accent-soft); }
+.pte-mod-main { display: grid; grid-template-columns: auto auto 1fr; gap: 10px; align-items: start; cursor: default; }
+.pte-mod-main input { margin-top: 3px; accent-color: var(--accent); }
+.pte-mod-txt { display: grid; gap: 2px; min-width: 0; }
+.pte-mod-txt b { font-weight: 600; font-size: 13px; }
+.pte-mod-txt small { color: var(--muted); font-size: 11.5px; }
+.pte-mod-txt .pte-src { color: var(--faint); font-size: 10.5px; }
+.pte-mod-gen { display: flex; gap: 12px; align-items: baseline; padding-left: 72px; font-size: 11.5px; color: var(--ok); }
+.pte-kind { font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 2px 5px; border-radius: 5px; margin-top: 2px;
+  color: var(--t-bin); background: color-mix(in srgb, var(--t-bin) 16%, transparent); }
+.pte-kind.pdf { color: var(--t-pdf); background: color-mix(in srgb, var(--t-pdf) 16%, transparent); }
+.pte-kind.docx { color: var(--t-doc); background: color-mix(in srgb, var(--t-doc) 16%, transparent); }
+.pte-kind.p7m { color: var(--t-sig); background: color-mix(in srgb, var(--t-sig) 16%, transparent); }
+.pte-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pte-check { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.pte-check input { accent-color: var(--accent); }
+.pte-files { display: grid; gap: 2px; max-height: 340px; overflow: auto; }
+.pte-file { display: grid; grid-template-columns: auto auto 1fr auto auto auto auto; gap: 8px; align-items: center; padding: 3px 4px; border-radius: var(--r-sm); font-size: 12.5px; }
+.pte-file:hover { background: var(--hover); }
+.pte-file input { accent-color: var(--accent); }
+.pte-file .btn { height: 24px; padding: 0 7px; }
+.pte-fname { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pte-size { color: var(--faint); font-family: var(--mono); font-size: 11px; }
+.pte-signed { font-size: 10.5px; font-weight: 600; color: var(--t-sig); }
+.pte-result { display: flex; gap: 12px; align-items: baseline; padding: 8px 10px; border-radius: var(--r-md); background: var(--hover); font-size: 12.5px; }
+.pte-f { display: grid; gap: 4px; min-width: 0; }
+.pte-f > span { font-size: 11.5px; color: var(--muted); }
+.pte-f .field { width: 100%; }
+.pte-f textarea.field { height: auto; padding: 6px 8px; resize: vertical; font: inherit; font-size: 12.5px; line-height: 1.45; }
+
+/* finestra guidata */
+.pte-back { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(8, 9, 11, .55); }
+.pte-box { width: min(1060px, calc(100vw - 32px)); height: min(760px, calc(100vh - 32px)); display: grid; grid-template-rows: auto 1fr auto;
+  background: var(--panel); border-radius: var(--r-xl); box-shadow: var(--sh-3); overflow: hidden; }
+.pte-head { display: flex; align-items: baseline; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.pte-head h2 { margin: 0; font-family: var(--display); font-size: 18px; font-weight: 600; }
+.pte-hint { color: var(--muted); font-size: 12.5px; flex: 1; }
+.pte-x { width: 30px; height: 30px; border: 0; background: transparent; border-radius: var(--r-sm); color: var(--muted); }
+.pte-x:hover { background: var(--hover); }
+.pte-x svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; }
+.pte-main { display: grid; grid-template-columns: 210px 1fr; min-height: 0; }
+.pte-steps { display: grid; align-content: start; gap: 2px; padding: 12px; border-right: 1px solid var(--line); background: var(--panel); }
+.pte-step { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border: 0; border-radius: var(--r-md); background: transparent;
+  color: var(--fg); text-align: left; font-size: 13px; }
+.pte-step:hover { background: var(--hover); }
+.pte-step b { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 11px; font-family: var(--mono);
+  box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--muted); }
+.pte-step.done b { background: color-mix(in srgb, var(--ok) 16%, transparent); box-shadow: none; color: var(--ok); }
+.pte-step.on { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent-line); }
+.pte-step.on b { background: var(--accent); color: var(--accent-fg); box-shadow: none; }
+.pte-body { overflow: auto; padding: 16px 20px 24px; background: var(--panel-2); }
+.pte-body h3 { margin: 0 0 10px; font-family: var(--display); font-size: 16px; font-weight: 600; }
+.pte-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.pte-title-row h3 { margin: 0; }
+.pte-title-row .grow { flex: 1; }
+.pte-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px 12px; margin: 8px 0; }
+.pte-grid .pte-check { min-height: 28px; }
+.pte-sub { margin: 16px 0 2px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 11px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--faint); }
+.pte-cards { display: grid; gap: 12px; margin-top: 8px; justify-items: start; }
+.pte-card { justify-self: stretch; padding: 10px 14px 6px; border-radius: var(--r-lg); background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); }
+.pte-card-h { display: flex; align-items: center; gap: 8px; }
+.pte-card-h .grow { flex: 1; }
+.pte-card-h .btn { height: 26px; }
+.pte-foot { display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line); }
+.pte-foot .grow { flex: 1; }

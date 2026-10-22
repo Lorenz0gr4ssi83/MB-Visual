@@ -1084,3 +1084,33 @@ Web app (app per cellulari sul server delle licenze) finalizzata per tablet 768-
   nessun elemento fuori schermo; bersagli sotto 40 px solo i colori sovrapposti di Photoshop e l'attribuzione OSM.
   DXF salvati validati con ezdxf (audit 0 errori), PDF con PyMuPDF (annotazioni Ink lette e disegnate). Testi: chiavi
   `ink.*`, `touch.*` nelle 5 lingue. Collaudi dalla console: `MB.active.api._ink` (PDF).
+
+## Pratiche edilizie e moduli unificati (22/10/2026) - FATTO (da provare con pratiche e visure vere dell'utente)
+"Crea nuovo" -> "Pratica edilizia": si sceglie la cartella di commessa e il nome, nasce `<nome>.mbcomm` (JSON = anagrafica:
+committenti anche piu' di uno con CF/P.IVA e residenza, immobile con dati catastali e titoli precedenti, tecnici con albo,
+imprese con regolarita' contributiva, intervento, procuratore; struttura in `nuova()`), e si apre il visualizzatore `pratica`.
+- Motore `mbvisual/edilizia.py` (API unica `api/pratica?op=moduli|leggi|scrivi|genera|fascicolo|visura|file`, genera e
+  fascicolo = lavori in background). Modelli in `ui/templates/edilizia/*.mbm` (linguaggio a righe descritto in `parse`: `##` fascia,
+  `###` quadro, `[codice?condizione]` casella, `{percorso:mm}` campo, `{=percorso}` testo, `|` tabelle con `|?cond|` righe
+  condizionate, `@per x in elenco`, `@se`, `@include _frammento`, `@firma`). Condizioni: `a.b`, `!a.b`, `a=v1|v2`, `a!=v`,
+  `x|y` (o tra percorsi), `&`, `1`. Variabili in `contesto()` (tit, titolari_altri, imm, tt = titoli per tipo, prog, dl, pr =
+  procuratore o progettista, imp, int, com, prat, luogo_data...). FONTI e licenze: `ui/templates/edilizia/FONTI.md`.
+- Moduli: CILA, SCIA, SCIA alternativa (Accordo C.U. 4/5/2017 + modifiche "Salva Casa" Accordo 27/3/2025), CILA-Superbonus
+  (Accordo 4/8/2021), fine lavori, soggetti coinvolti = trascrizioni dei moduli nazionali; inizio lavori, procura speciale,
+  delega = schemi sui quadri unificati; relazione tecnica asseverata e dichiarazione di conformita' = DOCX (python-docx).
+  Testo dei moduli in italiano (atti italiani); interfaccia con chiavi `pratica.*`, `srv_edilizia.*`, `fmt.pratica.*` (5 lingue).
+- PDF: Arial di Windows con TextWriter (un solo inserimento per pagina: insert_text parola per parola era lentissimo) e Shape;
+  i campi (PyMuPDF Widget) si aggiungono su pagine d'appoggio una alla volta (add_widget controlla i nomi su tutto il modulo:
+  tempo quadratico, 7 s per 600 campi) e il contenuto si posa sotto con show_pdf_page; poi `pdfedit.fix_tounicode`.
+  Nomi dei campi = percorso o codice del quadro, ripetizioni con `#2` (mai `_2`: X_1_2 e' un codice). SCIA 21 pagine ~3 s.
+- Regione: tendina (REGIONI in edilizia.py con l'atto regionale); si generano sempre i moduli nazionali e, se la regione ha
+  modulistica propria, il pannello lo segnala. Da aggiungere i modelli regionali dedicati (elenco in FONTI.md).
+- Visura catastale PDF (`visura`): comune, foglio/particella/sub, categoria/classe/consistenza/rendita, indirizzo, piano, interno,
+  intestati (cognome/nome divisi con il codice fiscale, diritto e quota -> "proprietario"/"comproprietario"), societa'.
+  Scritta sull'impaginazione delle visure AdE ma provata solo su visure sintetiche (`tools/make_edilizia_samples.py`).
+- Fascicolo: frontespizio con i dati della commessa, indice con numeri di pagina e collegamenti, segnalibri (anche quelli dei
+  documenti), campi appiattiti (opzione), DOCX convertiti con Word/LibreOffice o, senza, impaginazione semplice del testo.
+  Si salva accanto al .mbcomm come "<nome> - Fascicolo.pdf". Firma: pulsanti "Firma" che aprono `firma.js` (PAdES).
+- pdf.js: `.annotationLayer { color-scheme: light }` in viewers/pdf.js (nel tema scuro la spunta delle caselle era bianca).
+- Collaudo: `python tests/test_edilizia.py` (121 prove: condizioni, campi riletti dal PDF, sintassi non trapelata, DOCX,
+  generazione, fascicolo, visure). Prove dalla console: `MB.active.api._pt` (a, generate, makeBook, editData, files).

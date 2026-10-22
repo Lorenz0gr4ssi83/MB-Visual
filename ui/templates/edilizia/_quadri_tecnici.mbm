@@ -1,0 +1,213 @@
+# Relazione tecnica di asseverazione - quadri da 2) a 22), NOTE e ASSEVERAZIONE. Identici nei moduli unificati
+# SCIA e SCIA alternativa al permesso di costruire (Accordo C.U. 4/5/2017), con le integrazioni dell'Accordo
+# C.U. 27/3/2025 ai quadri 11) (punto 11.3) e 13) (punto 13.3.3).
+### 2) Dati geometrici dell'immobile oggetto di intervento (*)
+che i dati geometrici dell'immobile oggetto di intervento sono i seguenti:
+@colonne 40,15,45
+| superficie | mq | {int.superficie:*} |
+| volumetria | mc | {int.volume:*} |
+| numero dei piani | n | {int.piani:*} |
+### 3) Strumentazione urbanistica comunale vigente e in salvaguardia (*)
+che l'area/immobile oggetto di intervento risulta individuata dal/è da realizzarsi su:
+@colonne 6,30,24,20,20
+|# | | SPECIFICARE | ZONA | ART. |
+| [?imm.zona_urbanistica] | PRG | {_:*} | {imm.zona_urbanistica:*} | {_:*} |
+| [] | PIANO PARTICOLAREGGIATO | {_:*} | {_:*} | {_:*} |
+| [] | PIANO DI RECUPERO | {_:*} | {_:*} | {_:*} |
+| [] | P.I.P | {_:*} | {_:*} | {_:*} |
+| [] | P.E.E.P. | {_:*} | {_:*} | {_:*} |
+| [] | ALTRO: | {_:*} | {_:*} | {_:*} |
+### 4) Barriere architettoniche
+che l'intervento
+>[4.1] non è soggetto alle prescrizioni degli articoli 77 e seguenti del d.P.R. n. 380/2001 e del d.m. n. 236/1989 o della corrispondente normativa regionale
+>[4.2] interessa un edificio privato aperto al pubblico e che le opere previste sono conformi all'articolo 82 del d.P.R. n. 380/2001 o della corrispondente normativa regionale come da relazione e schemi dimostrativi allegati al progetto
+>[4.3] è soggetto alle prescrizioni degli articoli 77 e seguenti del d.P.R. n. 380/2001 e del d.m. n. 236/1989 o della corrispondente normativa regionale e, come da relazione e schemi dimostrativi allegati alla SCIA, soddisfa il requisito di:
+>>[4.3.1] accessibilità
+>>[4.3.2] visitabilità
+>>[4.3.3] adattabilità
+>[4.4] pur essendo soggetto alle prescrizioni degli articoli 77 e seguenti del d.P.R. n. 380/2001 e del d.m. n. 236/1989 o della corrispondente normativa regionale, non rispetta la normativa in materia di barriere architettoniche, pertanto
+>>[4.4.1] presenta contestualmente alla SCIA condizionata, la documentazione per la richiesta di deroga come meglio descritto nella relazione tecnica allegata e schemi dimostrativi allegati
+### 5) Sicurezza degli impianti
+che l'intervento
+>[5.1] non comporta l'installazione, la trasformazione o l'ampliamento di impianti tecnologici
+>[5.2] comporta l'installazione, la trasformazione o l'ampliamento dei seguenti impianti tecnologici:
+>@nota (è possibile selezionare più di un'opzione)
+>>[5.2.1] di produzione, trasformazione, trasporto, distribuzione, utilizzazione dell'energia elettrica, di protezione contro le scariche atmosferiche, di automazione di porte, cancelli e barriere
+>>[5.2.2] radiotelevisivi, antenne ed elettronici in genere
+>>[5.2.3] di riscaldamento, di climatizzazione, di condizionamento e di refrigerazione di qualsiasi natura o specie, comprese le opere di evacuazione dei prodotti della combustione e delle condense, e di ventilazione ed aerazione dei locali
+>>[5.2.4] idrici e sanitari di qualsiasi natura o specie
+>>[5.2.5] per la distribuzione e l'utilizzazione di gas di qualsiasi tipo, comprese le opere di evacuazione dei prodotti della combustione e ventilazione ed aerazione dei locali;
+>>[5.2.6] impianti di sollevamento di persone o di cose per mezzo di ascensori, di montacarichi, di scale mobili e simili
+>>[5.2.7] di protezione antincendio
+>>[5.2.8] altre tipologie di impianti, anche definite dalla corrispondente normativa regionale (*) {_:*}
+>pertanto, ai sensi del d.m. 22 gennaio 2008, n. 37, l'intervento proposto:
+>>[5.2.8.1] non è soggetto agli obblighi di presentazione del progetto
+>>[5.2.8.2] è soggetto agli obblighi di presentazione del progetto e pertanto
+>>>[5.2.8.2.1] allega i relativi elaborati
+### 6) Consumi energetici (*)
+che l'intervento, in materia di risparmio energetico,
+>[6.1.1] non è soggetto al deposito del progetto e della relazione tecnica di cui all'articolo 125 del d.P.R. n. 380/2001 e del d.lgs. n. 192/2005
+>[6.1.2] è soggetto al deposito del progetto e della relazione tecnica di cui all'articolo 125 del d.P.R. n. 380/2001 e del d.lgs. n. 192/2005, pertanto
+>>[6.1.2.1] si allega la relazione tecnica sul rispetto delle prescrizioni in materia di risparmio energetico e la documentazione richiesta dalla legge
+che l'intervento, in relazione agli obblighi in materia di fonti rinnovabili
+>[6.2.1] non è soggetto all'applicazione del d.lgs. n. 28/2011, in quanto non riguarda edifici di nuova costruzione o edifici sottoposti ad una ristrutturazione rilevante
+>[6.2.2] è soggetto all'applicazione del d.lgs. n. 28/2011, pertanto
+>>[6.2.2.1] il rispetto delle prescrizioni in materia di utilizzo di fonti di energia rinnovabili è indicato negli elaborati progettuali e nella relazione tecnica prevista dall'articolo 125 del d.P.R. n. 380/2001 e dal d.lgs. n. 192/2005 in materia di risparmio energetico
+>>[6.2.2.2] l'impossibilità tecnica di ottemperare, in tutto o in parte, agli obblighi previsti, è evidenziata nella relazione tecnica dovuta ai sensi dell'articolo 125 del d.P.R. n. 380/2001 e del d.lgs. n. 192/2005, con l'indicazione della non fattibilità di tutte le diverse opzioni tecnologiche disponibili
+che l'intervento in relazione al miglioramento energetico degli edifici:
+>[6.3.1] ricade nell'articolo 14, comma 6, del d.lgs. n. 102/2014 in merito al computo degli spessori delle murature, nonché alla deroga alle distanze minime e alle altezze massime degli edifici, pertanto:
+>>[6.3.1.1] si certifica nella relazione tecnica una riduzione minima del 20 per cento dell'indice di prestazione energetica previsto dal d.lgs. n. 192/2005
+>[6.3.2] ricade nell'articolo 14, comma 7, del d.lgs. n. 102/2014 in merito alle deroga alle distanze minime e alle altezze massime degli edifici, pertanto:
+>>[6.3.2.1] si certifica nella relazione tecnica una riduzione minima del 10 per cento del limite di trasmittanza previsto dal d.lgs. n. 192/2005
+>[6.3.3] ricade nell'articolo 12, comma 1, del d.lgs. n. 28/2011 in merito al bonus volumetrico del 5 per cento, pertanto:
+>>[6.3.3.1] si certifica nella relazione tecnica una copertura dei consumi di calore, di elettricità e per il raffrescamento, mediante energia prodotta da fonti rinnovabili, in misura superiore di almeno il 30 per cento rispetto ai valori minimi obbligatori di cui all'allegato 3 del d.lgs. n. 28/2011
+## ALTRE SEGNALAZIONI, COMUNICAZIONI, ASSEVERAZIONI E ISTANZE
+### 7) Tutela dall'inquinamento acustico (*)
+che l'intervento
+>[7.1] non rientra nell'ambito di applicazione dell'articolo 8 della l. n. 447/1995
+>[7.2] rientra nell'ambito di applicazione dell'articolo 8 della l. n. 447/1995, integrato con i contenuti dell'articolo 4 del d.P.R. n. 227/2011 e si allega:
+>>[7.2.1] documentazione di impatto acustico (art. 8, commi 2 e 4, l. n. 447/1995)
+>>[7.2.2] valutazione previsionale di clima acustico (art. 8, comma 3, l. n. 447/1995)
+>>[7.2.3] dichiarazione sostitutiva dell'atto di notorietà, a firma del titolare, relativa al rispetto dei limiti stabiliti dal documento di classificazione acustica del territorio comunale di riferimento ovvero, ove questo non sia stato adottato, ai limiti individuati dal d.P.C.M. 14 novembre 1997 (art. 4, commi 1 e 2, d.P.R. n. 227/2011)
+>>[7.2.4] la documentazione di previsione di impatto acustico con l'indicazione delle misure previste per ridurre o eliminare le emissioni sonore, nel caso in cui i valori di emissioni sono superiori a quelli della zonizzazione acustica comunale o a quelli individuati dal d.P.C.M. 14 novembre 1997 (art. 8, comma 6, l. n. 447/1995) ai fini del rilascio del nulla-osta da parte del Comune (art. 8, comma 6, l. n. 447/1995)
+>[7.3] non rientra nell'ambito dell'applicazione del d.P.C.M. 5 dicembre 1997
+>[7.4] rientra nell'ambito dell'applicazione del d.P.C.M. 5 dicembre 1997
+### 8) Produzione di materiali di risulta (*)
+che le opere
+>[8.1] non sono soggette alla normativa relativa ai materiali da scavo (art. 41-bis d.l. n. 69 del 2013 e art. 184-bis d.lgs. n. 152 del 2006)
+>[8.2] comportano la produzione di materiali da scavo considerati come sottoprodotti ai sensi dell'articolo 184-bis, comma 1, del d.lgs. n. 152/2006 o dell'articolo 41-bis, comma 1, d.l. n. 69 del 2013 e del d.m. n. 161/2012, e inoltre
+>>[8.2.1] le opere comportano la produzione di materiali da scavo per un volume inferiore o uguale a 6000 mc ovvero (pur superando tale soglia) non sono soggette a VIA o AIA
+>>[8.2.2] le opere comportano la produzione di materiali da scavo per un volume superiore a 6000 mc e sono soggette a VIA o AIA, e pertanto, ai sensi dell'art. 184-bis, comma 2-bis del d.lgs. n. 152/2006, e del d.m. n. 161/2012 si prevede la presentazione del Piano di Utilizzo.
+>>>[8.2.1.1] si comunicano gli estremi del provvedimento di VIA o AIA, comprensivo dell'assenso al Piano di Utilizzo dei materiali da scavo, rilasciato da {_:50} con prot. {_:30} in data {_:28}
+>[8.3] comportano la produzione di materiali da scavo che saranno riutilizzati nello stesso luogo di produzione
+>[8.4] riguardano interventi di demolizione di edifici o altri manufatti preesistenti e producono rifiuti la cui gestione è disciplinata ai sensi della parte quarta del d.lgs. n. 152/2006
+>[8.5] comportano la produzione di materiali da scavo che saranno gestiti dall'interessato come rifiuti
+### 9) Prevenzione incendi
+che l'intervento
+>[9.1] non è soggetto alle norme di prevenzione incendi
+>[9.2] è soggetto alle norme tecniche di prevenzione incendi e le stesse sono rispettate nel progetto
+>[9.3] presenta caratteristiche tali da non consentire l'integrale osservanza delle regole tecniche di prevenzione incendi e
+>>[9.3.1] si allega documentazione necessaria all'ottenimento della deroga
+e che l'intervento
+>[9.4] non è soggetto alla valutazione del progetto da parte del Comando Provinciale dei Vigili del Fuoco ai sensi del d.P.R. n. 151/2011
+>[9.5] è soggetto alla valutazione del progetto da parte del Comando Provinciale dei Vigili del Fuoco, ai sensi dell'articolo 3 del d.P.R. n. 151/2011 e
+>>[9.5.1] si allega la documentazione necessaria alla valutazione del progetto
+>[9.6] costituisce variante e il sottoscritto assevera che le modifiche non costituiscono variazione dei requisiti di sicurezza antincendio già approvati con parere del Comando Provinciale dei Vigili del fuoco rilasciato con prot. {_:30} in data {_:28}
+### 10) Amianto
+che le opere
+>[10.1] non interessano parti di edifici con presenza di fibre di amianto
+>[10.2] interessano parti di edifici con presenza di fibre di amianto e che è stato predisposto, ai sensi dei commi 2 e 5 dell'articolo 256 del d.lgs. n. 81/2008, il Piano di Lavoro di demolizione o rimozione dell'amianto
+>>[10.2.1] in allegato alla presente relazione di asseverazione
+### 11) Conformità igienico-sanitaria (*)
+che l'intervento
+>[11.1] è conforme ai requisiti igienico-sanitari e alle ipotesi di deroghe previste
+>[11.2] non è conforme ai requisiti igienico-sanitari e alle ipotesi di deroghe previste e
+>>[11.2.1] si allega documentazione per la richiesta di deroga
+>[11.3] è conforme ai requisiti igienico-sanitari previsti dalla normativa vigente e ricade nelle ipotesi di cui all'articolo 24, comma 5-bis DPR 380/2001 trattandosi di:
+>>[11.3.1] locali con un'altezza minima interna inferiore a 2,70 metri ma uguale o superiore a 2,40 metri (art. 24, comma 5-bis, lett a) DPR 380/2001);
+>>[11.3.2] alloggio monostanza per una persona con una superficie minima, inclusi i servizi, inferiore a 28 metri quadrati ma uguale o superiore a 20 metri quadrati (art. 24, comma 5-bis, lett b) DPR 380/2001);
+>>[11.3.3] alloggio monostanza per due persone con una superficie minima, inclusi i servizi, inferiore a 38 metri quadrati ma uguale o superiore a 28 metri quadrati (art. 24, comma 5-bis, lett b) DPR 380/2001);
+>>>[11.3.(1-3).1] che soddisfano il requisito dell'adattabilità, in relazione alle specifiche funzionali e dimensionali, previsto dal regolamento di cui al decreto del Ministro dei lavori pubblici 14 giugno 1989, n. 236 e ricorre almeno una delle seguenti condizioni (art. 24, comma 5-ter, DPR 380/2001):
+>>>[11.3.(1-3).2] i locali sono situati in edifici sottoposti ad interventi di recupero edilizio e di miglioramento delle caratteristiche igienico sanitarie (art. 24, comma 5-ter, lett a), DPR 380/2001);
+>>>[11.3.(1-3).3] è contestualmente presentato nell'ambito degli elaborati grafici allegati un progetto di ristrutturazione con soluzioni alternative atte a garantire, in relazione al numero degli occupanti, idonee condizioni igienico-sanitarie dell'alloggio, ottenibili prevedendo una maggiore superficie dell'alloggio e dei vani abitabili ovvero la possibilità di un'adeguata ventilazione naturale favorita dalla dimensione e tipologia delle finestre, dai riscontri d'aria trasversali e dall'impiego di mezzi di ventilazione naturale ausiliari (art. 24, comma 5-ter, lett b), DPR 380/2001).
+### 12) Interventi strutturali e/o in zona sismica (*)
+che l'intervento
+>[12.1] non prevede la realizzazione di opere di conglomerato cementizio armato, normale e precompresso ed a struttura metallica
+>[12.2] prevede la realizzazione di opere di conglomerato cementizio armato, normale e precompresso ed a struttura metallica
+>>[12.2.1] si allega la denuncia di cui all'articolo 65 del d.P.R. n. 380/2001
+e che l'intervento
+>[12.3] non prevede opere da denunciare o autorizzare ai sensi degli articoli 93 e 94 del d.P.R. n. 380/2001 o della corrispondente normativa regionale
+>[12.4] costituisce una variante non sostanziale riguardante parti strutturali relativa ad un progetto esecutivo delle strutture precedentemente presentato con prot. {_:30} in data {_:28}
+>[12.5] prevede opere in zona sismica da denunciare ai sensi dell'articolo 93 del d.P.R. n. 380/2001 o della corrispondente normativa regionale e
+>>[12.5.1] si allega documentazione relativa alla denuncia dei lavori in zona sismica
+>[12.6] prevede opere strutturali soggette ad autorizzazione sismica ai sensi dell'articolo 94 del d.P.R. n. 380/2001 o della corrispondente normativa regionale e
+>>[12.6.1] si allega la documentazione necessaria per il rilascio dell'autorizzazione sismica
+## DICHIARAZIONI SUL RISPETTO DI OBBLIGHI IMPOSTI DALLA NORMATIVA REGIONALE (*)
+@nota (ad es. tutela del verde, illuminazione, ecc.)
+{{_:3}}
+## DICHIARAZIONI RELATIVE AI VINCOLI
+### TUTELA STORICO-AMBIENTALE
+### 13) Bene sottoposto ad autorizzazione paesaggistica
+che l'intervento, ai sensi della Parte III del d.lgs. n. 42/2004 (Codice dei beni culturali e del paesaggio),
+>[13.1] non ricade in zona sottoposta a tutela
+>[13.2] ricade in zona tutelata, ma le opere non comportano alterazione dei luoghi o dell'aspetto esteriore degli edifici ovvero non sono soggetti ad autorizzazione ai sensi dell'art. 149, d.lgs. n. 42/2004 e del d.P.R. n. 31/2017, allegato A e art. 4
+>[13.3] ricade in zona tutelata e le opere comportano alterazione dei luoghi o dell'aspetto esteriore degli edifici e
+>>[13.3.1] è assoggettato al procedimento semplificato di autorizzazione paesaggistica, in quanto di lieve entità, secondo quanto previsto dal d.P.R. n. 31/2017
+>>>[13.3.1.1] si allega la relazione paesaggistica semplificata e la documentazione necessaria ai fini del rilascio dell'autorizzazione paesaggistica semplificata
+>>[13.3.2] è assoggettato al procedimento ordinario di autorizzazione paesaggistica, e
+>>>[13.3.2.1] si allega la relazione paesaggistica e la documentazione necessaria ai fini del rilascio dell'autorizzazione paesaggistica
+@se !alt
+>>[13.3.3] è assoggettato al procedimento di accertamento della compatibilità paesaggistica di cui all'articolo 36-bis del DPR 380/2001 e
+>>>[13.3.3.1] si allega documentazione necessaria ai fini del rilascio del parere vincolante (vedi quadro della documentazione allegata - art. 36-bis comma 4 DPR 380/2001)
+@fine
+### 14) Bene sottoposto ad autorizzazione/atto di assenso della Soprintendenza archeologica/storico culturale
+che l'immobile oggetto dei lavori, ai sensi della Parte II, Titolo I, Capo I del d.lgs. n. 42/2004,
+>[14.1] non è sottoposto a tutela
+>[14.2] è sottoposto a tutela
+>>[14.2.1] si allega la documentazione necessaria ai fini del rilascio del parere/nulla osta
+### 15) Bene in area protetta (*)
+che l'immobile oggetto dei lavori, ai sensi della legge n. 394/1991 (Legge quadro sulle aree protette) e della corrispondente normativa regionale,
+>[15.1] non ricade in area tutelata
+>[15.2] ricade in area tutelata, ma le opere non comportano alterazione dei luoghi o dell'aspetto esteriore degli edifici
+>[15.3] è sottoposto alle relative disposizioni
+>>[15.3.1] si allega la documentazione necessaria ai fini del rilascio del parere/nulla osta
+### TUTELA ECOLOGICA
+### 16) Bene sottoposto a vincolo idrogeologico (*)
+che, ai fini del vincolo idrogeologico, l'area oggetto di intervento
+>[16.1] non è sottoposta a tutela
+>[16.2] è sottoposta a tutela e l'intervento rientra nei casi eseguibili senza autorizzazione di cui al comma 5 dell'articolo 61 del d.lgs. n. 152/2006 e al r.d.l. n. 3267/1923
+>[16.3] è sottoposta a tutela ed è necessario il rilascio dell'autorizzazione di cui al comma 5 dell'articolo 61 del d.lgs. n. 152/2006 e al r.d.l. n. 3267/1923
+>>[16.3.1] si allega la documentazione necessaria ai fini del rilascio dell'autorizzazione
+### 17) Bene sottoposto a vincolo idraulico (*)
+che, ai fini del vincolo idraulico, l'area oggetto di intervento
+>[17.1] non è sottoposta a tutela
+>[17.2] è sottoposta a tutela ed è necessario il rilascio dell'autorizzazione di cui al comma 2 dell'articolo 115 del d.lgs. n. 152/2006 e al r.d. n. 523/1904
+>>[17.2.1] si allega la documentazione necessaria ai fini del rilascio dell'autorizzazione
+### 18) Zona di conservazione "Natura 2000" (*)
+che, ai fini della zona speciale di conservazione appartenente alla rete "Natura 2000" (d.P.R. n. 357/1997 e d.P.R. n. 120/2003) l'intervento
+>[18.1] non è soggetto a Valutazione d'incidenza (VINCA)
+>[18.2] è soggetto a Valutazione d'incidenza (VINCA)
+>>[18.2.1] si allega la documentazione necessaria all'approvazione del progetto
+### 19) Fascia di rispetto cimiteriale (*)
+che in merito alla fascia di rispetto cimiteriale (articolo 338, testo unico delle leggi sanitarie n. 1265/1934)
+>[19.1] l'intervento non ricade nella fascia di rispetto
+>[19.2] l'intervento ricade nella fascia di rispetto ed è consentito
+>[19.3] l'intervento ricade in fascia di rispetto cimiteriale e non è consentito
+>>[19.3.1] si allega la documentazione necessaria per la richiesta di deroga
+### 20) Aree a rischio di incidente rilevante
+che in merito alle attività a rischio d'incidente rilevante (d.lgs. n. 105/2015 e d.m. 9 maggio 2001):
+>[20.1] nel comune non è presente un'attività a rischio d'incidente rilevante
+>[20.2] nel comune è presente un'attività a rischio d'incidente rilevante la relativa "area di danno" è individuata nella pianificazione comunale
+>>[20.2.1] l'intervento non ricade nell'area di danno
+>>[20.2.2] l'intervento ricade in area di danno
+>>>[20.2.2.1] si allega la documentazione necessaria alla valutazione del progetto dal Comitato Tecnico Regionale
+>[20.3] nel comune è presente un'attività a rischio d'incidente rilevante e la relativa "area di danno" non è individuata nella pianificazione comunale
+>>[20.3.1] si allega la documentazione necessaria alla valutazione del progetto dal Comitato Tecnico Regionale
+### 21) Altri vincoli di tutela ecologica (*)
+che l'area/immobile oggetto di intervento risulta assoggettata ai seguenti vincoli:
+>[21.1] fascia di rispetto dei depuratori (punto 1.2, allegato 4 della deliberazione 4 febbraio 1977 del Comitato dei Ministri per la tutela delle acque)
+>[21.2] Altro (specificare) {_:*}
+In caso di area/immobile assoggettato ad uno o più dei sopracitati vincoli
+>[21.2.1] si allegano le autocertificazioni relative alla conformità dell'intervento per i relativi vincoli
+>[21.2.2] si allega la documentazione necessaria ai fini del rilascio dei relativi atti di assenso
+### TUTELA FUNZIONALE
+### 22) Vincoli per garantire il coerente uso del suolo e l'efficienza tecnica delle infrastrutture (*)
+che l'area/immobile oggetto di intervento risulta assoggettata ai seguenti vincoli:
+>[22.1] stradale (d.m. n. 1404/1968, d.P.R. n. 495/92) (specificare) {_:*}
+>[22.2] ferroviario (d.P.R. n. 753/1980)
+>[22.3] elettrodotto (d.P.C.M. 8 luglio 2003)
+>[22.4] gasdotto (d.m. 24 novembre 1984)
+>[22.5] militare (d.lgs. n. 66/2010)
+>[22.6] aeroportuale (piano di rischio ai sensi dell'art. 707 del Codice della navigazione, specifiche tecniche ENAC)
+>[22.7] Altro (specificare) {_:*}
+In caso di area/immobile assoggettato ad uno o più dei sopracitati vincoli
+>[22.7.1] si allegano le autocertificazioni relative alla conformità dell'intervento per i relativi vincoli
+>[22.7.2] si allega la documentazione necessaria ai fini del rilascio dei relativi atti di assenso
+NOTE:
+{{_:3}}
+## ASSEVERAZIONE
+Tutto ciò premesso, il sottoscritto tecnico, in qualità di persona esercente un servizio di pubblica necessità ai sensi degli artt. 359 e 481 del Codice Penale, esperiti i necessari accertamenti di carattere urbanistico, edilizio, statico, igienico ed a seguito del sopralluogo, consapevole di essere passibile dell'ulteriore sanzione penale nel caso di falsa asseverazione circa l'esistenza dei requisiti o dei presupposti di cui al comma 1 dell'art. 19 della l. n. 241/90
+!! ASSEVERA
+la conformità delle opere sopra indicate, compiutamente descritte negli elaborati progettuali, agli strumenti urbanistici approvati e non in contrasto con quelli adottati, la conformità al Regolamento Edilizio Comunale, al Codice della Strada, nonché al Codice Civile e assevera che le stesse rispettano le norme di sicurezza e igienico/sanitarie e le altre norme vigenti in materia di urbanistica, edilizia, e quanto vigente in materia, come sopra richiamato.
+Il sottoscritto dichiara inoltre che l'allegato progetto è compilato in piena conformità alle norme di legge e dei vigenti regolamenti comunali, nei riguardi pure delle proprietà confinanti essendo consapevole che la presente segnalazione non può comportare limitazione dei diritti dei terzi, fermo restando quanto previsto dall'articolo 19, comma 6-ter, della l. n. 241/1990.
+@firma Il Progettista

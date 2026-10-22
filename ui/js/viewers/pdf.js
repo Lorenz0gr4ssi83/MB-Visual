@@ -76,6 +76,7 @@ export async function mount(ctx) {
         --sidebar-width: 190px; }
         #toolbarContainer, #toolbarSidebar { box-shadow: inset 0 -1px 0 ${v("--line")} !important; }
         #sidebarContainer { border-right: 1px solid ${v("--line")}; }
+        .annotationLayer { color-scheme: light; } /* campi sulla pagina bianca: nel tema scuro la spunta (CanvasText) diventava bianca */
         .thumbnail.selected > .thumbnailImage, .thumbnail:hover > .thumbnailImage { outline: 2px solid ${v("--accent")}; outline-offset: 2px; }`;
     };
     if (theme) { paint(); frame.contentDocument.head.append(theme); addEventListener("mbv-theme", paint); }

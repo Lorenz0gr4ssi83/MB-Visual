@@ -41,7 +41,7 @@ NEVER = {"exe", "dll", "lnk", "url", "bat", "cmd", "com", "scr", "msi", "msp", "
          "library-ms", "search-ms", "theme", "reg", "ps1", "vbs", "js", "jse", "wsf", "hta", "msc"}
 # visualizzatori dei tipi che Windows mostra gia' da solo (o per cui una miniatura non ha senso): niente DLL
 NO_THUMB_VIEWERS = {"pdf", "signed", "docx", "sheet", "pptx", "office", "text", "markdown", "html", "image", "svg", "media",
-                    "archive", "email", "epub", "font", "sqlite", "hex", "oo", "video"}
+                    "archive", "email", "epub", "font", "sqlite", "hex", "oo", "video", "pratica"}
 EXTRA_THUMB = {"nwd", "nwc", "skp", "skb", "rvt", "rfa", "rte", "ipt", "iam", "idw", "ipn", "sldprt", "sldasm", "slddrw",
                "dwf", "dwfx", "3dm", "mbpub"}
 COLORS = {"pdf": "#c0392b", "sig": "#a0781a", "doc": "#2b579a", "xls": "#217346", "ppt": "#c4511f", "cad": "#0e7c86",
@@ -49,7 +49,7 @@ COLORS = {"pdf": "#c0392b", "sig": "#a0781a", "doc": "#2b579a", "xls": "#217346"
           "db": "#7a5c3d", "bin": "#77797a"}
 BADGE = {"pdf": "pdf", "signed": "sig", "word": "doc", "office-lo": "doc", "sheet": "xls", "pptx": "ppt", "publisher": "cad",
          "cad2d": "cad", "cad3d": "3d", "mesh3d": "3d", "navisworks": "3d", "image": "img", "image-raw": "img", "svg": "img",
-         "media": "av", "audio": "av", "videoproject": "av", "archive": "zip", "email": "mail", "text": "code",
+         "media": "av", "audio": "av", "videoproject": "av", "pratica": "doc", "archive": "zip", "email": "mail", "text": "code",
          "markdown": "code", "html": "code", "ebook": "code", "font": "code", "database": "db"}
 FROZEN = getattr(sys, "frozen", False)
 # .pdb sono anche i simboli di debug di Visual Studio: niente miniature (migliaia di file) ne' programma predefinito

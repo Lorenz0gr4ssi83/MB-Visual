@@ -1,0 +1,129 @@
+# SCIA - Segnalazione certificata di inizio attivita' (art. 22 d.P.R. 380/2001)
+# Trascrizione dei moduli unificati nazionali "SCIA" (titolare), "Relazione tecnica di asseverazione" e "Quadro
+# riepilogativo della documentazione" (Accordo C.U. 4 maggio 2017) con le modifiche dell'Accordo C.U. 27 marzo 2025
+# ("Salva Casa"): quadri "Qualificazione dell'intervento", "Regolarita' urbanistica" e "Tipologia di intervento"
+# sostituiti, quadri nuovi "Sanatoria e regolarizzazioni", "Stato legittimo", "Dichiarazione di tolleranze",
+# integrazioni ai quadri igienico-sanitario e paesaggistico, quadro riepilogativo sostituito. Fonti: FONTI.md.
+@meta titolo SCIA - Segnalazione certificata di inizio attività
+@meta descrizione Art. 22 d.P.R. 380/2001: titolare, relazione tecnica di asseverazione, quadro riepilogativo
+@meta fonte Moduli unificati nazionali: Accordo C.U. 4/5/2017, aggiornati con Accordo C.U. 27/3/2025 (d.l. 69/2024 "Salva Casa")
+@meta fonte_breve Modulo unificato - Accordi C.U. 4/5/2017 e 27/3/2025
+@meta gruppo titoli
+@imposta doc SCIA
+@colonne 56,44
+| Al Comune di {com.nome:*}<br>[?int.altri_atti=nessuno|] SCIA<br>[?int.altri_atti=segnalazioni] SCIA UNICA (SCIA più altre segnalazioni, comunicazioni e notifiche)<br>[?int.altri_atti=assensi] SCIA CONDIZIONATA (SCIA più istanze per acquisire atti di assenso) | Pratica edilizia {prat.numero:*}<br>del {prat.data:30} Protocollo {prat.protocollo:*}<br>da compilare a cura del SUE/SUAP<br>[?com.sportello=SUAP] SUAP [?com.sportello=SUE] SUE<br>Indirizzo {com.indirizzo:*}<br>PEC / Posta elettronica {com.pec:*} |
+= Segnalazione certificata di inizio attività
+~ (art. 22, d.P.R. 6 giugno 2001, n. 380 - art. 19, 19-bis l. 7 agosto 1990, n. 241 - artt. 5, 6 e 7, d.P.R. 7 settembre 2010, n. 160)
+@include _titolare
+## DICHIARAZIONI | (artt. 46 e 47 del d.P.R. n. 445 del 2000)
+Il/la sottoscritto/a, consapevole delle sanzioni penali previste dalla legge per le false dichiarazioni e attestazioni (art. 76 del d.P.R. n. 445/2000 e Codice Penale), sotto la propria responsabilità
+!! DICHIARA
+### a) Titolarità dell'intervento
+di avere titolo alla presentazione di questa pratica edilizia in quanto {tit.titolo:*}
+@nota (Ad es. proprietario, comproprietario, usufruttuario, amministratore di condominio etc..)
+dell'immobile interessato dall'intervento e di
+>[a.1?int.titolarita_esclusiva] avere titolarità esclusiva all'esecuzione dell'intervento
+>[a.2?!int.titolarita_esclusiva] non avere titolarità esclusiva all'esecuzione dell'intervento, ma di disporre comunque della dichiarazione di assenso dei terzi titolari di altri diritti reali o obbligatori
+### b) Presentazione della SCIA/SCIA Unica/SCIA Condizionata
+Di presentare
+>[b.1?int.altri_atti=nessuno|] SCIA: Il titolare dichiara che i lavori avranno inizio in data {int.inizio_lavori:30}
+>[b.2?int.altri_atti=segnalazioni] SCIA più altre segnalazioni o comunicazioni (SCIA Unica): contestualmente alla SCIA le altre segnalazioni o comunicazioni necessarie alla realizzazione dell'intervento indicate nel quadro riepilogativo allegato.
+>>b.2.1 Il titolare dichiara che i lavori avranno inizio in data {_:30}
+>[b.3?int.altri_atti=assensi] SCIA più domanda per il rilascio di atti di assenso (SCIA Condizionata da atti di assenso): contestualmente alla SCIA, richiesta per l'acquisizione da parte dell'amministrazione degli atti di assenso necessari alla realizzazione dell'intervento, indicati nel quadro riepilogativo allegato. Il titolare dichiara di essere a conoscenza che intervento oggetto della segnalazione può essere iniziato dopo la comunicazione da parte del Sportello Unico dell'avvenuto rilascio dei relativi atti di assenso.
+### c) Qualificazione dell'intervento (*)
+che la presente segnalazione relativa all'intervento, descritto nella relazione di asseverazione, riguarda:
+>[c.1?int.tipologia=manutenzione_straordinaria_strutturale|manutenzione_straordinaria] intervento di manutenzione straordinaria di cui all'articolo 3, comma 1, lettera b) del d.P.R. n. 380/2001, che riguardino le parti strutturali dell'edificio o i prospetti (art. 22 comma 1, lettera a), del d.P.R. n. 380/2001)
+>[c.2?int.tipologia=restauro_strutturale|restauro] intervento di manutenzione restauro e risanamento conservativo di cui all'articolo 3, comma 1, lettera c) del d.P.R. n. 380/2001, qualora riguardino le parti strutturali dell'edificio (art. 22 comma 1, lettera b), del d.P.R. n. 380/2001)
+>[c.3?int.tipologia=ristrutturazione] intervento di ristrutturazione edilizia di cui all'articolo 3, comma 1, lettera d) del d.P.R. n. 380/2001, ad esclusione dei casi di cui all'articolo 10, comma 1, lettera c) del d.P.R. n. 380/2001 (art. 22 comma 1, lettera c), del d.P.R. n. 380/2001)
+>a tal fine si specifica che l'intervento
+>>[c.(1-3).1?int.cambio_uso=no|] non comporta mutamento di destinazione d'uso di una singola unità immobiliare o di un intero immobile
+>>[c.(1-3).2?int.cambio_uso=stessa_categoria] comporta mutamento di destinazione d'uso di una singola unità immobiliare all'interno della stessa categoria funzionale
+>>[c.(1-3).3?int.cambio_uso=zone_abc] comporta mutamento di destinazione d'uso di una singola unità immobiliare, ubicata in immobili ricompresi nelle zone A), B) e C) di cui all'articolo 2 del d.m. n. 1444/1968, tra categorie funzionali di cui all'art. 23-ter comma 1, lettere a), a-bis), b) e c), d.P.R. 380/2001;
+>>[c.(1-3).4?int.cambio_uso=intero_stessa] comporta mutamento di destinazione d'uso di un intero immobile all'interno della stessa categoria funzionale nelle ipotesi di cui all'art. 23-ter, comma 3
+>[c.4?int.tipologia=variante_pdc] variante in corso d'opera a permesso di costruire n. {int.titolo_n:30} del {int.titolo_data:28} che non incide sui parametri urbanistici e non costituisce variazione essenziale (d.P.R. n. 380/2001, art. 22, commi 2 e 2-bis).
+>[c.5?int.tipologia=variante_scia] variante in corso d'opera a SCIA n. {_:30} del {_:28} che non costituisce variazione essenziale
+>[c.6?int.tipologia=variante_scia_essenziale] variante in corso d'opera a SCIA che si configura come variazione essenziale ai sensi dell'articolo 32 del d.P.R. n. 380/2001
+>[c.7?int.tipologia=mutamento_uso] mutamento di destinazione d'uso, nel rispetto delle eventuali normative di settore e specifiche condizioni fissate dagli strumenti urbanistici comunali, della seguente tipologia:
+>>[c.7.1] senza opere (o con opere riconducibili agli interventi di cui all'articolo 6) di singola unità immobiliare all'interno della stessa categoria funzionale, nelle ipotesi di cui all'art. 23-ter, comma 1-bis, del d.P.R. n. 380/2001
+>>[c.7.2] senza opere (o con opere riconducibili agli interventi di cui all'articolo 6) di singola unità immobiliare tra le categorie funzionali di cui al comma 1, lettere a), a-bis), b) e c) del d.P.R. n. 380/2001 nelle ipotesi di cui all'art. 23-ter, commi 1-ter e 1-quater
+>>[c.7.3] con opere riconducibili agli interventi di cui all'articolo 6-bis di singola unità immobiliare all'interno della stessa categoria funzionale, nelle ipotesi di cui all'art. 23-ter, comma 1-bis, del d.P.R. n. 380/2001 (art. 23-ter, comma 1-quinquies, lettera b)
+>>[c.7.4] con opere riconducibili agli interventi di cui all'articolo 6-bis di singola unità immobiliare tra le categorie funzionali di cui all'articolo 23-ter, comma 1, lettere a), a-bis), b) e c) del d.P.R. n. 380 del 2001 (art. 23-ter, comma 1-quinquies, lettera b)
+>[c.8] mutamento di destinazione d'uso, di un intero immobile all'interno della stessa categoria funzionale nelle ipotesi di cui all'art. 23-ter, comma 3:
+>>[c.8.1] con opere riconducibili agli interventi di cui all'articolo 6-bis del d.P.R. n. 380/2001
+>>[c.8.2] senza opere (o con opere riconducibili agli interventi di cui all'articolo 6 del d.P.R. n. 380/2001)
+la presente segnalazione riguarda:
+@nota (da compilare solo nel caso di presentazione allo Sportello Unico per le Attività Produttive - SUAP)
+>[c.9] attività che rientrano nell'ambito del procedimento automatizzato ai sensi degli articoli 5 e 6 del d.P.R. n. 160/2010
+>[c.10] attività che rientrano nell'ambito del procedimento ordinario ai sensi dell'articolo 7 del d.P.R. n. 160/2010
+### X) Sanatoria e regolarizzazioni per interventi già realizzati e in corso di esecuzione (*)
+@nota Quadro inserito dall'Accordo C.U. 27 marzo 2025 (d.l. n. 69/2024).
+che la presente segnalazione riguarda:
+>[X.1?int.stato_lavori=in_corso] intervento soggetto a SCIA in corso di esecuzione, con pagamento di sanzione (d.P.R. n. 380/2001, articolo 37, comma 5), e pertanto:
+>>[X.1.1] si forniscono gli estremi del pagamento di € 516,00 {_:40} del {_:28}
+>>[X.1.2] si allega la ricevuta del pagamento di € 516,00
+>[X.2] sanatoria di intervento soggetto a SCIA, realizzato in data {_:28} in assenza della SCIA stessa o in difformità da essa, che risulta conforme alla disciplina urbanistica e edilizia vigente sia al momento della realizzazione, sia al momento della presentazione della segnalazione (d.P.R. n. 380/2001, articolo 36-bis). Tale sanatoria, ai sensi dell'art. 36-bis, comma 5, lettera b), seconda parte, è subordinata al pagamento, a titolo di oblazione, di un importo non inferiore a 516 euro e non superiore a 5164 euro. Pertanto:
+>>[X.2.1] si forniscono gli estremi del pagamento di € {_:30} del {_:28}
+>>[X.2.2] si allega la ricevuta del pagamento di € {_:30}
+>>che sarà soggetto ad eventuale conguaglio a seguito di quantificazione della oblazione da parte del responsabile del procedimento. L'interessato dichiara di essere consapevole che l'efficacia della SCIA in sanatoria è subordinata al pagamento integrale della oblazione che sarà determinata dallo sportello unico (d.P.R. n. 380 del 2001 art. 36-bis, comma 5, lettera b).
+>[X.3] sanatoria di intervento soggetto a SCIA realizzato in data {_:28} in assenza della SCIA o in difformità da essa, che risulta conforme alla disciplina urbanistica vigente al momento della presentazione della segnalazione e ai requisiti prescritti dalla disciplina edilizia vigente al momento della realizzazione (d.P.R. n. 380/2001, articolo 36-bis). Tale sanatoria, ai sensi dell'art. 36-bis, comma 5, lettera b), prima parte, è subordinata al pagamento, a titolo di oblazione, di un importo non inferiore a 1.032 euro e non superiore a 10.328 euro. Pertanto:
+>>[X.3.1] si forniscono gli estremi del pagamento di € {_:30} del {_:28}
+>>[X.3.2] si allega la ricevuta del pagamento di € {_:30}
+>>che sarà soggetto ad eventuale conguaglio a seguito di quantificazione della oblazione da parte del responsabile del procedimento. L'interessato dichiara di essere consapevole che: l'efficacia della SCIA in sanatoria è subordinata al pagamento integrale della oblazione che sarà determinata dallo sportello unico (d.P.R. n. 380 del 2001 art. 36-bis, comma 5, lettera b); lo Sportello Unico può subordinare l'efficacia della SCIA in sanatoria alla realizzazione di interventi anche strutturali necessari alla sicurezza e/o alla rimozione di opere che non possono essere sanate;
+>[X.4] regolarizzazione di interventi realizzati come variante in corso d'opera che costituiscono parziali difformità dal titolo rilasciato prima della data di entrata in vigore della legge 28 gennaio 1977, n. 10 (d.P.R. n. 380 del 2001, art 34-ter) e pertanto:
+>>[X.4.1] si indicano gli estremi del titolo edilizio variato n. {_:30} del {_:28}
+>>[X.4.2] si allega altra documentazione di cui all'articolo 9-bis, comma 1-bis, quarto periodo nei casi in cui sussista un principio di prova del titolo abilitativo variato del quale, tuttavia, non siano disponibili la copia o gli estremi (vedi quadro riepilogativo)
+>>La regolarizzazione è subordinata al pagamento, a titolo di oblazione di un importo determinato ai sensi dell'art. 36-bis, comma 5, lettera b), prima parte, (art. 34-ter, comma 3, primo periodo). Pertanto:
+>>[X.4.3] si forniscono gli estremi di versamento di € {_:30} del {_:28}
+>>[X.4.4] si allega ricevuta di versamento di € {_:30}
+>>che sarà soggetto ad eventuale conguaglio a seguito di istruttoria edilizia. L'interessato dichiara di essere consapevole che l'efficacia della SCIA in sanatoria è subordinata al pagamento integrale della oblazione che sarà determinata dallo sportello unico (d.P.R. n. 380 del 2001 art. 36-bis, comma 5, lettera b, prima parte)
+### d) Localizzazione dell'intervento
+che l'intervento interessa l'immobile
+sito in (via, piazza, ecc.) {imm.via:100} n. {imm.civico:*}
+Scala {imm.scala:18} Piano {imm.piano:18} interno {imm.interno:18} C.A.P. {imm.cap:22}
+censito al catasto [?imm.catasto=fabbricati] fabbricati [?imm.catasto=terreni] terreni Coordinate (*) {imm.coordinate:*}
+foglio n. {imm.foglio:22} map. {imm.particella:24} (se presenti) sub. {imm.subalterno:18} sez. {imm.sezione:14} sez. urb. {imm.sez_urbana:*}
+avente destinazione d'uso {imm.destinazione:*}
+@nota (Ad es. residenziale, industriale, commerciale, ecc.)
+### e) Opere su parti comuni o modifiche esterne
+che le opere previste
+>[e.1?int.parti_comuni=no] non riguardano parti comuni
+>[e.2?int.parti_comuni=condominio] riguardano le parti comuni di un fabbricato condominiale
+>[e.3?int.parti_comuni=comunione] riguardano parti comuni di un fabbricato con più proprietà, non costituito in condominio, e dichiara che l'intervento è stato approvato dai comproprietari delle parti comuni, come risulta dall'allegato "soggetti coinvolti", firmato da parte di tutti i comproprietari e corredato da copia di documento d'identità
+>[e.4?int.parti_comuni=art1102] riguardano parti dell'edificio di proprietà comune ma non necessitano di assenso perché, secondo l'art. 1102 c.c., apportano, a spese del titolare, le modificazioni necessarie per il miglior godimento delle parti comuni non alterandone la destinazione e senza impedire agli altri partecipanti di usufruirne secondo il loro diritto
+@include _regolarita
+### g) Calcolo del contributo di costruzione (*)
+che l'intervento da realizzare
+>[g.1?!int.oneroso] è a titolo gratuito, ai sensi della seguente normativa {int.gratuito_norma:*}
+>[g.2?int.oneroso] è a titolo oneroso e pertanto
+>>[g.2.1?int.oneroso&int.contributo_calcolo=sportello] chiede allo Sportello unico di effettuare il calcolo del contributo di costruzione e a tal fine allega la documentazione tecnica necessaria alla sua determinazione
+>>[g.2.2?int.oneroso&int.contributo_calcolo=tecnico] allega il prospetto di calcolo preventivo del contributo di costruzione a firma del tecnico abilitato
+>Quanto al versamento del contributo dovuto:
+>>[g.3.1?int.oneroso&int.contributo_pagato] si allega l'attestazione del completo versamento del contributo dovuto
+>>[g.3.2] si riserva di trasmettere prima dell'inizio dei lavori l'attestazione del completo versamento del contributo dovuto (nel caso di SCIA condizionata)
+>>[g.3.3] chiede la rateizzazione del contributo di costruzione secondo le modalità e le garanzie stabilite dal Comune
+>>[g.3.4] si impegna a corrispondere il costo di costruzione in corso di esecuzione delle opere, con le modalità e le garanzie stabilite dal Comune
+### h) Tecnici incaricati
+di aver incaricato, in qualità di progettista/i, il/i tecnico/i indicato/i alla sezione 2 dell'allegato "Soggetti coinvolti" e dichiara inoltre
+>[h.1?altri_tecnici|prog.anche_dl] di aver incaricato, in qualità di direttori dei lavori e di altri tecnici, i soggetti indicati alla sezione 2 dell'allegato "Soggetti coinvolti"
+>[h.2?!altri_tecnici&!prog.anche_dl] che il/i direttore/i dei lavori e gli altri tecnici incaricati saranno individuati prima dell'inizio dei lavori (*)
+### i) Impresa esecutrice dei lavori
+>[i.1?imprese] che i lavori sono eseguiti / sono stati eseguiti dalla/e impresa/e indicata/e alla sezione 3 dell'allegato "Soggetti coinvolti"
+>[i.2?!imprese&!int.in_economia] che l'impresa esecutrice/imprese esecutrici dei lavori sarà/saranno individuata/e prima dell'inizio dei lavori (*)
+>[i.3?int.in_economia] che, in quanto opere di modesta entità che non interessano le specifiche normative di settore, i lavori sono eseguiti / sono stati eseguiti in prima persona, senza alcun affidamento a ditte esterne (*)
+### l) Rispetto degli obblighi in materia di salute e sicurezza nei luoghi di lavoro
+@include _sicurezza
+### m) Diritti di terzi
+di essere consapevole che la presente segnalazione non può comportare limitazione dei diritti dei terzi, fermo restando quanto previsto dall'articolo 19, comma 6-ter, della l. n. 241/1990
+### n) Rispetto della normativa sulla privacy
+di aver letto l'informativa sul trattamento dei dati personali posta al termine del presente modulo
+NOTE:
+{{int.note:3}}
+@nota Attenzione: qualora dai controlli successivi il contenuto delle dichiarazioni risulti non corrispondente al vero, oltre alle sanzioni penali, è prevista la decadenza dai benefici ottenuti sulla base delle dichiarazioni stesse (art. 75 del d.P.R. n. 445/2000).
+@firma Il/I Dichiarante/i
+@include _privacy
+@pagina
+= SCIA - Relazione tecnica di asseverazione
+@include _asseverazione_scia
+@pagina
+@include _riepilogo_scia
+@nota Le sezioni e le informazioni che possono variare sulla base della diversa legislazione regionale sono contrassegnate con un asterisco (*).

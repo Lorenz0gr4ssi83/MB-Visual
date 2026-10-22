@@ -1422,6 +1422,16 @@
     "rte",
     "rft"
    ]
+  },
+  {
+   "id": "pratica",
+   "name": "Pratiche edilizie (MB Visual)",
+   "viewer": "pratica",
+   "view": "Anagrafica di commessa: committenti, immobile con dati catastali, tecnici, imprese, intervento; moduli generati e fascicolo",
+   "edit": "Finestra guidata dei dati (anche dalla visura catastale PDF), moduli unificati compilati (CILA, CILA-Superbonus, SCIA, SCIA alternativa, inizio e fine lavori, soggetti coinvolti, procura, delega, relazione tecnica, dichiarazione di conformita'), firma digitale, fascicolo PDF con indice e segnalibri",
+   "exts": [
+    "mbcomm"
+   ]
   }
  ],
  "fallback": {

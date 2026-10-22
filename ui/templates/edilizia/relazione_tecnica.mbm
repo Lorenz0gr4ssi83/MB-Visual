@@ -1,0 +1,65 @@
+# Relazione tecnica asseverata - schema da completare in Word/ONLYOFFICE (uscita DOCX).
+# Indice dei contenuti ricavato dai quadri della "Relazione tecnica di asseverazione" dei moduli unificati (Accordo C.U.
+# 4/5/2017, aggiornato il 27/3/2025): stato legittimo, tolleranze, normative di settore, vincoli, asseverazione finale.
+@meta titolo Relazione tecnica asseverata
+@meta descrizione Schema in Word da completare: immobile, stato legittimo, inquadramento, intervento, verifiche, asseverazione
+@meta fonte Schema sui quadri della relazione tecnica di asseverazione dei moduli unificati (Accordi C.U. 4/5/2017 e 27/3/2025)
+@meta gruppo relazioni
+= Relazione tecnica asseverata
+~ allegata a {=int.titolo_tipo} - {=imm.via} {=imm.civico}, {=imm.comune}
+### 1. Premessa
+Il/La sottoscritto/a {prog.cognome_nome:*}, iscritto/a all'{prog.albo:*} di {prog.albo_prov:*} al n. {prog.albo_n:*}, con studio in {prog.studio_comune:*}, {prog.studio_indirizzo:*} {prog.studio_civico:*}, PEC {prog.pec:*}, su incarico di {tit.cognome_nome:*} (codice fiscale {tit.cf:*}), in qualità di {tit.titolo:*}, redige la presente relazione tecnica relativa all'intervento descritto di seguito.
+### 2. Individuazione dell'immobile
+Immobile sito nel Comune di {imm.comune:*}, {imm.via:*} n. {imm.civico:*}, scala {imm.scala:*}, piano {imm.piano:*}, interno {imm.interno:*}.
+Dati catastali: Catasto {imm.catasto:*}, sezione {imm.sezione:*}, foglio {imm.foglio:*}, particella {imm.particella:*}, subalterno {imm.subalterno:*}, categoria {imm.categoria:*}, classe {imm.classe:*}, consistenza {imm.consistenza:*}, rendita {imm.rendita:*}.
+Destinazione d'uso: {imm.destinazione:*}.
+### 3. Stato legittimo dell'immobile
+Lo stato legittimo dell'immobile (art. 9-bis, comma 1-bis, d.P.R. n. 380/2001) risulta dai seguenti titoli edilizi:
+@per x in titoli
+- {x.tipo_nome:*} n. {x.numero:*} del {x.data:*}
+@fine
+[?imm.ante67] immobile realizzato in epoca in cui non era obbligatorio un titolo abilitativo (anteriore al 1° settembre 1967): si allegano accatastamento di primo impianto e altri documenti probanti.
+[?!imm.difformita] lo stato di fatto corrisponde allo stato legittimo.
+[?imm.difformita] lo stato di fatto presenta le seguenti difformità / tolleranze (art. 34-bis d.P.R. n. 380/2001):
+{{_:4}}
+### 4. Inquadramento urbanistico e vincoli
+Strumento urbanistico vigente: {_:*} - zona: {imm.zona_urbanistica:*} - norme tecniche di attuazione: art. {_:*}.
+Zona sismica: {imm.zona_sismica:*}.
+Vincoli (paesaggistico, storico-culturale, idrogeologico, idraulico, aree protette, Natura 2000, fasce di rispetto):
+{{_:4}}
+### 5. Descrizione dello stato di fatto
+{{_:6}}
+### 6. Descrizione dell'intervento
+Tipologia dell'intervento: {int.tipologia_nome:*}
+{{int.descrizione:6}}
+Dati dimensionali: superficie {int.superficie:*} mq, volume {int.volume:*} mc, numero dei piani {int.piani:*}.
+Importo presunto dei lavori: € {int.importo:*}.
+### 7. Verifiche e conformità alle normative di settore
+**Requisiti igienico-sanitari** (d.m. 5 luglio 1975, art. 24 d.P.R. n. 380/2001, regolamento edilizio):
+{{_:3}}
+**Barriere architettoniche** (artt. 77 e seguenti d.P.R. n. 380/2001, d.m. n. 236/1989):
+{{_:3}}
+**Impianti** (d.m. n. 37/2008):
+{{_:3}}
+**Contenimento dei consumi energetici e fonti rinnovabili** (d.lgs. n. 192/2005, d.lgs. n. 199/2021):
+{{_:3}}
+**Strutture e normativa sismica** (d.P.R. n. 380/2001 Parte II, Norme tecniche per le costruzioni):
+{{_:3}}
+**Prevenzione incendi** (d.P.R. n. 151/2011):
+{{_:3}}
+**Acustica** (l. n. 447/1995, d.P.C.M. 5 dicembre 1997):
+{{_:3}}
+**Materiali di risulta e terre e rocce da scavo**:
+{{_:3}}
+**Sicurezza nei cantieri** (d.lgs. n. 81/2008):
+{{_:3}}
+### 8. Elaborati allegati
+- Elaborati grafici dello stato di fatto, di progetto e comparativi
+- Documentazione fotografica
+- {_:*}
+- {_:*}
+### 9. Asseverazione
+Il/La sottoscritto/a tecnico, in qualità di persona esercente un servizio di pubblica necessità ai sensi degli artt. 359 e 481 del Codice Penale, esperiti i necessari accertamenti di carattere urbanistico, edilizio, statico, igienico ed a seguito del sopralluogo, consapevole delle sanzioni penali previste dagli artt. 75 e 76 del d.P.R. n. 445/2000 in caso di dichiarazioni false,
+!! ASSEVERA
+la conformità delle opere sopra descritte, compiutamente rappresentate negli elaborati progettuali, agli strumenti urbanistici approvati e non in contrasto con quelli adottati, al regolamento edilizio comunale, nonché il rispetto delle norme di sicurezza, igienico-sanitarie e delle altre normative di settore aventi incidenza sulla disciplina dell'attività edilizia richiamate nella presente relazione.
+@firma Il tecnico asseverante (timbro e firma)

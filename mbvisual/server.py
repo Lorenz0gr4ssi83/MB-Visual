@@ -722,6 +722,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": True, "job": jobs.start(fn, b["path"], b["out"], b)})
         self._json(firma.run(op, b))
 
+    def api_pratica(self, qs):
+        # pratiche edilizie (mbvisual/edilizia.py, ui/js/viewers/pratica.js): anagrafica .mbcomm, moduli compilati, fascicolo, visura
+        from . import edilizia
+        self._json(edilizia.handle(_q(qs, "op", ""), self._body_json(), jobs.start))
+
     # ------------------------------------------------------------ stampa (mbvisual/stampa.py)
     def api_print_printers(self, qs):
         from . import stampa
