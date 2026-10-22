@@ -34,6 +34,10 @@
   .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
   #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--panel2); border: 1px solid var(--line); padding: 8px 14px; border-radius: 6px; display: none; }
   .err { color: var(--bad); }
+  .pair { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
+  .pair .qr { background: #fff; padding: 10px; border-radius: 8px; line-height: 0; }
+  .pair .qr svg * { stroke: none !important; }
+  .pair .code { font: 600 30px Consolas, monospace; letter-spacing: .18em; }
   h3 { margin: 0 0 10px; font-size: 14px; }
 </style>
 </head>
@@ -54,7 +58,7 @@
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = s => s ? new Date(s.replace(" ", "T") + "Z").toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" }) : "";
-const KIND = { activation: "Attivazione", change: "Cambio dispositivo", change_pending: "Cambio DA APPROVARE", report: "Segnalazione", limit: "Limite raggiunto", invalid_key: "Chiave non valida", revoked_use: "Licenza non valida in uso" };
+const KIND = { activation: "Attivazione", change: "Cambio dispositivo", change_pending: "Cambio DA APPROVARE", report: "Segnalazione", limit: "Limite raggiunto", invalid_key: "Chiave non valida", revoked_use: "Licenza non valida in uso", admin_login: "Accesso dal telefono" };
 const STATO = { active: "attiva", revoked: "revocata", replaced: "sostituita", open: "aperta", pending: "in attesa", done: "completata", closed: "chiusa" };
 let view = "panoramica", data = {};
 function toast(t, bad) { const e = $("#toast"); e.textContent = t; e.className = bad ? "err" : ""; e.style.display = "block"; clearTimeout(e._h); e._h = setTimeout(() => (e.style.display = "none"), 3500); }
@@ -134,7 +138,32 @@ async function renderSettings(m) {
     <label>Indirizzo del server delle licenze<input id="url" value="${esc(c.url)}" placeholder="https://mbvisual-licenze.xxxxx.workers.dev"></label>
     <div><button class="b p" onclick="saveUrl()">Salva indirizzo</button></div>
     <label style="display:flex;gap:8px;align-items:center;color:var(--fg)"><input type="checkbox" id="auto" ${c.autostart ? "checked" : ""} onchange="setAuto()"> Avvia con Windows (nascosta nell'area di notifica)</label>
-    <p class="muted">Chiudendo la finestra l'app resta attiva nell'area di notifica e ti avvisa di attivazioni, richieste e segnalazioni. Per uscire: clic destro sull'icona → Esci.</p></div>`;
+    <p class="muted">Chiudendo la finestra l'app resta attiva nell'area di notifica e ti avvisa di attivazioni, richieste e segnalazioni. Per uscire: clic destro sull'icona → Esci.</p></div>
+    <div class="card" style="max-width:640px;display:grid;gap:12px;margin-top:14px"><h3>App per telefono</h3>
+    <p class="muted" style="margin:0">Gestisci licenze, dispositivi e richieste anche dal telefono, con le notifiche. Inquadra il QR con il telefono e installa l'app sulla schermata Home.
+      Su iPhone l'app installata non vede l'accesso fatto in Safari: aprila e scrivi un nuovo codice di 6 cifre. Il codice vale 10 minuti e una volta sola.</p>
+    <div id="pair"></div><div><button class="b p" onclick="newPair()">Collega un telefono</button></div></div>`;
+}
+let pairTimer = 0;
+async function newPair() {
+  const box = $("#pair");
+  try {
+    const r = await call("POST", "/admin/pair", {});
+    let src = await window.pywebview.api.qr_lib(), svg = "";
+    if (src) {
+      const qrcode = (await import(URL.createObjectURL(new Blob([src], { type: "text/javascript" })))).default;
+      const q = qrcode(0, "M"); q.addData(r.url); q.make();
+      const n = q.getModuleCount(); let d = "";
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (q.isDark(y, x)) d += `M${x + 2} ${y + 2}h1v1h-1z`;
+      svg = `<svg viewBox="0 0 ${n + 4} ${n + 4}" width="190" height="190" shape-rendering="crispEdges"><path d="${d}" fill="#111"/></svg>`;
+    }
+    box.innerHTML = `<div class="pair">${svg ? `<div class="qr">${svg}</div>` : ""}<div style="display:grid;gap:8px"><span class="muted">Codice di 6 cifre</span><span class="code">${esc(r.codice)}</span>
+      <span class="muted" id="pair-left"></span><div><button class="b" onclick="window.pywebview.api.copy('${esc(r.indirizzo)}');toast('Indirizzo copiato')">Copia indirizzo dell'app</button></div></div></div>`;
+    clearInterval(pairTimer);
+    const tick = () => { const s = Math.round((r.scade - Date.now()) / 1000); const el = $("#pair-left"); if (!el) return clearInterval(pairTimer);
+      if (s <= 0) { clearInterval(pairTimer); box.innerHTML = `<p class="muted">Codice scaduto: generane uno nuovo.</p>`; } else el.textContent = `Valido ancora ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+    tick(); pairTimer = setInterval(tick, 1000);
+  } catch (x) { toast(x.message, true); }
 }
 async function saveUrl() { await window.pywebview.api.set_url($("#url").value); toast("Indirizzo salvato"); adminRefresh(); }
 async function setAuto() { await window.pywebview.api.set_autostart($("#auto").checked); toast($("#auto").checked ? "Avvio automatico attivo" : "Avvio automatico disattivato"); }

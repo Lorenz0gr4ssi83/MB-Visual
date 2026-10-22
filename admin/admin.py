@@ -62,7 +62,7 @@ def call(method: str, path: str, body=None):
 
 TITLES = {"activation": "Nuova attivazione", "change": "Cambio dispositivo", "change_pending": "Cambio dispositivo DA APPROVARE",
           "report": "Nuova segnalazione", "limit": "Limite dispositivi raggiunto", "invalid_key": "Chiave non valida usata",
-          "revoked_use": "Uso di licenza non valida"}
+          "revoked_use": "Uso di licenza non valida", "admin_login": "Accesso alla gestione dal telefono"}
 
 
 class Api:
@@ -99,6 +99,17 @@ class Api:
         else:
             p.unlink(missing_ok=True)
         return self.config()
+
+    def pair(self):
+        """Codice di 6 cifre (10 minuti, una volta sola) e link per il QR: collega l'app per telefono di MB Visual Admin."""
+        return call("POST", "/admin/pair", {})
+
+    def qr_lib(self):
+        """Sorgente del generatore di QR (qrcode-generator, MIT): la pagina lo carica come modulo da un Blob."""
+        for p in (HERE / "qrcode.mjs", HERE.parent / "ui" / "vendor" / "qrcode-generator" / "dist" / "qrcode.mjs"):
+            if p.exists():
+                return p.read_text(encoding="utf-8")
+        return ""
 
     def copy(self, text):
         import subprocess

@@ -204,6 +204,19 @@ ode-x64 e wrangler installato in
   per l'app installata su iPhone, che non vede i cookie di Safari: prende lo stesso posto). Tabelle mobile_links e pair_codes
   (migrazione `server/migrations/001_qr_cellulari.sql`; online `d1 execute --file` da' errore di autenticazione: usare --command).
   Testi chiavi `mqr.*` (5 lingue). Le icone dei pulsanti hanno un contorno: sul QR va tolto (stroke: none) o copre i moduli.
+- App per telefono di MB Visual Admin (22/10/2026), solo per il proprietario: `server/src/adminapp.js` (+ `adminui.js` GENERATO da
+  `tools/build_admin_mobile.py` con `server/adminapp/index.html`, `sw.js` e le icone). Indirizzo segreto https://<server>/<ADMIN_PATH>/
+  (segreto del Worker; valore in chiavi.json `admin_path`, MAI in file del repo o pubblici). Accesso con il codice di gestione o con
+  un codice di 6 cifre (POST /admin/pair dall'Admin per PC: Impostazioni -> App per telefono, QR + codice, 10 minuti, una volta sola);
+  5 errori per IP = attesa 15 min. Sessione nel cookie `mbv_a` (HttpOnly, Path=/<ADMIN_PATH>/, nel database solo lo SHA-256).
+  Impronta/volto/PIN con WebAuthn (CBOR e verifica scritti a mano, ES256/RS256, UV obbligatorio, contatore): sblocco a ogni apertura e
+  dopo 10 min senza operazioni (423 = bloccata). Notifiche Web Push: ogni `event()` del Worker manda la notifica (VAPID ES256 +
+  aes128gcm RFC 8291 con WebCrypto, segreto VAPID_JWK; iscrizioni scadute 404/410 cancellate). iPhone: notifiche solo con l'app
+  installata sulla Home, e l'app installata non vede l'accesso fatto in Safari (serve un altro codice di 6 cifre).
+  Tabelle in `server/migrations/002_admin_telefono.sql`. Segreti: `tools/license_setup.py telefono` (crea e carica ADMIN_PATH/VAPID_JWK).
+  Collaudo: `node server/test/admin_mobile.mjs` (40 prove: autenticatore WebAuthn simulato e finto servizio push che verifica VAPID e
+  decifra); ambiente di prova condiviso in `server/test/shim.mjs`; `harness.mjs serve` apre l'app su /gestione-prova-locale-0000/.
+  Admin per PC: `admin/build_admin.py [--dist <cartella>]` (con l'Admin aperto i file sono bloccati: costruire altrove e sostituire dopo).
 
 ## Archivi cloud (22/10/2026) - FATTO, collegamento reale da provare dopo la registrazione delle app
 Pannello "Cloud" accanto a Esplora (solo app per PC): SharePoint/OneDrive (Microsoft Graph), Google Drive, Dropbox,

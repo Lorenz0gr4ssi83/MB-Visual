@@ -14,6 +14,8 @@
 //            POST /admin/licenses/:key/(revoke|reactivate|update)   POST /admin/devices/:id/revoke
 //            POST /admin/requests/:id/(approve|close)               POST /admin/events/read {upto}
 
+import { adminApp, adminPath, newPairCode, notifyAdmins, pushFor } from "./adminapp.js";
+
 const TOKEN_DAYS = 30;           // validita' offline di un'attivazione
 const CHANGES_PER_YEAR = 3;      // cambi dispositivo automatici; oltre servono l'approvazione del proprietario
 const ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // niente 0/O/1/I: chiavi facili da dettare
@@ -61,6 +63,9 @@ async function readToken(env, token) {
 }
 async function event(env, kind, key, text) {
   await env.DB.prepare("INSERT INTO events (kind, license_key, text) VALUES (?, ?, ?)").bind(kind, key || null, text).run();
+  // notifica sui telefoni dell'app di gestione (dopo la risposta, senza rallentare chi attiva)
+  const P = adminPath(env);
+  if (P && env.VAPID_JWK) { const pr = notifyAdmins(env, pushFor(kind, text, "/" + P)).catch(() => {}); if (env._wait) env._wait(pr); else await pr; }
 }
 const getLicense = (env, key) => env.DB.prepare("SELECT * FROM licenses WHERE key = ?").bind(key).first();
 function licenseProblem(lic) {
@@ -165,11 +170,13 @@ async function request(env, b) {
 }
 
 // ---------------------------------------------------------------- gestione
-async function admin(env, req, url) {
-  if ((req.headers.get("authorization") || "") !== `Bearer ${env.ADMIN_TOKEN}`) return fail(401, "Non autorizzato");
-  const p = url.pathname.replace(/^\/admin\/?/, "").split("/");
+// sub: percorso gia' autorizzato dall'app per telefono (adminapp.js); senza: serve il codice di gestione (app per PC)
+async function admin(env, req, url, sub) {
+  if (sub === undefined && (req.headers.get("authorization") || "") !== `Bearer ${env.ADMIN_TOKEN}`) return fail(401, "Non autorizzato");
+  const p = (sub ?? url.pathname.replace(/^\/admin\/?/, "")).split("/");
   const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
   const all = async (sql, ...a) => (await env.DB.prepare(sql).bind(...a).all()).results;
+  if (p[0] === "pair" && req.method === "POST") return json(await newPairCode(env, url.origin)); // codice di 6 cifre per collegare il telefono
   if (p[0] === "summary") {
     const one = async sql => (await env.DB.prepare(sql).first()).n;
     return json({ ok: true, licenze: await one("SELECT COUNT(*) n FROM licenses WHERE status='active'"), pc: await one("SELECT COUNT(*) n FROM devices WHERE status='active' AND kind='pc'"),
@@ -406,10 +413,14 @@ $("go").onclick = async () => {
 </script></body></html>`;
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
     if (req.method === "OPTIONS") return json({});
+    // env per questa richiesta: notifiche spedite dopo la risposta (waitUntil) e indirizzo del server come mittente VAPID
+    env = Object.assign(Object.create(env), { _wait: ctx?.waitUntil ? pr => ctx.waitUntil(pr) : null, _origin: url.origin });
     try {
+      const P = adminPath(env);
+      if (P && (url.pathname === "/" + P || url.pathname.startsWith("/" + P + "/"))) return await adminApp(env, req, url, { admin, json, fail, event });
       if (url.pathname.startsWith("/admin")) return await admin(env, req, url);
       if (!url.pathname.startsWith("/v1/")) {
         if (env.ASSETS && (req.method === "GET" || req.method === "HEAD")) return await serveApp(env, req, url);
