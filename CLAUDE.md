@@ -739,7 +739,7 @@ senza LibreOffice non si apriva; .oxps resta in office-lo, non collaudato), tutt
 
 ## Interfaccia premium "Grafite di precisione" (22/10/2026) - FATTO
 Direzione approvata dall'utente sul mockup https://claude.ai/artifact/Wwi8B75nmM8pTZofAqvk45 (home, CAD, PDF, BIM, palette, sistema).
-- Regole dell'utente: il logo `ui/img/logo.png` e' il PROTAGONISTA (grande al centro della home, 28 px nella barra del titolo);
+- Regole dell'utente: il logo `ui/img/logo.png` e' il PROTAGONISTA (grande al centro della home) ma MAI ripetuto nella barra del titolo sotto quello della cornice della finestra (richiesta dell'utente, ribadita il 22/10/2026);
   sopra il logo una quota con "MB GROUP" nel grigio del logo (#8A8C89 = `--brand`); NIENTE diciture inventate (niente
   "Professional", copyright, slogan): solo testi gia' presenti o dati dall'utente. Avvio (solo mockup): "Passepartout App" e "MB Group".
   Niente caselle "Cosa apre" nella home: i formati si consultano nella scheda Formati (pseudo-scheda accanto ai file aperti).

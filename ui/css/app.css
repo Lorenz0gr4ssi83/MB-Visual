@@ -99,11 +99,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 ::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--muted) 60%, transparent); }
 ::-webkit-scrollbar-corner { background: transparent; }
 
-/* ---------------------------------------------------------------- barra del titolo: logo + schede dei documenti */
+/* ---------------------------------------------------------------- barra del titolo: schede dei documenti (niente logo: c e gia nella cornice della finestra) */
 .titlebar { display: flex; align-items: stretch; height: 40px; min-width: 0; background: linear-gradient(180deg, #0d0f12, var(--t0)); color: var(--chrome-fg); box-shadow: inset 0 -1px 0 rgba(255, 255, 255, .03); }
-.tb-mark { flex: none; width: 52px; display: grid; place-items: center; }
-.tb-mark img { width: 28px; height: 28px; border-radius: 7px; display: block; box-shadow: 0 0 0 1px rgba(255, 255, 255, .1), 0 4px 10px -4px rgba(0, 0, 0, .8); }
-.tabs { flex: 1; display: flex; align-items: flex-end; gap: 1px; padding: 6px 6px 0 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.tabs { flex: 1; display: flex; align-items: flex-end; gap: 1px; padding: 6px 6px 0 10px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
 .tab { position: relative; display: flex; align-items: center; gap: 9px; height: 34px; padding: 0 6px 0 12px; flex: 0 1 auto; min-width: 72px; max-width: 250px;
   border-radius: 9px 9px 0 0; color: var(--chrome-muted); font: 500 12.5px var(--ui); white-space: nowrap; transition: background-color .14s, color .14s; }
@@ -470,7 +468,6 @@ iframe.fill, canvas.fill, video.fill { width: 100%; height: 100%; border: 0; dis
 @media (max-width: 760px) {
   body { font-size: 14px; }
   .titlebar { padding-top: env(safe-area-inset-top, 0px); height: calc(40px + env(safe-area-inset-top, 0px)); }
-  .tb-mark { width: 46px; }
   .omni { display: none; }
   .cmdbar { padding: 0 4px; }
   .cmdbar .group { padding: 0 2px; }
