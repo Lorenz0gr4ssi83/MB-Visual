@@ -390,7 +390,7 @@ ${APPLE_HEAD}<title>MB Visual</title>
 ol{text-align:left;color:#cfd2cc;line-height:1.6;padding-left:22px}.code{font:700 30px Consolas,monospace;letter-spacing:.18em;color:#f07d2e;margin:6px 0}
 button,.btn{display:block;margin-top:14px;width:100%;padding:12px;border:0;border-radius:8px;background:#f07d2e;color:#16110c;font:600 16px system-ui;text-decoration:none}#copy{background:#2b3035;color:#e6e8e5}.err{color:#e0605a}.hide{display:none}</style></head>
 <body><div class="box"><img src="/img/logo-512.png" alt="MB Visual"><h1>MB Visual</h1><p style="margin:-2px 0 12px;color:#8a8c89;font-size:13px;letter-spacing:.05em">Powered by MB Group</p><p id="msg">Attivazione in corso...</p>
-<div id="ok" class="hide"><p>Cellulare attivato. Ora installa l'app:</p><ol id="steps"></ol><button id="inst" class="hide">Installa l'app</button>
+<div id="ok" class="hide"><p>Dispositivo attivato. Ora installa l'app:</p><ol id="steps"></ol><button id="inst" class="hide">Installa l'app</button>
 <div id="wrong" class="hide"><a id="open" class="hide btn" href="#">Apri in Safari</a><button id="copy" type="button">Copia link</button>
 <ol><li>Tocca <b>Copia link</b>.</li><li>Apri <b id="wrong-app"></b>, tocca la barra degli indirizzi, incolla e vai.</li><li>Il link vale ancora qualche minuto.</li></ol></div>
 <p id="pair" class="hide">Se l'app installata chiede di nuovo l'attivazione, inserisci questo codice (valido <span id="min"></span> minuti):</p><div class="code" id="code"></div></div></div>
@@ -463,10 +463,10 @@ ${APPLE_HEAD}
 <style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#17191b;color:#e6e8e5;font:15px system-ui,"Segoe UI",sans-serif;padding:20px}
 .box{width:min(440px,100%);text-align:center}img{width:110px;height:110px}h1{font-size:22px;margin:10px 0 6px}p{color:#9ea29b;line-height:1.45}
 input{width:100%;font:17px Consolas,monospace;letter-spacing:.04em;text-align:center;padding:12px;border-radius:8px;border:1px solid #454a4e;background:#26292c;color:#e6e8e5}
-button{margin-top:14px;width:100%;padding:12px;border:0;border-radius:8px;background:#6aa7d8;color:#0d1b26;font:600 16px system-ui}.err{color:#e0605a;min-height:1.3em}
+button{margin-top:14px;width:100%;padding:12px;border:0;border-radius:8px;background:#f07d2e;color:#16110c;font:600 16px system-ui}.err{color:#e0605a;min-height:1.3em}
 ol{text-align:left;color:#cfd2cc;line-height:1.6;padding-left:22px}.hide{display:none}</style></head><body><div class="box">
 <img src="/img/logo-512.png" alt="MB Visual"><h1>MB Visual</h1><p style="margin:-2px 0 12px;color:#8a8c89;font-size:13px;letter-spacing:.05em">Powered by MB Group</p>
-<div id="browser"><p>L'app per cellulare si usa solo installata. Installala, poi aprila dalla schermata Home e inserisci la chiave di licenza.</p>
+<div id="browser"><p>L'app per cellulari e tablet si usa solo installata. Installala, poi aprila dalla schermata Home e inserisci la chiave di licenza.</p>
 <ol id="steps"></ol><button id="inst" class="hide">Installa l'app</button></div>
 <div id="app" class="hide"><p id="msg">Inserisci la chiave di licenza ricevuta, oppure il codice di 6 cifre mostrato dopo aver inquadrato il QR del PC.</p>
 <input id="k" placeholder="MBV-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" autocapitalize="characters" spellcheck="false">
