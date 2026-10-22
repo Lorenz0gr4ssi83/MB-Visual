@@ -311,9 +311,10 @@ table.grid tr:hover td { background: var(--hover); }
 .logo-wrap .dim path { stroke: var(--accent); stroke-width: 1; fill: none; }
 .logo-wrap .dim .ar { fill: var(--accent); stroke: none; }
 .logo-wrap .dim-label { position: absolute; left: 50%; top: -50px; transform: translateX(-50%); font: 600 11px var(--mono); letter-spacing: .16em; color: var(--brand); white-space: nowrap; }
-.hero-logo { position: relative; z-index: 1; display: block; width: 260px; height: 260px; border-radius: 33px;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, .12), 0 2px 0 rgba(255, 255, 255, .16) inset, 0 40px 70px -28px rgba(0, 0, 0, .8), 0 16px 30px -18px rgba(0, 0, 0, .55);
-  transition: transform .28s cubic-bezier(.2, .8, .2, 1), box-shadow .28s; }
+/* niente bordi o anelli: l'ombra (drop-shadow) segue la forma vera del logo, che ha gia' i suoi angoli arrotondati */
+.hero-logo { position: relative; z-index: 1; display: block; width: 260px; height: 260px;
+  filter: drop-shadow(0 26px 30px rgba(0, 0, 0, .45)) drop-shadow(0 8px 12px rgba(0, 0, 0, .3));
+  transition: transform .28s cubic-bezier(.2, .8, .2, 1), filter .28s; }
 .hero h1 { margin: 0 0 8px; font: 600 31px/1.12 var(--display); letter-spacing: -.025em; text-wrap: balance; }
 .hero p { margin: 0 auto 24px; color: var(--muted); font-size: 14.5px; max-width: 56ch; }
 .hero-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; position: relative; z-index: 1; }
@@ -328,7 +329,7 @@ table.grid tr:hover td { background: var(--hover); }
 body.dragging .hero { background: radial-gradient(ellipse 70% 60% at 50% 40%, rgba(240, 125, 46, .16), transparent 70%), color-mix(in srgb, var(--panel-2) 82%, transparent);
   box-shadow: 0 0 0 1px var(--accent-line), 0 30px 80px -30px rgba(240, 125, 46, .55), var(--sh-2); }
 body.dragging .hero::after { border: 1.5px solid var(--accent); box-shadow: inset 0 0 40px rgba(240, 125, 46, .12); }
-body.dragging .hero-logo { transform: translateY(-6px) scale(1.02); box-shadow: 0 0 0 2px rgba(240, 125, 46, .6), 0 50px 80px -30px rgba(240, 125, 46, .45), 0 20px 40px -20px rgba(0, 0, 0, .8); }
+body.dragging .hero-logo { transform: translateY(-6px) scale(1.02); filter: drop-shadow(0 0 18px rgba(240, 125, 46, .55)) drop-shadow(0 26px 30px rgba(0, 0, 0, .45)); }
 body.dragging .logo-wrap .halo { background: radial-gradient(circle, rgba(240, 125, 46, .32), transparent 65%); }
 .new-row { display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .new-row .label { margin-right: 6px; }
@@ -490,7 +491,6 @@ iframe.fill, canvas.fill, video.fill { width: 100%; height: 100%; border: 0; dis
   .hero { min-height: 0; padding: 56px 18px 54px; }
   .hero h1 { font-size: 22px; }
   .logo-wrap, .hero-logo { width: 170px; height: 170px; }
-  .hero-logo { border-radius: 24px; }
   .logo-wrap .dim, .logo-wrap .dim-label, .logo-wrap .cross { display: none; }
   .home-keys { display: none; }
   .drop-note { position: static; flex-wrap: wrap; margin-top: 20px; text-align: center; }
