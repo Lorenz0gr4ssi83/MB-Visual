@@ -5,6 +5,7 @@
 // Il documento e' descritto in ui/js/pubmodel.js; il testo scorre fra le caselle collegate con ui/js/pubtext.js;
 // il disegno (schermo, miniature, PDF) e' in ui/js/pubrender.js; barra multifunzione e finestre in ui/js/pubribbon.js;
 // esportazioni in ui/js/pubexport.js. Coordinate del documento in punti; zoom = pixel CSS per punto.
+import { t as tr } from "./i18n.js";
 import { el, toast, loadCss } from "./core.js";
 import { keymap, describeKeys } from "./shortcuts.js";
 import { MM, CM, S, FIELD, color, newId, walk, allItems, cloneItems, makeStory, styleChars, charPart, paraPart, textBox, imageBox, shapeBox, wordArt, tableBox, newPage, storyText, copyStory } from "./pubmodel.js";
@@ -24,7 +25,7 @@ export function createPublisher(ctx, doc, opts = {}) {
   ctx.el.innerHTML = "";
   ctx.fillBody(true);
   const canvas = el("canvas", { class: "pb-canvas" });
-  const sink = el("textarea", { class: "pb-sink", spellcheck: "false", autocomplete: "off", "aria-label": "Testo della pubblicazione" });
+  const sink = el("textarea", { class: "pb-sink", spellcheck: "false", autocomplete: "off", "aria-label": tr("pubedit.testo_pubblicazione") });
   const stage = el("div", { class: "pb-stage" }, canvas, sink);
   const pagesEl = el("div", { class: "pb-pages" });
   const ribbonEl = el("div", { class: "pb-ribbon" });
@@ -623,22 +624,22 @@ export function createPublisher(ctx, doc, opts = {}) {
   }
 
   // ------------------------------------------------------------ barra di stato (come Publisher)
-  const stPage = el("button", { class: "pb-st-btn", title: "Numero di pagina nella pubblicazione (F5: Vai a pagina)", onclick: () => E.gotoPageDlg() });
-  const stPos = el("span", { class: "pb-st-pos", title: "Posizione dell'oggetto o del puntatore" });
-  const stSize = el("span", { class: "pb-st-pos", title: "Dimensioni dell'oggetto" });
+  const stPage = el("button", { class: "pb-st-btn", title: tr("pubedit.numero_pagina_pubblicazione_f5_vai"), onclick: () => E.gotoPageDlg() });
+  const stPos = el("span", { class: "pb-st-pos", title: tr("pubedit.posizione_dell_oggetto_puntatore") });
+  const stSize = el("span", { class: "pb-st-pos", title: tr("pubedit.dimensioni_dell_oggetto") });
   const stMsg = el("span", { class: "pb-st-msg" });
-  const btnSingle = el("button", { class: "pb-st-icon", title: "Pagina singola", onclick: () => E.setSpread(false) });
-  const btnSpread = el("button", { class: "pb-st-icon", title: "Pagine affiancate", onclick: () => E.setSpread(true) });
-  const zOut = el("button", { class: "pb-st-icon", title: "Zoom indietro", onclick: () => zoomStep(-1) }, "−");
-  const zIn = el("button", { class: "pb-st-icon", title: "Zoom avanti", onclick: () => zoomStep(1) }, "+");
-  const zRange = el("input", { type: "range", min: "10", max: "400", class: "pb-zoom", title: "Zoom" });
-  const zPct = el("button", { class: "pb-st-btn", title: "Zoom: pagina intera (Ctrl+Maiusc+L)", onclick: () => fitPage() });
-  const btnFit = el("button", { class: "pb-st-icon", title: "Pagina intera (Ctrl+Maiusc+L)", onclick: () => fitPage() });
+  const btnSingle = el("button", { class: "pb-st-icon", title: tr("pubedit.pagina_singola"), onclick: () => E.setSpread(false) });
+  const btnSpread = el("button", { class: "pb-st-icon", title: tr("pubedit.pagine_affiancate"), onclick: () => E.setSpread(true) });
+  const zOut = el("button", { class: "pb-st-icon", title: tr("pubedit.zoom_indietro"), onclick: () => zoomStep(-1) }, "−");
+  const zIn = el("button", { class: "pb-st-icon", title: tr("pubedit.zoom_avanti"), onclick: () => zoomStep(1) }, "+");
+  const zRange = el("input", { type: "range", min: "10", max: "400", class: "pb-zoom", title: tr("pubedit.zoom") });
+  const zPct = el("button", { class: "pb-st-btn", title: tr("pubedit.zoom_pagina_intera_ctrl_maiusc"), onclick: () => fitPage() });
+  const btnFit = el("button", { class: "pb-st-icon", title: tr("pubedit.pagina_intera_ctrl_maiusc_l"), onclick: () => fitPage() });
   zRange.addEventListener("input", () => setZoom((+zRange.value / 100) * PX));
   statusEl.append(stPage, stPos, stSize, stMsg, el("span", { class: "grow" }), btnSingle, btnSpread, el("span", { class: "pb-st-sep" }), zPct, zOut, zRange, zIn, btnFit);
   let msgTimer = 0, ptr = null;
   function status() {
-    stPage.textContent = masterId ? `Pagina master ${masterId}` : `Pagina: ${cur + 1} di ${doc.pages.length}`;
+    stPage.textContent = masterId ? tr("pubedit.pagina_master_0", masterId) : tr("pubedit.pagina_0_1", cur + 1, doc.pages.length);
     const cm = v => (v / CM).toFixed(2).replace(".", ",");
     if (sel.length) {
       const b = sel.length === 1 && !isLine(sel[0]) ? { x0: sel[0].x, y0: sel[0].y, x1: sel[0].x + sel[0].w, y1: sel[0].y + sel[0].h } : selBox();
@@ -655,7 +656,7 @@ export function createPublisher(ctx, doc, opts = {}) {
     btnSpread.innerHTML = '<svg viewBox="0 0 24 24"><path d="M2 4h9v16H2zM13 4h9v16h-9z"/></svg>';
     btnFit.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
     const words = edit ? countWords(storyText(doc.stories[edit.story])) : null;
-    ctx.status(`${masterId ? "Pagina master" : `Pagina ${cur + 1}/${doc.pages.length}`}${words !== null ? ` · ${words} parole` : ""} · ${zoomPct()}%`);
+    ctx.status(`${masterId ? tr("pubedit.pagina_master") : tr("pubedit.pagina_0_1_2", cur + 1, doc.pages.length)}${words !== null ? ` · ${words} parole` : ""} · ${zoomPct()}%`);
   }
   function message(t, ms = 4000) { stMsg.textContent = t || ""; clearTimeout(msgTimer); if (t && ms) msgTimer = setTimeout(() => (stMsg.textContent = ""), ms); }
   const countWords = t => (t.match(/[\p{L}\p{N}]+/gu) || []).length;
@@ -675,7 +676,7 @@ export function createPublisher(ctx, doc, opts = {}) {
   function renderThumbs() {
     if (!show.pages) return;
     pagesEl.innerHTML = "";
-    const head = el("div", { class: "pb-pages-head" }, el("span", {}, "Pagine"));
+    const head = el("div", { class: "pb-pages-head" }, el("span", {}, tr("pubedit.pagine")));
     pagesEl.append(head);
     const list = el("div", { class: "pb-pages-list" });
     if (masterId) {
@@ -693,7 +694,7 @@ export function createPublisher(ctx, doc, opts = {}) {
     }
     doc.pages.forEach((p, pi) => {
       const c = el("canvas");
-      const card = el("button", { class: "pb-thumb" + (pi === cur ? " on" : "") + (spread && spreadPages().includes(pi) ? " sp" : ""), title: `Pagina ${pi + 1}${p.master ? " · master " + p.master : ""}`, draggable: "true",
+      const card = el("button", { class: "pb-thumb" + (pi === cur ? " on" : "") + (spread && spreadPages().includes(pi) ? " sp" : ""), title: tr("pubedit.pagina_0_1_3", pi + 1, p.master ? " · master " + p.master : ""), draggable: "true",
         onclick: () => E.gotoPage(pi), oncontextmenu: ev => { ev.preventDefault(); E.gotoPage(pi); E.pageMenu(ev.clientX, ev.clientY, pi); } }, c, el("span", {}, String(pi + 1)));
       card.addEventListener("dragstart", ev => { ev.dataTransfer.setData("text/x-mbv-page", String(pi)); });
       card.addEventListener("dragover", ev => { if ([...ev.dataTransfer.types].includes("text/x-mbv-page")) { ev.preventDefault(); card.classList.add("drop"); } });
@@ -1028,8 +1029,8 @@ export function createPublisher(ctx, doc, opts = {}) {
       const pg = page(), arr = d.dir === "v" ? pg.guides.v : pg.guides.h;
       const v = d.dir === "v" ? p.x : p.y;
       const out = (d.dir === "v" ? sx < RULER : sy < RULER) || v < -20 || v > (d.dir === "v" ? doc.w : doc.h) + 20;
-      if (d.idx >= 0) { if (out) arr.splice(d.idx, 1); else arr[d.idx] = Math.round(v * 100) / 100; commit(out ? "Elimina guida" : "Sposta guida"); }
-      else if (!out) { arr.push(Math.round(v * 100) / 100); commit("Aggiungi guida"); }
+      if (d.idx >= 0) { if (out) arr.splice(d.idx, 1); else arr[d.idx] = Math.round(v * 100) / 100; commit(out ? tr("pubedit.elimina_guida") : tr("pubedit.sposta_guida")); }
+      else if (!out) { arr.push(Math.round(v * 100) / 100); commit(tr("pubedit.aggiungi_guida")); }
       schedule();
       return;
     }
@@ -1037,7 +1038,7 @@ export function createPublisher(ctx, doc, opts = {}) {
     if (d.kind === "band") { refreshAll(); return; }
     if (d.kind === "create") { createFromTool(d); return; }
     if (d.kind === "move") {
-      if (d.moved) { commit(sel.length > 1 ? "Sposta oggetti" : "Sposta"); return; }
+      if (d.moved) { commit(sel.length > 1 ? tr("pubedit.sposta_oggetti") : tr("pubedit.sposta")); return; }
       // clic senza trascinare su una casella di testo / tabella: si scrive
       if (d.textOnClick && sel.length === 1 && sel[0] === d.target) {
         const o = d.target;
@@ -1054,8 +1055,8 @@ export function createPublisher(ctx, doc, opts = {}) {
       }
       return;
     }
-    if (["resize", "resizemulti", "rotate", "lineend"].includes(d.kind)) { message(""); commit(d.kind === "rotate" ? "Ruota" : "Ridimensiona"); return; }
-    if (d.kind === "cropmove" || d.kind === "cropresize") { commit("Ritaglia"); return; }
+    if (["resize", "resizemulti", "rotate", "lineend"].includes(d.kind)) { message(""); commit(d.kind === "rotate" ? tr("pubedit.ruota") : tr("pubedit.ridimensiona")); return; }
+    if (d.kind === "cropmove" || d.kind === "cropresize") { commit(tr("pubedit.ritaglia")); return; }
   });
   canvas.addEventListener("dblclick", e => {
     const [sx, sy] = local(e);
@@ -1098,7 +1099,7 @@ export function createPublisher(ctx, doc, opts = {}) {
       o = imageBox(doc, x0, y0, w, h);
     } else if (t === "wordart") {
       if (small) { w = 8 * CM; h = 2.5 * CM; }
-      o = wordArt(doc, "Il tuo testo", x0, y0, w, h);
+      o = wordArt(doc, tr("pubedit.tuo_testo"), x0, y0, w, h);
     } else if (t && t.startsWith("shape:")) {
       const sh = t.slice(6);
       if (/^(line|arrow|darrow)$/.test(sh)) {
@@ -1114,7 +1115,7 @@ export function createPublisher(ctx, doc, opts = {}) {
     tool = null;
     if (!o) { refreshAll(); return; }
     addObj(o);
-    commit("Inserisci " + ({ text: "casella di testo", picture: "segnaposto immagine", wordart: "WordArt" }[t] || "forma"));
+    commit(tr("pubedit.inserisci") + ({ text: tr("pubedit.casella_testo"), picture: tr("pubedit.segnaposto_immagine"), wordart: "WordArt" }[t] || "forma"));
     if (o.type === "text") beginEdit(o, 0);
     if (o.type === "wordart") E.editWordArt();
   }
@@ -1134,10 +1135,10 @@ export function createPublisher(ctx, doc, opts = {}) {
     if (hit && hit.type === "text" && hit !== src) {
       const ent = lay.frames.get(hit.id);
       const st = doc.stories[hit.story];
-      if (ent && ent.layout.chain.length > 1) { toast("La casella e' gia' collegata ad altre: scegli una casella vuota", true); refreshAll(); return; }
-      if (st && st.chars.length > 1) { toast("La casella di destinazione deve essere vuota (come in Publisher)", true); refreshAll(); return; }
+      if (ent && ent.layout.chain.length > 1) { toast(tr("pubedit.casella_gia_collegata_ad_altre"), true); refreshAll(); return; }
+      if (st && st.chars.length > 1) { toast(tr("pubedit.casella_destinazione_deve_essere_vuota"), true); refreshAll(); return; }
       linkFrames(src, hit);
-      commit("Crea collegamento");
+      commit(tr("pubedit.crea_collegamento"));
       return;
     }
     if (!hit) {
@@ -1146,7 +1147,7 @@ export function createPublisher(ctx, doc, opts = {}) {
       items().push(o);
       linkFrames(src, o);
       sel = [o];
-      commit("Crea collegamento");
+      commit(tr("pubedit.crea_collegamento"));
       return;
     }
     refreshAll();
@@ -1218,7 +1219,7 @@ export function createPublisher(ctx, doc, opts = {}) {
         const to = ctrl ? wordBounds(st, edit.caret)[1] : edit.caret + 1;
         deleteRange(st, edit.caret, to);
       }
-      commit("Elimina testo", "type");
+      commit(tr("pubedit.elimina_testo"), "type");
       return;
     }
     if (k === "Enter") {
@@ -1256,7 +1257,7 @@ export function createPublisher(ctx, doc, opts = {}) {
     edit.pending = null;
     sink.value = "";
     caretOn = true;
-    commit("Digita", "type");
+    commit(tr("pubedit.digita"), "type");
     followCaret();
   }
   function nextCell(d) {
@@ -1293,7 +1294,7 @@ export function createPublisher(ctx, doc, opts = {}) {
       const plain = chars.map(ch => (ch.c === "\n" ? "\r\n" : ch.c === LS ? "\n" : ch.c === FIELD ? "" : ch.c)).join("");
       textClip = { plain, chars };
       e.clipboardData.setData("text/plain", plain);
-      if (cut) { edit.caret = edit.anchor = deleteRange(st, a, b); commit("Taglia"); }
+      if (cut) { edit.caret = edit.anchor = deleteRange(st, a, b); commit(tr("common.taglia")); }
       return;
     }
     if (!sel.length) return;
@@ -1312,16 +1313,16 @@ export function createPublisher(ctx, doc, opts = {}) {
       if (a !== b) deleteRange(st, a, b);
       if (textClip && textClip.plain.replace(/\r/g, "") === plain.replace(/\r/g, "")) edit.caret = edit.anchor = insertChars(st, a, textClip.chars);
       else edit.caret = edit.anchor = insertText(st, a, plain, styleAt(st, a));
-      commit("Incolla");
+      commit(tr("common.incolla"));
       followCaret();
       return;
     }
-    if (files.length) { for (const f of files) await E.placeImageBytes(new Uint8Array(await f.arrayBuffer()), f.type, f.name || "immagine incollata"); return; }
+    if (files.length) { for (const f of files) await E.placeImageBytes(new Uint8Array(await f.arrayBuffer()), f.type, f.name || tr("pubedit.immagine_incollata")); return; }
     if (objClip && (plain === objClip.plain || !plain)) { pasteObjects(); return; }
     if (plain) {
       const o = textBox(doc, doc.w / 2 - 120, doc.h / 2 - 60, 240, 120, plain.replace(/\r/g, "").split("\n").map(t => [t, "Normale"]));
       addObj(o);
-      commit("Incolla testo");
+      commit(tr("pubedit.incolla_testo"));
     }
   }
   function pasteObjects() {
@@ -1332,7 +1333,7 @@ export function createPublisher(ctx, doc, opts = {}) {
     objClip.items = JSON.parse(JSON.stringify(copies)); // incolla di nuovo = ancora piu' spostato
     objClip.stories = Object.fromEntries(copies.flatMap(o => [...walk([o])]).flatMap(o => [o.story, ...(o.cells || []).flat().map(c => c.story)]).filter(Boolean).map(id => [id, { id, chars: doc.stories[id].chars.slice() }]));
     endEdit(); sel = copies; inGroup = null;
-    commit("Incolla");
+    commit(tr("common.incolla"));
   }
 
   // ------------------------------------------------------------ operazioni sugli oggetti
@@ -1348,7 +1349,7 @@ export function createPublisher(ctx, doc, opts = {}) {
       if (par) { par.list.splice(par.list.indexOf(o), 1); if (par.group) { if (!par.group.items.length) { const pp = parentOf(par.group); pp.list.splice(pp.list.indexOf(par.group), 1); } else fixParents(par.group.items[0]); } }
     }
     sel = []; inGroup = null; crop = null; endEdit();
-    commit("Elimina");
+    commit(tr("common.elimina"));
   }
   function group() {
     if (sel.length < 2) return;
@@ -1361,7 +1362,7 @@ export function createPublisher(ctx, doc, opts = {}) {
     for (const o of ord) list.splice(list.indexOf(o), 1);
     list.splice(Math.min(at - ord.length + 1, list.length), 0, g);
     sel = [g]; inGroup = null;
-    commit("Raggruppa");
+    commit(tr("pubedit.raggruppa"));
   }
   function ungroup() {
     const list = items();
@@ -1370,7 +1371,7 @@ export function createPublisher(ctx, doc, opts = {}) {
     const out = [];
     for (const g of gs) { const k = list.indexOf(g); list.splice(k, 1, ...g.items); out.push(...g.items); }
     sel = out; inGroup = null;
-    commit("Separa");
+    commit(tr("pubedit.separa"));
   }
   function order(kind) {
     const par = sel.length ? parentOf(sel[0]) : null;
@@ -1381,7 +1382,7 @@ export function createPublisher(ctx, doc, opts = {}) {
     else if (kind === "backmost") { for (const o of [...mine].reverse()) { list.splice(list.indexOf(o), 1); list.unshift(o); } }
     else if (kind === "fwd") { for (const o of [...mine].reverse()) { const k = list.indexOf(o); if (k < list.length - 1 && !mine.includes(list[k + 1])) { list.splice(k, 1); list.splice(k + 1, 0, o); } } }
     else if (kind === "back") { for (const o of mine) { const k = list.indexOf(o); if (k > 0 && !mine.includes(list[k - 1])) { list.splice(k, 1); list.splice(k - 1, 0, o); } } }
-    commit({ front: "Porta in primo piano", backmost: "Porta in secondo piano", fwd: "Porta avanti", back: "Porta indietro" }[kind]);
+    commit({ front: tr("pubedit.porta_primo_piano"), backmost: tr("pubedit.porta_secondo_piano"), fwd: tr("pubedit.porta_avanti"), back: tr("pubedit.porta_indietro") }[kind]);
   }
   function alignSel(kind, toMargins) {
     if (!sel.length) return;
@@ -1395,10 +1396,10 @@ export function createPublisher(ctx, doc, opts = {}) {
       else if (kind === "t") dy = ref.y0 - b.y0; else if (kind === "m") dy = (ref.y0 + ref.y1) / 2 - (b.y0 + b.y1) / 2; else if (kind === "b") dy = ref.y1 - b.y1;
       moveObj(o, dx, dy); fixParents(o);
     }
-    commit("Allinea");
+    commit(tr("pubedit.allinea"));
   }
   function distribute(dir) {
-    if (sel.length < 3) { toast("Seleziona almeno tre oggetti da distribuire", true); return; }
+    if (sel.length < 3) { toast(tr("pubedit.seleziona_almeno_tre_oggetti_distribuire"), true); return; }
     const bs = sel.map(o => ({ o, b: aabb(o) })).sort((p, q) => (dir === "h" ? p.b.x0 - q.b.x0 : p.b.y0 - q.b.y0));
     const first = bs[0].b, last = bs[bs.length - 1].b;
     const total = bs.reduce((s, x) => s + (dir === "h" ? x.b.x1 - x.b.x0 : x.b.y1 - x.b.y0), 0);
@@ -1409,7 +1410,7 @@ export function createPublisher(ctx, doc, opts = {}) {
       moveObj(x.o, dir === "h" ? d : 0, dir === "h" ? 0 : d); fixParents(x.o);
       pos += (dir === "h" ? x.b.x1 - x.b.x0 : x.b.y1 - x.b.y0) + space;
     }
-    commit("Distribuisci");
+    commit(tr("pubedit.distribuisci"));
   }
   function rotateSel(how) {
     if (!sel.length) return;
@@ -1425,12 +1426,12 @@ export function createPublisher(ctx, doc, opts = {}) {
       else o.rot = ((((o.rot || 0) + how) % 360) + 360) % 360;
       fixParents(o);
     }
-    commit(typeof how === "number" ? "Ruota" : "Capovolgi");
+    commit(typeof how === "number" ? tr("pubedit.ruota") : tr("pubedit.capovolgi"));
   }
   function nudge(dx, dy) {
     if (!sel.length || edit) return false;
     for (const o of sel) { moveObj(o, dx, dy); fixParents(o); }
-    commit("Sposta", "nudge");
+    commit(tr("pubedit.sposta"), "nudge");
     return true;
   }
   function dup() {
@@ -1438,7 +1439,7 @@ export function createPublisher(ctx, doc, opts = {}) {
     const copies = cloneItems(doc, sel);
     for (const o of copies) { moveObj(o, 12, 12); items().push(o); }
     sel = copies; inGroup = null;
-    commit("Duplica");
+    commit(tr("pubedit.duplica"));
   }
 
   // ------------------------------------------------------------ formattazione del testo
@@ -1471,7 +1472,7 @@ export function createPublisher(ctx, doc, opts = {}) {
     const t = textTargets()[0];
     return t ? paraAt(t.st, 0) : null;
   }
-  function applyChar(patch, label = "Formato carattere") {
+  function applyChar(patch, label = tr("pubedit.formato_carattere")) {
     const fn = typeof patch === "function" ? patch : s => ({ ...s, ...patch });
     if (sel.length && !edit && sel.every(o => o.type === "wordart")) {
       // WordArt: carattere, grassetto, corsivo
@@ -1487,7 +1488,7 @@ export function createPublisher(ctx, doc, opts = {}) {
     commit(label);
   }
   function toggleChar(k, label) { const v = !charStyle()?.[k]; applyChar(s => ({ ...s, [k]: v || undefined }), label); }
-  function applyPara(patch, label = "Formato paragrafo") {
+  function applyPara(patch, label = tr("pubedit.formato_paragrafo")) {
     const ts = textTargets();
     if (!ts.length) return;
     for (const t of ts) setParaStyle(t.st, t.a, Math.max(t.a, t.b - (t.b > t.a ? 1 : 0)), typeof patch === "function" ? patch(paraAt(t.st, t.a)) : patch);
@@ -1507,7 +1508,7 @@ export function createPublisher(ctx, doc, opts = {}) {
       for (let k = pa; k <= pb; k++) if (t.st.chars[k].c === "\n") t.st.chars[k] = { ...t.st.chars[k], p: S(paraPart(def, name)) };
     }
     if (edit) edit.pending = null;
-    commit("Stile " + name);
+    commit(tr("pubedit.stile") + name);
   }
   function growFont(d) {
     const steps = [6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72, 96, 120, 144];
@@ -1515,7 +1516,7 @@ export function createPublisher(ctx, doc, opts = {}) {
       const z = s.z || 10;
       const nz = d > 0 ? steps.find(v => v > z + 0.01) || Math.round(z * 1.1) : [...steps].reverse().find(v => v < z - 0.01) || Math.max(1, Math.round(z * 0.9));
       return { ...s, z: Math.abs(d) === 1 ? nz : clamp(z + Math.sign(d), 1, 999) };
-    }, d > 0 ? "Aumenta dimensione carattere" : "Riduci dimensione carattere");
+    }, d > 0 ? tr("pubedit.aumenta_dimensione_carattere") : tr("pubedit.riduci_dimensione_carattere"));
   }
 
   // ------------------------------------------------------------ tasti (come Publisher)
@@ -1524,70 +1525,70 @@ export function createPublisher(ctx, doc, opts = {}) {
   const always = () => !otherField();
   const defs = [];
   const K = (keys, desc, run, group, when = noEdit) => defs.push({ keys, desc, run, group, when, inFields: true });
-  K("Ctrl+Z", "Annulla", () => undo(), "Modifica", always);
-  K("Ctrl+Y|Ctrl+Shift+Z", "Ripeti", () => redo(), "Modifica", always);
-  K("Delete|Backspace", "Elimina gli oggetti selezionati", () => deleteSel(), "Oggetti");
-  K("Ctrl+D", "Duplica gli oggetti selezionati", () => dup(), "Oggetti");
-  K("Ctrl+G", "Raggruppa", () => group(), "Oggetti");
-  K("Ctrl+Shift+G", "Separa (annulla raggruppamento)", () => ungroup(), "Oggetti");
-  K("Ctrl+A", "Seleziona tutti gli oggetti della pagina", () => { sel = items().slice(); inGroup = null; refreshAll(); }, "Oggetti");
-  K("Escape", "Deseleziona / esci dal gruppo / annulla lo strumento", () => { if (tool) { tool = null; stage.classList.remove("pb-pour"); refreshAll(); return; } if (crop) { crop = null; refreshAll(); return; } if (inGroup) { sel = [inGroup]; inGroup = null; refreshAll(); return; } sel = []; refreshAll(); }, "Oggetti");
+  K("Ctrl+Z", tr("common.annulla_op"), () => undo(), tr("pubedit.modifica"), always);
+  K("Ctrl+Y|Ctrl+Shift+Z", tr("common.ripeti"), () => redo(), tr("pubedit.modifica"), always);
+  K("Delete|Backspace", tr("pubedit.elimina_oggetti_selezionati"), () => deleteSel(), tr("pubedit.oggetti"));
+  K("Ctrl+D", tr("pubedit.duplica_oggetti_selezionati"), () => dup(), tr("pubedit.oggetti"));
+  K("Ctrl+G", tr("pubedit.raggruppa"), () => group(), tr("pubedit.oggetti"));
+  K("Ctrl+Shift+G", tr("pubedit.separa_annulla_raggruppamento"), () => ungroup(), tr("pubedit.oggetti"));
+  K("Ctrl+A", tr("pubedit.seleziona_tutti_oggetti_pagina"), () => { sel = items().slice(); inGroup = null; refreshAll(); }, tr("pubedit.oggetti"));
+  K("Escape", tr("pubedit.deseleziona_esci_gruppo_annulla_strumento"), () => { if (tool) { tool = null; stage.classList.remove("pb-pour"); refreshAll(); return; } if (crop) { crop = null; refreshAll(); return; } if (inGroup) { sel = [inGroup]; inGroup = null; refreshAll(); return; } sel = []; refreshAll(); }, tr("pubedit.oggetti"));
   for (const [key, dx, dy] of [["ArrowLeft", -1, 0], ["ArrowRight", 1, 0], ["ArrowUp", 0, -1], ["ArrowDown", 0, 1]]) {
-    K(key, "Sposta l'oggetto di 1 mm", () => nudge(dx * MM, dy * MM), "Oggetti");
-    K("Ctrl+" + key + "|Alt+" + key, "Sposta l'oggetto di poco (1 pixel dello schermo)", () => nudge(dx / zoom, dy / zoom), "Oggetti");
+    K(key, tr("pubedit.sposta_l_oggetto_1_mm"), () => nudge(dx * MM, dy * MM), tr("pubedit.oggetti"));
+    K("Ctrl+" + key + "|Alt+" + key, tr("pubedit.sposta_l_oggetto_poco_1"), () => nudge(dx / zoom, dy / zoom), tr("pubedit.oggetti"));
   }
-  K("Ctrl+B", "Grassetto", () => toggleChar("b", "Grassetto"), "Testo", always);
-  K("Ctrl+I", "Corsivo", () => toggleChar("i", "Corsivo"), "Testo", always);
-  K("Ctrl+U", "Sottolineato", () => toggleChar("u", "Sottolineato"), "Testo", always);
-  K("Ctrl+Shift+>|Ctrl+Shift+.", "Aumenta dimensione carattere", () => growFont(1), "Testo", always);
-  K("Ctrl+<|Ctrl+Shift+<|Ctrl+Shift+,", "Riduci dimensione carattere", () => growFont(-1), "Testo", always);
-  K("Ctrl+]", "Aumenta il carattere di 1 punto", () => growFont(2), "Testo", always);
-  K("Ctrl+[", "Riduci il carattere di 1 punto", () => growFont(-2), "Testo", always);
-  K("Ctrl+L", "Allinea a sinistra", () => applyPara({ a: "l" }, "Allinea a sinistra"), "Paragrafo", always);
-  K("Ctrl+E", "Centra", () => applyPara({ a: "c" }, "Centra"), "Paragrafo", always);
-  K("Ctrl+R", "Allinea a destra", () => applyPara({ a: "r" }, "Allinea a destra"), "Paragrafo", always);
-  K("Ctrl+J", "Giustifica", () => applyPara({ a: "j" }, "Giustifica"), "Paragrafo", always);
-  K("Ctrl+1", "Interlinea singola", () => applyPara({ lh: 1 }, "Interlinea"), "Paragrafo", always);
-  K("Ctrl+5", "Interlinea 1,5", () => applyPara({ lh: 1.5 }, "Interlinea"), "Paragrafo", always);
-  K("Ctrl+2", "Interlinea doppia", () => applyPara({ lh: 2 }, "Interlinea"), "Paragrafo", always);
-  K("Ctrl+Space", "Rimuovi la formattazione dei caratteri", () => E.clearFormat(), "Testo", always);
-  K("Ctrl+Shift+C", "Copia formato", () => E.copyFormat(), "Testo", always);
-  K("Ctrl+Shift+V", "Incolla formato", () => E.pasteFormat(), "Testo", always);
-  K("Shift+F3", "Maiuscole / minuscole", () => E.changeCase(), "Testo", always);
-  K("Ctrl+Shift+N", "Inserisci una nuova pagina", () => E.addPage(false), "Pagine", always);
-  K("Ctrl+Shift+U", "Inserisci una pagina duplicata", () => E.addPage(true), "Pagine", always);
-  K("Ctrl+PageDown", "Pagina successiva", () => E.gotoPage(cur + 1), "Pagine", always);
-  K("Ctrl+PageUp", "Pagina precedente", () => E.gotoPage(cur - 1), "Pagine", always);
-  K("F5", "Vai a pagina", () => E.gotoPageDlg(), "Pagine", always);
-  K("Ctrl+M", "Pagina master / torna alla pubblicazione", () => E.toggleMaster(), "Pagine", always);
-  K("F9", "Zoom 100% / zoom precedente", () => { if (Math.abs(zoomPct() - 100) < 1 && prevZoom) { zoom = prevZoom.z; panX = prevZoom.x; panY = prevZoom.y; schedule(); status(); } else { prevZoom = { z: zoom, x: panX, y: panY }; setZoom(PX); } }, "Visualizza", always);
-  K("Ctrl+Shift+L", "Zoom: pagina intera", () => fitPage(), "Visualizza", always);
-  K("Ctrl+Plus", "Zoom avanti", () => zoomStep(1), "Visualizza", always);
-  K("Ctrl+Minus", "Zoom indietro", () => zoomStep(-1), "Visualizza", always);
-  K("Ctrl+Shift+O", "Mostra/nascondi i limiti degli oggetti", () => E.toggleShow("bounds"), "Visualizza", always);
-  K("Ctrl+Shift+Y", "Mostra/nascondi i caratteri speciali", () => E.toggleShow("marks"), "Visualizza", always);
-  K("Ctrl+F", "Trova", () => E.openFind(false), "Modifica", always);
-  K("Ctrl+H", "Sostituisci", () => E.openFind(true), "Modifica", always);
-  K("F7", "Controllo ortografia", () => E.spell(), "Revisione", always);
-  K("Ctrl+K", "Collegamento ipertestuale", () => E.hyperlink(), "Inserisci", always);
-  K("Ctrl+Shift+D", "Inserisci la data", () => E.insertField("date"), "Inserisci", () => !!edit);
-  K("Alt+Shift+P", "Inserisci il numero di pagina", () => E.insertField("page"), "Inserisci", () => !!edit);
-  K("F4", "Ripeti l'ultima azione di formattazione", () => E.repeatLast?.(), "Modifica", always);
+  K("Ctrl+B", tr("pubedit.grassetto"), () => toggleChar("b", tr("pubedit.grassetto")), tr("pubedit.testo"), always);
+  K("Ctrl+I", tr("pubedit.corsivo"), () => toggleChar("i", tr("pubedit.corsivo")), tr("pubedit.testo"), always);
+  K("Ctrl+U", tr("pubedit.sottolineato"), () => toggleChar("u", tr("pubedit.sottolineato")), tr("pubedit.testo"), always);
+  K("Ctrl+Shift+>|Ctrl+Shift+.", tr("pubedit.aumenta_dimensione_carattere"), () => growFont(1), tr("pubedit.testo"), always);
+  K("Ctrl+<|Ctrl+Shift+<|Ctrl+Shift+,", tr("pubedit.riduci_dimensione_carattere"), () => growFont(-1), tr("pubedit.testo"), always);
+  K("Ctrl+]", tr("pubedit.aumenta_carattere_1_punto"), () => growFont(2), tr("pubedit.testo"), always);
+  K("Ctrl+[", tr("pubedit.riduci_carattere_1_punto"), () => growFont(-2), tr("pubedit.testo"), always);
+  K("Ctrl+L", tr("pubedit.allinea_sinistra"), () => applyPara({ a: "l" }, tr("pubedit.allinea_sinistra")), tr("pubedit.paragrafo"), always);
+  K("Ctrl+E", tr("pubedit.centra"), () => applyPara({ a: "c" }, tr("pubedit.centra")), tr("pubedit.paragrafo"), always);
+  K("Ctrl+R", tr("pubedit.allinea_destra"), () => applyPara({ a: "r" }, tr("pubedit.allinea_destra")), tr("pubedit.paragrafo"), always);
+  K("Ctrl+J", tr("pubedit.giustifica"), () => applyPara({ a: "j" }, tr("pubedit.giustifica")), tr("pubedit.paragrafo"), always);
+  K("Ctrl+1", tr("pubedit.interlinea_singola"), () => applyPara({ lh: 1 }, tr("pubedit.interlinea")), tr("pubedit.paragrafo"), always);
+  K("Ctrl+5", "Interlinea 1,5", () => applyPara({ lh: 1.5 }, tr("pubedit.interlinea")), tr("pubedit.paragrafo"), always);
+  K("Ctrl+2", tr("pubedit.interlinea_doppia"), () => applyPara({ lh: 2 }, tr("pubedit.interlinea")), tr("pubedit.paragrafo"), always);
+  K("Ctrl+Space", tr("pubedit.rimuovi_formattazione_caratteri"), () => E.clearFormat(), tr("pubedit.testo"), always);
+  K("Ctrl+Shift+C", tr("pubedit.copia_formato"), () => E.copyFormat(), tr("pubedit.testo"), always);
+  K("Ctrl+Shift+V", tr("pubedit.incolla_formato"), () => E.pasteFormat(), tr("pubedit.testo"), always);
+  K("Shift+F3", tr("pubedit.maiuscole_minuscole"), () => E.changeCase(), tr("pubedit.testo"), always);
+  K("Ctrl+Shift+N", tr("pubedit.inserisci_nuova_pagina"), () => E.addPage(false), tr("pubedit.pagine"), always);
+  K("Ctrl+Shift+U", tr("pubedit.inserisci_pagina_duplicata"), () => E.addPage(true), tr("pubedit.pagine"), always);
+  K("Ctrl+PageDown", tr("pubedit.pagina_successiva"), () => E.gotoPage(cur + 1), tr("pubedit.pagine"), always);
+  K("Ctrl+PageUp", tr("pubedit.pagina_precedente"), () => E.gotoPage(cur - 1), tr("pubedit.pagine"), always);
+  K("F5", tr("pubedit.vai_pagina"), () => E.gotoPageDlg(), tr("pubedit.pagine"), always);
+  K("Ctrl+M", tr("pubedit.pagina_master_torna_pubblicazione"), () => E.toggleMaster(), tr("pubedit.pagine"), always);
+  K("F9", tr("pubedit.zoom_100_zoom_precedente"), () => { if (Math.abs(zoomPct() - 100) < 1 && prevZoom) { zoom = prevZoom.z; panX = prevZoom.x; panY = prevZoom.y; schedule(); status(); } else { prevZoom = { z: zoom, x: panX, y: panY }; setZoom(PX); } }, tr("pubedit.visualizza"), always);
+  K("Ctrl+Shift+L", tr("pubedit.zoom_pagina_intera"), () => fitPage(), tr("pubedit.visualizza"), always);
+  K("Ctrl+Plus", tr("pubedit.zoom_avanti"), () => zoomStep(1), tr("pubedit.visualizza"), always);
+  K("Ctrl+Minus", tr("pubedit.zoom_indietro"), () => zoomStep(-1), tr("pubedit.visualizza"), always);
+  K("Ctrl+Shift+O", tr("pubedit.mostra_nascondi_i_limiti_oggetti"), () => E.toggleShow("bounds"), tr("pubedit.visualizza"), always);
+  K("Ctrl+Shift+Y", tr("pubedit.mostra_nascondi_i_caratteri_speciali"), () => E.toggleShow("marks"), tr("pubedit.visualizza"), always);
+  K("Ctrl+F", tr("pubedit.trova"), () => E.openFind(false), tr("pubedit.modifica"), always);
+  K("Ctrl+H", tr("pubedit.sostituisci"), () => E.openFind(true), tr("pubedit.modifica"), always);
+  K("F7", tr("pubedit.controllo_ortografia"), () => E.spell(), tr("pubedit.revisione"), always);
+  K("Ctrl+K", tr("pubedit.collegamento_ipertestuale"), () => E.hyperlink(), tr("pubedit.inserisci_2"), always);
+  K("Ctrl+Shift+D", tr("pubedit.inserisci_data"), () => E.insertField("date"), tr("pubedit.inserisci_2"), () => !!edit);
+  K("Alt+Shift+P", tr("pubedit.inserisci_numero_pagina"), () => E.insertField("page"), tr("pubedit.inserisci_2"), () => !!edit);
+  K("F4", tr("pubedit.ripeti_l_ultima_azione_formattazione"), () => E.repeatLast?.(), tr("pubedit.modifica"), always);
   keymap(ctx, "Publisher", defs, window);
   describeKeys(ctx, "Publisher", [
-    ["Ctrl+C / Ctrl+X / Ctrl+V", "Copia, taglia, incolla (testo, oggetti, immagini dagli appunti di Windows)", "Modifica"],
-    ["Invio / Maiusc+Invio", "Nuovo paragrafo / a capo nello stesso paragrafo", "Testo"],
-    ["Tab", "Tabulazione; nelle tabelle: cella successiva (Maiusc+Tab: precedente)", "Testo"],
-    ["Ctrl+← / Ctrl+→", "Parola precedente / successiva", "Testo"], ["Ctrl+↑ / Ctrl+↓", "Paragrafo precedente / successivo", "Testo"],
-    ["Ctrl+Home / Ctrl+Fine", "Inizio / fine della storia (anche nelle caselle collegate)", "Testo"],
-    ["Ctrl+Backspace / Ctrl+Canc", "Cancella la parola", "Testo"], ["Esc", "Esci dalla modifica del testo (seleziona la casella)", "Testo"],
-    ["Ctrl+A (nel testo)", "Seleziona tutto il testo della storia", "Testo"],
-    ["Doppio clic / triplo clic", "Seleziona la parola / il paragrafo", "Testo"],
-    ["Maiusc durante lo spostamento", "Solo in orizzontale o in verticale", "Oggetti"], ["Maiusc + maniglia d'angolo", "Mantiene le proporzioni (sulle immagini le libera)", "Oggetti"],
-    ["Ctrl + maniglia", "Ridimensiona dal centro", "Oggetti"], ["Maiusc + rotazione", "Ruota a passi di 15°", "Oggetti"], ["Alt durante lo spostamento", "Disattiva temporaneamente l'aggancio", "Oggetti"],
-    ["Clic sul gruppo, poi clic sull'oggetto", "Seleziona un oggetto dentro un gruppo", "Oggetti"],
-    ["Trascina dal righello", "Crea una guida (trascinala fuori dalla pagina per eliminarla)", "Guide"],
-    ["Ctrl+rotella / Alt+rotella", "Zoom nel punto del puntatore", "Visualizza"], ["Rotella / Maiusc+rotella", "Scorri in verticale / in orizzontale", "Visualizza"],
+    ["Ctrl+C / Ctrl+X / Ctrl+V", tr("pubedit.copia_taglia_incolla_testo_oggetti"), tr("pubedit.modifica")],
+    ["Invio / Maiusc+Invio", tr("pubedit.nuovo_paragrafo_capo_nello_stesso"), tr("pubedit.testo")],
+    ["Tab", tr("pubedit.tabulazione_nelle_tabelle_cella_successiva"), tr("pubedit.testo")],
+    ["Ctrl+← / Ctrl+→", tr("pubedit.parola_precedente_successiva"), tr("pubedit.testo")], ["Ctrl+↑ / Ctrl+↓", tr("pubedit.paragrafo_precedente_successivo"), tr("pubedit.testo")],
+    ["Ctrl+Home / Ctrl+Fine", tr("pubedit.inizio_fine_storia_anche_nelle"), tr("pubedit.testo")],
+    ["Ctrl+Backspace / Ctrl+Canc", tr("pubedit.cancella_parola"), tr("pubedit.testo")], ["Esc", tr("pubedit.esci_modifica_testo_seleziona_casella"), tr("pubedit.testo")],
+    [tr("pubedit.ctrl_testo"), tr("pubedit.seleziona_tutto_testo_storia"), tr("pubedit.testo")],
+    [tr("pubedit.doppio_clic_triplo_clic"), tr("pubedit.seleziona_parola_paragrafo"), tr("pubedit.testo")],
+    [tr("pubedit.maiusc_durante_spostamento"), tr("pubedit.solo_orizzontale_verticale"), tr("pubedit.oggetti")], [tr("pubedit.maiusc_maniglia_d_angolo"), tr("pubedit.mantiene_proporzioni_sulle_immagini_libera"), tr("pubedit.oggetti")],
+    [tr("pubedit.ctrl_maniglia"), tr("pubedit.ridimensiona_centro"), tr("pubedit.oggetti")], [tr("pubedit.maiusc_rotazione"), tr("pubedit.ruota_passi_15"), tr("pubedit.oggetti")], [tr("pubedit.alt_durante_spostamento"), tr("pubedit.disattiva_temporaneamente_l_aggancio"), tr("pubedit.oggetti")],
+    [tr("pubedit.clic_gruppo_poi_clic_sull"), tr("pubedit.seleziona_oggetto_dentro_gruppo"), tr("pubedit.oggetti")],
+    [tr("pubedit.trascina_righello"), tr("pubedit.crea_guida_trascinala_fuori_pagina"), tr("pubedit.guide")],
+    [tr("pubedit.ctrl_rotella_alt_rotella"), tr("pubedit.zoom_punto_puntatore"), tr("pubedit.visualizza")], [tr("pubedit.rotella_maiusc_rotella"), tr("pubedit.scorri_verticale_orizzontale"), tr("pubedit.visualizza")],
   ]);
 
   // ------------------------------------------------------------ aggiornamento dell'interfaccia
@@ -1598,14 +1599,14 @@ export function createPublisher(ctx, doc, opts = {}) {
 
   // ------------------------------------------------------------ interfaccia per la barra multifunzione
   Object.assign(E, {
-    ctx, doc: () => doc, setDoc(d) { doc = d; images.clear(); cur = 0; masterId = null; sel = []; edit = null; crop = null; history = []; hi = -1; commit("Nuovo modello"); fitPage(); renderThumbs(); },
+    ctx, doc: () => doc, setDoc(d) { doc = d; images.clear(); cur = 0; masterId = null; sel = []; edit = null; crop = null; history = []; hi = -1; commit(tr("pubedit.nuovo_modello")); fitPage(); renderThumbs(); },
     sel: () => sel, edit: () => edit, cur: () => cur, masterId: () => masterId, tool: () => tool, show, snapOpt, zoomPct, spread: () => spread,
     commit, touch, refresh: refreshAll, focus: focusSink, schedule, message, items, page, selBox, relayout, layoutGuides,
     undo, redo, canUndo: () => hi > 0, canRedo: () => hi < history.length - 1, undoLabel: () => history[hi]?.label || "",
     charStyle, paraStyle, applyChar, toggleChar, applyPara, applyStyle, growFont, textTargets,
     deleteSel, dup, group, ungroup, order, align: alignSel, distribute, rotate: rotateSel, addObj, fixParents, moveObj, beginEdit, endEdit, selectNone,
     setSel(list) { endEdit(); sel = list; inGroup = null; crop = null; refreshAll(); },
-    setTool(t) { endEdit(); tool = t; crop = null; if (t !== "link") sel = []; message(t === "text" ? "Trascina sulla pagina per disegnare la casella di testo" : t ? "Trascina sulla pagina per disegnare l'oggetto (Maiusc: proporzioni)" : ""); refreshAll(); },
+    setTool(t) { endEdit(); tool = t; crop = null; if (t !== "link") sel = []; message(t === "text" ? tr("pubedit.trascina_pagina_disegnare_casella_testo") : t ? tr("pubedit.trascina_pagina_disegnare_l_oggetto") : ""); refreshAll(); },
     setZoomPct: p => setZoom((p / 100) * PX), fitPage, fitWidth, zoomSel: zoomToSel, zoom100: () => setZoom(PX), zoomStep,
     setSpread(b) { spread = b; selectNone(); fitPage(); renderThumbs(); refreshAll(); },
     toggleShow(k) { show[k] = !show[k]; if (k === "pages") { pagesEl.hidden = !show.pages; main.classList.toggle("nopages", !show.pages); setTimeout(() => (autoFit ? fitPage() : schedule())); renderThumbs(); } refreshAll(); },
@@ -1622,16 +1623,16 @@ export function createPublisher(ctx, doc, opts = {}) {
       if (masterId && !id) masterId = null;
       else masterId = id || page().master || doc.masters[0]?.id;
       if (masterId && !doc.masters.find(m => m.id === masterId)) masterId = doc.masters[0]?.id || null;
-      message(masterId ? "Pagina master: gli oggetti qui compaiono su tutte le pagine che la usano (Ctrl+M per tornare)" : "");
+      message(masterId ? tr("pubedit.pagina_master_oggetti_qui_compaiono") : "");
       touch(); refreshAll(); renderThumbs();
     },
     renderThumbs, thumbsLater, renderPageThumb, imgMap, images,
     linkStart() {
       const o = sel[0];
-      if (!o || o.type !== "text") { toast("Seleziona una casella di testo", true); return; }
+      if (!o || o.type !== "text") { toast(tr("pubedit.seleziona_casella_testo"), true); return; }
       E._linkSrc = (() => { const ent = relayout().frames.get(o.id); return ent ? lay.byId.get(ent.layout.chain[ent.layout.chain.length - 1]) : o; })();
       endEdit(); tool = "link"; stage.classList.add("pb-pour");
-      message("Fai clic su una casella di testo vuota (o su uno spazio vuoto per crearne una) per farvi scorrere il testo. Esc annulla.", 0);
+      message(tr("pubedit.fai_clic_casella_testo_vuota"), 0);
       refreshAll();
     },
     unlink() {
@@ -1643,7 +1644,7 @@ export function createPublisher(ctx, doc, opts = {}) {
         const id = copyStory(doc, null);
         for (let f = nx, g = 0; f && g < 500; f = f.next ? lay.byId.get(f.next) : null, g++) f.story = id;
       }
-      commit("Interrompi collegamento");
+      commit(tr("pubedit.interrompi_collegamento"));
     },
     gotoLinked(dir) {
       const o = sel[0];
@@ -1659,9 +1660,9 @@ export function createPublisher(ctx, doc, opts = {}) {
     cropToggle() {
       const o = sel[0];
       if (crop) { crop = null; refreshAll(); return; }
-      if (!o || o.type !== "image" || !o.img) { toast("Seleziona un'immagine da ritagliare", true); return; }
-      if (o.rot) toast("Ritaglio di un'immagine ruotata: le maniglie seguono la rotazione", false);
-      crop = o; message("Trascina le maniglie nere per ritagliare, trascina l'immagine per spostarla nella cornice. Esc o clic fuori per finire.", 0);
+      if (!o || o.type !== "image" || !o.img) { toast(tr("pubedit.seleziona_immagine_ritagliare"), true); return; }
+      if (o.rot) toast(tr("pubedit.ritaglio_immagine_ruotata_maniglie_seguono"), false);
+      crop = o; message(tr("pubedit.trascina_maniglie_nere_ritagliare_trascina"), 0);
       refreshAll();
     },
     crop: () => crop,
@@ -1669,8 +1670,8 @@ export function createPublisher(ctx, doc, opts = {}) {
     mergeState: () => ({ idx: mergeIdx, preview: mergePreview }),
     setMerge(idx, preview) { mergeIdx = idx; mergePreview = preview; touch(); refreshAll(); thumbsLater(); },
     pageOfObj, editInfo, typeText: t => { if (edit) typeText(t); },
-    insertChars(chars) { if (!edit) return; const st = doc.stories[edit.story]; const a = Math.min(edit.caret, edit.anchor), b = Math.max(edit.caret, edit.anchor); if (a !== b) deleteRange(st, a, b); edit.caret = edit.anchor = insertChars(st, a, chars); commit("Inserisci"); },
-    insertFieldChar(f) { if (!edit) return false; const st = doc.stories[edit.story]; const a = Math.min(edit.caret, edit.anchor), b = Math.max(edit.caret, edit.anchor); if (a !== b) deleteRange(st, a, b); edit.caret = edit.anchor = insertText(st, a, "", styleAt(st, a), f); commit("Inserisci campo"); return true; },
+    insertChars(chars) { if (!edit) return; const st = doc.stories[edit.story]; const a = Math.min(edit.caret, edit.anchor), b = Math.max(edit.caret, edit.anchor); if (a !== b) deleteRange(st, a, b); edit.caret = edit.anchor = insertChars(st, a, chars); commit(tr("pubedit.inserisci_2")); },
+    insertFieldChar(f) { if (!edit) return false; const st = doc.stories[edit.story]; const a = Math.min(edit.caret, edit.anchor), b = Math.max(edit.caret, edit.anchor); if (a !== b) deleteRange(st, a, b); edit.caret = edit.anchor = insertText(st, a, "", styleAt(st, a), f); commit(tr("pubedit.inserisci_campo")); return true; },
     selectText(story, a, b, o, kind = "frame", r = 0, c = 0) { endEdit(); const pi = pageOfObj(o); if (pi >= 0 && pi !== cur && !masterId) { cur = pi; renderThumbs(); } sel = [o]; beginEdit(o, b, kind, r, c); edit.anchor = a; edit.caret = b; followCaret(); refreshAll(); },
     get fmtClip() { return fmtClip; }, set fmtClip(v) { fmtClip = v; },
     deleteRangeInEdit() { if (!edit) return; const st = doc.stories[edit.story]; const a = Math.min(edit.caret, edit.anchor), b = Math.max(edit.caret, edit.anchor); edit.caret = edit.anchor = deleteRange(st, a, b); },
@@ -1680,10 +1681,10 @@ export function createPublisher(ctx, doc, opts = {}) {
         const its = await navigator.clipboard.read();
         for (const it of its) {
           const imgType = it.types.find(t => t.startsWith("image/"));
-          if (imgType && !edit) { const b = await it.getType(imgType); await E.placeImageBytes(new Uint8Array(await b.arrayBuffer()), imgType, "immagine incollata"); return; }
+          if (imgType && !edit) { const b = await it.getType(imgType); await E.placeImageBytes(new Uint8Array(await b.arrayBuffer()), imgType, tr("pubedit.immagine_incollata")); return; }
           if (it.types.includes("text/plain")) { const t = await (await it.getType("text/plain")).text(); await clipboardIn({ getData: () => t, files: [] }); return; }
         }
-      } catch { if (objClip) pasteObjects(); else toast("Usa Ctrl+V per incollare dagli appunti di Windows", false); }
+      } catch { if (objClip) pasteObjects(); else toast(tr("pubedit.usa_ctrl_v_incollare_dagli"), false); }
     },
   });
 
@@ -1691,7 +1692,7 @@ export function createPublisher(ctx, doc, opts = {}) {
   ribbon = buildRibbon(E, ctx, ribbonEl);
 
   // ------------------------------------------------------------ avvio
-  history = [{ ...snap(), label: "Apri" }]; hi = 0;
+  history = [{ ...snap(), label: tr("pubedit.apri") }]; hi = 0;
   new ResizeObserver(() => { if (autoFit) fitPage(); else schedule(); }).observe(stage);
   renderThumbs();
   refreshAll();
