@@ -27,6 +27,7 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))  # per controllare i moduli mbvisual.* (find_spec)
 NAME = "MB Visual"
 BUNDLE_ID = "it.mbengineering.mbvisual"
 # 7-Zip per macOS (universale arm64/x64), licenza LGPL + restrizione unRAR: si distribuisce il solo eseguibile
