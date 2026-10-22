@@ -95,10 +95,10 @@ jobs:
 
       - name: Prove su macOS (OCR, conversioni, stampanti, file di esempio aperti in WebKit)
         continue-on-error: true
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: |
           mkdir -p ~/.mbvisual/mbvocr && cp ~/.mbvisual/build-mac/stage/bin/mbvocr ~/.mbvisual/mbvocr/
-          python -m playwright install webkit
+          python -m playwright install webkit chromium
           python tests/mac_smoke.py mac-prove
 
       - name: Prova di avvio (server locale, /api/update_check e /api/license/status)

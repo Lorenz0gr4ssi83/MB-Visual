@@ -26,16 +26,16 @@ export async function mount(ctx) {
     const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error(t("v_image.immagine_non_leggibile"))); i.src = src; });
     doc = await openImageDoc(img, "");
   }
-  const api = createEditor(ctx, { ...doc, meta, raw: RAW.has(ctx.ext) });
+  const ed = createEditor(ctx, { ...doc, meta, raw: RAW.has(ctx.ext) });
   // misure su scansioni e foto di tavole (taratura, scala 1:N dai dpi): pannello comune a PDF, CAD e 3D
-  if (api.measureHost) {
+  if (ed.measureHost) {
     let meas = null, measP = null;
-    const measGet = () => (measP ??= import("../measure/mimg.js").then(async m => (meas = await m.attachImage(ctx, api.measureHost))));
+    const measGet = () => (measP ??= import("../measure/mimg.js").then(async m => (meas = await m.attachImage(ctx, ed.measureHost))));
     const b = measureBtn(async () => { const m = await measGet(); m.toggle(); b.classList.toggle("on", m.open); });
     ctx.tb.append(b);
-    api._meas = { get: measGet };
-    const dispose0 = api.dispose;
-    api.dispose = () => { meas?.dispose(); dispose0?.call(api); };
+    ed._meas = { get: measGet };
+    const dispose0 = ed.dispose;
+    ed.dispose = () => { meas?.dispose(); dispose0?.call(ed); };
   }
-  return api;
+  return ed;
 }

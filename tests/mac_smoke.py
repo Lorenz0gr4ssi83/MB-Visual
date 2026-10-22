@@ -70,7 +70,10 @@ def python_checks(out: Path) -> list:
     check(res, "converti PDF -> PNG", lambda: conv("confronto/relazione_revA.pdf", "png"))
     check(res, "converti WAV -> MP3 (FFmpeg)", lambda: conv("tono.wav", "mp3"))
     check(res, "converti MP4 -> MOV (FFmpeg)", lambda: conv("video_prova.mp4", "mov"))
-    check(res, "converti DOCX -> PDF (serve LibreOffice)", lambda: conv("relazione.docx", "pdf"))
+    if paths.find_libreoffice():
+        check(res, "converti DOCX -> PDF (LibreOffice)", lambda: conv("relazione.docx", "pdf"))
+    else:
+        res.append({"prova": "converti DOCX -> PDF", "ok": True, "info": "saltata: LibreOffice non installato (sul Mac serve per Office -> PDF)"})
 
     def ocr():
         import pymupdf
@@ -90,7 +93,7 @@ def python_checks(out: Path) -> list:
     return res
 
 
-def ui_checks(out: Path) -> list:
+def ui_checks(out: Path, engine: str = "webkit") -> list:
     from playwright.sync_api import sync_playwright
     res = []
     shots = out / "schermate"
@@ -110,8 +113,8 @@ def ui_checks(out: Path) -> list:
     step("server avviato: " + url.split("?")[0])
     try:
         with sync_playwright() as pw:
-            step("avvio di WebKit")
-            browser = pw.webkit.launch(timeout=120000)
+            step(f"avvio di {engine}")
+            browser = getattr(pw, engine).launch(timeout=120000)
             page = browser.new_page(viewport={"width": 1400, "height": 900})
             page.set_default_timeout(30000)
             page.on("dialog", lambda d: d.dismiss())
@@ -122,8 +125,8 @@ def ui_checks(out: Path) -> list:
             page.goto(url, timeout=60000)
             page.wait_for_function("window.MB && typeof MB.openFile === 'function'", timeout=60000)
             page.wait_for_timeout(2000)
-            page.screenshot(path=str(shots / "00_home.png"))
-            res.append({"prova": "interfaccia avviata (WebKit)", "ok": not errors, "info": url.split("?")[0], "errori_console": errors[:10]})
+            page.screenshot(path=str(shots / f"{engine}_00_home.png"))
+            res.append({"prova": f"interfaccia avviata ({engine})", "ok": not errors, "info": url.split("?")[0], "errori_console": errors[:10]})
             RESULTS.extend(res)
             res = RESULTS  # i risultati restano anche se il controllo del tempo chiude tutto
             for i, rel in enumerate(FILES, 1):
@@ -146,7 +149,7 @@ def ui_checks(out: Path) -> list:
                         if state.get("err"):
                             break
                         page.wait_for_timeout(1000)
-                    page.screenshot(path=str(shots / f"{i:02d}_{p.name}.png"))
+                    page.screenshot(path=str(shots / f"{engine}_{i:02d}_{p.name}.png"))
                     ok = not state.get("err") and not state.get("none") and state.get("kids", 0) > 0
                     res.append({"prova": f"apri {rel}", "ok": ok, "info": {"visualizzatore": state.get("viewer"), "errore": state.get("err")},
                                 "errori_console": [e for e in errors if "favicon" not in e][:5], "s": round(time.time() - t1, 1)})
@@ -169,14 +172,30 @@ def main() -> int:
         RESULTS.append({"prova": "tempo massimo (12 min)", "ok": False, "errore": "prova interrotta: ultima riga del registro = punto del blocco"})
         report(RESULTS)
         os._exit(1)
-    threading.Timer(720, timeout).start()
+    if "--ui" in sys.argv:  # processo figlio: solo l'interfaccia con un motore, risultati in ui_<motore>.json
+        engine = sys.argv[sys.argv.index("--ui") + 1]
+        try:
+            ui = ui_checks(out, engine)
+        except Exception as e:  # noqa: BLE001
+            ui = RESULTS + [{"prova": f"interfaccia ({engine})", "ok": False, "errore": f"{type(e).__name__}: {e}"}]
+        (out / f"ui_{engine}.json").write_text(json.dumps(ui, ensure_ascii=False, default=str), encoding="utf-8")
+        os._exit(0)
+    threading.Timer(1500, timeout).start()
     RESULTS.extend(python_checks(out))
-    try:
-        ui = ui_checks(out)
-        if ui is not RESULTS:
-            RESULTS.extend(ui)
-    except Exception as e:  # noqa: BLE001
-        RESULTS.append({"prova": "interfaccia (Playwright)", "ok": False, "errore": f"{type(e).__name__}: {e}"})
+    # interfaccia: WebKit (motore della finestra Mac); sul runner macOS 14 il WebKit di Playwright puo' bloccarsi
+    # all'avvio, allora si ripete con Chromium (stesso codice dell'interfaccia, motore diverso)
+    for engine in ("webkit", "chromium"):
+        f = out / f"ui_{engine}.json"
+        try:
+            subprocess.run([sys.executable, __file__, str(out), "--ui", engine], timeout=540)
+        except subprocess.TimeoutExpired:
+            step(f"{engine}: tempo scaduto")
+        ui = json.loads(f.read_text(encoding="utf-8")) if f.is_file() else []
+        if not ui:
+            RESULTS.append({"prova": f"interfaccia ({engine})", "ok": False, "errore": f"{engine} non si avvia sul runner"})
+            continue
+        RESULTS.extend(ui)
+        break
     ok = report(RESULTS)
     os._exit(0 if ok else 1)
 
