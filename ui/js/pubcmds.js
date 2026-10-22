@@ -1,5 +1,6 @@
 // Pubblicazioni: comandi dell'editor usati dalla barra multifunzione e dai tasti (pagine, pagine master, immagini,
 // tabelle, WordArt, blocchi predefiniti, intestazioni, trova e sostituisci, ortografia, stampa unione, modelli).
+import { t as tr } from "./i18n.js";
 import { el, toast, modal, askText, pickFiles, readBytes, api, extOf, baseName, loadScript, confirmBox, WEB, pickSavePath, saveBytes } from "./core.js";
 import { MM, CM, FIELD, S, COLOR_SCHEMES, FONT_SCHEMES, FONTS, color, newId, walk, allItems, cloneItems, textBox, imageBox, wordArt, tableBox, newPage, makeStory, storyText, charPart, styleChars, copyStory } from "./pubmodel.js";
 import { computeLayouts, drawPage, CanvasPainter, aabb } from "./pubrender.js";
@@ -27,7 +28,7 @@ export function installCommands(E, ctx) {
     D.pages.splice(E.cur() + 1, 0, p);
     E.setCurPage(E.cur() + 1);
     E.selectNone();
-    E.commit(dup ? "Inserisci pagina duplicata" : "Inserisci pagina");
+    E.commit(dup ? tr("pubcmds.inserisci_pagina_duplicata") : tr("pubcmds.inserisci_pagina"));
     E.fitPage(); E.renderThumbs();
   };
   E.insertPages = (n, where, what) => {
@@ -43,21 +44,21 @@ export function installCommands(E, ctx) {
       D.pages.splice(at++, 0, p);
     }
     E.setCurPage(first); E.selectNone();
-    E.commit(n > 1 ? `Inserisci ${n} pagine` : "Inserisci pagina");
+    E.commit(n > 1 ? tr("pubcmds.inserisci_0_pagine", n) : tr("pubcmds.inserisci_pagina"));
     E.fitPage(); E.renderThumbs();
   };
   E.deletePage = async (i) => {
     const D = doc();
-    if (D.pages.length < 2) return toast("Una pubblicazione deve avere almeno una pagina", true);
+    if (D.pages.length < 2) return toast(tr("pubcmds.pubblicazione_deve_avere_almeno_pagina"), true);
     const p = D.pages[i];
-    if (p.items.length && !(await confirmBox("Elimina pagina", `La pagina ${i + 1} contiene ${p.items.length} oggetti. Eliminarla?`, "Elimina", true))) return E.focus();
+    if (p.items.length && !(await confirmBox(tr("pubcmds.elimina_pagina"), tr("pubcmds.pagina_0_contiene_1_oggetti", i + 1, p.items.length), tr("common.elimina"), true))) return E.focus();
     // il testo delle caselle collegate continua nelle altre caselle della catena
     const ids = new Set([...walk(p.items)].map(o => o.id));
     for (const x of walk(p.items)) if (x.type === "text") { const prev = allItems(D).find(y => y.type === "text" && y.next === x.id && !ids.has(y.id)); if (prev) { let nx = x.next; while (nx && ids.has(nx)) nx = allItems(D).find(z => z.id === nx)?.next; prev.next = nx || null; } }
     D.pages.splice(i, 1);
     E.selectNone();
     E.setCurPage(Math.min(E.cur(), D.pages.length - 1));
-    E.commit("Elimina pagina");
+    E.commit(tr("pubcmds.elimina_pagina"));
     E.fitPage(); E.renderThumbs();
     E.focus();
   };
@@ -67,23 +68,23 @@ export function installCommands(E, ctx) {
     const [p] = D.pages.splice(from, 1);
     D.pages.splice(to, 0, p);
     E.setCurPage(to); E.selectNone();
-    E.commit("Sposta pagina");
+    E.commit(tr("pubcmds.sposta_pagina"));
     E.renderThumbs();
   };
   E.gotoPageDlg = async () => {
-    const v = await askText("Vai a pagina", `Numero di pagina (1-${doc().pages.length})`, String(E.cur() + 1));
+    const v = await askText(tr("pubcmds.vai_pagina"), tr("pubcmds.numero_pagina_1_0", doc().pages.length), String(E.cur() + 1));
     if (v) E.gotoPage((parseInt(v) || 1) - 1);
     E.focus();
   };
-  E.applyMaster = id => { const p = E.page(); if (!p) return; p.master = id; E.commit("Applica pagina master"); E.renderThumbs(); };
+  E.applyMaster = id => { const p = E.page(); if (!p) return; p.master = id; E.commit(tr("pubcmds.applica_pagina_master")); E.renderThumbs(); };
   E.addMaster = (dup = false) => {
     const D = doc();
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const id = [...letters].find(l => !D.masters.some(m => m.id === l)) || newId(D, "M");
     const srcM = D.masters.find(m => m.id === E.masterId()) || D.masters[0];
-    D.masters.push({ id, name: "Pagina master " + id, items: dup && srcM ? cloneItems(D, srcM.items) : [] });
+    D.masters.push({ id, name: tr("pubcmds.pagina_master") + id, items: dup && srcM ? cloneItems(D, srcM.items) : [] });
     E.toggleMaster(id);
-    E.commit("Aggiungi pagina master");
+    E.commit(tr("pubcmds.aggiungi_pagina_master"));
   };
   E.deleteMaster = () => {
     const D = doc();
@@ -92,21 +93,21 @@ export function installCommands(E, ctx) {
     D.masters = D.masters.filter(m => m.id !== id);
     for (const p of D.pages) if (p.master === id) p.master = D.masters[0].id;
     E.toggleMaster(D.masters[0].id);
-    E.commit("Elimina pagina master");
+    E.commit(tr("pubcmds.elimina_pagina_master"));
   };
 
   // ------------------------------------------------------------ impostazione della pagina
-  E.setPageSize = (w, h) => { const D = doc(); D.w = w; D.h = h; E.commit("Dimensioni pagina"); E.fitPage(); E.renderThumbs(); };
+  E.setPageSize = (w, h) => { const D = doc(); D.w = w; D.h = h; E.commit(tr("pubcmds.dimensioni_pagina")); E.fitPage(); E.renderThumbs(); };
   E.setOrientation = o => { const D = doc(); if ((o === "o") !== (D.w > D.h)) E.setPageSize(D.h, D.w); };
-  E.setMargins = v => { doc().margins = { l: v, t: v, r: v, b: v }; E.commit("Margini"); };
-  E.setGrid = (cols, rows) => { const D = doc(); D.grid = { cols, rows, gap: D.grid?.gap || 0.2 * 72 }; E.commit("Guide del layout"); };
-  E.addGuide = dir => { const p = E.page(); if (!p) return; (dir === "v" ? p.guides.v : p.guides.h).push(dir === "v" ? doc().w / 2 : doc().h / 2); E.commit("Aggiungi guida"); };
-  E.clearGuides = () => { const p = E.page(); if (!p) return; p.guides = { v: [], h: [] }; E.commit("Elimina guide"); };
-  E.setBackground = bg => { const p = E.page(); if (!p) return; p.bg = bg; E.commit("Sfondo pagina"); };
-  E.backgroundAll = () => { const bg = E.page()?.bg || null; for (const p of doc().pages) p.bg = bg ? { ...bg } : null; E.commit("Sfondo su tutte le pagine"); };
+  E.setMargins = v => { doc().margins = { l: v, t: v, r: v, b: v }; E.commit(tr("pubcmds.margini")); };
+  E.setGrid = (cols, rows) => { const D = doc(); D.grid = { cols, rows, gap: D.grid?.gap || 0.2 * 72 }; E.commit(tr("pubcmds.guide_layout")); };
+  E.addGuide = dir => { const p = E.page(); if (!p) return; (dir === "v" ? p.guides.v : p.guides.h).push(dir === "v" ? doc().w / 2 : doc().h / 2); E.commit(tr("pubcmds.aggiungi_guida")); };
+  E.clearGuides = () => { const p = E.page(); if (!p) return; p.guides = { v: [], h: [] }; E.commit(tr("pubcmds.elimina_guide")); };
+  E.setBackground = bg => { const p = E.page(); if (!p) return; p.bg = bg; E.commit(tr("pubcmds.sfondo_pagina")); };
+  E.backgroundAll = () => { const bg = E.page()?.bg || null; for (const p of doc().pages) p.bg = bg ? { ...bg } : null; E.commit(tr("pubcmds.sfondo_tutte_pagine")); };
   E.backgroundImage = async () => { const id = await pickImageId(); if (id) E.setBackground({ img: id }); };
-  E.setScheme = s => { doc().scheme = { name: s.name, c: [...s.c] }; E.commit("Combinazione colori " + s.name); E.renderThumbs(); };
-  E.setFonts = f => { doc().fonts = { ...f }; E.commit("Combinazione caratteri " + f.name); E.renderThumbs(); };
+  E.setScheme = s => { doc().scheme = { name: s.name, c: [...s.c] }; E.commit(tr("pubcmds.combinazione_colori") + s.name); E.renderThumbs(); };
+  E.setFonts = f => { doc().fonts = { ...f }; E.commit(tr("pubcmds.combinazione_caratteri") + f.name); E.renderThumbs(); };
 
   // ------------------------------------------------------------ immagini
   async function decode(bytes, mime) {
@@ -114,7 +115,7 @@ export function installCommands(E, ctx) {
     if (mime === "image/svg+xml") {
       // SVG: si converte in PNG ad alta risoluzione (serve anche per il PDF)
       const url = URL.createObjectURL(blob);
-      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("SVG non leggibile")); i.src = url; });
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error(tr("pubcmds.svg_non_leggibile"))); i.src = url; });
       const k = Math.max(1, 2000 / Math.max(img.naturalWidth || 300, img.naturalHeight || 300));
       const c = document.createElement("canvas");
       c.width = Math.round((img.naturalWidth || 300) * k); c.height = Math.round((img.naturalHeight || 300) * k);
@@ -144,7 +145,7 @@ export function installCommands(E, ctx) {
   async function readImageFile(path) {
     const ext = extOf(path);
     if (NATIVE.has(ext)) return { bytes: await readBytes(path), mime: MIME[ext] || "image/png" };
-    if (WEB) throw new Error("Formato immagine non supportato nella web app: usa PNG, JPG, GIF o WEBP");
+    if (WEB) throw new Error(tr("pubcmds.formato_immagine_non_supportato_web"));
     const r = await api("image", { path });
     return { bytes: await readBytes(r.path), mime: "image/png" };
   }
@@ -152,7 +153,7 @@ export function installCommands(E, ctx) {
     const paths = await pickFiles();
     if (!paths?.length) { E.focus(); return null; }
     try { const f = await readImageFile(paths[0]); return await addImage(f.bytes, f.mime, baseName(paths[0])); }
-    catch (e) { toast("Immagine non leggibile: " + e.message, true); return null; }
+    catch (e) { toast(tr("pubcmds.immagine_non_leggibile") + e.message, true); return null; }
   }
   function coverCrop(o, im) {
     const fa = o.w / Math.max(0.01, o.h), ia = im.w / im.h;
@@ -161,17 +162,17 @@ export function installCommands(E, ctx) {
   }
   E.placeImageBytes = async (bytes, mime, name, target = null) => {
     let id;
-    try { id = await addImage(bytes, mime, name); } catch (e) { toast("Immagine non leggibile: " + e.message, true); return; }
+    try { id = await addImage(bytes, mime, name); } catch (e) { toast(tr("pubcmds.immagine_non_leggibile") + e.message, true); return; }
     const im = doc().images[id];
     const t = target || (one()?.type === "image" ? one() : null);
-    if (t) { t.img = { id }; coverCrop(t, im); E.commit("Inserisci immagine"); return; }
+    if (t) { t.img = { id }; coverCrop(t, im); E.commit(tr("pubcmds.inserisci_immagine")); return; }
     const c = content();
     let w = im.w * 0.75, h = im.h * 0.75; // 96 dpi
     const k = Math.min(1, (c.w * 0.8) / w, (c.h * 0.6) / h);
     w *= k; h *= k;
     const o = imageBox(doc(), (doc().w - w) / 2, (doc().h - h) / 2, w, h, { img: { id, sx: 0, sy: 0, sw: im.w, sh: im.h } });
     E.addObj(o);
-    E.commit("Inserisci immagine");
+    E.commit(tr("pubcmds.inserisci_immagine"));
   };
   E.insertPicture = async () => {
     const paths = await pickFiles();
@@ -185,7 +186,7 @@ export function installCommands(E, ctx) {
   E.insertPlaceholder = () => {
     const c = content(), w = Math.min(c.w * 0.5, 8 * CM), h = w * 0.75;
     E.addObj(imageBox(doc(), (doc().w - w) / 2, (doc().h - h) / 2, w, h));
-    E.commit("Inserisci segnaposto immagine");
+    E.commit(tr("pubcmds.inserisci_segnaposto_immagine"));
   };
   E.changePicture = async () => {
     const o = one();
@@ -194,7 +195,7 @@ export function installCommands(E, ctx) {
     if (!id) return;
     o.img = { id };
     coverCrop(o, doc().images[id]);
-    E.commit("Cambia immagine");
+    E.commit(tr("pubcmds.cambia_immagine"));
     E.focus();
   };
   E.resetPicture = () => {
@@ -206,7 +207,7 @@ export function installCommands(E, ctx) {
       o.img = { id: o.img.id, sx: 0, sy: 0, sw: im.w, sh: im.h };
       o.h = o.w * im.h / im.w; o.x = cx - o.w / 2; o.y = cy - o.h / 2;
     }
-    E.commit("Reimposta immagine");
+    E.commit(tr("pubcmds.reimposta_immagine"));
   };
   E.fitPicture = mode => {
     for (const o of sel()) {
@@ -221,7 +222,7 @@ export function installCommands(E, ctx) {
         o.img = { id: o.img.id, sx: 0, sy: 0, sw: im.w, sh: im.h };
       }
     }
-    E.commit(mode === "fill" ? "Riempi" : mode === "fit" ? "Adatta" : "Togli ritaglio");
+    E.commit(mode === "fill" ? tr("pubcmds.riempi") : mode === "fit" ? tr("pubcmds.adatta") : tr("pubcmds.togli_ritaglio"));
   };
   E.saveSelectionImage = async () => {
     if (!sel().length) return;
@@ -229,7 +230,7 @@ export function installCommands(E, ctx) {
     const path = await pickSavePath("immagine.png", "");
     if (!path) return E.focus();
     await saveBytes(path, png);
-    toast("Salvato: " + baseName(path));
+    toast(tr("pubcmds.salvato") + baseName(path));
     E.focus();
   };
 
@@ -239,7 +240,7 @@ export function installCommands(E, ctx) {
     const w = cols <= 3 ? Math.min(c.w, cols * 3.5 * CM) : c.w;
     const t = tableBox(doc(), c.x + (c.w - w) / 2, c.y + c.h / 3, rows, cols, w, 22);
     E.addObj(t);
-    E.commit("Inserisci tabella");
+    E.commit(tr("pubcmds.inserisci_tabella"));
     E.beginEdit(t, 0, "cell", 0, 0);
   };
   const tableNow = () => { const ed = E.edit(); if (ed?.kind === "cell") return { t: ed.o, r: ed.r, c: ed.c, ed: true }; const o = one(); return o?.type === "table" ? { t: o, r: o.rows - 1, c: o.cols - 1, ed: false } : null; };
@@ -252,7 +253,7 @@ export function installCommands(E, ctx) {
   }
   E.tableOp = (op, v) => {
     const T = tableNow();
-    if (!T) return toast("Seleziona una tabella o fai clic in una cella", true);
+    if (!T) return toast(tr("pubcmds.seleziona_tabella_fai_clic_cella"), true);
     const { t } = T;
     let { r, c } = T;
     const D = doc();
@@ -282,7 +283,7 @@ export function installCommands(E, ctx) {
       case "rowH": if (v > 0) t.rowH[r] = v; break;
       case "valign": for (const cell of T.ed ? [t.cells[r][c]] : t.cells.flat()) cell.valign = v; break;
     }
-    E.commit({ rowAbove: "Inserisci riga", rowBelow: "Inserisci riga", colLeft: "Inserisci colonna", colRight: "Inserisci colonna", delRow: "Elimina riga", delCol: "Elimina colonna" }[op] || "Tabella");
+    E.commit({ rowAbove: tr("pubcmds.inserisci_riga"), rowBelow: tr("pubcmds.inserisci_riga"), colLeft: tr("pubcmds.inserisci_colonna"), colRight: tr("pubcmds.inserisci_colonna"), delRow: tr("pubcmds.elimina_riga"), delCol: tr("pubcmds.elimina_colonna") }[op] || tr("pubcmds.tabella"));
   };
   E.tableStyle = preset => {
     const T = tableNow();
@@ -296,20 +297,20 @@ export function installCommands(E, ctx) {
       st.chars = st.chars.map(ch => ({ ...ch, s: S({ ...ch.s, c: head ? "s5" : "s0", b: head || undefined }) }));
     }));
     t.border = preset === "header" ? { c: "s1", w: 0.5 } : preset === "plain" ? { c: "s0", w: 0.5 } : preset === "banded" ? { c: "none", w: 0 } : { c: "s1:60", w: 0.75 };
-    E.commit("Formato tabella");
+    E.commit(tr("pubcmds.formato_tabella"));
   };
 
   // ------------------------------------------------------------ WordArt
   async function wordArtDlg(o) {
     const D = doc();
     const t = el("textarea", { class: "field", rows: 3, style: { width: "100%", fontSize: "18px" } });
-    t.value = o?.text || "Il tuo testo";
+    t.value = o?.text || tr("pubcmds.tuo_testo");
     const f = el("select", { class: "field" }, ...[["+t", `${D.fonts.t} (Titoli)`], ["+b", `${D.fonts.b} (Corpo)`], ...FONTS.map(x => [x, x])].map(([v, l]) => el("option", { value: v, selected: (o?.font || "+t") === v }, l)));
     const b = el("input", { type: "checkbox", checked: o ? !!o.b : true }), i = el("input", { type: "checkbox", checked: !!o?.i });
     setTimeout(() => { t.focus(); t.select(); });
-    const ok = await modal("Modifica testo WordArt", el("div", { class: "pb-dlg" }, t, el("label", { class: "pb-dlgrow" }, el("span", {}, "Carattere"), f), el("label", { class: "pb-dlgrow" }, el("span", {}, "Grassetto"), b), el("label", { class: "pb-dlgrow" }, el("span", {}, "Corsivo"), i)),
-      [{ label: "Annulla", value: false }, { label: "OK", value: true, primary: true }]);
-    return ok ? { text: t.value.replace(/\s+/g, " ").trim() || "Testo", font: f.value, b: b.checked, i: i.checked } : null;
+    const ok = await modal(tr("pubcmds.modifica_testo_wordart"), el("div", { class: "pb-dlg" }, t, el("label", { class: "pb-dlgrow" }, el("span", {}, tr("pubcmds.carattere")), f), el("label", { class: "pb-dlgrow" }, el("span", {}, tr("pubcmds.grassetto")), b), el("label", { class: "pb-dlgrow" }, el("span", {}, tr("pubcmds.corsivo")), i)),
+      [{ label: tr("common.annulla"), value: false }, { label: "OK", value: true, primary: true }]);
+    return ok ? { text: t.value.replace(/\s+/g, " ").trim() || tr("pubcmds.testo"), font: f.value, b: b.checked, i: i.checked } : null;
   }
   E.insertWordArt = async st => {
     const r = await wordArtDlg(null);
@@ -319,14 +320,14 @@ export function installCommands(E, ctx) {
     const o = wordArt(doc(), r.text, (doc().w - w) / 2, c.y + 20, w, st.form === "arco" || st.form === "arcoGiu" ? h * 1.8 : st.form === "onda" ? h * 1.4 : h, { ...st, label: undefined, ...r });
     delete o.label;
     E.addObj(o);
-    E.commit("Inserisci WordArt");
+    E.commit(tr("pubcmds.inserisci_wordart"));
     E.focus();
   };
   E.editWordArt = async () => {
     const o = one();
     if (!o || o.type !== "wordart") return;
     const r = await wordArtDlg(o);
-    if (r) { Object.assign(o, r); E.commit("Modifica WordArt"); }
+    if (r) { Object.assign(o, r); E.commit(tr("pubcmds.modifica_wordart")); }
     E.focus();
   };
 
@@ -342,12 +343,12 @@ export function installCommands(E, ctx) {
       const g = { id: newId(D, "o"), type: "group", items: objs, x: x0 + dx, y: y0 + dy, w: x1 - x0, h: y1 - y0, rot: 0, wrap: "none" };
       E.addObj(g);
     } else E.addObj(objs[0]);
-    E.commit("Inserisci " + label);
+    E.commit(tr("pubcmds.inserisci") + label);
   };
 
   // ------------------------------------------------------------ testo
   E.insertField = f => {
-    if (!E.edit()) return toast("Fai clic nel testo dove inserire il campo", true);
+    if (!E.edit()) return toast(tr("pubcmds.fai_clic_testo_dove_inserire"), true);
     E.insertFieldChar(f);
   };
   E.clearFormat = () => {
@@ -359,21 +360,21 @@ export function installCommands(E, ctx) {
         t.st.chars[k] = { ...t.st.chars[k], s: S(charPart(def)) };
       }
     }
-    E.commit("Cancella formattazione");
+    E.commit(tr("pubcmds.cancella_formattazione"));
   };
   E.copyFormat = () => {
     const o = one();
     if (E.edit() || (o && (o.type === "text" || o.type === "table"))) E.fmtClip = { kind: "text", s: E.charStyle(), p: E.paraStyle() };
     else if (o) E.fmtClip = { kind: "obj", props: { fill: o.fill, line: o.line ? { ...o.line } : null, shadow: o.shadow, opacity: o.opacity } };
     else return;
-    E.message("Formato copiato: selezionate il testo o l'oggetto e usate Incolla formato (Ctrl+Maiusc+V)");
+    E.message(tr("pubcmds.formato_copiato_selezionate_testo_l"));
     E.refresh();
   };
   E.pasteFormat = () => {
     const f = E.fmtClip;
-    if (!f) return toast("Prima copia un formato (Copia formato)", true);
-    if (f.kind === "text") { E.applyChar(() => ({ ...f.s }), "Incolla formato"); if (f.p) E.applyPara(() => ({ ...f.p }), "Incolla formato"); }
-    else { for (const o of sel()) Object.assign(o, JSON.parse(JSON.stringify(f.props))); E.commit("Incolla formato"); }
+    if (!f) return toast(tr("pubcmds.prima_copia_formato_copia_formato"), true);
+    if (f.kind === "text") { E.applyChar(() => ({ ...f.s }), tr("pubcmds.incolla_formato")); if (f.p) E.applyPara(() => ({ ...f.p }), tr("pubcmds.incolla_formato")); }
+    else { for (const o of sel()) Object.assign(o, JSON.parse(JSON.stringify(f.props))); E.commit(tr("pubcmds.incolla_formato")); }
   };
   E.changeCase = mode => {
     const ed = E.edit();
@@ -401,13 +402,13 @@ export function installCommands(E, ctx) {
   };
   E.hyperlink = async () => {
     const ed = E.edit();
-    if (!ed || ed.caret === ed.anchor) return toast("Seleziona il testo da collegare", true);
+    if (!ed || ed.caret === ed.anchor) return toast(tr("pubcmds.seleziona_testo_collegare"), true);
     const cur = E.charStyle()?.h || "https://";
-    const url = await askText("Inserisci collegamento ipertestuale", "Indirizzo (vuoto = rimuovi collegamento)", cur);
+    const url = await askText(tr("pubcmds.inserisci_collegamento_ipertestuale"), tr("pubcmds.indirizzo_vuoto_rimuovi_collegamento"), cur);
     E.focus();
     if (url === null) return;
-    if (!url.trim() || url === "https://") E.applyChar(s => ({ ...s, h: undefined, u: undefined }), "Rimuovi collegamento");
-    else E.applyChar(s => ({ ...s, h: /^[a-z]+:/i.test(url) ? url.trim() : (url.includes("@") ? "mailto:" : "https://") + url.trim(), u: true, c: "s1" }), "Collegamento ipertestuale");
+    if (!url.trim() || url === "https://") E.applyChar(s => ({ ...s, h: undefined, u: undefined }), tr("pubcmds.rimuovi_collegamento"));
+    else E.applyChar(s => ({ ...s, h: /^[a-z]+:/i.test(url) ? url.trim() : (url.includes("@") ? "mailto:" : "https://") + url.trim(), u: true, c: "s1" }), tr("pubcmds.collegamento_ipertestuale"));
   };
   E.dropCap = () => {
     const o = E.edit()?.o || one();
@@ -418,7 +419,7 @@ export function installCommands(E, ctx) {
     const s = st.chars[k].s;
     const on = s.dc;
     st.chars[k] = { ...st.chars[k], s: S(on ? { ...s, z: s.dc, dc: undefined, b: undefined, c: s.dcC } : { ...s, dc: s.z || 10, dcC: s.c, z: (s.z || 10) * 3, b: true, c: "s1" }) };
-    E.commit(on ? "Togli capolettera" : "Capolettera");
+    E.commit(on ? tr("pubcmds.togli_capolettera") : tr("pubcmds.capolettera"));
   };
   E.headerFooter = kind => {
     const D = doc();
@@ -434,7 +435,7 @@ export function installCommands(E, ctx) {
       const y = kind === "h" ? Math.max(4, M.t - h - 4) : D.h - M.b + 4;
       o = textBox(D, M.l, y, D.w - M.l - M.r, h, [["", "Normale", { a: kind === "h" ? "l" : "c", z: 9, c: "s2" }]], { role, pad: [0, 2, 0, 2] });
       m.items.push(o);
-      E.commit(kind === "h" ? "Intestazione" : "Pie' di pagina");
+      E.commit(kind === "h" ? tr("pubcmds.intestazione") : tr("pubcmds.pie_pagina"));
     }
     E.setSel([o]);
     E.beginEdit(o);
@@ -448,8 +449,8 @@ export function installCommands(E, ctx) {
     const x = pos[1] === "r" ? D.w - M.r - w : pos[1] === "l" ? M.l : (D.w - w) / 2;
     const y = pos[0] === "b" ? D.h - M.b + 4 : Math.max(4, M.t - h - 4);
     m.items.push(textBox(D, x, y, w, h, [["{pagina}", "Normale", { a: pos[1] === "r" ? "r" : pos[1] === "l" ? "l" : "c", z: 9 }]], { pad: [0, 2, 0, 2], role: "pagenum" }));
-    E.commit("Numero di pagina");
-    E.message(`Numero di pagina aggiunto alla pagina master ${mid}: compare su tutte le pagine che la usano`);
+    E.commit(tr("pubcmds.numero_pagina"));
+    E.message(tr("pubcmds.numero_pagina_aggiunto_pagina_master", mid));
   };
   E.insertTextFile = async () => {
     const paths = await pickFiles();
@@ -465,14 +466,14 @@ export function installCommands(E, ctx) {
         try { text = new TextDecoder("utf-8", { fatal: true }).decode(bytes); } catch { text = new TextDecoder("windows-1252").decode(bytes); }
         if (ext === "md") text = text.replace(/^#+\s*/gm, "").replace(/\*\*|__/g, "");
       }
-    } catch (e) { return toast("File non leggibile: " + e.message, true); }
+    } catch (e) { return toast(tr("pubcmds.file_non_leggibile") + e.message, true); }
     text = text.replace(/\r\n?/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
     const ed = E.edit();
-    if (ed) { const st = doc().stories[ed.story]; ed.caret = ed.anchor = insertText(st, Math.min(ed.caret, ed.anchor), text, styleAt(st, ed.caret)); E.commit("Inserisci file"); return E.focus(); }
+    if (ed) { const st = doc().stories[ed.story]; ed.caret = ed.anchor = insertText(st, Math.min(ed.caret, ed.anchor), text, styleAt(st, ed.caret)); E.commit(tr("pubcmds.inserisci_file")); return E.focus(); }
     let o = one()?.type === "text" ? one() : null;
     if (o) { const st = doc().stories[o.story]; insertText(st, st.chars.length - 1, (st.chars.length > 1 ? "\n" : "") + text, styleAt(st, st.chars.length - 1)); }
     else { const c = content(); o = textBox(doc(), c.x, c.y, c.w, c.h, text.split("\n").map(t => [t, "Corpo del testo"]), { cols: doc().grid?.cols > 1 ? doc().grid.cols : 1, gap: doc().grid?.gap || 12 }); E.addObj(o); }
-    E.commit("Inserisci file di testo");
+    E.commit(tr("pubcmds.inserisci_file_testo"));
     await autoFlow(o);
     E.focus();
   };
@@ -481,7 +482,7 @@ export function installCommands(E, ctx) {
     let lay = E.relayout();
     let ent = lay.frames.get(o.id);
     if (!ent?.layout.overflow) return;
-    if (!(await confirmBox("Il testo non ci sta", "Il testo non entra nella casella. Aggiungere automaticamente pagine con caselle di testo collegate?", "Aggiungi pagine"))) return;
+    if (!(await confirmBox(tr("pubcmds.testo_non_ci_sta"), tr("pubcmds.testo_non_entra_casella_aggiungere"), tr("pubcmds.aggiungi_pagine")))) return;
     const D = doc();
     let last = lay.byId.get(ent.layout.chain[ent.layout.chain.length - 1]);
     let pi = E.pageOfObj(last);
@@ -496,7 +497,7 @@ export function installCommands(E, ctx) {
       E.touch();
       lay = E.relayout(); ent = lay.frames.get(o.id); last = f;
     }
-    E.commit("Testo su piu' pagine");
+    E.commit(tr("pubcmds.testo_piu_pagine"));
     E.renderThumbs();
   }
 
@@ -539,12 +540,12 @@ export function installCommands(E, ctx) {
   }
   E.openFind = (replace) => {
     findBox?.remove();
-    const q = el("input", { type: "text", class: "field", placeholder: "Trova" });
-    const rep = el("input", { type: "text", class: "field", placeholder: "Sostituisci con" });
+    const q = el("input", { type: "text", class: "field", placeholder: tr("pubcmds.trova") });
+    const rep = el("input", { type: "text", class: "field", placeholder: tr("pubcmds.sostituisci") });
     const cs = el("input", { type: "checkbox" }), ww = el("input", { type: "checkbox" });
     const opt = () => ({ case: cs.checked, word: ww.checked });
     const info = el("div", { class: "pb-findinfo" });
-    const next = () => { info.textContent = findNext(q.value, opt()) ? "" : "Nessuna corrispondenza trovata"; };
+    const next = () => { info.textContent = findNext(q.value, opt()) ? "" : tr("pubcmds.nessuna_corrispondenza_trovata"); };
     const replaceOne = () => {
       const ed = E.edit();
       if (ed && ed.caret !== ed.anchor) {
@@ -555,7 +556,7 @@ export function installCommands(E, ctx) {
           const s = st.chars[a].s;
           deleteRange(st, a, b);
           ed.caret = ed.anchor = insertText(st, a, rep.value, s);
-          E.commit("Sostituisci");
+          E.commit(tr("pubcmds.sostituisci_2"));
         }
       }
       next();
@@ -577,18 +578,18 @@ export function installCommands(E, ctx) {
           } else k++;
         }
       }
-      if (n) E.commit(`Sostituisci tutto (${n})`);
-      info.textContent = n ? `Sostituzioni effettuate: ${n}` : "Nessuna corrispondenza trovata";
+      if (n) E.commit(tr("pubcmds.sostituisci_tutto_0", n));
+      info.textContent = n ? tr("pubcmds.sostituzioni_effettuate_0", n) : tr("pubcmds.nessuna_corrispondenza_trovata");
     };
     q.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); next(); } if (e.key === "Escape") close(); });
     rep.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); replaceOne(); } if (e.key === "Escape") close(); });
     const close = () => { findBox?.remove(); findBox = null; E.focus(); };
     findBox = el("div", { class: "pb-find" },
-      el("div", { class: "pb-findhead" }, el("b", {}, replace ? "Trova e sostituisci" : "Trova"), el("button", { type: "button", class: "pb-x", title: "Chiudi (Esc)", onclick: close }, "×")),
+      el("div", { class: "pb-findhead" }, el("b", {}, replace ? tr("pubcmds.trova_sostituisci") : tr("pubcmds.trova")), el("button", { type: "button", class: "pb-x", title: tr("pubcmds.chiudi_esc"), onclick: close }, "×")),
       q, replace ? rep : null,
-      el("label", { class: "pb-check" }, cs, el("span", {}, "Maiuscole/minuscole")), el("label", { class: "pb-check" }, ww, el("span", {}, "Solo parole intere")),
-      el("div", { class: "pb-findbtns" }, el("button", { type: "button", class: "btn primary", onclick: next }, "Trova successivo"),
-        replace ? el("button", { type: "button", class: "btn", onclick: replaceOne }, "Sostituisci") : null, replace ? el("button", { type: "button", class: "btn", onclick: replaceAll }, "Sostituisci tutto") : null),
+      el("label", { class: "pb-check" }, cs, el("span", {}, "Maiuscole/minuscole")), el("label", { class: "pb-check" }, ww, el("span", {}, tr("pubcmds.solo_parole_intere"))),
+      el("div", { class: "pb-findbtns" }, el("button", { type: "button", class: "btn primary", onclick: next }, tr("pubcmds.trova_successivo")),
+        replace ? el("button", { type: "button", class: "btn", onclick: replaceOne }, tr("pubcmds.sostituisci_2")) : null, replace ? el("button", { type: "button", class: "btn", onclick: replaceAll }, tr("pubcmds.sostituisci_tutto")) : null),
       info);
     E._pb.stage.append(findBox);
     const ed = E.edit();
@@ -602,15 +603,15 @@ export function installCommands(E, ctx) {
     let target = ed ? { id: ed.story, o: ed.o, kind: ed.kind, r: ed.r, c: ed.c } : null;
     const list = stories();
     if (!target) { const o = one(); target = o?.type === "text" ? list.find(s => s.id === o.story) : list[0]; }
-    if (!target) return toast("Non c'e' testo da controllare", true);
+    if (!target) return toast(tr("pubcmds.non_c_testo_controllare"), true);
     const st = doc().stories[target.id];
     const old = st.chars.slice(0, -1).map(c => c.c);
     const ta = el("textarea", { class: "field pb-spell", spellcheck: "true", lang: "it" });
     ta.value = old.join("");
     const k = list.findIndex(s => s.id === target.id);
-    const ok = await modal(`Controllo ortografia (storia ${k + 1} di ${list.length})`, el("div", { class: "pb-dlg" },
-      el("p", { class: "pb-note" }, "Le parole sconosciute sono sottolineate in rosso: fai clic destro su una parola per i suggerimenti, correggi e premi Applica. La formattazione del testo resta quella originale."), ta),
-    [{ label: "Annulla", value: 0 }, { label: "Applica", value: 1, primary: true }, list.length > 1 ? { label: "Applica e passa alla successiva", value: 2 } : null].filter(Boolean));
+    const ok = await modal(tr("pubcmds.controllo_ortografia_storia_0_1", k + 1, list.length), el("div", { class: "pb-dlg" },
+      el("p", { class: "pb-note" }, tr("pubcmds.parole_sconosciute_sono_sottolineate_rosso")), ta),
+    [{ label: tr("common.annulla"), value: 0 }, { label: tr("common.applica"), value: 1, primary: true }, list.length > 1 ? { label: tr("pubcmds.applica_passa_successiva"), value: 2 } : null].filter(Boolean));
     setTimeout(() => ta.focus());
     if (ok) {
       const nw = Array.from(ta.value);
@@ -623,7 +624,7 @@ export function installCommands(E, ctx) {
         E.endEdit();
         deleteRange(st, p, old.length - s);
         insertText(st, p, nw.slice(p, nw.length - s).join(""), sty);
-        E.commit("Correzione ortografica");
+        E.commit(tr("pubcmds.correzione_ortografica"));
       }
       if (ok === 2) { const nx = list[(k + 1) % list.length]; E.selectText(nx.id, 0, 0, nx.o, nx.kind, nx.r, nx.c); return E.spell(); }
     }
@@ -663,30 +664,30 @@ export function installCommands(E, ctx) {
         try { text = new TextDecoder("utf-8", { fatal: true }).decode(bytes); } catch { text = new TextDecoder("windows-1252").decode(bytes); }
         table = parseCsv(text.replace(/^﻿/, ""));
       }
-    } catch (e) { return toast("Elenco non leggibile: " + e.message, true); }
+    } catch (e) { return toast(tr("pubcmds.elenco_non_leggibile") + e.message, true); }
     table = table.filter(r => r.some(x => String(x).trim()));
-    if (table.length < 2) return toast("L'elenco deve avere una riga di intestazione e almeno un destinatario", true);
-    const fields = table[0].map((h, k) => String(h).trim() || "Campo" + (k + 1));
+    if (table.length < 2) return toast(tr("pubcmds.l_elenco_deve_avere_riga"), true);
+    const fields = table[0].map((h, k) => String(h).trim() || tr("pubcmds.campo") + (k + 1));
     const rows = table.slice(1).map(r => Object.fromEntries(fields.map((f, k) => [f, String(r[k] ?? "")])));
     doc().merge = { source: baseName(p), fields, rows };
     E.setMerge(0, false);
-    E.commit("Seleziona destinatari");
-    toast(`${rows.length} destinatari, campi: ${fields.join(", ")}`, false, 5000);
+    E.commit(tr("pubcmds.seleziona_destinatari"));
+    toast(tr("pubcmds.0_destinatari_campi_1", rows.length, fields.join(", ")), false, 5000);
     E.focus();
   };
 
   // ------------------------------------------------------------ galleria dei modelli (come "Nuovo" di Publisher)
   E.templatesDlg = (replace = true) => new Promise(resolve => {
     let scheme = null, fonts = null, chosen = TEMPLATES[0];
-    const back = el("div", { class: "pb-galback", role: "dialog", "aria-label": "Modelli di pubblicazione" });
+    const back = el("div", { class: "pb-galback", role: "dialog", "aria-label": tr("pubcmds.modelli_pubblicazione") });
     const grid = el("div", { class: "pb-galgrid" });
     const cats = [...new Set(TEMPLATES.map(t => t.cat))];
     const catList = el("div", { class: "pb-galcats" });
     let cat = null;
     const big = el("canvas", { class: "pb-galbig" });
     const name = el("div", { class: "pb-galname" });
-    const schemeSel = el("select", { class: "field" }, el("option", { value: "" }, "(del modello)"), ...COLOR_SCHEMES.map((s, k) => el("option", { value: k }, s.name)));
-    const fontSel = el("select", { class: "field" }, el("option", { value: "" }, "(del modello)"), ...FONT_SCHEMES.map((f, k) => el("option", { value: k }, `${f.name} (${f.t} / ${f.b})`)));
+    const schemeSel = el("select", { class: "field" }, el("option", { value: "" }, tr("pubcmds.modello")), ...COLOR_SCHEMES.map((s, k) => el("option", { value: k }, s.name)));
+    const fontSel = el("select", { class: "field" }, el("option", { value: "" }, tr("pubcmds.modello")), ...FONT_SCHEMES.map((f, k) => el("option", { value: k }, `${f.name} (${f.t} / ${f.b})`)));
     const make = t => { const d = t.make(); if (scheme) d.scheme = { name: scheme.name, c: [...scheme.c] }; if (fonts) d.fonts = { ...fonts }; return d; };
     const draw = (c, d, maxW, maxH) => {
       const s = Math.min(maxW / d.w, maxH / d.h), dpr = window.devicePixelRatio || 1;
@@ -711,20 +712,20 @@ export function installCommands(E, ctx) {
       const d = make(chosen);
       const D = doc();
       const hasContent = D.pages.some(p => p.items.length) || D.masters.some(m => m.items.length);
-      if (replace && hasContent && !(await confirmBox("Cambia modello", "La pubblicazione attuale verra' sostituita dal modello scelto (si puo' annullare con Ctrl+Z solo fino alla chiusura). Continuare?", "Sostituisci"))) return;
+      if (replace && hasContent && !(await confirmBox(tr("pubcmds.cambia_modello"), tr("pubcmds.pubblicazione_attuale_verra_sostituita_modello"), tr("pubcmds.sostituisci_2")))) return;
       close(true);
       E.setDoc(d);
     };
     const onKey = e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(false); } if (e.key === "Enter" && e.target.tagName !== "SELECT") { e.preventDefault(); go(); } };
     const mkCat = (label, v) => { const b = el("button", { type: "button", class: "pb-galcat" + (cat === v ? " on" : "") }, label); b.addEventListener("click", () => { cat = v; catList.querySelectorAll(".pb-galcat").forEach(x => x.classList.toggle("on", x === b)); renderGrid(); }); return b; };
-    catList.append(mkCat("Tutti i modelli", null), ...cats.map(c => mkCat(c, c)));
+    catList.append(mkCat(tr("pubcmds.tutti_i_modelli"), null), ...cats.map(c => mkCat(c, c)));
     schemeSel.addEventListener("change", () => { scheme = schemeSel.value === "" ? null : COLOR_SCHEMES[+schemeSel.value]; renderGrid(); preview(); });
     fontSel.addEventListener("change", () => { fonts = fontSel.value === "" ? null : FONT_SCHEMES[+fontSel.value]; renderGrid(); preview(); });
     back.append(el("div", { class: "pb-galbox" },
-      el("header", { class: "pb-galhead" }, el("h2", {}, "Modelli"), el("span", {}, "Scegli un modello: tutto resta modificabile. Colori e caratteri si cambiano anche dopo (Progettazione pagina)."), el("button", { type: "button", class: "pb-x", title: "Chiudi (Esc)", onclick: () => close(false) }, "×")),
+      el("header", { class: "pb-galhead" }, el("h2", {}, tr("pubcmds.modelli")), el("span", {}, tr("pubcmds.scegli_modello_tutto_resta_modificabile")), el("button", { type: "button", class: "pb-x", title: tr("pubcmds.chiudi_esc"), onclick: () => close(false) }, "×")),
       el("div", { class: "pb-galbody" }, catList, grid,
-        el("aside", { class: "pb-galside" }, big, name, el("label", { class: "pb-dlgrow" }, el("span", {}, "Combinazione colori"), schemeSel), el("label", { class: "pb-dlgrow" }, el("span", {}, "Combinazione caratteri"), fontSel),
-          el("div", { class: "pb-galbtns" }, el("button", { type: "button", class: "btn", onclick: () => close(false) }, replace ? "Annulla" : "Pagina vuota"), el("button", { type: "button", class: "btn primary", onclick: go }, "Crea"))))));
+        el("aside", { class: "pb-galside" }, big, name, el("label", { class: "pb-dlgrow" }, el("span", {}, tr("pubcmds.combinazione_colori_2")), schemeSel), el("label", { class: "pb-dlgrow" }, el("span", {}, tr("pubcmds.combinazione_caratteri_2")), fontSel),
+          el("div", { class: "pb-galbtns" }, el("button", { type: "button", class: "btn", onclick: () => close(false) }, replace ? tr("common.annulla") : tr("pubcmds.pagina_vuota")), el("button", { type: "button", class: "btn primary", onclick: go }, tr("pubcmds.crea")))))));
     back.addEventListener("pointerdown", e => { if (e.target === back) close(false); });
     document.body.append(back);
     document.addEventListener("keydown", onKey, true);

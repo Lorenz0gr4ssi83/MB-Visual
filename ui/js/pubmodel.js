@@ -11,6 +11,7 @@
 // "\n" che porta le proprieta' del paragrafo (p). s = stile del carattere { f, z, b, i, u, c, k }, condiviso (intern).
 // Colori: "#rrggbb", "sN" (colore N della combinazione), "sN:40" (tinta al 40%), "none".
 // Caratteri: nome della famiglia, "+t" (titoli) o "+b" (corpo) della combinazione di caratteri.
+import { t as tr } from "./i18n.js";
 import { loadScript } from "./core.js";
 
 export const MM = 72 / 25.4;
@@ -18,40 +19,40 @@ export const CM = 72 / 2.54;
 export const FIELD = "\uFFFC"; // carattere segnaposto dei campi (numero di pagina, data, campi unione)
 
 export const PAGE_SIZES = [
-  ["A4", 210, 297], ["A5", 148, 210], ["A3", 297, 420], ["A6", 105, 148], ["Lettera (US)", 215.9, 279.4],
-  ["DL (busta)", 99, 210], ["Biglietto da visita", 85, 55], ["Cartolina", 148, 105], ["Segnalibro", 50, 180],
-  ["Banner 1 m", 1000, 300], ["Poster 50x70", 500, 700], ["Quadrato 21 cm", 210, 210],
+  ["A4", 210, 297], ["A5", 148, 210], ["A3", 297, 420], ["A6", 105, 148], [tr("pubmodel.lettera_us"), 215.9, 279.4],
+  ["DL (busta)", 99, 210], [tr("pubmodel.biglietto_visita"), 85, 55], [tr("pubmodel.cartolina"), 148, 105], [tr("pubmodel.segnalibro"), 50, 180],
+  [tr("pubmodel.banner_1_m"), 1000, 300], [tr("pubmodel.poster_50x70"), 500, 700], [tr("pubmodel.quadrato_21_cm"), 210, 210],
 ];
 
 // combinazioni di colori: principale (testo) + 5 accenti, come in Publisher
 export const COLOR_SCHEMES = [
   ["MB Engineering", "#1d2b36", "#2c6797", "#8a8c89", "#c8a24a", "#5d8aa8", "#eef2f5"],
-  ["Acqua", "#003a4d", "#0083a8", "#3cb5d6", "#9fd8e8", "#f2a541", "#e8f6fa"],
-  ["Mirtillo", "#2b1a3d", "#6a3d9a", "#a77fd0", "#e2b04a", "#d8cbe6", "#f6f1fa"],
-  ["Ciliegia", "#3a0d12", "#b5172b", "#e05a5f", "#f4b6a8", "#5b5b5b", "#fbeeee"],
-  ["Civico", "#1a1a1a", "#c0392b", "#2c3e50", "#7f8c8d", "#e8c547", "#f4f4f4"],
-  ["Deserto", "#3b2a1a", "#c0712e", "#e3a857", "#7b8b4a", "#d9c7a7", "#faf3e8"],
-  ["Foresta", "#1d2f1f", "#2e6b3a", "#6ea35a", "#c7a24b", "#a9c49b", "#f1f6ee"],
-  ["Ghiacciaio", "#1b2a3a", "#4a7ab8", "#8fb8e0", "#c9dff2", "#7c8b99", "#f3f8fc"],
-  ["Lavanda", "#2d2640", "#7864a8", "#b4a7d6", "#e7a5b5", "#9fb9c9", "#f7f4fb"],
-  ["Mare aperto", "#0b2545", "#13315c", "#3e7cb1", "#8da9c4", "#eef4ed", "#f2f6fa"],
-  ["Mandarino", "#2e1f14", "#ef7f1a", "#f6b26b", "#3d85c6", "#a3a3a3", "#fff4e8"],
-  ["Muschio", "#2a2e1f", "#6b7d35", "#a7b56b", "#7d5a3c", "#d4d9b8", "#f6f7ef"],
-  ["Orchidea", "#33142e", "#a2336f", "#d77fb0", "#5c8fc8", "#ead1e1", "#fbf2f7"],
-  ["Papavero", "#2b0f0e", "#d64933", "#f2a65a", "#2d3047", "#93b7be", "#fdf1ec"],
-  ["Ardesia", "#202529", "#4f5b66", "#8a98a5", "#c1c9d1", "#d08c3a", "#f3f5f7"],
-  ["Tramonto", "#301c2a", "#e4572e", "#f3a712", "#a8c686", "#669bbc", "#fff6ea"],
-  ["Uva", "#24132b", "#5b2a6e", "#8f4ca8", "#c7a2d6", "#9ab87a", "#f6f0f8"],
-  ["Bianco e nero", "#000000", "#333333", "#666666", "#999999", "#cccccc", "#f2f2f2"],
+  [tr("pubmodel.acqua"), "#003a4d", "#0083a8", "#3cb5d6", "#9fd8e8", "#f2a541", "#e8f6fa"],
+  [tr("pubmodel.mirtillo"), "#2b1a3d", "#6a3d9a", "#a77fd0", "#e2b04a", "#d8cbe6", "#f6f1fa"],
+  [tr("pubmodel.ciliegia"), "#3a0d12", "#b5172b", "#e05a5f", "#f4b6a8", "#5b5b5b", "#fbeeee"],
+  [tr("pubmodel.civico"), "#1a1a1a", "#c0392b", "#2c3e50", "#7f8c8d", "#e8c547", "#f4f4f4"],
+  [tr("pubmodel.deserto"), "#3b2a1a", "#c0712e", "#e3a857", "#7b8b4a", "#d9c7a7", "#faf3e8"],
+  [tr("pubmodel.foresta"), "#1d2f1f", "#2e6b3a", "#6ea35a", "#c7a24b", "#a9c49b", "#f1f6ee"],
+  [tr("pubmodel.ghiacciaio"), "#1b2a3a", "#4a7ab8", "#8fb8e0", "#c9dff2", "#7c8b99", "#f3f8fc"],
+  [tr("pubmodel.lavanda"), "#2d2640", "#7864a8", "#b4a7d6", "#e7a5b5", "#9fb9c9", "#f7f4fb"],
+  [tr("pubmodel.mare_aperto"), "#0b2545", "#13315c", "#3e7cb1", "#8da9c4", "#eef4ed", "#f2f6fa"],
+  [tr("pubmodel.mandarino"), "#2e1f14", "#ef7f1a", "#f6b26b", "#3d85c6", "#a3a3a3", "#fff4e8"],
+  [tr("pubmodel.muschio"), "#2a2e1f", "#6b7d35", "#a7b56b", "#7d5a3c", "#d4d9b8", "#f6f7ef"],
+  [tr("pubmodel.orchidea"), "#33142e", "#a2336f", "#d77fb0", "#5c8fc8", "#ead1e1", "#fbf2f7"],
+  [tr("pubmodel.papavero"), "#2b0f0e", "#d64933", "#f2a65a", "#2d3047", "#93b7be", "#fdf1ec"],
+  [tr("pubmodel.ardesia"), "#202529", "#4f5b66", "#8a98a5", "#c1c9d1", "#d08c3a", "#f3f5f7"],
+  [tr("pubmodel.tramonto"), "#301c2a", "#e4572e", "#f3a712", "#a8c686", "#669bbc", "#fff6ea"],
+  [tr("pubmodel.uva"), "#24132b", "#5b2a6e", "#8f4ca8", "#c7a2d6", "#9ab87a", "#f6f0f8"],
+  [tr("pubmodel.bianco_nero"), "#000000", "#333333", "#666666", "#999999", "#cccccc", "#f2f2f2"],
 ].map(([name, ...c]) => ({ name, c }));
 
 // combinazioni di caratteri: titoli + corpo (caratteri presenti in Windows)
 export const FONT_SCHEMES = [
-  ["Office", "Calibri Light", "Calibri"], ["Aereo", "Segoe UI Light", "Segoe UI"], ["Archivio", "Georgia", "Verdana"],
-  ["Classico", "Times New Roman", "Times New Roman"], ["Civico", "Franklin Gothic Medium", "Georgia"], ["Moderno", "Bahnschrift", "Segoe UI"],
-  ["Elegante", "Constantia", "Candara"], ["Tecnico", "Bahnschrift SemiBold", "Bahnschrift Light"], ["Editoriale", "Cambria", "Calibri"],
-  ["Impatto", "Impact", "Arial"], ["Lineare", "Arial Black", "Arial"], ["Amichevole", "Trebuchet MS", "Trebuchet MS"],
-  ["Rotondo", "Corbel", "Corbel"], ["Mono", "Consolas", "Segoe UI"],
+  ["Office", "Calibri Light", "Calibri"], [tr("pubmodel.aereo"), "Segoe UI Light", "Segoe UI"], [tr("pubmodel.archivio"), "Georgia", "Verdana"],
+  [tr("pubmodel.classico"), "Times New Roman", "Times New Roman"], [tr("pubmodel.civico"), "Franklin Gothic Medium", "Georgia"], [tr("pubmodel.moderno"), "Bahnschrift", "Segoe UI"],
+  [tr("pubmodel.elegante"), "Constantia", "Candara"], [tr("pubmodel.tecnico"), "Bahnschrift SemiBold", "Bahnschrift Light"], [tr("pubmodel.editoriale"), "Cambria", "Calibri"],
+  [tr("pubmodel.impatto"), "Impact", "Arial"], [tr("pubmodel.lineare"), "Arial Black", "Arial"], [tr("pubmodel.amichevole"), "Trebuchet MS", "Trebuchet MS"],
+  [tr("pubmodel.rotondo"), "Corbel", "Corbel"], [tr("pubmodel.mono"), "Consolas", "Segoe UI"],
 ].map(([name, t, b]) => ({ name, t, b }));
 
 export const FONTS = ["Arial", "Arial Black", "Arial Narrow", "Bahnschrift", "Bahnschrift Light", "Bahnschrift SemiBold", "Calibri", "Calibri Light", "Cambria", "Candara",
@@ -197,7 +198,7 @@ export function newDoc(wmm = 210, hmm = 297, opts = {}) {
   const doc = {
     v: 1, w: wmm * MM, h: hmm * MM, margins: { l: 0.5 * 72, t: 0.5 * 72, r: 0.5 * 72, b: 0.5 * 72 }, grid: { cols: 1, rows: 1, gap: 0.2 * 72 },
     scheme: { ...COLOR_SCHEMES[0], c: [...COLOR_SCHEMES[0].c] }, fonts: { ...FONT_SCHEMES[0] }, styles: JSON.parse(JSON.stringify(DEFAULT_STYLES)),
-    masters: [{ id: "A", name: "Pagina master A", items: [] }], pages: [], stories: {}, images: {}, merge: null, _uid: 0, ...opts,
+    masters: [{ id: "A", name: tr("pubmodel.pagina_master"), items: [] }], pages: [], stories: {}, images: {}, merge: null, _uid: 0, ...opts,
   };
   doc.pages.push(newPage(doc));
   return doc;
@@ -306,7 +307,7 @@ export async function readMbpub(bytes) {
   const Z = await jszip();
   const zip = await Z.loadAsync(bytes);
   const f = zip.file("document.json");
-  if (!f) throw new Error("Il file non contiene una pubblicazione (document.json mancante)");
+  if (!f) throw new Error(tr("pubmodel.file_non_contiene_pubblicazione_document"));
   const j = JSON.parse(await f.async("string"));
   const doc = { ...j };
   delete doc.cs; delete doc.ps; delete doc.app; delete doc.format;
@@ -323,7 +324,7 @@ export async function readMbpub(bytes) {
 // valori mancanti (file vecchi o creati da altri programmi)
 export function normalizeDoc(doc) {
   doc.styles = { ...JSON.parse(JSON.stringify(DEFAULT_STYLES)), ...(doc.styles || {}) };
-  doc.masters = doc.masters?.length ? doc.masters : [{ id: "A", name: "Pagina master A", items: [] }];
+  doc.masters = doc.masters?.length ? doc.masters : [{ id: "A", name: tr("pubmodel.pagina_master"), items: [] }];
   doc.pages = doc.pages?.length ? doc.pages : [newPage(doc)];
   for (const p of doc.pages) { p.guides = p.guides || { v: [], h: [] }; if (p.master === undefined) p.master = "A"; p.items = p.items || []; }
   doc.margins = doc.margins || { l: 36, t: 36, r: 36, b: 36 };
