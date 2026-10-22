@@ -18,7 +18,7 @@ from .i18n import t
 from .paths import TEMP_DIR, UI_DIR, find_navisworks, find_nwd2mbv, find_office, find_onlyoffice, find_trueview, tools_status
 
 TOKEN = secrets.token_urlsafe(24)
-COOKIE = "mbv"
+COOKIE = "mbv"  # + porta: ogni copia aperta di MB Visual ha il suo (il cookie di 127.0.0.1 vale per tutte le porte)
 mimetypes.add_type("application/wasm", ".wasm")
 mimetypes.add_type("text/javascript", ".mjs")
 mimetypes.add_type("application/json", ".json")
@@ -55,7 +55,7 @@ class Handler(BaseHTTPRequestHandler):
     # ------------------------------------------------------------ helpers
     def _authorized(self, qs) -> bool:
         cookie = self.headers.get("Cookie", "")
-        if f"{COOKIE}={TOKEN}" in cookie:
+        if f"{COOKIE}{self.server.server_address[1]}={TOKEN}" in cookie:
             return True
         return _q(qs, "t") == TOKEN
 
@@ -175,7 +175,7 @@ class Handler(BaseHTTPRequestHandler):
         extra = {}
         if route in ("/", "/index.html"):
             if _q(qs, "t") == TOKEN:
-                extra["Set-Cookie"] = f"{COOKIE}={TOKEN}; Path=/; SameSite=Strict; HttpOnly"
+                extra["Set-Cookie"] = f"{COOKIE}{self.server.server_address[1]}={TOKEN}; Path=/; SameSite=Strict; HttpOnly"
             elif not self._authorized(qs):
                 return self._send(403, b"Accesso negato", "text/plain")
             route = "/index.html"
