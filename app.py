@@ -23,7 +23,7 @@ elif sys.platform == "darwin" and getattr(sys, "frozen", False) and not sys.stde
     import datetime
     print(f"--- avvio {datetime.datetime.now():%Y-%m-%d %H:%M:%S} {sys.argv}")
 
-VERSION = "1.6.0"
+VERSION = "1.6.1"
 
 # integrazione con Esplora risorse (mbvisual/shellint.py, mbvisual/miniature.py): nessuna finestra, prima degli import pesanti
 if __name__ == "__main__" and "--miniatura" in sys.argv:
