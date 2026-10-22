@@ -1467,7 +1467,7 @@
  "fmt.dicom.name": "Imágenes médicas DICOM",
  "fmt.dicom.view": "Series de la carpeta (o DICOMDIR) con desplazamiento entre cortes y reproducción, ventana/nivel con preajustes de TC, inversión, zoom, medidas de distancia y ángulo, ROI con media/desviación/área, valor del píxel (HU), etiquetas DICOM en tabla con búsqueda; también comprimidos JPEG, JPEG lossless, JPEG-LS, JPEG 2000, RLE y multifotograma",
  "fmt.dwf.edit": "Exportación a PDF vectorial (todas las hojas), SVG y PNG de la hoja abierta",
- "fmt.dwf.name": "Publicaciones Autodesk DWF / DWFx",
+ "fmt.dwf.name": "Publicaciones Autodesk DWF / DWFx y documentos XPS",
  "fmt.dwf.view": "Lista de hojas con miniaturas, hojas 2D vectoriales (W2D y XPS) con zoom/desplazamiento, capas, textos y búsqueda, propiedades de objetos (AutoCAD, Revit, Inventor), marcas de revisión, medidas de distancia y área en unidades del dibujo, modelos 3D W3D en el visor 3D",
  "fmt.ebook.edit": "Sin edición (solo lectura)",
  "fmt.ebook.name": "eBooks",

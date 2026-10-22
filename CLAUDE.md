@@ -743,7 +743,8 @@ I DICOM SENZA estensione (o con nome numerico) si aprono col visualizzatore DICO
   pyarrow Apache-2.0, olefile BSD-2.
 
 ## Autodesk DWF / DWFx (22/10/2026) - FATTO
-Visualizzatore `ui/js/viewers/dwf.js` (categoria `dwf` in formats.json: .dwf .dwfx .w2d), tutto in JS (anche web app), scritto da zero.
+Visualizzatore `ui/js/viewers/dwf.js` (categoria `dwf` in formats.json: .dwf .dwfx .w2d .xps; .xps spostato qui da office-lo perche'
+senza LibreOffice non si apriva; .oxps resta in office-lo, non collaudato), tutto in JS (anche web app), scritto da zero.
 - Pacchetto `ui/js/dwfpkg.js`: DWF 6 (zip dopo "(DWF V06.xx)": JSZip riceve il file intero), DWF <= 5.5 (un solo W2D), DWFx/XPS
   (manifest, descrittori ePlot/eModel, risorse ?dwfresource_N = Canvas della FixedPage). Fogli in coordinate della carta (y in su),
   layer, oggetti (ObjectDefinition 6.0, content.xml + SectionContent 6.2/DWFx, nodi W2D/W2X), marcature (MarkupObjectDefinition),
@@ -764,4 +765,6 @@ Visualizzatore `ui/js/viewers/dwf.js` (categoria `dwf` in formats.json: .dwf .dw
   della shell, il formato dei bit a parole di 32 bit e l'opcode 0xE0; nessun codice copiato).
 - Collaudo (campioni pubblici: repo aspose-cad/Aspose.CAD-for-.NET MIT, kveretennicov/dwf-toolkit samples Autodesk, esempi di
   flyfish-dev/dwf-viewer solo come file di prova): 2D fedeli alle miniature originali; 3D Inventor/Revit/esempi corretti (9.500+ componenti
-  edgebreaker chiuse, 0 errori). Non gestiti: immagini TIFF Group4 (riquadro), macro W2D, NURBS, coordinate texture, normali compresse.
+  edgebreaker chiuse, 0 errori). Texture dei materiali (titolo della risorsa nel descrittore = nome dell'immagine nel flusso; Revit lo usa
+  come colore diffuso, Inventor passa da TKE_Texture) con UV dove ci sono, altrimenti colore medio. Immagini CCITT Group 4: `ui/js/ccittg4.js`
+  (T.6 + TIFF, collaudato con TIFF di Pillow). Non gestiti: macro W2D, NURBS, normali compresse (si ricalcolano).

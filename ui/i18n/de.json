@@ -1467,7 +1467,7 @@
  "fmt.dicom.name": "Medizinische DICOM-Bilder",
  "fmt.dicom.view": "Serien aus dem Ordner (oder DICOMDIR) mit Blättern und Abspielen der Schichten, Fenster/Level mit CT-Vorgaben, Invertierung, Zoom, Abstands- und Winkelmessung, ROI mit Mittelwert/Abweichung/Fläche, Pixelwert (HU), DICOM-Tags in durchsuchbarer Tabelle; auch JPEG-, JPEG-Lossless-, JPEG-LS-, JPEG-2000-, RLE-komprimiert und Multiframe",
  "fmt.dwf.edit": "Export als Vektor-PDF (alle Blätter), SVG und PNG des geöffneten Blatts",
- "fmt.dwf.name": "Autodesk DWF / DWFx-Veröffentlichungen",
+ "fmt.dwf.name": "Autodesk DWF / DWFx-Veröffentlichungen und XPS-Dokumente",
  "fmt.dwf.view": "Blattliste mit Miniaturen, vektorielle 2D-Blätter (W2D und XPS) mit Zoom/Verschieben, Layern, Texten und Suche, Objekteigenschaften (AutoCAD, Revit, Inventor), Prüfmarkierungen, Abstands- und Flächenmessung in Zeichnungseinheiten, W3D-3D-Modelle im 3D-Viewer",
  "fmt.ebook.edit": "Keine Bearbeitung (schreibgeschützt)",
  "fmt.ebook.name": "E-Books",

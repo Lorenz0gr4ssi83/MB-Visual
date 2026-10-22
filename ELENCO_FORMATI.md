@@ -55,14 +55,14 @@ Nell'app lo stesso elenco e' consultabile dal pulsante **Formati**, con la ricer
 
 `.vsd` `.vsdm` `.vsdx` `.vstm` `.vstx`
 
-## Altri documenti Office e OpenDocument (35)
+## Altri documenti Office e OpenDocument (34)
 
 > Richiede **LibreOffice** (gratuito) installato sul PC: https://www.libreoffice.org/download/download/
 
 - **Visualizza:** Conversione in PDF e visualizzazione completa
 - **Modifica:** Esportazione in PDF / DOCX / XLSX / PPTX, poi modifica con il rispettivo editor
 
-`.602` `.abw` `.cdr` `.doc` `.dot` `.fodg` `.fodp` `.fodt` `.hwp` `.key` `.lwp` `.mml` `.odf` `.odg` `.odp` `.odt` `.otg` `.otp` `.ott` `.oxps` `.pages` `.pot` `.pps` `.ppt` `.rtf` `.sxc` `.sxd` `.sxi` `.sxw` `.wpd` `.wps` `.wpt` `.wri` `.xps` `.zabw`
+`.602` `.abw` `.cdr` `.doc` `.dot` `.fodg` `.fodp` `.fodt` `.hwp` `.key` `.lwp` `.mml` `.odf` `.odg` `.odp` `.odt` `.otg` `.otp` `.ott` `.oxps` `.pages` `.pot` `.pps` `.ppt` `.rtf` `.sxc` `.sxd` `.sxi` `.sxw` `.wpd` `.wps` `.wpt` `.wri` `.zabw`
 
 ## Testo e codice sorgente (332)
 
@@ -134,12 +134,12 @@ Nell'app lo stesso elenco e' consultabile dal pulsante **Formati**, con la ricer
 
 `.dwg` `.dwt` `.dxb` `.dxf`
 
-## Pubblicazioni Autodesk DWF / DWFx (3)
+## Pubblicazioni Autodesk DWF / DWFx e documenti XPS (4)
 
 - **Visualizza:** Elenco dei fogli con miniature, fogli 2D vettoriali (W2D e XPS) con zoom/pan, layer, testi e ricerca, proprieta' degli oggetti (AutoCAD, Revit, Inventor), marcature di revisione, misure di distanza e area in unita' del disegno, modelli 3D W3D nel visualizzatore 3D
 - **Modifica:** Esportazione in PDF vettoriale (tutti i fogli), SVG e PNG del foglio aperto
 
-`.dwf` `.dwfx` `.w2d`
+`.dwf` `.dwfx` `.w2d` `.xps`
 
 ## Modelli CAD 3D (STEP, IGES, BREP) (8)
 
