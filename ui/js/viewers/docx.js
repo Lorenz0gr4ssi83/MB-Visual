@@ -11,6 +11,14 @@ export async function mount(ctx) {
   const wrap = el("div", { class: "doc-wrap" });
   ctx.el.append(wrap);
   let mode = "view", editor = null;
+  // schermo piu' stretto della pagina (telefono): la pagina si riduce alla larghezza disponibile invece di uscire dai lati
+  function fitWidth(host) {
+    host.style.zoom = "";
+    const page = Math.max(0, ...[...host.querySelectorAll("section.docx")].map(s => s.offsetWidth));
+    const avail = wrap.clientWidth - 16;
+    if (page && avail > 0 && page + 60 > avail) host.style.zoom = String(Math.max(0.3, avail / (page + 20)));
+  }
+  new ResizeObserver(() => { if (mode === "view" && wrap.firstChild) fitWidth(wrap.firstChild); }).observe(wrap);
 
   async function showView() {
     mode = "view";
@@ -18,6 +26,7 @@ export async function mount(ctx) {
     const host = el("div");
     wrap.append(host);
     await window.docx.renderAsync(bytes.buffer.slice(0), host, null, { inWrapper: true, ignoreLastRenderedPageBreak: false, experimental: true, renderHeaders: true, renderFooters: true, renderFootnotes: true });
+    fitWidth(host);
     viewBtn.classList.add("on");
     editBtn.classList.remove("on");
     fmt.hidden = true;

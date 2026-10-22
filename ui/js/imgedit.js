@@ -168,6 +168,9 @@ export function createEditor(ctx, init) {
   const fgIn = el("input", { type: "color", class: "ps-hidden-color", id: "ps-fg-" + ctx.tab.name });
   const bgIn = el("input", { type: "color", class: "ps-hidden-color", id: "ps-bg-" + ctx.tab.name });
   root.append(fgIn, bgIn);
+  // telefono: i pannelli coprirebbero tutta l'immagine -> partono chiusi e si aprono come foglio in basso (pulsante Livelli)
+  if (matchMedia("(max-width: 760px)").matches) { panels.hidden = true; root.classList.add("ps-nopanels"); }
+  root.append(el("button", { type: "button", class: "ps-mpanels", onclick: () => togglePanels() }, tr("imgedit.livelli")));
 
   // ------------------------------------------------------------ vista: zoom e spostamento
   let zoom = 1, panX = 0, panY = 0, autoFit = true, hover = null, antPhase = 0, cssW = 0, cssH = 0;

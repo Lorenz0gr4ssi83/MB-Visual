@@ -28,7 +28,7 @@ function d1(db) {
   };
 }
 // file statici dell'app per cellulari (binding ASSETS) letti da una cartella
-const TYPES = { html: "text/html; charset=utf-8", js: "text/javascript", css: "text/css", json: "application/json", png: "image/png", webmanifest: "application/manifest+json", wasm: "application/wasm", svg: "image/svg+xml" };
+const TYPES = { html: "text/html; charset=utf-8", js: "text/javascript", mjs: "text/javascript", css: "text/css", json: "application/json", png: "image/png", webmanifest: "application/manifest+json", wasm: "application/wasm", svg: "image/svg+xml", woff2: "font/woff2", ftl: "text/plain; charset=utf-8" };
 function assets(dir) {
   return { fetch: async req => {
     let p = decodeURIComponent(new URL(req.url).pathname);

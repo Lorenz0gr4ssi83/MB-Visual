@@ -10,10 +10,10 @@ export async function mount(ctx) {
   let editing = false;
   let current = 0;
 
-  const thumbs = el("div", { style: { padding: "10px", display: "grid", gap: "10px", alignContent: "start" } });
+  const thumbs = el("div", { class: "pp-thumbs", style: { padding: "10px", display: "grid", gap: "10px", alignContent: "start" } });
   const stage = el("div", { style: { padding: "20px", display: "grid", justifyItems: "center", gap: "12px", alignContent: "start" } });
   const notes = el("div", { class: "panel", style: { width: "min(100%, 960px)", whiteSpace: "pre-wrap", fontSize: "13px" } });
-  ctx.el.append(el("div", { class: "side", style: { gridTemplateColumns: "200px 1fr" } }, thumbs, stage));
+  ctx.el.append(el("div", { class: "side pp-side", style: { gridTemplateColumns: "200px 1fr" } }, thumbs, stage));
   ctx.fillBody(true);
 
   // valori predefiniti del modello Office per i segnaposto (quando la diapositiva non li specifica)

@@ -244,6 +244,7 @@ input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color:
 .seg button.on svg { color: var(--accent-fg); }
 .body { position: relative; min-height: 0; overflow: auto; }
 .body.fill { overflow: hidden; }
+.view > .body { grid-row: 2; } /* anche con la barra vuota (nascosta) il documento occupa tutta l altezza */
 .center { display: grid; place-items: center; height: 100%; padding: 24px; text-align: center; color: var(--muted); }
 .spinner { width: 34px; height: 34px; border: 2.5px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 14px; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -483,7 +484,8 @@ iframe.fill, canvas.fill, video.fill { width: 100%; height: 100%; border: 0; dis
   .tb { flex-wrap: nowrap; overflow-x: auto; gap: 4px; }
   .tb .note, .tb .grow { display: none; }
   .tb button { height: 34px; }
-  .side, .model-side { grid-template-columns: 1fr !important; grid-template-rows: minmax(0, 36%) minmax(0, 1fr); }
+  .side, .model-side { grid-template-columns: 1fr !important; grid-template-rows: auto minmax(0, 1fr); }
+  .side > :first-child, .model-side > :first-child { max-height: 34vh; overflow: auto; } /* elenco corto = poco spazio, lungo = scorre */
   .side > :first-child { border-right: 0; border-bottom: 1px solid var(--line); }
   .split { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
   .split > * + * { border-left: 0; border-top: 1px solid var(--line); }
@@ -501,6 +503,20 @@ iframe.fill, canvas.fill, video.fill { width: 100%; height: 100%; border: 0; dis
   .editable-doc { padding: 24px 18px; }
   .modal { width: 96vw; padding: 18px; }
   .toast { left: 12px; right: 12px; bottom: 64px; }
+  /* telefono: le schede tengono il nome leggibile e la barra scorre (prima si stringevano a "r...") */
+  .tabs { padding-left: 4px; }
+  .tab { flex: none; min-width: 0; max-width: 150px; padding-left: 10px; gap: 6px; }
+  .home-tab .name, .tab .badge { display: none; }
+  .tab.active .badge { display: inline-flex; }
+  /* finestre pensate per il PC: niente larghezze minime fisse oltre lo schermo; tabelle che scorrono dentro la finestra */
+  .modal [style*="min-width"] { min-width: 0 !important; }
+  .modal .grid-table { display: block; overflow-x: auto; white-space: nowrap; }
+  .modal .grid-table th, .modal .grid-table td { padding: 5px 10px 5px 0; }
+  .modal .row .btn { padding: 0 12px; }
+  /* PowerPoint: miniature in una striscia orizzontale sopra la diapositiva */
+  .side.pp-side { grid-template-rows: auto minmax(0, 1fr); }
+  .pp-thumbs { grid-auto-flow: column; grid-auto-columns: max-content; overflow-x: auto; overflow-y: hidden; }
+  .pp-thumbs .paper { zoom: .55; }
 }
 
 /* Editor CAD: barra multifunzione come AutoCAD (schede, pannelli con titolo sotto, pulsanti grandi e piccoli),
@@ -571,6 +587,16 @@ iframe.fill, canvas.fill, video.fill { width: 100%; height: 100%; border: 0; dis
 .ps-root.ps-nopanels { grid-template-columns: 44px 1fr 0; }
 .ps-root.ps-full { grid-template-columns: 0 1fr 0; grid-template-rows: 0 1fr; }
 .ps-root.ps-full .ps-options, .ps-root.ps-full .ps-tools, .ps-root.ps-full .ps-panels { display: none; }
+.ps-mpanels { display: none; }
+@media (max-width: 760px) {
+  .ps-root, .ps-root.ps-nopanels { grid-template-columns: 44px 1fr 0; }
+  .ps-root .ps-panels { grid-area: auto; position: absolute; left: 44px; right: 0; bottom: 0; height: 55%; z-index: 5; border-left: 0; border-top: 1px solid var(--line-strong); box-shadow: var(--sh-3); }
+  .ps-root.ps-nopanels .ps-panels { display: none; }
+  .ps-mpanels { display: inline-flex; align-items: center; position: absolute; right: 10px; bottom: 10px; z-index: 6; height: 32px; padding: 0 14px; border: 0; border-radius: 16px;
+    background: var(--panel-2); color: var(--fg); box-shadow: var(--sh-2); font: 500 13px var(--ui); }
+  .ps-root:not(.ps-nopanels) .ps-mpanels { bottom: calc(55% + 10px); }
+  .ps-root.ps-full .ps-mpanels { display: none; }
+}
 .ps-options { grid-area: opts; display: flex; align-items: center; gap: 6px; min-height: 38px; padding: 3px 10px; background: var(--panel); border-bottom: 1px solid var(--line); overflow-x: auto; white-space: nowrap; font-size: 12px; }
 .ps-options .grow { flex: 1; }
 .ps-otool { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 4px; }
@@ -733,6 +759,15 @@ iframe.fill, canvas.fill, video.fill { width: 100%; height: 100%; border: 0; dis
 .nf-single .nf-thumb { width: 150px; height: 138px; }
 .nf-single .nf-app { width: 38px; height: 38px; }
 .nf-single .nf-name { font-size: 14px; }
+@media (max-width: 760px) {
+  .nf-grid, .nf-single .nf-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 12px; }
+  .nf-pic, .nf-single .nf-pic { height: 92px; }
+  .nf-thumb, .nf-single .nf-thumb { width: 84px; height: 76px; }
+  .nf-single .nf-app { width: 28px; height: 28px; }
+  .nf-single .nf-name { font-size: 13px; }
+  .nf-foot { height: auto; min-height: 58px; padding: 8px 12px max(8px, env(safe-area-inset-bottom, 0px)); }
+  .nf-info { flex: 1; min-width: 0; font-size: 12px; }
+}
 .nf-hint { color: var(--muted); font-size: 12.5px; }
 .nf-box:has(.nf-single) { height: auto; max-height: 100%; }
 

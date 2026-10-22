@@ -75,3 +75,15 @@
 .fx-thumbs { display: flex; gap: 10px; flex-wrap: wrap; }
 .fx-thumbs img { max-height: 120px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
 .fx-text { white-space: pre-wrap; font-size: 13.5px; line-height: 1.55; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; max-height: 60vh; overflow: auto; }
+/* telefono: i pannelli laterali vanno sotto (o sopra) invece di schiacciare il contenuto in una striscia */
+@media (max-width: 760px) {
+  .fx-split.with-right { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 40%); }
+  .fx-split.with-left { grid-template-columns: 1fr; grid-template-rows: minmax(0, 32%) minmax(0, 1fr); }
+  .fx-split.with-left.with-right { grid-template-columns: 1fr; grid-template-rows: minmax(0, 26%) minmax(0, 1fr) minmax(0, 34%); }
+  .fx-split > * + * { border-left: 0 !important; border-top: 1px solid var(--line); }
+  .cal-month .dow { padding: 4px 2px; font-size: 10px; text-align: center; letter-spacing: 0; }
+  .cal-day { min-height: 62px; padding: 2px; }
+  .cal-day .n { font-size: 11px; }
+  .cal-ev { font-size: 10px; padding: 0 2px; border-left-width: 2px; }
+  .cal-more { font-size: 10px; }
+}

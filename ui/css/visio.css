@@ -141,5 +141,6 @@
 @media (max-width: 760px) {
   .vs-main { grid-template-columns: 0 minmax(0, 1fr) 0 !important; }
   .vs-left, .vs-right { display: none; }
+  .vs-canvas { grid-column: 2; } /* senza i pannelli laterali il disegno finiva nella colonna larga 0 (schermo vuoto) */
   .vs-find { right: 8px; left: 8px; width: auto; }
 }
