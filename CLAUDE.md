@@ -999,3 +999,38 @@ Solo app per PC. Il risultato si apre subito nell'editor CAD. DWG solo con ODA F
 - Da provare con le tavole vere dell'utente (AutoCAD/Revit, scansioni A1/A0): PDF con testi SHX (tratti + testo nascosto),
   archi spezzati in segmenti, retini a tratteggio (restano linee), scansioni a colori/cianografie, testi inclinati (l'OCR di Windows
   legge solo orizzontale e verticale).
+## Posta elettronica in stile Outlook (22/10/2026) - IN CORSO (tappa 1 fatta: IMAP/SMTP, PEC, interfaccia, commesse)
+Scheda "Posta" (pulsante busta nella barra laterale, `MB.openMail()`; percorso virtuale `mail://posta`, i messaggi nuovi
+`mail://scrivi/<n>` con il visualizzatore `mailcompose`). Solo app per PC. Guida utente: `ui/guide/posta.md`.
+- Motore `mbvisual/mail/` (API unica `api/mail?op=...` -> `mail/api.py handle`; errori MailError/ValueError = `{ok:false}`):
+  `vault.py` chiave AES-256 in posta/chiave.bin protetta DPAPI, blob AES-GCM (MBV1+nonce+zlib); `store.py` indice SQLite IN
+  MEMORIA salvato cifrato in posta/indice.bin 3 s dopo le modifiche (serialize/deserialize; FTS5 subject/people/body/atts) +
+  messaggi completi cifrati in posta/msg/<aa>/<sha256>.bin; `accounts.py` account.json (senza segreti) + segreti.bin, preset
+  PEC (Aruba, Legalmail, Namirial, Postecert/Postecertifica, Register, Actalis, Libero, TIM) e caselle comuni, autoconfig
+  (preset -> autoconfig del dominio -> ISPDB Thunderbird -> MX con nslookup -> Autodiscover POX -> nomi tipici);
+  `imapc.py` imaplib (+XOAUTH2, UTF-7 modificato, parser FETCH, MOVE/COPYUID/APPENDUID, ruoli SPECIAL-USE o dai nomi);
+  `compose.py` MIME (immagini data: -> cid, inviti text/calendar come alternativa) e SMTP; `parse.py` riepilogo/lettura,
+  PEC (X-Ricevuta, X-Trasporto, X-Riferimento-Message-ID, daticert.xml, postacert.eml anche in busta S/MIME opaca);
+  `engine.py` un thread per account + pianificatore, operazioni in coda (tabella ops: flags/move/expunge/append/cartelle)
+  applicate subito in locale e sul server quando c'e' rete, posta in uscita con invio programmato, conversazioni
+  (References/In-Reply-To, poi oggetto normalizzato entro 60 giorni), stato PEC del messaggio inviato (`pec_status`:
+  accettazione, consegne/errori per destinatario certificato, esterni) salvato in messages.pec_state; `ver` cambia solo
+  con i dati (lo stato degli account no); `rules.py` regole + commessa automatica se certa; `commesse.py` archiviazione in
+  <cartella>/<sottocartella "Posta">/<data ora> <oggetto>/ (.eml + allegati; PEC con daticert e "Ricevute PEC");
+  `bigfile.py` invii grandi come link (OneDrive createLink anonimo 30 gg -> organizzazione, Drive permesso anyone, Dropbox
+  shared link: aggiunto sharing.write agli ambiti di cloud.py); `ical.py` + `calapi.py` risposte agli inviti (REPLY
+  all'organizzatore + evento nel calendario dell'account).
+- Interfaccia `ui/js/mail/`: `mailapp.js` (cartelle/preferiti/PEC/commesse/account, elenco virtuale a righe da 74 px con
+  conversazioni espandibili, filtri, ricerca con operatori, menu, trascinamento su cartelle e commesse, notifiche e
+  promemoria, tasti di Outlook con `keymap`), `mailread.js` (iframe sandbox allow-same-origin senza script + CSP che
+  blocca le immagini remote; proxy `op=img`; cid -> `op=part`; avviso link ingannevoli; PEC; inviti; allegati in anteprima
+  con `MB.mountPreview` = stesso visualizzatore delle schede montato in un riquadro), `compose.js`, `mailsettings.js`,
+  `mailicons.js`, `ui/css/mail.css`. In app.js: `openMail`, `mountPreview`, `closeTab` in window.MB, scheda mail:// senza file.
+  Le appendici con figli opzionali usano `ap()` (DOM append scriverebbe "null").
+- Testi: chiavi `mail.*` e `srv_mail.*` nelle 5 lingue.
+- Prove: `python tests/test_mail.py` (73 prove, archivio in cartella temporanea, server di prova `tests/mailserver.py` IMAP+SMTP
+  con gestore PEC simulato `tests/pecsim.py`: buste e ricevute firmate S/MIME, daticert); interfaccia: `python tests/mail_demo.py`
+  (stampa l'indirizzo; account mario@studio.prova.it e studio@pec.prova.it, password "prova").
+- DA FARE (tappe successive): Microsoft 365 via Graph e Gmail con OAuth (riuso degli ID di cloud.py; nell'interfaccia
+  `OAUTH_READY` in mailsettings.js), calendario e contatti (CalDAV/CardDAV, Graph; `CAL_READY` in mailapp.js),
+  conferme di lettura in uscita. Account veri: li prova l'utente.

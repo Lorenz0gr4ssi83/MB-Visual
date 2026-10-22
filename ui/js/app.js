@@ -17,6 +17,7 @@ const VIEWER_NAMES = {
   solidcad: tr("app.solidworks_solid_edge"), recover: tr("app.recupero_file"),
   dicom: tr("app.immagine_medica_dicom"), calendar: tr("app.calendario"), contacts: tr("app.contatti"), cert: tr("app.certificato_digitale"),
   iwork: "Apple iWork", hpgl: tr("app.plotter_hpgl"), scidata: tr("app.dati_scientifici"), revit: "Revit",
+  mail: tr("mail.posta"), mailcompose: tr("mail.nuovo_messaggio"),
 };
 // documenti che sul PC si aprono nell'editor ONLYOFFICE integrato (modifica completa come nei programmi originali)
 const OO_EXTS = new Set(["docx", "docm", "dotx", "dotm", "doc", "dot", "rtf", "odt", "ott", "fodt", "xlsx", "xlsm", "xltx", "xltm", "xls", "xlt", "ods", "fods", "csv",
@@ -96,6 +97,8 @@ export function badgeFor(name, isDir = false) {
 // ------------------------------------------------------------------ schede
 const ICON_HOME = '<svg viewBox="0 0 24 24"><path d="M4 11l8-6 8 6v9H4zM10 20v-5h4v5"/></svg>';
 const ICON_X = '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const ICON_MAIL = '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/></svg>';
+const ICON_MAIL_NEW = '<svg viewBox="0 0 24 24"><path d="M20 12.5V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h8.5"/><path d="M3.5 6.5l8.5 6.5 3-2.3M18 3.5l2.5 2.5-5 5H13V8.5z"/></svg>';
 const ICON_FORMATS = '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>';
 function renderTabs() {
   const box = $("tabs");
@@ -106,9 +109,9 @@ function renderTabs() {
   box.append(el("div", { class: "tab home-tab" + (atHome ? " active" : ""), role: "tab", title: tr("app.home_trascina_qui_i_file"), onclick: () => activate(null) },
     el("span", { html: ICON_HOME }), el("span", { class: "name" }, tr("app.home"))));
   for (const t of tabs) {
-    const b = el("div", { class: "tab" + (t === active && !fmtOpen ? " active" : ""), role: "tab", title: t.path, onclick: () => activate(t) },
-      badgeFor(t.info?.nome || t.name),
-      el("span", { class: "name" }, t.name + (t.forced ? "  ·  " + VIEWER_NAMES[t.viewer] : "")),
+    const b = el("div", { class: "tab" + (t === active && !fmtOpen ? " active" : ""), role: "tab", title: t.path.startsWith("mail://") ? t.name : t.path, onclick: () => activate(t) },
+      t.path.startsWith("mail://") ? el("span", { html: t.viewer === "mail" ? ICON_MAIL : ICON_MAIL_NEW }) : badgeFor(t.info?.nome || t.name),
+      el("span", { class: "name" }, t.name + (t.forced && !t.path.startsWith("mail://") ? "  ·  " + VIEWER_NAMES[t.viewer] : "")),
       t.dirty ? el("span", { class: "dot", title: tr("app.modifiche_non_salvate") }) : null,
       el("button", { class: "x", title: tr("common.chiudi"), html: ICON_X, onclick: e => { e.stopPropagation(); closeTab(t); } }));
     b.addEventListener("auxclick", e => { if (e.button === 1) closeTab(t); });
@@ -122,26 +125,29 @@ function renderTabs() {
     el("span", { html: ICON_X }))); // solo icona: piu' spazio ai nomi dei file (il testo e' nel suggerimento)
   box.querySelector(".tab.active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
   const has = !!active;
-  for (const id of ["btn-as", "btn-folder", "btn-external", "btn-info"]) $(id).disabled = !has;
+  const isFile = has && !active.path.startsWith("mail://");
+  for (const id of ["btn-as", "btn-folder", "btn-external", "btn-info"]) $(id).disabled = !isFile;
   $("home").hidden = has || fmtOpen;
   $("views").hidden = !has || fmtOpen;
   document.body.classList.toggle("at-home", atHome);
   $("btn-home").classList.toggle("on", atHome);
+  $("btn-mail")?.classList.toggle("on", !!active && active.viewer === "mail" && !fmtOpen);
   updateStatus();
   try { window.pywebview?.api?.set_dirty?.(tabs.filter(t => t.dirty).length); } catch { /* */ } // per la domanda alla chiusura
 }
 
 function updateStatus() {
   const t = active;
-  $("st-path").textContent = t ? (t.path.startsWith("web://") ? t.info?.nome || t.name : t.path) : tr("app.pronto");
+  const virt = t && (t.path.startsWith("web://") || t.path.startsWith("mail://"));
+  $("st-path").textContent = t ? (virt ? t.info?.nome || t.name : t.path) : tr("app.pronto");
   $("st-type").textContent = t ? VIEWER_NAMES[t.viewer] + (t.info?.sniff?.descr ? " · " + t.info.sniff.descr : "") : "";
-  $("st-size").textContent = t ? fmtSize(t.info?.size) : "";
+  $("st-size").textContent = t && !t.path.startsWith("mail://") ? fmtSize(t.info?.size) : "";
   $("st-extra").textContent = t?.extra || "";
   // percorso del file attivo a destra nella barra comandi: due cartelle e il nome
   const cr = $("crumb");
   cr.innerHTML = "";
   const fmt = !$("formats").hidden;
-  const parts = t && !fmt && !t.path.startsWith("web://") && !t.untitled ? t.path.split(/[\\/]/).filter(Boolean) : [];
+  const parts = t && !fmt && !virt && !t.untitled ? t.path.split(/[\\/]/).filter(Boolean) : [];
   const segs = parts.length ? parts.slice(-3) : [fmt ? tr("idx.formati") : t ? t.name : tr("app.home")];
   if (!parts.length) segs.unshift("MB Visual");
   segs.forEach((s, i) => {
@@ -502,7 +508,8 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   const existing = tabs.find(t => t.path === path && (!forcedViewer || t.viewer === forcedViewer));
   if (existing && !extraCtx.fresh) return activate(existing);
   let info;
-  try { info = await api("info", { path }); } catch (e) { return toast(tr("app.impossibile_aprire") + e.message, true); }
+  if (path.startsWith("mail://")) info = { nome: extraCtx.displayName || tr("mail.posta"), size: 0, modificato: 0, scrivibile: true }; // posta: scheda senza file (ui/js/mail)
+  else try { info = await api("info", { path }); } catch (e) { return toast(tr("app.impossibile_aprire") + e.message, true); }
   if (info.nuvola) {
     // file solo su OneDrive: si scarica solo con conferma; se il download viene annullato l'apertura si ferma
     const ok = await confirmBox(tr("app.file_solo_onedrive"), tr("app.0_1_non_ancora_questo", info.nome, fmtSize(info.size)), tr("app.scarica_apri"));
@@ -539,7 +546,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   const tab = { path, name, viewer, forced: !!forcedViewer, info, view, dirty: false, extra: "", cat, compareWith: extraCtx.compareWith };
   tabs.push(tab);
   activate(tab);
-  if (!extraCtx.untitled) remember(path);
+  if (!extraCtx.untitled && !path.startsWith("mail://")) remember(path);
   const ctx = {
     path, name, ext, info, cat, el: body, tb, tab, tools: TOOLS, registry: REG,
     reason: !cat && !forcedViewer ? "unlisted" : null, recovery, ...extraCtx,
@@ -558,6 +565,42 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
     console.error(e);
     showError(ctx, e);
   }
+}
+
+// anteprima di un file dentro un pannello di un altro visualizzatore (es. allegati nella lettura della posta): stesso
+// visualizzatore delle schede, senza aprire una scheda. host deve essere posizionato (position: relative).
+export async function mountPreview(path, host, extra = {}) {
+  await READY;
+  const info = await api("info", { path });
+  const { cat } = resolveCategory(info.nome, info.sniff);
+  const ext = extFor(info.nome);
+  let viewer = cat ? cat.viewer : "hex";
+  if (!WEB && TOOLS.onlyoffice && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
+  if (!WEB && TOOLS.nwdreader && ["nwd", "nwc", "nwf"].includes(ext)) viewer = "model3d";
+  viewer = await gisViewer(path, ext, viewer);
+  host.innerHTML = "";
+  const tb = el("div", { class: "tb" });
+  const body = el("div", { class: "body" });
+  const view = el("div", { class: "view preview-view" }, tb, body);
+  host.append(view);
+  const tab = { path, name: info.nome, viewer, info, view: extra.ownerView || view, dirty: false, extra: "", cat, preview: true };
+  const ctx = {
+    path, name: info.nome, ext, info, cat, el: body, tb, tab, tools: TOOLS, registry: REG, reason: cat ? null : "unlisted", ...extra,
+    setDirty() { /* anteprima: niente salvataggi */ }, status() { /* */ }, openPaths, openAs: v => openFile(path, v), openFile,
+    fillBody(fill = true) { body.classList.toggle("fill", fill); },
+  };
+  try {
+    const mod = await import(`./viewers/${viewer}.js`);
+    tab.api = (await mod.mount(ctx)) || {};
+  } catch (e) { console.error(e); showError(ctx, e); }
+  return { tab, viewer, name: VIEWER_NAMES[viewer] || viewer, dispose() { try { tab.api?.dispose?.(); } catch { /* */ } view.remove(); } };
+}
+
+// posta elettronica (ui/js/mail): una scheda sola, riattivata se gia' aperta
+export function openMail(opts = {}) {
+  const t = tabs.find(x => x.viewer === "mail");
+  if (t) { activate(t); if (opts.go) t.api?.go?.(opts.go); return t; }
+  return openFile("mail://posta", "mail", { displayName: tr("mail.posta"), ...opts });
 }
 
 // GeoTIFF e zip con shapefile si aprono nella mappa GIS (ui/js/viewers/gis.js); gli altri TIFF e ZIP restano immagini e archivi
@@ -622,6 +665,10 @@ async function save(asNew) {
 }
 
 async function doSave(t, a, target) {
+  if (t.path.startsWith("mail://")) { // messaggio in composizione: "salva" = bozza (ui/js/mail/compose.js)
+    try { await a.save(target); t.dirty = false; renderTabs(); } catch (e) { toast(e.message, true, 6000); }
+    return;
+  }
   try {
     const res = (await a.save(target)) || {};
     t.dirty = false;
@@ -724,7 +771,7 @@ async function syncStat(t) {
 
 // un file aperto e salvato da un altro programma (Excel, Word, AutoCAD...) si ricarica da solo
 async function checkExternalChange(t) {
-  if (!t || WEB || !t.info || t.reloading || t.checking || t.path.startsWith("web://") || t.path.startsWith("download://")) return;
+  if (!t || WEB || !t.info || t.reloading || t.checking || t.path.startsWith("web://") || t.path.startsWith("download://") || t.path.startsWith("mail://")) return;
   t.checking = true;
   try {
     let s;
@@ -946,6 +993,8 @@ function openPalette() {
     c(ICON_I("M3 6h6l2 2h10v11H3zM3 10h18"), tr("app.cartella_progetto"), "", chooseExplorerFolder, !WEB),
     c(ICON_I("M11 17.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM16 16l4.5 4.5"), tr("search.cerca_titolo"), "Ctrl+Shift+F", () => import("./search.js").then(m => m.toggle(true)), !WEB),
     c(ICON_FORMATS, tr("idx.elenco_completo_formati_supportati"), "", () => { if ($("formats").hidden) toggleFormats(); }),
+    c(ICON_MAIL, tr("mail.posta_titolo"), "", () => openMail(), !WEB),
+    c(ICON_MAIL_NEW, tr("mail.nuovo_messaggio"), "", () => import("./mail/mailapp.js").then(m => m.newMessage()), !WEB),
     c(ICON_I("M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18"), tr("app.firma_digitale"), "", () => import("./firma.js").then(f => f.signDialog({ path: active.path, openFile })), !WEB && !!active?.path),
     c(ICON_TODRAW, tr("todrawing.converti_disegno_menu"), "", () => toDrawing(), canToDrawing(active)),
     c(ICON_I("M4 4h7v16H4zM13 4h7v16h-7M8 9l-2 2 2 2M16 9l2 2-2 2"), tr("app.confronta_con"), "", compareWith, has && active.viewer !== "compare" && COMPARE_EXT.test(extOf(active.info?.nome || active.name))),
@@ -1067,6 +1116,7 @@ async function boot() {
   $("btn-formats").addEventListener("click", toggleFormats);
   $("btn-home").addEventListener("click", () => activate(null));
   $("btn-search").addEventListener("click", () => import("./search.js").then(m => m.toggle()));
+  $("btn-mail").addEventListener("click", () => openMail());
   $("btn-keys").addEventListener("click", showShortcuts);
   $("btn-palette").addEventListener("click", openPalette);
   document.addEventListener("click", e => { if (!e.target.closest(".menu-wrap")) closeMenus(); });
@@ -1087,5 +1137,5 @@ async function boot() {
   renderTabs();
 }
 
-window.MB = { openPaths, openFile, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, get exDir() { return exDir; }, activate, modal, askQuit, print: doPrint };
+window.MB = { openPaths, openFile, openMail, mountPreview, closeTab, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, get exDir() { return exDir; }, activate, modal, askQuit, print: doPrint };
 const READY = boot();

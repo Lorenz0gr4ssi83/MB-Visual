@@ -832,6 +832,23 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, data, hdr.pop("Content-Type", "application/octet-stream"), {**hdr, "Access-Control-Expose-Headers": "*"})
         self._json(r)
 
+    # ------------------------------------------------------------ posta elettronica (mbvisual/mail, ui/js/mail)
+    def api_mail(self, qs):
+        from .mail import api as mailapi
+        q = {k: v[0] for k, v in qs.items()}
+        b = self._body_json() if self.command == "POST" else {}
+        try:
+            r = mailapi.handle(q.get("op", ""), q, b)
+        except Exception as e:  # noqa: BLE001 - errori del motore della posta come messaggio leggibile
+            from .mail.imapc import MailError
+            if not isinstance(e, (MailError, ValueError, KeyError)):
+                raise
+            return self._json({"ok": False, "errore": str(e), "auth": getattr(e, "auth", False), "offline": getattr(e, "offline", False)}, 200)
+        if isinstance(r, tuple):
+            data, hdr = r
+            return self._send(200, data, hdr.pop("Content-Type", "application/octet-stream"), hdr)
+        self._json(r)
+
     # ------------------------------------------------------------ email / sqlite
     def api_email(self, qs):
         self._json(misc.read_email(self._path(qs)))
