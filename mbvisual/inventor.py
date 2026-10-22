@@ -544,7 +544,7 @@ def convert_part(path: str, cache_root: str) -> dict:
                 info["step"] = step
             info["rapporto"], info["mancanti"] = rep["report"], rep["missing"]
         else:
-            info["mancanti"] = {tr("srv_inventor.geometria_3d_non_trovata_file"): 1}
+            info["mancanti"] = {"geometria 3D non trovata nel file": 1}  # chiave tradotta nell'interfaccia (inventor3d.js)
     finally:
         inv.close()
     with open(info_path, "w", encoding="utf-8") as f:
@@ -659,7 +659,7 @@ def convert(path: str, cache_root: str, update=None) -> dict:
                 parts[k] = convert_part(p, cache_root)
             except Exception as e:  # noqa: BLE001 - una parte illeggibile non ferma l'assieme
                 parts[k] = {"file": p, "nome": os.path.splitext(os.path.basename(p))[0], "step": None,
-                            "errore": str(e), "gruppi": [], "mancanti": {tr("srv_inventor.file_non_leggibile"): 1}}
+                            "errore": str(e), "gruppi": [], "mancanti": {"file non leggibile": 1}}
         return k
 
     def assembly(p, depth, seen):

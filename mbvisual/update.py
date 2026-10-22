@@ -320,7 +320,7 @@ def _apply_github(rel: dict, update=None) -> dict:
             f.write(chunk)
             done += len(chunk)
             if update:
-                update(0.95 * done / total, f"Scaricamento: {done / 1048576:.0f} di {total / 1048576:.0f} MB")
+                update(0.95 * done / total, t("srv_update.scaricamento_mb", f"{done / 1048576:.0f}", f"{total / 1048576:.0f}"))
     if rel.get("byte") and setup.stat().st_size != rel["byte"]:
         raise ValueError(t("srv_update.scaricamento_incompleto_riprova"))
     if update:
@@ -403,7 +403,7 @@ def install(update=None, integrazione=False) -> dict:
             _log(f"collegamenti non creati: {e}")
         if integrazione:  # miniature, anteprime e "Apri con" in Esplora (mbvisual/shellint.py) con l'exe installato
             if update:
-                update(0.99, "Integrazione con Esplora risorse")
+                update(0.99, t("srv_update.integrazione_esplora"))
             try:
                 subprocess.run([str(exe), "--integrazione", "attiva"], timeout=300, creationflags=0x08000000)
             except Exception as e:  # noqa: BLE001

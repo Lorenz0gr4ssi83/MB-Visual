@@ -70,9 +70,23 @@ function propRows(part, extra) {
   return rows;
 }
 
+// voci del rapporto del motore (acis_step.py, inventor.py): chiavi italiane fisse, tradotte solo qui
+const MISS = {
+  "facce con spigoli non convertibili": "r_facce_spigoli", "facce non leggibili": "r_facce_non_leggibili",
+  "geometria 3D non trovata nel file": "r_geometria_mancante", "file non leggibile": "r_file_non_leggibile",
+};
+function missLabel(k) {
+  if (MISS[k]) return tr("inventor3d." + MISS[k]);
+  let m = /^blocco non leggibile \((.*)\)$/.exec(k);
+  if (m) return tr("inventor3d.r_blocco", m[1]);
+  m = /^(superficie|curva) (.*)$/.exec(k);
+  if (m) return tr("inventor3d.r_" + m[1], m[2]);
+  return k;
+}
+
 function summary(rep, miss) {
-  const tot = rep?.[tr("inventor3d.facce_totali")] || 0, ok = rep?.[tr("inventor3d.facce_convertite")] || 0;
-  return { tot, ok, miss: Object.entries(miss || {}).map(([k, v]) => `${k}: ${v}`) };
+  const tot = rep?.["facce totali"] || 0, ok = rep?.["facce convertite"] || 0;
+  return { tot, ok, miss: Object.entries(miss || {}).map(([k, v]) => `${missLabel(k)}: ${v}`) };
 }
 
 export async function loadInventor(ctx, ld, info) {
