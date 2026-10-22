@@ -999,7 +999,7 @@ Solo app per PC. Il risultato si apre subito nell'editor CAD. DWG solo con ODA F
 - Da provare con le tavole vere dell'utente (AutoCAD/Revit, scansioni A1/A0): PDF con testi SHX (tratti + testo nascosto),
   archi spezzati in segmenti, retini a tratteggio (restano linee), scansioni a colori/cianografie, testi inclinati (l'OCR di Windows
   legge solo orizzontale e verticale).
-## Posta elettronica in stile Outlook (22/10/2026) - IN CORSO (tappe 1-2 fatte: IMAP/SMTP, PEC, interfaccia, commesse, Microsoft 365 e Gmail)
+## Posta elettronica in stile Outlook (22/10/2026) - IN CORSO (tappe 1-3 fatte: IMAP/SMTP, PEC, interfaccia, commesse, Microsoft 365 e Gmail, calendario e contatti)
 Scheda "Posta" (pulsante busta nella barra laterale, `MB.openMail()`; percorso virtuale `mail://posta`, i messaggi nuovi
 `mail://scrivi/<n>` con il visualizzatore `mailcompose`). Solo app per PC. Guida utente: `ui/guide/posta.md`.
 - Motore `mbvisual/mail/` (API unica `api/mail?op=...` -> `mail/api.py handle`; errori MailError/ValueError = `{ok:false}`):
@@ -1040,11 +1040,22 @@ Scheda "Posta" (pulsante busta nella barra laterale, `MB.openMail()`; percorso v
   POST /me/messages MIME, invio /me/sendMail MIME (<3,5 MB) o bozza JSON + upload session + /send. Gmail = IMAP/SMTP
   XOAUTH2 (salva_inviati false: la copia locale in Inviata si aggancia a quella del server per Message-ID).
   Collaudo `python tests/test_mail_oauth.py` (25 prove: finto OAuth, finto Graph per la posta, server di prova con XOAUTH2).
-- DA FARE (tappe successive): calendario e contatti (CalDAV/CardDAV, Graph; `CAL_READY` in mailapp.js), conferme di
-  lettura in uscita. Account veri: li prova l'utente (registrazioni in ui/guide/posta.md cap. 6).
-- DA FARE (tappe successive): Microsoft 365 via Graph e Gmail con OAuth (riuso degli ID di cloud.py; nell'interfaccia
-  `OAUTH_READY` in mailsettings.js), calendario e contatti (CalDAV/CardDAV, Graph; `CAL_READY` in mailapp.js),
-  conferme di lettura in uscita. Account veri: li prova l'utente.
+- Calendario e contatti (tappa 3): `calsync.py` CalDAV/CardDAV (scoperta current-user-principal -> *-home-set -> collezioni,
+  solo calendari con VEVENT; REPORT calendar-query in una finestra -120/+400 giorni, ctag per saltare i calendari fermi; PUT
+  con If-Match / If-None-Match, DELETE; vCard riscritte conservando le proprieta' non gestite; Google = stesso codice con
+  il token OAuth: principal .../caldav/v2/<email>/user e rubrica .../carddav/v1/principals/<email>/lists/default/),
+  Microsoft Graph (calendars + calendarView = occorrenze gia' espanse, rrule "occ"; eventi POST/PATCH/DELETE: gli inviti li
+  manda Exchange; contatti /me/contacts), calendario e rubrica locali (href "locale" / "locale-rubrica"). Giro ogni 10 min
+  (dopo la posta) o subito dopo una modifica. Eventi con partecipanti: invito METHOD:REQUEST spedito dall'account
+  (CANCEL quando si eliminano); risposte agli inviti ricevuti: REPLY o, con Microsoft 365, accept/tentativelyAccept/decline.
+  `calapi.upcoming` = avvisi 15 min prima (status "eventi"). Interfaccia `mailcal.js` (giorno, settimana lavorativa,
+  settimana, mese, agenda, mini calendario, calendari con colori; ricorrenze CalDAV espanse con pim.parseCalendar) e
+  `mailpeople.js` (rubrica, scheda dal vCard con pim.parseVcards, Scrivi, messaggi recenti), stili `ui/css/mailcal.css`.
+  core.js `el`: le chiavi di style che iniziano con "--" ora usano setProperty (prima le variabili CSS si perdevano).
+  Collaudo `python tests/test_mail_cal.py` (22 prove, server `tests/davserver.py`) + calendario/contatti Graph in
+  test_mail_oauth.py (30 prove).
+- DA FARE: conferme di lettura in uscita (MDN). Account veri: li prova l'utente (registrazioni in ui/guide/posta.md cap. 6).
+
 ## Tablet e iPad (22/10/2026) - FATTO (prova su iPad/Android veri: la fa l'utente)
 Web app (app per cellulari sul server delle licenze) finalizzata per tablet 768-1366 px, verticale e orizzontale.
 - `ui/js/touch.js` (avviato da app.js `initTouch`, `afterMount` dopo ogni visualizzatore) + `ui/css/touch.css` (caricato solo con

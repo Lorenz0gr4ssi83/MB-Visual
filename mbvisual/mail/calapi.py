@@ -51,6 +51,8 @@ def cal_reply(b) -> dict:
         engine.db().x("UPDATE events SET deleted=1, dirty=1 WHERE uid=?", (ev.get("uid", ""),))
         engine.bump()
         return {"ok": True}
+    if acc.get("tipo") == "graph" and ans in PARTSTAT and _graph_reply(acc, ev, ans):
+        return {"ok": True}
     if ans in PARTSTAT:
         org = ev.get("organizer") or {}
         if org.get("a") and "@" in org["a"]:
@@ -67,16 +69,62 @@ def cal_reply(b) -> dict:
     return {"ok": True}
 
 
+def _graph_reply(acc, ev, ans) -> bool:
+    """Microsoft 365: l'invito e' gia' nel calendario di Exchange; si risponde con accept/tentativelyAccept/decline."""
+    from urllib.parse import quote
+    from . import calsync
+    from .graphmail import GraphProvider
+    g = GraphProvider(acc)
+    uid = (ev.get("uid") or "").replace("'", "''")
+    j = g.call("GET", "/me/events?$select=id&$filter=" + quote(f"iCalUId eq '{uid}'"))
+    items = j.get("value", []) if isinstance(j, dict) else []
+    if not items:
+        return False
+    action = {"ACCEPTED": "accept", "TENTATIVE": "tentativelyAccept", "DECLINED": "decline"}[ans]
+    g.call("POST", f"/me/events/{items[0]['id']}/{action}", js={"sendResponse": True})
+    calsync._LAST.pop(acc["id"], None)
+    engine.kick(acc["id"], "sync")
+    return True
+
+
 def events_between(b) -> dict:
     db = engine.db()
     a, z = float(b.get("da", 0)), float(b.get("a", time.time() + 86400 * 60))
-    rows = db.q("""SELECT e.id, e.uid, e.summary, e.location, e.start, e.end, e.allday, e.rrule, c.id AS cal, c.name AS cal_name, c.color, c.account
-                   FROM events e JOIN calendars c ON c.id=e.cal_id WHERE e.deleted=0 AND (e.rrule!='' OR (e.end>=? AND e.start<=?))
-                   ORDER BY e.start""", (a, z))
+    rows = db.q("""SELECT e.id, e.uid, e.summary, e.location, e.start, e.end, e.allday, e.rrule, c.id AS cal, c.name AS cal_name, c.color, c.account,
+                   c.readonly, CASE WHEN e.rrule NOT IN ('', 'occ') THEN e.ics ELSE '' END AS ics
+                   FROM events e JOIN calendars c ON c.id=e.cal_id WHERE e.deleted=0 AND ((e.rrule NOT IN ('', 'occ') AND e.start<=?) OR (e.end>=? AND e.start<=?))
+                   ORDER BY e.start""", (z, a, z))
     return {"ok": True, "items": rows, "calendari": db.q("SELECT id, account, name, color, readonly, kind FROM calendars WHERE kind='cal'")}
 
 
+def event_detail(b) -> dict:
+    db = engine.db()
+    e = db.one("SELECT e.*, c.name AS cal_name, c.color, c.readonly, c.account FROM events e JOIN calendars c ON c.id=e.cal_id WHERE e.id=?", (int(b["id"]),))
+    if not e:
+        raise MailError(t("srv_mail.evento_non_trovato"))
+    ev = (ical.events(e["ics"]) or [{}])[0] if e["ics"] else {}
+    return {"ok": True, "e": {**e, "description": ev.get("description", ""), "attendees": ev.get("attendees", []), "organizer": ev.get("organizer"),
+                              "promemoria": _alarm(e["ics"])}}
+
+
+def _alarm(ics):
+    import re
+    m = re.search(r"TRIGGER[^:]*:-?PT?(\d+)([MHD])", ics or "")
+    if not m:
+        return -1
+    return int(m.group(1)) * {"M": 1, "H": 60, "D": 1440}[m.group(2)]
+
+
+def upcoming(minutes=15) -> list:
+    """Eventi che iniziano a breve (avviso come i promemoria di Outlook)."""
+    now = time.time()
+    return engine.db().q("""SELECT e.id, e.summary, e.location, e.start FROM events e JOIN calendars c ON c.id=e.cal_id
+                            WHERE e.deleted=0 AND e.allday=0 AND e.start>? AND e.start<=?""", (now - 60, now + minutes * 60))
+
+
 def handle(op, q, b):
+    if op == "cal_event":
+        return event_detail(b)
     if op == "cal_reply":
         return cal_reply(b)
     if op in ("cal", "cal_events"):

@@ -13,16 +13,20 @@ ROOT = Path(__file__).resolve().parent.parent
 os.environ["MBV_MAIL_DIR"] = tempfile.mkdtemp(prefix="mbv-posta-demo-")
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
+import davserver  # noqa: E402
 import mailserver  # noqa: E402
 from mbvisual.mail import accounts, commesse, engine  # noqa: E402
 from mbvisual.server import TOKEN, start_server  # noqa: E402
 
 mailserver.seed()
 ip, sp, _ = mailserver.start()
+davserver.seed()
+dav, _d = davserver.start()
 if "--vuoto" not in sys.argv:
     for email, pec, nome in (("mario@studio.prova.it", False, "Studio Rossi"), ("studio@pec.prova.it", True, "PEC Studio")):
         accounts.save_account({"email": email, "nome": nome, "imap": "127.0.0.1", "imap_port": ip, "imap_sec": "none", "smtp": "127.0.0.1",
-                               "smtp_port": sp, "smtp_sec": "none", "utente": email, "password": "prova", "pec": pec, "scarica_giorni": 0, "intervallo": 1})
+                               "smtp_port": sp, "smtp_sec": "none", "utente": email, "password": "prova", "pec": pec, "scarica_giorni": 0, "intervallo": 1,
+                               **({} if pec else {"caldav": dav + "/dav/", "carddav": dav + "/dav/", "dav_utente": "mario", "dav_password": "prova"})})
     d = Path(os.environ["MBV_MAIL_DIR"]) / "Commessa 24-017"
     d.mkdir()
     commesse.save({"nome": "Ampliamento capannone", "codice": "24-017", "cartella": str(d), "indirizzi": ["anna@cliente.prova.it"], "colore": "#22b1bd"})

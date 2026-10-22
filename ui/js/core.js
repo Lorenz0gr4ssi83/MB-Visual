@@ -71,7 +71,7 @@ export function el(tag, attrs = {}, ...children) {
     if (k === "class") e.className = v;
     else if (k === "html") e.innerHTML = v;
     else if (k.startsWith("on") && typeof v === "function") e.addEventListener(k.slice(2), v);
-    else if (k === "style" && typeof v === "object") Object.assign(e.style, v);
+    else if (k === "style" && typeof v === "object") for (const [sk, sv] of Object.entries(v)) { if (sk.startsWith("--")) e.style.setProperty(sk, sv); else e.style[sk] = sv; } // variabili CSS con setProperty
     else e.setAttribute(k, v === true ? "" : v);
   }
   for (const c of children.flat()) {

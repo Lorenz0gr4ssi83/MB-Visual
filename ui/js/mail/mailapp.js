@@ -14,7 +14,7 @@ const ROLE_ICON = { inbox: "inbox", sent: "inviata", drafts: "bozze", trash: "ce
 const ROLE_ORDER = { inbox: 0, drafts: 1, sent: 2, archive: 3, junk: 4, trash: 5 };
 
 let A = null; // stato della scheda Posta (una sola)
-const CAL_READY = false;
+const CAL_READY = true;
 
 // ------------------------------------------------------------------ utilita'
 export function fmtWhen(ts, long = false) {
@@ -164,7 +164,10 @@ function buildToolbar() {
   A.seg = seg;
   seg.hidden = !CAL_READY; // calendario e contatti: tappa successiva
   A.search = el("input", { type: "search", class: "ml-search", placeholder: tr("mail.cerca_placeholder"), title: tr("mail.cerca_titolo") });
-  A.search.addEventListener("input", () => { clearTimeout(A.searchT); A.searchT = setTimeout(() => { A.q = A.search.value.trim(); reload(); }, 280); });
+  A.search.addEventListener("input", () => {
+    clearTimeout(A.searchT);
+    A.searchT = setTimeout(() => { if (A.view !== "posta") return A.otherApi?.search?.(); A.q = A.search.value.trim(); reload(); }, 280);
+  });
   A.search.addEventListener("keydown", e => { if (e.key === "Escape") { A.search.value = ""; A.q = ""; reload(); A.listBox.focus(); } });
   A.mailTools = el("div", { class: "ml-tools" },
     tbBtn(tr("mail.nuovo_messaggio"), "nuovo", () => newMessage(), { cls: "primary", title: tr("mail.nuovo_messaggio") + " (Ctrl+N)" }),
@@ -198,7 +201,9 @@ function updateSeg() {
 }
 
 async function setView(v) {
+  if (A.view === v && (v === "posta" || A.otherApi)) return;
   A.view = v;
+  A.search.value = v === "posta" ? A.q : "";
   updateSeg();
   const mail = v === "posta";
   for (const x of [A.nav, A.listBox, A.read, ...A.root.querySelectorAll(".ml-grip")]) x.hidden = !mail;
@@ -994,6 +999,7 @@ async function poll() {
       notify(n);
     }
     for (const r of st.promemoria || []) remindPopup(r);
+    for (const e of st.eventi || []) eventPopup(e);
     updateStatus();
   } catch { /* motore non raggiungibile: si riprova */ } finally { if (A) A.polling = false; }
 }
@@ -1018,6 +1024,28 @@ function remindPopup(r) {
         el("button", { class: "btn", onclick: e => { e.stopPropagation(); card.remove(); call("set", { ids: [r.id], remind_at: Date.now() / 1000 + 3600 }); } }, tr("mail.rimanda_ora")),
         el("button", { class: "btn", onclick: e => { e.stopPropagation(); card.remove(); call("set", { ids: [r.id], remind_at: 0 }); } }, tr("mail.chiudi_promemoria")))));
   box.append(card);
+}
+
+function eventPopup(e) {
+  if (reminded.has("ev" + e.id + ":" + e.start)) return;
+  reminded.add("ev" + e.id + ":" + e.start);
+  const box = document.querySelector(".ml-notes") || document.body.appendChild(el("div", { class: "ml-notes" }));
+  const card = el("div", { class: "ml-note remind" }, icon("calendario"),
+    el("div", {}, el("b", {}, e.summary || tr("mail.senza_titolo")),
+      el("div", {}, new Date(e.start * 1000).toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit" }) + (e.location ? " · " + e.location : "")),
+      el("div", { class: "ml-noteact" }, el("button", { class: "btn", onclick: () => card.remove() }, tr("mail.chiudi_promemoria")))));
+  box.append(card);
+}
+
+// messaggio aperto da un'altra vista (contatti, notifiche)
+export async function openMessage(id) {
+  if (!A) return;
+  await setView("posta");
+  await go("tutto");
+  A.cur = id;
+  A.sel = new Set([id]);
+  renderRows(true);
+  showReading();
 }
 
 function updateStatus() {

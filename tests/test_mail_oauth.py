@@ -132,6 +132,21 @@ class GH(BaseHTTPRequestHandler):
             return
         p = u.path.replace("/v1.0", "")
         body = self._body()
+        m = re.match(r"/me/calendars/([^/]+)/events$", p)
+        if m:
+            b = json.loads(body)
+            eid = "E" + uuid.uuid4().hex[:6]
+            G.events[eid] = {**b, "id": eid, "iCalUId": "ical-" + eid}
+            return self._send(201, G.events[eid])
+        m = re.match(r"/me/events/([^/]+)/(accept|tentativelyAccept|decline)$", p)
+        if m:
+            G.responses.append((m.group(1), m.group(2), json.loads(body).get("sendResponse")))
+            return self._send(202)
+        if p == "/me/contacts":
+            b = json.loads(body)
+            cid = "P" + uuid.uuid4().hex[:6]
+            G.contacts[cid] = {**b, "id": cid}
+            return self._send(201, G.contacts[cid])
         if p == "/me/sendMail":
             raw = base64.b64decode(body)
             G.sent.append(raw)
@@ -159,8 +174,13 @@ class GH(BaseHTTPRequestHandler):
         if not self._auth():
             return
         p = urlparse(self.path).path.replace("/v1.0", "")
-        m = re.match(r"/me/messages/([^/]+)$", p)
         b = json.loads(self._body())
+        m = re.match(r"/me/(events|contacts)/([^/]+)$", p)
+        if m:
+            store = G.events if m.group(1) == "events" else G.contacts
+            store[m.group(2)].update(b)
+            return self._send(200, store[m.group(2)])
+        m = re.match(r"/me/messages/([^/]+)$", p)
         x = G.msgs[m.group(1)]
         if "isRead" in b:
             x["isRead"] = b["isRead"]
@@ -176,6 +196,10 @@ class GH(BaseHTTPRequestHandler):
         if not self._auth():
             return
         p = urlparse(self.path).path.replace("/v1.0", "")
+        m = re.match(r"/me/(events|contacts)/([^/]+)$", p)
+        if m:
+            (G.events if m.group(1) == "events" else G.contacts).pop(m.group(2), None)
+            return self._send(204)
         m = re.match(r"/me/messages/([^/]+)$", p)
         if m and m.group(1) in G.msgs:
             G.msgs.pop(m.group(1))
@@ -193,6 +217,15 @@ class GH(BaseHTTPRequestHandler):
         q = {k: v[0] for k, v in parse_qs(u.query).items()}
         if p == "/me":
             return self._send(200, {"mail": "ing@studio365.prova", "displayName": "Ing. Studio 365"})
+        if p == "/me/calendars":
+            return self._send(200, {"value": [{"id": "C1", "name": "Calendario", "hexColor": "#d6559a", "canEdit": True}]})
+        if p == "/me/calendars/C1/calendarView":
+            return self._send(200, {"value": list(G.events.values())})
+        if p == "/me/events":
+            uid = re.search(r"iCalUId eq '([^']*)'", q.get("$filter", ""))
+            return self._send(200, {"value": [{"id": e["id"]} for e in G.events.values() if uid and e.get("iCalUId") == uid.group(1)]})
+        if p == "/me/contacts":
+            return self._send(200, {"value": list(G.contacts.values())})
         m = re.match(r"/me/mailFolders/([^/]+)$", p)
         if m:
             fid = next((k for k, v in G.folders.items() if v["wk"] == m.group(1)), m.group(1))
@@ -217,6 +250,10 @@ class GH(BaseHTTPRequestHandler):
 
 
 G.removed = []
+G.events = {"E1": {"id": "E1", "subject": "Riunione 365", "iCalUId": "ical-365", "start": {"dateTime": "2026-11-04T09:00:00.0000000", "timeZone": "UTC"},
+                   "end": {"dateTime": "2026-11-04T10:00:00.0000000", "timeZone": "UTC"}, "isAllDay": False, "location": {"displayName": "Teams"}}}
+G.contacts = {"P1": {"id": "P1", "displayName": "Paolo Neri", "emailAddresses": [{"address": "paolo@neri.prova"}], "businessPhones": ["02 1234"], "companyName": "Neri SpA"}}
+G.responses = []
 G.reset()
 gsrv = ThreadingHTTPServer(("127.0.0.1", 0), GH)
 gsrv.daemon_threads = True
@@ -318,6 +355,32 @@ check("eliminazione definitiva", not any(v["folder"] == "F-arch" for v in G.msgs
 api.handle("folder_create", {}, {"account": M, "parent": fs["Progetti"]["id"], "name": "Commessa 25-003"})
 engine.run_once(M, "ops")
 check("nuova cartella su Graph", any(v["name"] == "Commessa 25-003" and v["parent"] == "F-prog" for v in G.folders.values()))
+
+print("Calendario e contatti Microsoft 365")
+from mbvisual.mail import calapi, calsync  # noqa: E402
+calsync.sync_account(accounts.get(M), force=True)
+cal = engine.db().one("SELECT * FROM calendars WHERE account=? AND kind='cal'", (M,))
+ev = engine.db().one("SELECT * FROM events WHERE cal_id=?", (cal["id"],))
+check("calendario e eventi da Graph", cal["name"] == "Calendario" and ev and ev["summary"] == "Riunione 365" and ev["end"] - ev["start"] == 3600)
+s0 = time.time() + 86400
+calsync.save_event_ui({"cal": cal["id"], "summary": "Nuovo da MB Visual", "start": s0, "end": s0 + 1800, "attendees": [{"a": "x@y.it"}]})
+calsync.sync_account(accounts.get(M), force=True)
+ne = [e for e in G.events.values() if e.get("subject") == "Nuovo da MB Visual"]
+check("evento creato su Graph (inviti spediti da Exchange)", ne and ne[0]["attendees"][0]["emailAddress"]["address"] == "x@y.it"
+      and not engine.db().one("SELECT COUNT(*) n FROM outbox WHERE account=?", (M,))["n"])
+ct = {c["name"]: c for c in calsync.handle("contacts", {}, {})["items"]}
+check("contatti da Graph", "Paolo Neri" in ct and ct["Paolo Neri"]["emails"] == ["paolo@neri.prova"])
+calsync.handle("contact_save", {}, {"book": ct["Paolo Neri"]["book_id"], "name": "Sara Blu", "emails": ["sara@blu.prova"]})
+calsync.sync_account(accounts.get(M), force=True)
+check("contatto creato su Graph", any(c.get("displayName") == "Sara Blu" for c in G.contacts.values()))
+ics = ("BEGIN:VCALENDAR\r\nMETHOD:REQUEST\r\nBEGIN:VEVENT\r\nUID:ical-365\r\nDTSTART:20261104T090000Z\r\nDTEND:20261104T100000Z\r\n"
+       "SUMMARY:Riunione 365\r\nORGANIZER:mailto:capo@altro.prova\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+msg = email.message_from_bytes(mime("Capo <capo@altro.prova>", "ing@studio365.prova", "Invito: Riunione 365", "invito"), policy=email.policy.default)
+msg.add_attachment(ics.encode(), maintype="text", subtype="calendar", filename="invito.ics")
+mid = engine.add_message(M, inbox["id"], msg.as_bytes(), local=True)
+pi = api.message({"id": mid})["inviti"][0]["i"]
+calapi.cal_reply({"id": mid, "i": pi, "risposta": "TENTATIVE"})
+check("risposta all'invito con l'API di Exchange", G.responses == [("E1", "tentativelyAccept", True)], G.responses)
 
 print("Rinnovo del token")
 tok = accounts.secret(M)["oauth"]

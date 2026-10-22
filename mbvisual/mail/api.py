@@ -643,6 +643,8 @@ def handle(op: str, q: dict, b: dict):
         st["nuovi"] = engine.take_new() if q.get("nuovi") else []
         due = engine.db().q("SELECT id, subject, from_name, remind_at FROM messages WHERE remind_at>0 AND remind_at<=?", (time.time(),))
         st["promemoria"] = due
+        from . import calapi
+        st["eventi"] = calapi.upcoming()
         return {"ok": True, **st}
     if op == "folders":
         return folders()
@@ -799,7 +801,7 @@ def handle(op: str, q: dict, b: dict):
         return {"ok": True, "path": str(UI_DIR / "guide" / "posta.md")}
     if op == "import_eml":
         return import_eml(b)
-    if op in ("cal", "cal_events", "cal_save", "cal_delete", "cal_reply", "contacts", "contact_save", "contact_delete", "dav_discover"):
+    if op in ("cal", "cal_events", "cal_event", "cal_save", "cal_delete", "cal_reply", "contacts", "contact_save", "contact_delete", "dav_discover"):
         from . import calapi
         return calapi.handle(op, q, b)
     raise MailError(t("srv_mail.operazione_sconosciuta"))
