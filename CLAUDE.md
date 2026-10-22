@@ -218,6 +218,12 @@ ode-x64 e wrangler installato in
   Collaudo: `node server/test/admin_mobile.mjs` (40 prove: autenticatore WebAuthn simulato e finto servizio push che verifica VAPID e
   decifra); ambiente di prova condiviso in `server/test/shim.mjs`; `harness.mjs serve` apre l'app su /gestione-prova-locale-0000/.
   Admin per PC: `admin/build_admin.py [--dist <cartella>]` (con l'Admin aperto i file sono bloccati: costruire altrove e sostituire dopo).
+- Notifiche a scelta e limiti modificabili (22/10/2026): `GET/POST /admin/settings` (tabella admin_settings, `{tipo: false}` = niente
+  notifica; stesse scelte per Windows nell'Admin per PC e per il push del telefono; gli avvisi restano comunque). Tipi: activation_pc,
+  activation_mobile, change, change_pending, report, expiring, expired, limit, invalid_key, revoked_use, admin_login. `update` di una
+  licenza: max_pc/max_mobile anche con dispositivi attivi; sotto i dispositivi attivi serve `free` (id da disattivare), altrimenti 409
+  `troppi_dispositivi` (le finestre chiedono quali disattivare). Scadenza da campo data = fino alle 23:59:59. Cron giornaliero (06:00 UTC,
+  wrangler.toml [triggers]) = avvisi "in scadenza" (15 giorni prima) e "scaduta", una volta sola (colonne warn_*; migrazione 003).
 
 ## Archivi cloud (22/10/2026) - FATTO, collegamento reale da provare dopo la registrazione delle app
 Pannello "Cloud" accanto a Esplora (solo app per PC): SharePoint/OneDrive (Microsoft Graph), Google Drive, Dropbox,
