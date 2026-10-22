@@ -1,98 +1,12 @@
-<!doctype html>
-<html lang="it" class="web">
-<head>
-<meta charset="utf-8">
+<!doctype html><html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MB Visual</title>
-<link rel="icon" href="img/logo.png">
-<meta name="theme-color" content="#1e2225">
-<meta name="description" content="MB Visual - visualizzatore di documenti, disegni CAD, modelli 3D e BIM di MB Engineering">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="img/icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<script>window.MBV_WEB = true; window.MBV_ROOT = new URL(".", location.href).href;
-if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js"));</script>
-
-<link rel="stylesheet" href="css/app.css">
-</head>
-<body>
-<header class="cmdbar">
-  <div class="group">
-    <div class="menu-wrap">
-      <button id="btn-file" class="cmd" title="File: nuovo, salva, salva con nome, aggiornamenti"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span>File</span><svg class="caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg></button>
-      <div class="menu" id="menu-file" hidden></div>
-    </div>
-    <div class="menu-wrap">
-      <button id="btn-open" class="cmd primary-cmd" title="Apri (Ctrl+O)"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg><span>Apri</span><svg class="caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg></button>
-      <div class="menu" id="menu-open" hidden></div>
-    </div>
-  </div>
-  <div class="group">
-    <div class="menu-wrap">
-      <button id="btn-as" class="cmd" title="Apri il file con un altro visualizzatore compatibile" disabled><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Apri come</span><svg class="caret" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></svg></button>
-      <div class="menu" id="menu-as" hidden></div>
-    </div>
-    <button id="btn-info" class="cmd" title="Proprieta' del file e impronta SHA-256" disabled><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><span>Proprieta'</span></button>
-    <button id="btn-folder" class="cmd desktop-only" title="Mostra il file in Esplora risorse" disabled><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3zM12 12v4M10 14h4"/></svg><span>Cartella</span></button>
-    <button id="btn-external" class="cmd desktop-only" title="Apri il file con il programma predefinito di Windows" disabled><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/></svg><span>Apri con programma predefinito</span></button>
-  </div>
-  <div class="group" id="ctx-tools"></div>
-  <span class="grow"></span>
-  <div class="group">
-    <button id="btn-explorer" class="cmd desktop-only" title="Esplora una cartella di progetto"><svg viewBox="0 0 24 24"><path d="M3 4h7v16H3zM14 4h7v7h-7zM14 14h7v6h-7z"/></svg><span>Esplora</span></button>
-    <button id="btn-formats" class="cmd" title="Elenco completo dei formati supportati"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9h16M9 9v11"/></svg><span>Formati</span></button>
-    <button id="btn-theme" class="cmd icon-only" title="Tema chiaro / scuro"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg></button>
-  </div>
-</header>
-
-<div class="workspace" id="workspace">
-  <aside class="explorer" id="explorer" hidden>
-    <div class="ex-head">
-      <span class="label">Cartella di progetto</span>
-      <button class="mini" id="ex-pick" title="Scegli la cartella">Scegli</button>
-      <button class="mini" id="ex-up" title="Cartella superiore">Su</button>
-    </div>
-    <div class="ex-path" id="ex-path">Nessuna cartella aperta</div>
-    <input class="ex-filter" id="ex-filter" type="search" placeholder="Filtra per nome o estensione">
-    <div class="ex-list" id="ex-list"></div>
-  </aside>
-  <section class="main">
-    <div class="tabs" id="tabs" role="tablist"></div>
-    <main id="stage">
-      <section id="home" class="home">
-        <div class="hero" id="drop">
-          <img src="img/logo-512.png" alt="Logo MB Visual" class="hero-logo">
-          <h1>Trascina qui i file da aprire</h1>
-          <p>Documenti, disegni CAD, modelli 3D e BIM, firme digitali, immagini, video e archivi. Anche piu' file insieme.</p>
-          <div class="hero-actions">
-            <button class="btn primary" id="home-open"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg>Apri file</button>
-            <button class="btn" id="home-new"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M12 11v6M9 14h6"/></svg>Crea nuovo</button>
-            <button class="btn desktop-only" id="home-folder"><svg viewBox="0 0 24 24"><path d="M3 4h7v16H3zM14 4h7v7h-7zM14 14h7v6h-7z"/></svg>Apri cartella di progetto</button>
-          </div>
-        </div>
-        <div class="caps" id="home-caps"></div>
-        <button class="link caps-link" id="home-formats"></button>
-      </section>
-      <section id="formats" class="formats" hidden></section>
-      <div id="views"></div>
-    </main>
-  </section>
-</div>
-
-<footer class="statusbar">
-  <span id="st-path">Pronto</span>
-  <span class="grow"></span>
-  <span id="st-extra" class="mono"></span>
-  <span id="st-type"></span>
-  <span id="st-size" class="mono"></span>
-  <span id="st-version" class="mono" title="Versione di MB Visual"></span>
-</footer>
-<div class="overlay" id="dragover" hidden><div>Rilascia per aprire</div></div>
-<div class="modal-back" id="modal" hidden><div class="modal" id="modal-body"></div></div>
-<div class="toast" id="toast" hidden></div>
-<script type="importmap">{ "imports": { "three": "./vendor/three/build/three.module.js", "three/addons/": "./vendor/three/examples/jsm/" } }</script>
-<script type="module" src="js/webapi.js"></script>
-<script type="module" src="js/app.js"></script>
-</body>
-</html>
+<title>MB Visual</title><meta http-equiv="refresh" content="0; url=https://mbvisual-licenze.lorenzograssi83.workers.dev/">
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#17191b;color:#e6e8e5;font:15px system-ui,sans-serif;text-align:center;padding:20px}a{color:#f07d2e}</style>
+<script>
+// la web app si e' spostata sul server delle licenze: via la vecchia app salvata (service worker e cache), poi l'indirizzo nuovo
+(async () => {
+  try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch (e) {}
+  try { for (const k of await caches.keys()) await caches.delete(k); } catch (e) {}
+  location.replace("https://mbvisual-licenze.lorenzograssi83.workers.dev/");
+})();
+</script></head><body><p>MB Visual si e' spostata a un nuovo indirizzo.<br><a href="https://mbvisual-licenze.lorenzograssi83.workers.dev/">https://mbvisual-licenze.lorenzograssi83.workers.dev</a></p></body></html>
