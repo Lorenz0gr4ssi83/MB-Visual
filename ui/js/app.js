@@ -217,10 +217,14 @@ const ICON_FOLDER = '<svg viewBox="0 0 24 24"><path d="M3 4h7v16H3zM14 4h7v7h-7z
 
 function closeMenus() { for (const id of ["menu-open", "menu-as", "menu-file"]) $(id).hidden = true; }
 function placeMenu(m, anchor) {
+  // dentro lo schermo anche sul telefono: larghezza vera del menu (prima su schermi stretti finiva a sinistra fuori schermo)
   const r = anchor.getBoundingClientRect();
-  m.style.left = Math.min(r.left, innerWidth - 470) + "px";
+  m.style.maxWidth = Math.min(470, innerWidth - 16) + "px";
+  m.style.left = "8px";
   m.style.top = r.bottom + 4 + "px";
   m.hidden = false;
+  m.style.left = Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8)) + "px";
+  m.style.maxHeight = Math.max(160, innerHeight - r.bottom - 12) + "px";
 }
 
 function openMenu(anchor) {
