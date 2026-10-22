@@ -7,6 +7,7 @@ import { t as tr, LOCALE } from "../i18n.js";
 import { INK_ICON, paint as paintInk, widthAt } from "../ink.js";
 import { LAYER_PEN } from "../inkdxf.js";
 import { pinchPan } from "../touch.js";
+import { measureBtn, mbmisOf } from "../measure/mbutton.js";
 
 
 // ---------------------------------------------------------------- colori ACI
@@ -73,7 +74,9 @@ function build(db) {
     if (pat.length && pat.some(v => v)) ltypes.set(String(t.name).toLowerCase(), pat);
   }
   const groups = new Map(), texts = [], items = [], ents = [];
-  let owner = -1, sub = "";
+  // per le misure (ui/js/measure/mcad.js): contorni chiusi, retini e inserimenti di blocchi con layer, colore e tipo linea
+  const closedL = [], hatches = [], inserts = [];
+  let owner = -1, sub = "", curSt = null;
   const xs = [], ys = [];
 
   const layerOf = n => { if (!layers.has(n)) layers.set(n, { name: n, aci: 7, off: false, count: 0, lt: "", lw: -3 }); return layers.get(n); };
@@ -113,7 +116,7 @@ function build(db) {
     }
     return true;
   }
-  function item(it, layer) { it.o = owner; it.s = sub; it.l = layer; items.push(it); (ents[owner] ||= []).push(items.length - 1); return it; }
+  function item(it, layer) { it.o = owner; it.s = sub; it.l = layer; if (curSt) { it.c = curSt.color; it.lt = curSt.ltn; } items.push(it); (ents[owner] ||= []).push(items.length - 1); return it; }
   const line = (st, A, x1, y1, x2, y2) => {
     const [a, b] = ap(A, x1, y1), [c, d] = ap(A, x2, y2);
     emit(st, [[a, b], [c, d]]);
@@ -167,10 +170,12 @@ function build(db) {
       const dash = pat ? pat.map(v => Math.max(Math.abs(v), 0) * LTS * (e.lineTypeScale || 1) * k2 || 0.02 * LTS * k2) : null;
       // evidenziatore delle revisioni a penna anche nei DXF R12, che non hanno la trasparenza: layer MARKUP-EVID al 38%
       const alpha = e.alpha ?? (/^MARKUP-EVID$/i.test(lname) ? 0.38 : undefined);
-      const st = { layer: lname, color: col, lw, dash, a: alpha, key: lname + "|" + col.join(",") + "|" + lw + (alpha !== undefined ? "|a" + alpha.toFixed(3) : ""), dashKey: dash ? "|" + dash.map(v => v.toPrecision(4)).join(",") : "" };
+      const st = { layer: lname, color: col, lw, dash, a: alpha, ltn: lt || "continuous", key: lname + "|" + col.join(",") + "|" + lw + (alpha !== undefined ? "|a" + alpha.toFixed(3) : ""), dashKey: dash ? "|" + dash.map(v => v.toPrecision(4)).join(",") : "" };
+      curSt = st;
+      const shape = (pts, kind) => closedL.push({ o: owner, s: sub, l: lname, c: col, lt: st.ltn, kind, pts });
       switch (e.type) {
         case "LINE": line(st, N, e.startPoint.x, e.startPoint.y, e.endPoint.x, e.endPoint.y); break;
-        case "CIRCLE": arc(st, N, e.center.x, e.center.y, e.radius, 0, TAU); break;
+        case "CIRCLE": arc(st, N, e.center.x, e.center.y, e.radius, 0, TAU); shape(sweepPts(e.center.x, e.center.y, e.radius, e.radius, 0, 0, TAU).map(([x, y]) => ap(N, x, y)), "CIRCLE"); break;
         case "ARC": { let sw = e.endAngle - e.startAngle; while (sw <= 0) sw += TAU; arc(st, N, e.center.x, e.center.y, e.radius, e.startAngle, sw); break; }
         case "ELLIPSE": {
           const mx = e.majorAxisEndPoint.x, my = e.majorAxisEndPoint.y, r = Math.hypot(mx, my);
@@ -187,6 +192,7 @@ function build(db) {
           if (closed) bulgePts(v[v.length - 1], v[0], v[v.length - 1].bulge, draw);
           // con la larghezza disegnata e trasparente (evidenziatore) la linea centrale non si ripassa
           if (!widths(st, N, e, closed, lname) || st.a === undefined) emit(st, draw.map(([x, y]) => ap(N, x, y)));
+          if (closed && v.length > 2) shape(draw.map(([x, y]) => ap(N, x, y)), e.type);
           const segs = closed ? v.length : v.length - 1;
           for (let i = 0; i < segs; i++) {
             const a = v[i], b = v[(i + 1) % v.length], B = a.bulge ? bulgeArc(a.x, a.y, b.x, b.y, a.bulge) : null;
@@ -244,6 +250,7 @@ function build(db) {
             else for (const P of loops) emit(st, P, true);
           }
           for (const P of loops) item({ t: "F", pts: [...P, P[0]], closed: true, hatch: true }, lname);
+          if (loops.length) hatches.push({ o: owner, s: sub, l: lname, c: col, pattern: solid ? "SOLID" : e.patternName || "", loops });
           break;
         }
         case "TEXT": case "ATTRIB": case "MTEXT": text(st, e, N); break;
@@ -257,6 +264,7 @@ function build(db) {
           }
           const b = blocks.get(e.name);
           const inh2 = { layer: lname, color: col, lt, lw };
+          if (e.type === "INSERT") { const [ix, iy] = ap(N, e.insertionPoint.x, e.insertionPoint.y); inserts.push({ o: owner, s: sub, l: lname, c: col, name: e.name, x: ix, y: iy, depth, attribs: (e.attribs || []).map(a => [a.tag, a.text]) }); }
           if (b) {
             const bp = b.basePoint || { x: 0, y: 0 };
             const cols = Math.max(1, e.columnCount || 1), rows = Math.max(1, e.rowCount || 1);
@@ -277,6 +285,7 @@ function build(db) {
               sub = keep;
             }
           }
+          curSt = st;
           if (e.type === "INSERT") {
             node(N, e.insertionPoint.x, e.insertionPoint.y, lname);
             if (e.attribs?.length) { const keep = sub; e.attribs.forEach(a => { a._attr = true; }); walk(e.attribs, M, inh2, depth + 1, sub, sel); sub = keep; }
@@ -306,7 +315,7 @@ function build(db) {
     for (const { pts } of g.fills) { g.fillPath.moveTo(pts[0][0], pts[0][1]); for (let k = 1; k < pts.length; k++) g.fillPath.lineTo(pts[k][0], pts[k][1]); g.fillPath.closePath(); }
   }
   const index = gridIndex(items, bbox);
-  return { layers, groups: [...groups.values()], texts, bbox, items, ents, query: index, header: H };
+  return { layers, groups: [...groups.values()], texts, bbox, items, ents, query: index, header: H, closed: closedL, hatches, inserts };
 }
 
 // indice spaziale a griglia: query(x0, y0, x1, y1) -> indici degli elementi il cui ingombro tocca il rettangolo
@@ -426,6 +435,14 @@ export async function mount(ctx) {
   ctx.el.append(wrap);
   ctx.fillBody(true);
   let dark = true, measure = false, mpts = [], showText = true, showLw = false, msnap = null;
+  // ---- misure ed estrazioni (pannello comune a PDF, CAD e 3D: ui/js/measure/mcad.js; misure nel file .mbmis accanto)
+  let meas = null, measP = null;
+  const measGet = () => (measP ??= import("../measure/mcad.js").then(async m => (meas = await m.attachCad(ctx, {
+    host: stage, db, getModel: () => model, toWorld: (x, y) => toWorld(x, y), toScreen: (x, y) => toScreen(x, y), draw: () => draw(),
+    zoomTo: bb => zoomBox(bb), get view() { return view; }, onPanel: v => measBtn.classList.toggle("on", v),
+  }))));
+  const measBtn = measureBtn(async () => (await measGet()).toggle());
+  if (!WEB && ctx.path) api("stat", { path: mbmisOf(ctx.path) }, { allowFail: true }).then(r => { if (r?.ok) measGet().then(() => draw()); }).catch(() => {});
   const lineScale = { v: 1 };
   // revisioni a mano libera (web app: tablet con penna) sul layer MARKUP del disegno (ui/js/ink.js, inkdxf.js)
   let ink = null;
@@ -454,7 +471,7 @@ export async function mount(ctx) {
   // nell'app per PC gli strumenti di modifica (barra come AutoCAD + riga di comando) sono sempre visibili, come aprendo
   // un disegno in AutoCAD: niente pulsante "Modifica disegno"; la misura e' nel pannello Utilita' (Distanza, Area)
   ctx.tb.append(...[button(tr("v_cad2d.adatta"), "fit", fit), button("", "zoomIn", () => zoomAt(1.4), { iconOnly: true, title: tr("v_cad2d.ingrandisci") }), button("", "zoomOut", () => zoomAt(1 / 1.4), { iconOnly: true, title: tr("v_cad2d.riduci") }),
-    el("span", { class: "sep" }), editor ? null : mBtn, inkBtn, tBtn, lwBtn, bgBtn, el("span", { class: "sep" }),
+    el("span", { class: "sep" }), editor ? null : mBtn, measBtn, inkBtn, tBtn, lwBtn, bgBtn, el("span", { class: "sep" }),
     button("PNG", "download", () => exportPng()), button("SVG", "download", () => exportSvg()), button("PDF", "download", () => exportPdf()),
     button(tr("gisdraw.mostra_mappa"), '<svg viewBox="0 0 24 24"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>', () => ctx.openAs("gis"), { title: tr("gisdraw.mostra_mappa_tip") }),
     ctx.ext === "dxf" ? button(tr("v_cad2d.modifica_dxf_testo"), "code", () => ctx.openAs("text")) : null,
@@ -556,6 +573,7 @@ export async function mount(ctx) {
     g2.setTransform(1, 0, 0, 1, 0, 0);
     editor?.overlay(g2);
     ink?.refresh();
+    meas?.paint(g2);
     if (measure && (mpts.length || msnap)) {
       g2.strokeStyle = "#ff9f1a";
       g2.fillStyle = "#ff9f1a";
@@ -604,6 +622,7 @@ export async function mount(ctx) {
   const pos = e => { const r = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1; return [(e.clientX - r.left) * dpr, (e.clientY - r.top) * dpr]; };
   canvas.addEventListener("pointerdown", e => {
     const [px, py] = pos(e);
+    if (e.button === 0 && meas?.down(e, px, py)) { capture(e); return; }
     if (e.button === 0 && editor?.pointerDown(e, px, py)) { capture(e); return; }
     if (measure && e.button === 0) {
       if (mpts.length === 2) mpts = [];
@@ -626,12 +645,14 @@ export async function mount(ctx) {
       return;
     }
     if (!measure && !editor?.on) ctx.status(`X ${fmt(wx)}  Y ${fmt(wy)}`);
+    if (meas?.move(e, px, py)) return;
     if (editor?.pointerMove(e, px, py)) return;
     if (measure) { msnap = snapM(px, py); draw(); }
   });
   canvas.addEventListener("pointerup", e => {
     const [px, py] = pos(e);
-    if (drag) { const d = drag; drag = null; if (!d.moved && d.button === 2) editor?.rightClick(); return; }
+    if (drag) { const d = drag; drag = null; if (!d.moved && d.button === 2 && !meas?.context()) editor?.rightClick(); return; }
+    if (meas?.up(e, px, py)) return;
     editor?.pointerUp(e, px, py);
   });
   canvas.addEventListener("pointerleave", () => editor?.pointerLeave());
@@ -642,10 +663,10 @@ export async function mount(ctx) {
     onZoom: (f, cx, cy) => { const d = devicePixelRatio || 1; zoomAt(f, cx * d, cy * d); },
   });
   canvas.addEventListener("contextmenu", e => e.preventDefault());
-  const onKey = e => { if (!ctx.tab.view.hidden && editor?.key(e)) e.preventDefault(); };
+  const onKey = e => { if (ctx.tab.view.hidden) return; if (meas?.key(e)) { e.preventDefault(); return; } if (editor?.key(e)) e.preventDefault(); };
   window.addEventListener("keydown", onKey);
   canvas.addEventListener("wheel", e => { e.preventDefault(); const [px, py] = pos(e); zoomAt(e.deltaY < 0 ? 1.2 : 1 / 1.2, px, py); }, { passive: false });
-  canvas.addEventListener("dblclick", e => { if (editor?.dblclick(e)) return; if (!measure && !editor?.on) fit(); });
+  canvas.addEventListener("dblclick", e => { if (meas?.dbl(e, ...pos(e))) return; if (editor?.dblclick(e)) return; if (!measure && !editor?.on) fit(); });
   new ResizeObserver(() => { const s = canvas.width; resize(); if (s <= 1) fit(); else draw(); }).observe(canvas);
   requestAnimationFrame(fit);
 
@@ -749,7 +770,8 @@ export async function mount(ctx) {
       if (ext === "png") { const c = offscreen(); await api("save", { path: target }, { body: new Uint8Array(await (await new Promise(r => c.toBlob(r, "image/png"))).arrayBuffer()) }); return { switchTo: false }; }
       throw new Error(tr("v_cad2d.usa_i_pulsanti_png_svg"));
     },
-    dispose() { window.removeEventListener("keydown", onKey); },
+    dispose() { window.removeEventListener("keydown", onKey); meas?.dispose(); },
+    _meas: { get: measGet }, // collaudo dalla console: (await MB.active.api._meas.get()).M
   };
 }
 

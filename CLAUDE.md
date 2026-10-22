@@ -1132,3 +1132,56 @@ imprese con regolarita' contributiva, intervento, procuratore; struttura in `nuo
 - pdf.js: `.annotationLayer { color-scheme: light }` in viewers/pdf.js (nel tema scuro la spunta delle caselle era bianca).
 - Collaudo: `python tests/test_edilizia.py` (121 prove: condizioni, campi riletti dal PDF, sintassi non trapelata, DOCX,
   generazione, fascicolo, visure). Prove dalla console: `MB.active.api._pt` (a, generate, makeBook, editData, files).
+
+## Misure ed estrazioni di quantita' (22/10/2026) - FATTO (da provare sui file veri dell'utente)
+Pannello "Misure" UNICO per PDF, disegni CAD (DWG/DXF), fogli DWF/DWFx e modelli 3D/BIM (stile Bluebeam Revu Measurements /
+Quantity Takeoff). Pulsante "Misure" nella barra di ogni visualizzatore; moduli in `ui/js/measure/`, stile `ui/css/measure.css`.
+- `mcore.js` (puro, senza DOM): geometria (aree con fori per parita' di annidamento, Newell 3D, angoli, cerchio per 3 punti 2D/3D),
+  scale `{page, box, k = unita' reali per unita' del disegno, unit, label}` (riquadro che contiene il primo punto > pagina >
+  documento > base), `ratioScale(N, unit, paperM)` / `calibrate`, `parseScales` (testi del cartiglio), quantita' `compute`/`row`
+  (unita' mostrate, importo = prezzo x quantita' principale), `groupRows` (si sommano solo le quantita' PRINCIPALI: il perimetro
+  di un'area non e' una lunghezza), CSV, `.mbmis` (`serialize` con 12 cifre significative: arrotondare a 1e-6 sbagliava le scale
+  PDF), mesh (`meshQuantities` volume/superficie, `planarFace`, `sectionSegments`/`sectionArea`, `gridVolume` nuvole, `hull2`).
+- `mtool.js` motore degli strumenti 2D (anche 3D: i punti agganciati hanno `s.p` con z) su "superfici" fornite dal visualizzatore
+  (toScreen/toWorld/snap/pick/similar): lunghezza, polilinea, perimetro, area, foro, volume (area x altezza), angolo, raggio, quota
+  di livello (riferimento ±0,00 in `doc.ref`), conteggio con simboli, taratura, riquadro con scala propria, oggetto con un clic,
+  simboli uguali; Maiusc ortogonale, Alt senza aggancio, Invio/doppio clic/destro finiscono, Backspace toglie l'ultimo punto,
+  selezione e trascinamento dei vertici, Canc. Aggancio 2D = `cadgeom.osnap` (stesso indice di cad2d: `snapModel`).
+- `mpanel.js` sessione + pannello (schede Misure / Estrazioni / Scala o Unita'): voci con colore (tavolozza automatica) e prezzo,
+  layer, note, raggruppamento, totali, Excel (Riepilogo + Misure + ultima estrazione) e CSV. Estrazioni: record con quantita' in
+  unita' del disegno (`real: true` = gia' reali, 3D) aggregati con la scala della pagina/riquadro; "Aggiungi all'elenco" = righe `ext`.
+- `mextract.js` (puro): CAD lunghezze per layer/colore/tipo linea/tipo entita' (quote escluse, blocchi esplosi), aree di polilinee
+  chiuse/cerchi/retini con fori, blocchi con lo stesso nome anche annidati (esclusi quelli delle quote e gli anonimi), testi e quote
+  (DIMENSION senza codice 42: valore dai punti di definizione); tracciati vettoriali (DWF, PDF) lunghezze/aree per stile e layer,
+  simboli uguali (firma dei segmenti normalizzati, anche ruotati di 90 gradi), `vecPick` (un clic dentro un foro prende il foro).
+- cad2d.js `build` ora restituisce anche `closed` (polilinee chiuse, cerchi), `hatches` (contorni dei retini), `inserts` (blocchi con
+  profondita') e su ogni elemento `c` (colore) e `lt` (tipo linea). `mcad.js` = adattatori CAD (`attachCad`, unita' da $INSUNITS,
+  computo mostrato in metri per i disegni in mm) e DWF (`attachDwf`, scale dai riquadri del DWF per foglio). Misure nel file
+  `<nome>.mbmis` accanto al disegno/modello (salvataggio automatico; nella web app = scaricamento).
+- PDF (`mpdf.js`, solo app per PC): uno strato canvas per pagina di pdf.js (`.mbm-layer`, eventi solo con uno strumento attivo; gli
+  strumenti dell'editor PDF e quelli di misura si escludono). Motore `mbvisual/measure.py` (API unica `api/measure?op=`): pdf_page
+  (tracciati nello spazio PDF, cerchi riconosciuti dalle 4 Bezier), pdf_scales (/VP /Measure di Acrobat/Bluebeam + "Scala 1:N"
+  nei testi, proposta all'apertura del pannello), pdf_texts (quote e livelli), pdf_tables (testo delle celle letto con il ritaglio:
+  extract() riordinava "20,00" in "2000 ,"), pdf_lines (per pagina, regione e stile; layer = contenuto opzionale), pdf_symbols /
+  pdf_similar, pdf_read / pdf_strip / pdf_write. Salva (Ctrl+S, "Salva nel PDF" = MB.save) scrive nel file salvato: Line /
+  PolyLine / Polygon con /IT ...Dimension e /Measure (1 pt = k unita'), etichette FreeText legate con /IRT /RT /Group, fori come
+  poligoni bianchi, /VP "MB Visual ..." per pagina e riquadro, allegato `misure.mbmis` con tutti i dati. Aprendo il pannello su un
+  PDF con misure di MB Visual la copia di lavoro si ricrea senza quelle annotazioni (le disegna lo strato); misure di altri
+  programmi con /Measure si importano. Insidie PyMuPDF 2.0: `embfile_upd` non accetta bytes (si cancella e si riaggiunge),
+  cancellando un'annotazione spariscono anche le sue /IRT (si cancella per xref con load_annot).
+- 3D (`m3d.js`, ponte = bcfHost di model3d.js con `pickHook` e `measureActive`): punti sulla superficie con aggancio a vertici,
+  medi degli spigoli, centri delle facce piane, punti delle nuvole; strumenti Faccia (area piana), Elemento (volume se la mesh e'
+  chiusa, superficie, ingombro), Sezione (piano attivo o orizzontale nel punto). Estrazioni: quantita' per elemento per classe /
+  materiale (IfcRelAssociatesMaterial) / livello (qtocore.levelMap(...).levelOf) / elemento, sezione con area, nuvola di punti
+  (punti caricati, impronta, volume sopra la quota piu' bassa). IFC: quota di livello = Z del progetto (ref = coordMatrix[13]).
+- Testi: chiavi `mis.*` e `srv_measure.*` (5 lingue). Collaudo: `python tools/make_measure_samples.py` (tests/samples/misure: PDF
+  A3 1:100 con dettaglio /VP 1:20, DXF in mm, IFC con materiali e piani, valori in attesi.json) poi `node tests/test_measure.mjs`
+  (57 prove: nucleo, DXF con il modello vero di cad2d, IFC con web-ifc, tracciati) e `python tests/test_measure.py` (32 prove:
+  scale, aggancio, lunghezze/aree/simboli/tabelle/testi, scrittura e rilettura nel PDF). Provato nell'app (Edge senza finestra via
+  DevTools): PDF, DXF, DWF (blocks_and_tables.dwf) e IFC con valori esatti. Prove dalla console: `(await MB.active.api._meas.get()).M`.
+- Immagini (`mimg.js`, scansioni e foto di tavole): strato sopra la vista dell'editor di immagini (`measureHost` di imgedit.js:
+  zoom/spostamento in sola lettura + `onPaint`), riceve il mouse solo con uno strumento attivo; senza taratura = millimetri di
+  stampa ai dpi del file (96 se mancano), scala 1:N dai dpi, taratura, riquadri. Nessun aggancio (immagine raster).
+- DA FARE / limiti: nei DWF i caratteri disegnati come tracciati
+  finiscono tra i "simboli uguali"; volumi solo per mesh chiuse; nessuna prova con PDF da 60.000 tracciati (l'aggancio si ferma a
+  300.000 segmenti per pagina, i simboli oltre 25.000 tracciati).

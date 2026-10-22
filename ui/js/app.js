@@ -1141,5 +1141,5 @@ async function boot() {
   renderTabs();
 }
 
-window.MB = { openPaths, openFile, openMail, mountPreview, closeTab, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, get exDir() { return exDir; }, activate, modal, askQuit, print: doPrint };
+window.MB = { openPaths, openFile, openMail, mountPreview, closeTab, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, get exDir() { return exDir; }, activate, modal, askQuit, print: doPrint, save: asNew => save(!!asNew) };
 const READY = boot();

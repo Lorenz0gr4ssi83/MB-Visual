@@ -8,6 +8,7 @@ import { describeKeys } from "../shortcuts.js";
 import { renderSigner } from "./signed.js";
 import { INK_ICON } from "../ink.js";
 import { t, LOCALE } from "../i18n.js";
+import { measureBtn } from "../measure/mbutton.js";
 
 export async function mount(ctx) {
   ctx.fillBody(true);
@@ -100,6 +101,9 @@ export async function mount(ctx) {
 
   const dir = dirName(ctx.path), stem = ctx.name.replace(/\.pdf$/i, "");
   let bar = null, backHandler = null;
+  // misure ed estrazioni (pannello comune a PDF, CAD e 3D: ui/js/measure/mpdf.js), salvate nel PDF con Salva
+  let meas = null, measP = null;
+  const measGet = () => (measP ??= import("../measure/mpdf.js").then(async m => (meas = await m.attachPdf(ctx, ed, stage))));
   if (ed) {
     // ---- app per PC: editor completo, una sola riga di comandi
     const [{ attachPanel }, { buildBar }, { makeCommands }] = await Promise.all([import("../pdfedpanel.js"), import("../pdfedbar.js"), import("../pdfdocs.js")]);
@@ -122,10 +126,13 @@ export async function mount(ctx) {
     bar = buildBar(ed, { doc: cmds.docCmd, page: cmds.pageCmd });
     ctx.tb.classList.add("pe-tbrow");
     ctx.tb.append(...bar.row);
+    const measBtn = measureBtn(async () => { const m = await measGet(); await m.toggle(); measBtn.classList.toggle("on", m.open); });
+    measBtn.classList.add("pe-meas");
+    ctx.tb.append(measBtn);
     // la riga resta una: se la finestra e' stretta spariscono le didascalie dei gruppi, poi scorre
     const fit = () => { ctx.tb.classList.remove("compact"); if (ctx.tb.scrollWidth > ctx.tb.clientWidth + 2) ctx.tb.classList.add("compact"); };
     new ResizeObserver(fit).observe(ctx.tb);
-    backHandler = () => ed.escape();
+    backHandler = () => (meas?.open && meas.E.busy() ? (meas.E.cancel(), true) : ed.escape());
     describeKeys(ctx, "Acrobat", keys());
     ed.renderPanel();
     bar.syncState();
@@ -228,6 +235,7 @@ export async function mount(ctx) {
       if (inked) data = await (await import("../inkpdf.js")).addInkAnnots(data, ink.strokes);
       await api("save", { path: target }, { body: data });
       a.pdfDocument.annotationStorage.resetModified?.();
+      if (meas?.needsWrite) await meas.writeTo(target); // misure: annotazioni con /Measure + allegato misure.mbmis
       if (inked && target === ctx.path) {
         // i tratti ora sono annotazioni del file: si ricarica il documento salvato (stessa pagina) e la penna riparte vuota
         const page = a.page, on = ink.active;
@@ -238,5 +246,6 @@ export async function mount(ctx) {
       } else if (inked) ctx.setDirty(false);
     },
     dispose() { ink?.dispose(); },
+    _meas: { get: measGet }, // collaudo dalla console: (await MB.active.api._meas.get()).M
   };
 }

@@ -120,7 +120,9 @@ export function createEditor(ctx, init) {
     if (stroke?.dirty) { strokePreview(stroke); stroke.dirty = false; }
     if (needComp) { composite(); needComp = false; }
     paint();
+    measHook?.(); // strato delle misure (ui/js/measure/mimg.js)
   }
+  let measHook = null;
   function setPreview(p) { preview = p; needComp = true; schedule(); }
   // documento appiattito (per il salvataggio, Copia unione, campionamento "tutti i livelli")
   function flatten(bgColor = null) {
@@ -2094,6 +2096,9 @@ export function createEditor(ctx, init) {
       for (const p of imgs) await placeImage(p);
       return true;
     },
+    // pannello Misure (ui/js/measure/mimg.js): vista, zoom e spostamento in sola lettura + ridisegno
+    measureHost: { stage, view, get W() { return W; }, get H() { return H; }, get zoom() { return zoom; }, get panX() { return panX; }, get panY() { return panY; }, meta: init.meta || {},
+      set onPaint(f) { measHook = f; }, redraw: () => schedule() },
     // per le prove dalla console (come tests/cad_harness.js): stato interno in sola lettura e comandi
     _ps: { state: () => ({ W, H, act, target, tool, zoom, panX, panY, sel: sel && sel.bounds, layers, history: history.map(h => h.name), hi }), selectTool, opt, setColor, runFilter, runAdjust, addAdjustLayer, addMask, flatten, menus: MENUS },
   };

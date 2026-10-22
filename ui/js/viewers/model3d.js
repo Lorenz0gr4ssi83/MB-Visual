@@ -5,6 +5,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { api, button, confirmBox, dirName, el, fileUrl, loading, pickFiles, readBytes, saveBlobAs, toast, waitJob, WEB, withExt } from "../core.js";
 import { isDark } from "../monaco.js";
 import { fmtNum, t as tr, LOCALE } from "../i18n.js";
+import { measureBtn, mbmisOf } from "../measure/mbutton.js";
 
 const LOADERS = {
   stl: ["STLLoader", "STLLoader"], obj: ["OBJLoader", "OBJLoader"], ply: ["PLYLoader", "PLYLoader"], gltf: ["GLTFLoader", "GLTFLoader"],
@@ -611,7 +612,7 @@ export async function mount(ctx) {
   const band = el("div", { hidden: true, style: { position: "absolute", border: "1px dashed #ff9f1a", background: "rgba(255,159,26,.12)", pointerEvents: "none" } });
   host.append(band);
   let down = null;
-  renderer.domElement.addEventListener("pointerdown", e => (down = [e.clientX, e.clientY, e.button === 0 && effectiveNav() === "select" && !measure]));
+  renderer.domElement.addEventListener("pointerdown", e => (down = [e.clientX, e.clientY, e.button === 0 && effectiveNav() === "select" && !measure && !bcfHost.measureActive]));
   renderer.domElement.addEventListener("pointermove", e => {
     if (!down || !down[2] || !(e.buttons & 1)) return;
     const r = host.getBoundingClientRect();
@@ -635,6 +636,7 @@ export async function mount(ctx) {
     ray.params.Line.threshold = ray.params.Points.threshold = pxWorld * 8;
     const hits = ray.intersectObject(model, true).filter(h => h.object.visible && isVisibleChain(h.object) && !clippedOut(h.point));
     const hit = hits[0];
+    if (bcfHost.pickHook?.(e, hits)) return; // pannello Misure (ui/js/measure/m3d.js)
     if (measure) {
       if (!hit) return;
       if (mpts.length === 2) { mpts = []; mGroup.clear(); }
@@ -877,6 +879,12 @@ export async function mount(ctx) {
     qto: button(tr("v_model3d.computo"), navIcon("qto"), async () => (await navGet()).toggle("qto"), { title: tr("v_model3d.computo_titolo") }),
   };
   bcfBtn.after(navBtns.clash, navBtns.views, navBtns.qto);
+  // ---- misure ed estrazioni (pannello comune a PDF, CAD e 3D: ui/js/measure/m3d.js; misure nel file .mbmis accanto)
+  let meas = null, measP = null;
+  const measGet = () => (measP ??= import("../measure/m3d.js").then(async m => (meas = await m.attach3d(bcfHost))));
+  const measBtn = measureBtn(async () => { const m = await measGet(); m.toggle(); measBtn.classList.toggle("on", m.open); });
+  navBtns.qto.after(measBtn);
+  if (!WEB && ctx.path) api("stat", { path: mbmisOf(ctx.path) }, { allowFail: true }).then(r => { if (r?.ok) measGet(); }).catch(() => {});
   // viste e test gia' salvati accanto al modello: si segnala sui pulsanti
   if (!WEB && ctx.path) api("stat", { path: ctx.path.replace(/\.[^.\\/]+$/, "") + ".mbvnav" }, { allowFail: true }).then(r => {
     if (!r?.ok) return;
@@ -912,7 +920,7 @@ export async function mount(ctx) {
   model.traverse(m => { if (m.isMesh && m.geometry && !m.userData.merged) tri += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
   ctx.status((info.status ? info.status + (tri || !info.clouds ? " · " : "") : "") + (tri || !info.clouds ? tr("v_model3d.0_triangoli", Math.round(tri).toLocaleString(LOCALE)) : ""));
   if (info.inventor) import("../inventor3d.js").then(({ inventorWarnings }) => { const w = inventorWarnings(info.inventor); if (w.length) toast(w.join(" · "), true, 12000); });
-  const disposeAll = () => { bcfUi?.dispose(); navUi?.dispose(); running = false; window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onKey); window.removeEventListener("blur", onBlur); (info.clouds || []).forEach(c => c.dispose()); renderer.dispose(); (info.modelIDs || []).forEach(m => info.ifc?.CloseModel?.(m)); };
+  const disposeAll = () => { meas?.dispose(); bcfUi?.dispose(); navUi?.dispose(); running = false; window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onKey); window.removeEventListener("blur", onBlur); (info.clouds || []).forEach(c => c.dispose()); renderer.dispose(); (info.modelIDs || []).forEach(m => info.ifc?.CloseModel?.(m)); };
   // nuvola di punti aperta come documento: Salva con nome nei formati delle nuvole (tutti i punti, non solo quelli mostrati)
   const firstCloud = first.cloud;
   if (firstCloud && !WEB) {
@@ -941,6 +949,7 @@ export async function mount(ctx) {
   return {
     onShow() { resize(); },
     _bcf: { get: bcfGet, async load(store, path) { (await bcfGet()).load(store, path); } }, // usato da ui/js/viewers/bcf.js
+    _meas: { get: measGet }, // misure (collaudo dalla console: (await MB.active.api._meas.get()).M)
     _nav: { get: navGet }, // funzioni di Navisworks Manage (collaudo dalla console: (await api._nav.get()).nav)
     // ricerca nel progetto (ui/js/search.js): seleziona e inquadra l'elemento IFC trovato
     selectExpressId(id) {

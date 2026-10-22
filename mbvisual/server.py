@@ -828,6 +828,15 @@ class Handler(BaseHTTPRequestHandler):
         b = self._body_json()
         self._json(office.save_docx_from_html(b["html"], self._path(qs), b.get("title", "")))
 
+    # ------------------------------------------------------------ misure ed estrazioni dai PDF (mbvisual/measure.py, ui/js/measure/)
+    def api_measure(self, qs):
+        from . import measure
+        op = _q(qs, "op", "")
+        p = self._path(qs) if _q(qs, "path") else None
+        if op == "pdf_write" and p and not p.lower().endswith(".pdf"):
+            raise ValueError("pdf")
+        self._json(measure.handle(op, p, self._body_json()))
+
     # ------------------------------------------------------------ formati aggiuntivi (DICOM, certificati, dati scientifici, iWork, Revit): mbvisual/formati.py
     def api_fx(self, qs):
         from . import formati
