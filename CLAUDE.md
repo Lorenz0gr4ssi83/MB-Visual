@@ -628,3 +628,37 @@ chiave = percorso+dimensione+data+`CACHE_VER`: alzare CACHE_VER quando cambia l'
 - Collaudo (file pubblici NON nel repo): JT da github.com/Arsanias/Delphi-JT-Loader/Examples (MIT) e bitbybit3d/dxjt_toolkit
   /samples: 15 file 8.0-10.3 tutti aperti, stesso modello in 8/9.5/10 = stesso ingombro; U3D da github.com/ralovich/u3d-db
   (21 file); PDF: media9.pdf da CTAN (2 U3D + 1 PRC). Visto nell'app: motore radiale, CoffeeMaker, dado di media9.
+
+## SolidWorks, Solid Edge e Parasolid senza i programmi originali (22/10/2026) - FATTO
+Categoria `solidcad` in formats.json (sldprt/sldasm/slddrw/prtdot/asmdot/drwdot, par/psm/asm/dft/pwd, x_t/x_b/xmt_*/p_t/p_b);
+`.asm`/`.psm` condivise con testo/audio: vince solidcad se il contenuto e' OLE (SNIFF_FAMILY.ole in app.js).
+Visualizzatore `ui/js/viewers/solidcad.js` (pannello anteprima/proprieta'/configurazioni/componenti + resoconto; il 3D e'
+`model3d.js` montato su uno STEP convertito; Salva con nome STEP = copia dello STEP esatto). API `solid_info`, `solid_step` (job).
+Tutto scritto da zero, niente codice di terzi:
+- `mbvisual/parasolid.py`: lettore XT testo e binario neutro dalla specifica pubblica "Parasolid XT Format Reference" (2006).
+  Schema di base SCH_13006 scritto a mano dalla specifica; gli schemi incorporati (V14+) si applicano come modifiche (C/D/I/A/Z).
+  Campi utente dopo OGNI nodo. Vecchi (verificati): fino alla V11 fin senza attributi e ATTRIB_DEF senza field_names con
+  13 proprietari; V9 anche corpo senza nom_geom_state. Limite: x_t salvati "per una versione precedente" SENZA schema
+  incorporato (es. SCH_2400000_20000) non si leggono (servirebbe il file di schema di Parasolid).
+- `mbvisual/xt2step.py`: B-rep -> STEP AP214 in mm. Esatti: piano, cilindro, cono (asse STEP opposto: verso u invertito ->
+  flip), sfera, toro (DEGENERATE_TOROIDAL se R<=r), B-spline/NURBS (poli: v piu' veloce, verificato), offset, estrusa,
+  rivoluzione, rette/cerchi/ellissi. Approssimati: intersezioni (polilinea dalla chart), SP-curve e spigoli tolleranti
+  (campionati), raccordi a palla 'R' ed 'E' (NURBS dai punti di contatto, parametrizzati come Parasolid cosi' SP-curve e
+  proiezioni sui raccordi funzionano). same_sense = senso faccia == senso superficie (xor flip). Assiemi XT annidati
+  con NAUO + ITEM_DEFINED_TRANSFORMATION. Resoconto con codici (faces, faces_ok, skip:<codice>...) tradotti nell'interfaccia.
+- `mbvisual/solidcad.py`: contenitori. SW <=2014 e Solid Edge = OLE (olefile); SW 2015+ = sezioni `14 00 06 00 08 00`,
+  nome a semibyte scambiati, deflate grezzo (si tiene l'ultima copia valida). Flussi SW compressi a pezzi:
+  [GUID 231dd571...][u32 esteso][u32 compresso][zlib]... (`sw_records`, `_unzlb`). Geometria SW: Contents/Config-N-Partition
+  (partizione neutra binaria); se e' vuota i corpi stanno in Config-N-FeatureBodies/LocalBodies. Solid Edge:
+  PARASOLID/STREAM0.X_B (o .P_B; SKETCH.P_B = schizzi, ignorato). Assiemi SW: swXmlContents/COMPINSTANCETREE (file, modelli,
+  riferimenti con swTransform: 16 numeri a vettore riga, metri) + file delle parti cercati in cartella/sottocartelle/percorso
+  salvato. Proprieta' OLE con `mbvisual/olepropset.py` (anche sezione personalizzata e set Solid Edge), SW 2015+ da docProps/*.xml;
+  anteprima PreviewPNG / Preview (DIB) / "Large DIB" di Solid Edge. Cache in TEMP_DIR/solidcad (VERSION nel modulo).
+- Collaudo: `python tools/fetch_solidcad_samples.py` (file pubblici GitHub, fonti nel file) poi `python tests/test_solidcad.py --occt`.
+  Risultato 22/10/2026: 171 file, 145 con geometria, 143 convertiti (2 x_t senza schema incorporato), 14.027/14.027 facce;
+  OpenCascade legge 143/143 STEP, 139 facce su 15.532 (0,9%) restano senza triangoli. Estrusioni con sezione B-spline
+  scritte come B-spline limitate: la SURFACE_OF_LINEAR_EXTRUSION infinita bloccava la triangolazione dell'intero solido;
+  assieme SW 1690-20-8300 composto dalle matrici: 40/40 componenti coincidono entro 0,5 mm con l'x_t ufficiale.
+- DA FARE: assiemi Solid Edge (ora solo elenco componenti; posizioni non decodificate: Attachments / Preview/Structure/IOT;
+  mesh di visualizzazione in Preview/Display/Scene0/Geometries), mesh di visualizzazione SW (DisplayLists) come ripiego,
+  sotto-assiemi SW non descritti nell'albero del padre, x_t senza schema incorporato, parti SE vecchie con solo schizzi.

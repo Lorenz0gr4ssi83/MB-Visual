@@ -13,6 +13,7 @@ const VIEWER_NAMES = {
   image: tr("app.immagine"), svg: "SVG", media: tr("app.audio_video"), cad2d: tr("app.disegno_cad_2d"), model3d: tr("app.modello_3d"),
   external: tr("app.programma_esterno"), archive: tr("app.archivio"), email: tr("app.email"), epub: "eBook", font: "Font",
   sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), visio: tr("app.diagramma_visio"), gis: tr("app.mappa_gis"), bcf: tr("app.segnalazioni_bim_bcf"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"), compare: tr("app.confronto_revisioni"),
+  solidcad: tr("app.solidworks_solid_edge"),
 };
 // documenti che sul PC si aprono nell'editor ONLYOFFICE integrato (modifica completa come nei programmi originali)
 const OO_EXTS = new Set(["docx", "docm", "dotx", "dotm", "doc", "dot", "rtf", "odt", "ott", "fodt", "xlsx", "xlsm", "xltx", "xltm", "xls", "xlt", "ods", "fods", "csv",
@@ -21,7 +22,7 @@ const TEXT_VIEWERS = new Set(["text", "markdown", "html", "svg"]);
 const SNIFF_FAMILY = {
   pdf: ["pdf"], signed: ["signed"], media: ["media", "audio"], archive: ["archive"], image: ["image", "image-raw"],
   zip: ["word", "sheet", "pptx", "publisher", "visio", "office-lo", "archive", "mesh3d", "ebook"], sqlite: ["database"],
-  ole: ["publisher", "visio", "office-lo", "sheet", "email", "archive", "image"], cad2d: ["cad2d"], ifc: ["mesh3d"], cad3d: ["cad3d"],
+  ole: ["publisher", "visio", "office-lo", "sheet", "email", "archive", "image", "solidcad"], cad2d: ["cad2d"], ifc: ["mesh3d"], cad3d: ["cad3d"],
   mesh3d: ["mesh3d"], pointcloud: ["pointcloud"], font: ["font"], svg: ["svg"], html: ["html"], email: ["email"], vis3d: ["vis3d"],
 };
 const NAME_AS_EXT = { makefile: "makefile", dockerfile: "dockerfile", containerfile: "containerfile", license: "txt", readme: "txt",
@@ -74,7 +75,7 @@ export function resolveCategory(name, sniff) {
 
 // ------------------------------------------------------------------ badge per tipo di file
 const BADGE_COLOR = { pdf: "pdf", signed: "sig", word: "doc", "office-lo": "doc", sheet: "xls", pptx: "ppt", publisher: "cad", visio: "doc", cad2d: "cad",
-  cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", vis3d: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", videoproject: "av", bcf: "3d",
+  cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", solidcad: "3d", vis3d: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", videoproject: "av", bcf: "3d",
   archive: "zip", email: "mail", text: "code", markdown: "code", html: "code", ebook: "code", font: "code", database: "db", gis: "img" };
 export function badgeFor(name, isDir = false) {
   if (isDir) return el("span", { class: "badge" }, "DIR");

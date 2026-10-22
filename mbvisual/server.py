@@ -404,6 +404,17 @@ class Handler(BaseHTTPRequestHandler):
         from . import pdf3d
         self._json(pdf3d.extract(self._path(qs)))
 
+    def api_solid_info(self, qs):
+        # SolidWorks / Solid Edge / Parasolid senza i programmi originali: anteprima, proprieta', componenti
+        from . import solidcad
+        self._json({"ok": True, **solidcad.info(self._path(qs))})
+
+    def api_solid_step(self, qs):
+        # geometria Parasolid del file convertita in STEP (lavoro con avanzamento, risultato in cache)
+        from . import solidcad
+        cfg = _q(qs, "config")
+        self._json({"ok": True, "job": jobs.start(solidcad.to_step, self._path(qs), int(cfg) if cfg not in (None, "") else None)})
+
     def api_onlyoffice(self, qs):
         self._json({"ok": True, "url": onlyoffice_url()})
 

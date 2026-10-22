@@ -1097,6 +1097,34 @@
    ]
   },
   {
+   "id": "solidcad",
+   "name": "SolidWorks, Solid Edge e Parasolid",
+   "viewer": "solidcad",
+   "view": "Senza i programmi originali: anteprima incorporata, proprieta' (anche personalizzate e per configurazione), materiale, configurazioni, componenti degli assiemi e delle tavole; modello 3D esatto letto dal Parasolid contenuto nel file (assiemi SolidWorks composti dai file delle parti)",
+   "edit": "Esportazione in STEP esatto (B-rep), GLB, STL, OBJ, IFC; le tavole mostrano anteprima e proprieta'",
+   "exts": [
+    "sldprt",
+    "sldasm",
+    "slddrw",
+    "prtdot",
+    "asmdot",
+    "drwdot",
+    "par",
+    "psm",
+    "asm",
+    "dft",
+    "pwd",
+    "x_t",
+    "x_b",
+    "xmt_txt",
+    "xmt_bin",
+    "p_t",
+    "p_b",
+    "xmp_txt",
+    "xmp_bin"
+   ]
+  },
+  {
    "id": "archive",
    "name": "Archivi compressi e immagini disco",
    "viewer": "archive",
