@@ -511,6 +511,11 @@ def set_flags(ids, **vals):
     if server:
         for aid, mids in _by_account(ids).items():
             enqueue(aid, "flags", {"ids": mids, **server})
+    if "categories" in local or "flag_done" in local:  # Microsoft Graph conserva anche categorie e completamento
+        for aid, mids in _by_account(ids).items():
+            a = _acc(aid)
+            if a and a.get("tipo") == "graph":
+                enqueue(aid, "local", {"ids": mids})
     bump()
 
 

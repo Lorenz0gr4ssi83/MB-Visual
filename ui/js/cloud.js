@@ -43,7 +43,7 @@ export async function setupCloud() {
   $("explorer").after(panel);
   setInterval(syncLoop, 2500);
   setInterval(remoteLoop, 60000);
-  window.MBCloud = { saveToCloud, toggle, connected: () => ST.servizi.some(s => s.configurato && s.connesso) };
+  window.MBCloud = { saveToCloud, toggle, configure, connected: () => ST.servizi.some(s => s.configurato && s.connesso) };
   await refreshState();
 }
 

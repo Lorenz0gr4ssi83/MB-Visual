@@ -5,7 +5,7 @@ import { t as tr } from "../i18n.js";
 import { afterAccountsChanged, ap, call, icon } from "./mailapp.js";
 import { IC } from "./mailicons.js";
 
-const OAUTH_READY = false;
+const OAUTH_READY = true;
 
 // ------------------------------------------------------------------ finestra a schede (sopra la posta)
 let W = null;
@@ -23,11 +23,14 @@ function win(title, tabs, start) {
   document.addEventListener("keydown", onKey, true);
   W = {
     close() { back.remove(); document.removeEventListener("keydown", onKey, true); W = null; afterAccountsChanged(); },
+    gen: 0,
     show(k) {
       for (const b of side.children) b.classList.toggle("on", b.dataset.k === k);
       main.innerHTML = "";
+      const g = ++W.gen;
       const t = tabs.find(x => x[0] === k);
-      Promise.resolve(t[3](main)).catch(e => main.append(el("p", { class: "bad" }, e.message)));
+      const page = el("div", { class: "ml-dlgpage" }); // si mostra solo se nel frattempo non si e' aperta un'altra pagina
+      Promise.resolve(t[3](page)).catch(e => page.append(el("p", { class: "bad" }, e.message))).then(() => { if (W?.gen === g) main.append(page); });
     },
     main,
   };
@@ -79,6 +82,7 @@ const confirmDel = text => modal(tr("mail.conferma"), el("p", {}, text), [{ labe
 export async function addAccount(opts = {}) {
   if (!W) win(tr("mail.impostazioni_posta"), TABS(), "account");
   const main = W.main;
+  W.gen++;
   main.innerHTML = "";
   const { preset } = await call("accounts", {});
   const kinds = [
@@ -154,7 +158,7 @@ export async function addAccount(opts = {}) {
     } catch (e) {
       status.innerHTML = "";
       ap(status, el("p", { class: "bad" }, e.message));
-      if (/configur|client/i.test(e.message)) status.append(el("button", { class: "btn", onclick: () => import("../cloud.js").then(m => m.configure?.()) }, tr("mail.configura_id_app")));
+      if (/configur|client/i.test(e.message)) status.append(el("button", { class: "btn", onclick: () => window.MBCloud?.configure?.() }, tr("mail.configura_id_app")));
     }
   }
   ap(main, el("div", { class: "ml-dlghead" }, el("h4", {}, tr("mail.aggiungi_account"))), cards, form, status);
@@ -165,6 +169,7 @@ export async function addAccount(opts = {}) {
 export async function editAccount(a) {
   if (!W) win(tr("mail.impostazioni_posta"), TABS(), "account");
   const main = W.main;
+  W.gen++;
   main.innerHTML = "";
   const isNew = !!a._new;
   const f = {
@@ -185,6 +190,8 @@ export async function editAccount(a) {
   ap(main, el("div", { class: "ml-dlghead" }, el("h4", {}, isNew ? tr("mail.nuovo_account") : a.email)), found,
     a.nota ? el("div", { class: "ml-bar" }, icon("importante"), el("span", {}, a.nota)) : null,
     el("div", { class: "ml-grid2" }, field(tr("mail.nome_visualizzato"), f.nome), field(tr("mail.indirizzo_email"), f.email)),
+    a.oauth && !isNew ? el("div", { class: "ml-bar info" }, icon("nuvola"), el("span", { class: "fx" }, tr("mail.oauth_collegato", a.oauth === "google" ? "Google" : "Microsoft")),
+      el("button", { class: "btn", onclick: () => relogin(a) }, tr("mail.accedi_di_nuovo"))) : null,
     graph ? el("p", { class: "muted" }, tr("mail.account_graph_nota")) : el("div", {},
       el("div", { class: "ml-grid2" }, field(tr("mail.nome_utente"), f.utente), a.oauth ? el("div") : field(tr("mail.password"), f.password)),
       el("h5", {}, tr("mail.posta_in_arrivo_imap")),
@@ -232,6 +239,16 @@ export async function editAccount(a) {
     toast(isNew ? tr("mail.account_aggiunto", b.email) : tr("mail.salvato"));
     W.show("account");
   }
+}
+
+async function relogin(a) {
+  toast(tr("mail.attesa_browser"), false, 8000);
+  try {
+    const r = await call("oauth_login", { provider: a.oauth, email: a.email, id: a.id });
+    await waitJob(r.job);
+    toast(tr("mail.salvato"));
+    W?.show("account");
+  } catch (e) { toast(e.message, true, 8000); }
 }
 
 export function openGuide() {
@@ -353,6 +370,7 @@ function describeRule(x) {
 export async function editRule(x = {}) {
   if (!W) win(tr("mail.impostazioni_posta"), TABS(), "regole");
   const main = W.main;
+  W.gen++;
   main.innerHTML = "";
   const [F, { s }, { items: comm }] = await Promise.all([call("folders", {}), call("settings", {}), call("commesse", {})]);
   const c = x.cond || {}, a = x.azioni || {};

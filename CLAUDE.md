@@ -999,7 +999,7 @@ Solo app per PC. Il risultato si apre subito nell'editor CAD. DWG solo con ODA F
 - Da provare con le tavole vere dell'utente (AutoCAD/Revit, scansioni A1/A0): PDF con testi SHX (tratti + testo nascosto),
   archi spezzati in segmenti, retini a tratteggio (restano linee), scansioni a colori/cianografie, testi inclinati (l'OCR di Windows
   legge solo orizzontale e verticale).
-## Posta elettronica in stile Outlook (22/10/2026) - IN CORSO (tappa 1 fatta: IMAP/SMTP, PEC, interfaccia, commesse)
+## Posta elettronica in stile Outlook (22/10/2026) - IN CORSO (tappe 1-2 fatte: IMAP/SMTP, PEC, interfaccia, commesse, Microsoft 365 e Gmail)
 Scheda "Posta" (pulsante busta nella barra laterale, `MB.openMail()`; percorso virtuale `mail://posta`, i messaggi nuovi
 `mail://scrivi/<n>` con il visualizzatore `mailcompose`). Solo app per PC. Guida utente: `ui/guide/posta.md`.
 - Motore `mbvisual/mail/` (API unica `api/mail?op=...` -> `mail/api.py handle`; errori MailError/ValueError = `{ok:false}`):
@@ -1031,6 +1031,14 @@ Scheda "Posta" (pulsante busta nella barra laterale, `MB.openMail()`; percorso v
 - Prove: `python tests/test_mail.py` (73 prove, archivio in cartella temporanea, server di prova `tests/mailserver.py` IMAP+SMTP
   con gestore PEC simulato `tests/pecsim.py`: buste e ricevute firmate S/MIME, daticert); interfaccia: `python tests/mail_demo.py`
   (stampa l'indirizzo; account mario@studio.prova.it e studio@pec.prova.it, password "prova").
-- DA FARE (tappe successive): Microsoft 365 via Graph e Gmail con OAuth (riuso degli ID di cloud.py; nell'interfaccia
-  `OAUTH_READY` in mailsettings.js), calendario e contatti (CalDAV/CardDAV, Graph; `CAL_READY` in mailapp.js),
-  conferme di lettura in uscita. Account veri: li prova l'utente.
+- Microsoft 365 / Outlook.com e Gmail (tappa 2): `oauth.py` (PKCE con l'ascoltatore di cloud.py, ID applicazione di cloud.config:
+  "onedrive" per Microsoft, "gdrive" con segreto per Google; ambiti Mail.ReadWrite/Mail.Send/Calendars/Contacts e
+  https://mail.google.com/ + calendar + contacts; token per account in segreti["oauth"], rinnovo automatico; refresh
+  rifiutato = MailError auth -> "Accedi di nuovo" nelle impostazioni dell'account). `graphmail.py` GraphProvider: cartelle
+  (+childFolders, ruoli dalle well-known), delta per cartella (folders.delta), elenco da intestazioni sintetiche, MIME da
+  /$value, flags/categorie/completamento con PATCH (op "local" per categorie), move (nuovo id), DELETE, bozze e APPEND con
+  POST /me/messages MIME, invio /me/sendMail MIME (<3,5 MB) o bozza JSON + upload session + /send. Gmail = IMAP/SMTP
+  XOAUTH2 (salva_inviati false: la copia locale in Inviata si aggancia a quella del server per Message-ID).
+  Collaudo `python tests/test_mail_oauth.py` (25 prove: finto OAuth, finto Graph per la posta, server di prova con XOAUTH2).
+- DA FARE (tappe successive): calendario e contatti (CalDAV/CardDAV, Graph; `CAL_READY` in mailapp.js), conferme di
+  lettura in uscita. Account veri: li prova l'utente (registrazioni in ui/guide/posta.md cap. 6).
