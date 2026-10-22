@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { parseHsf } from "./hsf.js";
 import { decodeEdgebreakerShell } from "./edgebreaker.js";
 import { parseObjectDefinition, parseSectionContent, affineOf4x4 } from "./dwfpkg.js";
+import { t as tr } from "./i18n.js";
 
 const nums = s => (String(s || "").match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g) || []).map(Number);
 
@@ -13,10 +14,10 @@ export async function loadW3dSection(pkg, sheet, ld) {
   const sec = sheet.section;
   const res = sec.res;
   const w3dRes = res.find(r => /x-w3d/i.test(r.mime) || /3d streaming graphics/i.test(r.role));
-  if (!w3dRes) throw new Error("La sezione non contiene grafica 3D (W3D)");
-  ld?.set(0.2, "Lettura del modello 3D (W3D)");
+  if (!w3dRes) throw new Error(tr("w3d.sezione_non_contiene_grafica_3d"));
+  ld?.set(0.2, tr("w3d.lettura_modello_3d_w3d"));
   const bytes = await pkg.read(w3dRes.href);
-  if (!bytes) throw new Error("Flusso W3D non trovato nel pacchetto");
+  if (!bytes) throw new Error(tr("w3d.flusso_w3d_non_trovato_pacchetto"));
   // descrittore: unita' e trasformazione
   let units = "", T = null;
   const dres = res.find(r => r.role === "descriptor");
@@ -40,14 +41,14 @@ export async function loadW3dSection(pkg, sheet, ld) {
     else if (od) { const t = await pkg.text(od.href); if (t) byNode = parseObjectDefinition(t); }
   } catch (e) { console.warn("Proprieta' del modello non lette", e); }
 
-  ld?.set(0.4, "Decodifica della geometria");
+  ld?.set(0.4, tr("w3d.decodifica_geometria"));
   await new Promise(r => setTimeout(r, 0));
   let ebFail = 0;
   const hsf = parseHsf(bytes, {
     edgebreaker: h => { try { const r = decodeEdgebreakerShell(h); if (r.bad || r.mismatch) ebFail++; return r; } catch (e) { ebFail++; return null; } },
   });
 
-  ld?.set(0.7, "Costruzione della scena");
+  ld?.set(0.7, tr("w3d.costruzione_scena"));
   // segmenti per nome (anche percorsi assoluti "?Include Library/26")
   const byName = new Map();
   const index = (s, path) => {
@@ -133,7 +134,7 @@ export async function loadW3dSection(pkg, sheet, ld) {
       grp.userData.navisId = s.tag;
       if (info) {
         grp.name = info.label || grp.name;
-        grp.userData.navisProps = info.props.filter(p => p.cat !== "hidden" && !String(p.name).startsWith("_")).map(p => [p.cat || "Proprieta'", p.name, p.value]);
+        grp.userData.navisProps = info.props.filter(p => p.cat !== "hidden" && !String(p.name).startsWith("_")).map(p => [p.cat || tr("w3d.proprieta"), p.name, p.value]);
       }
     }
     const faceCol = at.face || [200, 200, 200];
@@ -191,7 +192,7 @@ export async function loadW3dSection(pkg, sheet, ld) {
       if (sub) grp.add(sub);
     }
     if (!grp.children.length) return null;
-    if (grp.userData.navisId !== undefined) items.push({ name: grp.name || "Oggetto " + s.tag, obj: grp, children: myItems });
+    if (grp.userData.navisId !== undefined) items.push({ name: grp.name || tr("w3d.oggetto") + s.tag, obj: grp, children: myItems });
     else items.push(...myItems);
     return grp;
   }
@@ -208,8 +209,8 @@ export async function loadW3dSection(pkg, sheet, ld) {
   if (!view || Math.abs(view.up[2]) > Math.abs(view.up[1])) outer.rotation.x = -Math.PI / 2;
   outer.updateMatrixWorld(true);
   const warn = [...hsf.warnings];
-  if (ebFail) warn.push(`${ebFail} superfici compresse non ricostruite`);
-  if (skipped) warn.push(`${skipped} superfici senza geometria leggibile`);
+  if (ebFail) warn.push(tr("w3d.0_superfici_compresse_non_ricostruite", ebFail));
+  if (skipped) warn.push(tr("w3d.0_superfici_senza_geometria_leggibile", skipped));
   sheet.info3d = { units, triangles: triCount, warnings: warn };
   return { root: outer, tree: tree.length ? tree : [{ name: sheet.title, obj: outer, children: [] }] };
 }

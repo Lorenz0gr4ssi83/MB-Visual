@@ -12,7 +12,7 @@ const VIEWER_NAMES = {
   office: tr("app.documento_office_libreoffice"), text: tr("app.testo_codice"), markdown: "Markdown", html: tr("app.pagina_web"),
   image: tr("app.immagine"), svg: "SVG", media: tr("app.audio_video"), cad2d: tr("app.disegno_cad_2d"), model3d: tr("app.modello_3d"), inventor: tr("app.documento_inventor"),
   external: tr("app.programma_esterno"), archive: tr("app.archivio"), email: tr("app.email"), epub: "eBook", font: "Font",
-  sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), visio: tr("app.diagramma_visio"), gis: tr("app.mappa_gis"), bcf: tr("app.segnalazioni_bim_bcf"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"), compare: tr("app.confronto_revisioni"),
+  dwf: tr("app.pubblicazione_dwf"), sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), visio: tr("app.diagramma_visio"), gis: tr("app.mappa_gis"), bcf: tr("app.segnalazioni_bim_bcf"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"), compare: tr("app.confronto_revisioni"),
   solidcad: tr("app.solidworks_solid_edge"),
   dicom: tr("app.immagine_medica_dicom"), calendar: tr("app.calendario"), contacts: tr("app.contatti"), cert: tr("app.certificato_digitale"),
   iwork: "Apple iWork", hpgl: tr("app.plotter_hpgl"), scidata: tr("app.dati_scientifici"), revit: "Revit",

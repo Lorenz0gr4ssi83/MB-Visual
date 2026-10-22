@@ -734,3 +734,27 @@ I DICOM SENZA estensione (o con nome numerico) si aprono col visualizzatore DICO
   e' quella della richiesta, non quella dell'importazione; le chiavi tecniche (BasicFileInfo di Revit, blocchi PEM) restano in inglese.
 - Librerie nuove (requirements.txt + hidden import in build_portable.py): pydicom MIT, python-gdcm Apache-2.0/BSD, h5py BSD-3,
   pyarrow Apache-2.0, olefile BSD-2.
+
+## Autodesk DWF / DWFx (22/10/2026) - FATTO
+Visualizzatore `ui/js/viewers/dwf.js` (categoria `dwf` in formats.json: .dwf .dwfx .w2d), tutto in JS (anche web app), scritto da zero.
+- Pacchetto `ui/js/dwfpkg.js`: DWF 6 (zip dopo "(DWF V06.xx)": JSZip riceve il file intero), DWF <= 5.5 (un solo W2D), DWFx/XPS
+  (manifest, descrittori ePlot/eModel, risorse ?dwfresource_N = Canvas della FixedPage). Fogli in coordinate della carta (y in su),
+  layer, oggetti (ObjectDefinition 6.0, content.xml + SectionContent 6.2/DWFx, nodi W2D/W2X), marcature (MarkupObjectDefinition),
+  unita' (matrice Units + trasformazione del descrittore; riquadri W2D con Units propri; DWFx: viewport W2X per elemento -> `vpUnits`).
+- `ui/js/w2d.js` (specifica WHIP! di Autodesk): coordinate relative con somma a 32 bit senza segno; angoli delle immagini e riquadro dei
+  testi Ctrl-X sono RELATIVI (aggiornano il punto corrente; ordine reale: sopra/sotto-lineato, riquadro, riservati). Compressione zlib/LZ con
+  cronologia precaricata `ui/js/w2dpreload.js` (dati del formato dal DWF Toolkit, Adler-32 5CBC15B9); `ui/js/inflate.js` = inflate proprio.
+  Testi: il riquadro (P0->P1 base, P0->P3 alto) da' orientamento e larghezza veri; flag 1 = testo verticale (lettere impilate).
+- `ui/js/xpspage.js`: FixedPage (Path, Glyphs con Indices, Canvas, dizionari, ImageBrush, gradienti); caratteri .odttf de-offuscati con la GUID.
+- Disegno `ui/js/dwfdraw.js` (gruppi Path2D, ritagli, selezione, aggancio), esportazioni `ui/js/dwfexport.js` (SVG, PNG 200 dpi, PDF vettoriale
+  scritto a mano con Helvetica adattata in larghezza; Salva con nome PDF = tutti i fogli 2D).
+- 3D: `ui/js/hsf.js` (HSF/W3D: specifica v10 + opcode delle versioni 11-12 ricavati dai dati: sfera 0x1a, ':' attributi geometria, archi con
+  byte in piu' dalla 12.00, Rendering_Options con riallineamento), `ui/js/edgebreaker.js` (Edgebreaker da Rossignac 1999/2001: anello iniziale
+  k = T - 2C + 2 per componente, "tappo" virtuale, zip in un solo verso; vertici fittizi e patch come differenze progressive, nuovo indice
+  delle patch = numerazione finale; i punti sono float in chiaro dopo il blocco), `ui/js/w3d.js` (scena three.js: inclusioni ?Include Library,
+  colori, spigoli, nodo = indice di tag HSF -> proprieta' via navisId/navisProps). model3d.js: aggancio `ctx.preloaded`.
+  NB: i sorgenti w3dtk del DWF Toolkit portano un avviso "trade secret" Tech Soft 3D: NON usarli (consultati solo per l'ordine dei campi
+  della shell, il formato dei bit a parole di 32 bit e l'opcode 0xE0; nessun codice copiato).
+- Collaudo (campioni pubblici: repo aspose-cad/Aspose.CAD-for-.NET MIT, kveretennicov/dwf-toolkit samples Autodesk, esempi di
+  flyfish-dev/dwf-viewer solo come file di prova): 2D fedeli alle miniature originali; 3D Inventor/Revit/esempi corretti (9.500+ componenti
+  edgebreaker chiuse, 0 errori). Non gestiti: immagini TIFF Group4 (riquadro), macro W2D, NURBS, coordinate texture, normali compresse.

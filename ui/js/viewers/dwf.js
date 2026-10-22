@@ -4,8 +4,9 @@ import { api, button, el, loading, readBytes, saveBlobAs, toast, withExt, WEB, d
 import { openPackage } from "../dwfpkg.js";
 import { prepareSheet, drawSheet, pick, snap, buildIndex, primBBox, primQuad } from "../dwfdraw.js";
 import { sheetToPng, sheetToSvg, sheetsToPdf } from "../dwfexport.js";
+import { t, LOCALE } from "../i18n.js";
 
-const fmt = (v, d = 4) => (isFinite(v) ? v.toLocaleString("it-IT", { maximumFractionDigits: d }) : "-");
+const fmt = (v, d = 4) => (isFinite(v) ? v.toLocaleString(LOCALE, { maximumFractionDigits: d }) : "-");
 const UNIT_LABEL = { mm: "mm", in: "in", ft: "ft", m: "m", cm: "cm", ftin: "" };
 // valore in pollici -> 12'-6 1/2"
 function feetInches(v) {
@@ -20,19 +21,19 @@ function feetInches(v) {
 const fmtU = (v, u, d = 4) => (u?.name === "ftin" ? feetInches(v) : fmt(v, d));
 
 export async function mount(ctx) {
-  const ld = loading(ctx.el, "Lettura del file DWF");
+  const ld = loading(ctx.el, t("v_dwf.lettura_file_dwf"));
   const bytes = await readBytes(ctx.path);
   const pkg = await openPackage(bytes, ctx.name);
-  if (!pkg.sheets.length) throw new Error("Il file non contiene fogli o modelli visualizzabili");
+  if (!pkg.sheets.length) throw new Error(t("v_dwf.file_non_contiene_fogli_modelli"));
   ctx.el.innerHTML = "";
   ctx.fillBody(true);
 
   // ---- interfaccia: pannello laterale a schede + area di disegno
-  const tabsBar = el("div", { class: "seg", style: { margin: "8px 8px 4px", display: "flex" } });
+  const tabsBar = el("div", { class: "seg", style: { margin: "8px 8px 4px", display: "flex", flexWrap: "wrap" } });
   const panes = {};
-  const TABS = [["fogli", "Fogli"], ["layer", "Layer"], ["oggetti", "Proprieta'"], ["marcature", "Marcature"], ["cerca", "Cerca"]];
+  const TABS = [["fogli", t("v_dwf.fogli")], ["layer", t("v_dwf.layer")], ["oggetti", t("v_dwf.proprieta")], ["marcature", t("v_dwf.marcature")], ["cerca", t("v_dwf.cerca")]];
   for (const [id, label] of TABS) {
-    const b = el("button", { class: "btn", style: { flex: "1", justifyContent: "center", padding: "0 4px", fontSize: "12px" }, onclick: () => showPane(id) }, label);
+    const b = el("button", { class: "btn", style: { flex: "1 1 auto", justifyContent: "center", padding: "0 6px", fontSize: "12px" }, onclick: () => showPane(id) }, label);
     b.dataset.pane = id;
     tabsBar.append(b);
     panes[id] = el("div", { style: { display: "none", minHeight: 0, overflow: "auto", flex: "1 1 auto" } });
@@ -64,22 +65,22 @@ export async function mount(ctx) {
 
   // ---- barra degli strumenti (2D)
   const tb2d = [];
-  const bFit = button("Adatta", "fit", () => fit());
-  const bIn = button("", "zoomIn", () => zoomAt(1.4), { iconOnly: true, title: "Ingrandisci" });
-  const bOut = button("", "zoomOut", () => zoomAt(1 / 1.4), { iconOnly: true, title: "Riduci" });
-  const bSel = button("Seleziona", "", () => setMode("sel"), { title: "Clic su un elemento: proprieta' dell'oggetto" });
-  const bDist = button("Distanza", "ruler", () => setMode("dist"), { title: "Distanza tra due punti (aggancio a estremi e punti medi)" });
-  const bArea = button("Area", "", () => setMode("area"), { title: "Area e perimetro: clic sui vertici, doppio clic o Invio per chiudere" });
-  const bText = button("Testi", "text", () => { showText = !showText; bText.classList.toggle("on", showText); draw(); });
-  const bThin = button("Linee sottili", "", () => { thinLines = !thinLines; bThin.classList.toggle("on", thinLines); draw(); }, { title: "Mostra tutte le linee con lo spessore minimo" });
-  const bMk = button("Marcature", "", () => { showMarkups = !showMarkups; bMk.classList.toggle("on", showMarkups); draw(); });
-  const bDark = button("Sfondo scuro", "sun", () => { dark = !dark; bDark.lastChild.textContent = dark ? "Carta bianca" : "Sfondo scuro"; draw(); });
-  const bPng = button("PNG", "download", () => exportCur("png"), { title: "Foglio come immagine PNG (200 dpi)" });
-  const bSvg = button("SVG", "download", () => exportCur("svg"), { title: "Foglio in SVG vettoriale" });
-  const bPdf = button("PDF", "download", () => exportCur("pdf"), { title: "Foglio in PDF vettoriale (Salva con nome: tutti i fogli)" });
+  const bFit = button(t("v_dwf.adatta"), "fit", () => fit());
+  const bIn = button("", "zoomIn", () => zoomAt(1.4), { iconOnly: true, title: t("v_dwf.ingrandisci") });
+  const bOut = button("", "zoomOut", () => zoomAt(1 / 1.4), { iconOnly: true, title: t("v_dwf.riduci") });
+  const bSel = button(t("v_dwf.seleziona"), "", () => setMode("sel"), { title: t("v_dwf.clic_elemento_proprieta_dell_oggetto") });
+  const bDist = button(t("v_dwf.distanza"), "ruler", () => setMode("dist"), { title: t("v_dwf.distanza_tra_due_punti_aggancio") });
+  const bArea = button(t("v_dwf.area"), "", () => setMode("area"), { title: t("v_dwf.area_perimetro_clic_sui_vertici") });
+  const bText = button(t("v_dwf.testi"), "text", () => { showText = !showText; bText.classList.toggle("on", showText); draw(); });
+  const bThin = button(t("v_dwf.linee_sottili"), "", () => { thinLines = !thinLines; bThin.classList.toggle("on", thinLines); draw(); }, { title: t("v_dwf.mostra_tutte_linee_spessore_minimo") });
+  const bMk = button(t("v_dwf.marcature"), "", () => { showMarkups = !showMarkups; bMk.classList.toggle("on", showMarkups); draw(); });
+  const bDark = button(t("v_dwf.sfondo_scuro"), "sun", () => { dark = !dark; bDark.lastChild.textContent = dark ? t("v_dwf.carta_bianca") : t("v_dwf.sfondo_scuro"); draw(); });
+  const bPng = button("PNG", "download", () => exportCur("png"), { title: t("v_dwf.foglio_come_immagine_png_200") });
+  const bSvg = button("SVG", "download", () => exportCur("svg"), { title: t("v_dwf.foglio_svg_vettoriale") });
+  const bPdf = button("PDF", "download", () => exportCur("pdf"), { title: t("v_dwf.foglio_pdf_vettoriale_salva_nome") });
   bText.classList.add("on"); bMk.classList.add("on");
   tb2d.push(bFit, bIn, bOut, el("span", { class: "sep" }), bSel, bDist, bArea, el("span", { class: "sep" }), bText, bThin, bMk, bDark, el("span", { class: "sep" }), bPng, bSvg, bPdf);
-  const tbNote = el("span", { class: "note" }, "Rotella: zoom · trascina: sposta · doppio clic: adatta");
+  const tbNote = el("span", { class: "note" }, t("v_dwf.rotella_zoom_trascina_sposta_doppio"));
   const tb2dBox = el("span", { style: { display: "contents" } }, ...tb2d, el("span", { class: "grow" }), tbNote);
   const tb3dBox = el("span", { style: { display: "none" } });
   ctx.tb.append(tb2dBox, tb3dBox);
@@ -93,7 +94,7 @@ export async function mount(ctx) {
   // ---- elenco dei fogli
   const sheetList = el("div", { class: "tree" });
   panes.fogli.append(sheetList);
-  const kindLabel = { "2d": "Foglio 2D", "3d": "Modello 3D", data: "Dati" };
+  const kindLabel = { "2d": t("v_dwf.foglio_2d"), "3d": t("v_dwf.modello_3d"), data: t("v_dwf.dati") };
   for (const s of pkg.sheets) {
     const img = el("img", { style: { width: "64px", height: "46px", objectFit: "contain", background: "#fff", border: "1px solid var(--line)", flex: "none" } });
     const row = el("div", { class: "node", style: { alignItems: "center", padding: "6px 10px", whiteSpace: "normal" }, onclick: () => openSheet(s) },
@@ -106,7 +107,7 @@ export async function mount(ctx) {
   if (pkg.props.length) {
     const dl = el("dl", { class: "kv", style: { padding: "8px 10px", fontSize: "12px" } });
     for (const p of pkg.props) dl.append(el("dt", {}, p.name), el("dd", { style: { margin: 0, overflowWrap: "anywhere" } }, p.value));
-    panes.fogli.append(el("div", { style: { padding: "8px 10px 0", fontWeight: "600", borderTop: "1px solid var(--line)" } }, "Pubblicazione"), dl);
+    panes.fogli.append(el("div", { style: { padding: "8px 10px 0", fontWeight: "600", borderTop: "1px solid var(--line)" } }, t("v_dwf.pubblicazione")), dl);
   }
 
   // ---- apertura di un foglio / modello
@@ -115,10 +116,10 @@ export async function mount(ctx) {
     for (const r of sheetList.children) r.classList.toggle("sel", r.dataset.id === s.id);
     cur = s;
     if (s.kind === "3d") return open3d(s);
-    if (s.kind === "data") { toast("Questa sezione contiene solo dati (struttura e proprieta'), senza grafica", false, 4000); return; }
+    if (s.kind === "data") { toast(t("v_dwf.questa_sezione_contiene_solo_dati"), false, 4000); return; }
     if (api3d) { try { api3d.dispose?.(); } catch { /* */ } api3d = null; host3d.innerHTML = ""; tb3dBox.innerHTML = ""; }
     host3d.style.display = "none"; stage.style.display = "block"; tb2dBox.style.display = "contents"; tb3dBox.style.display = "none";
-    const ov = el("div", { style: { position: "absolute", inset: "0", display: "grid", placeItems: "center", background: "rgba(0,0,0,.25)", color: "#fff", fontSize: "14px" } }, el("div", { style: { background: "rgba(0,0,0,.7)", padding: "10px 16px", borderRadius: "6px" } }, "Lettura del foglio \"" + s.title + "\"..."));
+    const ov = el("div", { style: { position: "absolute", inset: "0", display: "grid", placeItems: "center", background: "rgba(0,0,0,.25)", color: "#fff", fontSize: "14px" } }, el("div", { style: { background: "rgba(0,0,0,.7)", padding: "10px 16px", borderRadius: "6px" } }, t("v_dwf.lettura_foglio") + s.title + "\"..."));
     stage.append(ov);
     await new Promise(r => setTimeout(r, 30));
     try {
@@ -130,9 +131,9 @@ export async function mount(ctx) {
       for (const L of sheet.layers.values()) if (!L.on) hiddenLayers.add(L.name);
       highlight = new Set(); selIndex = null; mpts = [];
       renderLayers(); renderMarkups(); renderProps(null); searchBox.value = ""; renderSearch();
-      tbNote.textContent = sheet.warnings.length ? "Lettura parziale: " + sheet.warnings[0] : "Rotella: zoom · trascina: sposta · doppio clic: adatta";
+      tbNote.textContent = sheet.warnings.length ? t("v_dwf.lettura_parziale") + sheet.warnings[0] : t("v_dwf.rotella_zoom_trascina_sposta_doppio");
       bMk.style.display = sheet.markups.length ? "" : "none";
-      ctx.status(`${s.title} · ${sheet.prims.length.toLocaleString("it-IT")} elementi${sheet.paper ? ` · carta ${fmt(sheet.paper.w, 1)} × ${fmt(sheet.paper.h, 1)} ${sheet.paper.units}` : ""}`);
+      ctx.status(t("v_dwf.0_1_elementi_2", s.title, sheet.prims.length.toLocaleString(LOCALE), sheet.paper ? t("v_dwf.carta_formato", fmt(sheet.paper.w, 1), fmt(sheet.paper.h, 1), sheet.paper.units) : ""));
       fit();
     } catch (e) {
       console.error(e);
@@ -145,10 +146,10 @@ export async function mount(ctx) {
     const p = panes.layer;
     p.innerHTML = "";
     const list = [...sheet.layers.values()].filter(l => l.count).sort((a, b) => a.name.localeCompare(b.name));
-    if (!list.length) { p.append(el("div", { class: "note", style: { padding: "12px" } }, "Il foglio non ha layer")); return; }
-    p.append(el("div", { style: { padding: "6px 10px", display: "flex", gap: "6px", alignItems: "center" } }, el("b", {}, "Layer"), el("span", { class: "note" }, String(list.length)), el("span", { style: { flex: 1 } }),
-      el("button", { class: "btn", onclick: () => { hiddenLayers.clear(); renderLayers(); draw(); } }, "Tutti"),
-      el("button", { class: "btn", onclick: () => { list.forEach(l => hiddenLayers.add(l.name)); renderLayers(); draw(); } }, "Nessuno")));
+    if (!list.length) { p.append(el("div", { class: "note", style: { padding: "12px" } }, t("v_dwf.foglio_non_ha_layer"))); return; }
+    p.append(el("div", { style: { padding: "6px 10px", display: "flex", gap: "6px", alignItems: "center" } }, el("b", {}, t("v_dwf.layer")), el("span", { class: "note" }, String(list.length)), el("span", { style: { flex: 1 } }),
+      el("button", { class: "btn", onclick: () => { hiddenLayers.clear(); renderLayers(); draw(); } }, t("v_dwf.tutti")),
+      el("button", { class: "btn", onclick: () => { list.forEach(l => hiddenLayers.add(l.name)); renderLayers(); draw(); } }, t("v_dwf.nessuno"))));
     const tree = el("div", { class: "tree" });
     for (const L of list) {
       const cb = el("input", { type: "checkbox", checked: !hiddenLayers.has(L.name) });
@@ -168,7 +169,7 @@ export async function mount(ctx) {
       const cats = new Map();
       for (const pr of list) {
         if (pr.cat === "hidden" || String(pr.name).startsWith("_")) continue;
-        const c = pr.cat || "Generale";
+        const c = pr.cat || t("v_dwf.generale");
         if (!cats.has(c)) cats.set(c, []);
         cats.get(c).push(pr);
       }
@@ -182,46 +183,46 @@ export async function mount(ctx) {
     if (idx === null || idx === undefined || !sheet) {
       if (!sheet) return;
       p.append(el("div", { style: { padding: "8px 10px 0", fontWeight: "700" } }, sheet.title));
-      if (sheet.paper) add("Carta", `${fmt(sheet.paper.w, 2)} × ${fmt(sheet.paper.h, 2)} ${sheet.paper.units}`);
+      if (sheet.paper) add(t("v_dwf.carta"), `${fmt(sheet.paper.w, 2)} × ${fmt(sheet.paper.h, 2)} ${sheet.paper.units}`);
       const u = sheet.units[0];
-      if (u) add("Unita' del disegno", (UNIT_LABEL[u.name] || u.raw || "-") + (u.perPaper ? ` (1 ${sheet.paper?.units || "unita'"} di carta = ${fmt(u.perPaper)} ${UNIT_LABEL[u.name] || ""})` : ""));
-      add("Oggetti con proprieta'", sheet.objects.size ? sheet.objects.size.toLocaleString("it-IT") : "");
+      if (u) add(t("v_dwf.unita_disegno"), (UNIT_LABEL[u.name] || u.raw || "-") + (u.perPaper ? t("v_dwf.1_0_carta_1_2", sheet.paper?.units || t("v_dwf.unita"), fmt(u.perPaper), UNIT_LABEL[u.name] || "") : ""));
+      add(t("v_dwf.oggetti_proprieta"), sheet.objects.size ? sheet.objects.size.toLocaleString(LOCALE) : "");
       for (const [k, v] of Object.entries(sheet.meta || {})) add(k, v);
       p.append(dl);
-      if (sheet.props.length) group("Proprieta' del foglio", sheet.props);
-      p.append(el("div", { class: "note", style: { padding: "10px" } }, "Fai clic su un elemento del disegno per vederne le proprieta'."));
+      if (sheet.props.length) group(t("v_dwf.proprieta_foglio"), sheet.props);
+      p.append(el("div", { class: "note", style: { padding: "10px" } }, t("v_dwf.fai_clic_elemento_disegno_vederne")));
       return;
     }
     const pr = sheet.prims[idx];
     const obj = pr.obj ? sheet.objects.get(pr.obj) : null;
-    p.append(el("div", { style: { padding: "8px 10px 0", fontWeight: "700" } }, obj ? obj.label : { p: pr.fill ? "Area piena" : "Linea / polilinea", x: "Testo", i: "Immagine", m: "Simbolo" }[pr.t]));
-    if (pr.t === "x") add("Testo", pr.s);
-    add("Layer", pr.layer);
-    if (pr.color) add("Colore", `RGB ${pr.color[0]}, ${pr.color[1]}, ${pr.color[2]}`);
-    if (pr.t === "p" && !pr.fill) add("Spessore", pr.lw ? fmt(pr.lw, 3) + " " + (sheet.paper?.units || "") : "minimo");
-    if (pr.t === "x") add("Carattere", pr.font + (pr.bold ? " grassetto" : "") + (pr.italic ? " corsivo" : ""));
-    if (obj) add("Elementi grafici dell'oggetto", String(obj.prims?.length || 1));
+    p.append(el("div", { style: { padding: "8px 10px 0", fontWeight: "700" } }, obj ? obj.label : { p: pr.fill ? t("v_dwf.area_piena") : t("v_dwf.linea_polilinea"), x: t("v_dwf.testo"), i: t("v_dwf.immagine"), m: t("v_dwf.simbolo") }[pr.t]));
+    if (pr.t === "x") add(t("v_dwf.testo"), pr.s);
+    add(t("v_dwf.layer"), pr.layer);
+    if (pr.color) add(t("common.colore"), `RGB ${pr.color[0]}, ${pr.color[1]}, ${pr.color[2]}`);
+    if (pr.t === "p" && !pr.fill) add(t("v_dwf.spessore"), pr.lw ? fmt(pr.lw, 3) + " " + (sheet.paper?.units || "") : "minimo");
+    if (pr.t === "x") add(t("v_dwf.carattere"), pr.font + (pr.bold ? " grassetto" : "") + (pr.italic ? " corsivo" : ""));
+    if (obj) add(t("v_dwf.elementi_grafici_dell_oggetto"), String(obj.prims?.length || 1));
     p.append(dl);
     if (pr.url?.length) {
-      const box = el("div", { style: { padding: "0 10px 8px" } }, el("b", {}, "Collegamenti"));
+      const box = el("div", { style: { padding: "0 10px 8px" } }, el("b", {}, t("v_dwf.collegamenti")));
       for (const u of pr.url) box.append(el("div", {}, el("a", { href: "#", onclick: e => { e.preventDefault(); followLink(u.href); } }, u.name || u.href)));
       p.append(box);
     }
-    if (obj?.props.length) group("Proprieta' dell'oggetto", obj.props);
-    else if (!obj) p.append(el("div", { class: "note", style: { padding: "0 10px 10px" } }, "Questo elemento non ha proprieta' associate nel file."));
+    if (obj?.props.length) group(t("v_dwf.proprieta_dell_oggetto"), obj.props);
+    else if (!obj) p.append(el("div", { class: "note", style: { padding: "0 10px 10px" } }, t("v_dwf.questo_elemento_non_ha_proprieta")));
   }
   function followLink(href) {
     const m = /page='([^']+)'/.exec(href || "");
     if (m) { const s = pkg.sheets.find(x => x.title === m[1]); if (s) return openSheet(s); }
     if (/^https?:/i.test(href)) { if (WEB) window.open(href, "_blank", "noopener"); else api("open_external", { path: href }).catch(() => window.open(href, "_blank", "noopener")); return; }
-    toast("Collegamento: " + href, false, 5000);
+    toast(t("v_dwf.collegamento") + href, false, 5000);
   }
 
   // ---- marcature
   function renderMarkups() {
     const p = panes.marcature;
     p.innerHTML = "";
-    if (!sheet.markups.length) { p.append(el("div", { class: "note", style: { padding: "12px" } }, "Il foglio non contiene marcature (commenti di revisione)")); return; }
+    if (!sheet.markups.length) { p.append(el("div", { class: "note", style: { padding: "12px" } }, t("v_dwf.foglio_non_contiene_marcature_commenti"))); return; }
     const tree = el("div", { class: "tree" });
     for (const m of sheet.markups) {
       const get = n => m.props.find(x => x.name === n)?.value || "";
@@ -239,7 +240,7 @@ export async function mount(ctx) {
   }
 
   // ---- ricerca nei testi (anche quelli invisibili che AutoCAD affianca ai testi SHX)
-  const searchBox = el("input", { type: "search", class: "field", placeholder: "Cerca testo nel foglio", style: { width: "calc(100% - 20px)", margin: "8px 10px" } });
+  const searchBox = el("input", { type: "search", class: "field", placeholder: t("v_dwf.cerca_testo_foglio"), style: { width: "calc(100% - 20px)", margin: "8px 10px" } });
   const searchRes = el("div", { class: "tree" });
   panes.cerca.append(searchBox, searchRes);
   searchBox.addEventListener("input", () => renderSearch());
@@ -255,10 +256,10 @@ export async function mount(ctx) {
     for (const h of hits.slice(0, 500)) {
       const i = h < 0 ? -1 - h : h, p = sheet.prims[i];
       const label = h < 0 ? sheet.objects.get(p.obj)?.label : p.s;
-      searchRes.append(el("div", { class: "node", style: { whiteSpace: "normal" }, onclick: () => selectPrim(i, true) }, el("span", {}, label), h < 0 ? el("span", { class: "note" }, "oggetto") : null));
+      searchRes.append(el("div", { class: "node", style: { whiteSpace: "normal" }, onclick: () => selectPrim(i, true) }, el("span", {}, label), h < 0 ? el("span", { class: "note" }, t("v_dwf.oggetto_trovato")) : null));
       n++;
     }
-    searchRes.prepend(el("div", { class: "note", style: { padding: "0 10px 6px" } }, `${hits.length.toLocaleString("it-IT")} risultati${hits.length > 500 ? " (mostrati 500)" : ""}`));
+    searchRes.prepend(el("div", { class: "note", style: { padding: "0 10px 6px" } }, t("v_dwf.n_risultati", hits.length.toLocaleString(LOCALE)) + (hits.length > 500 ? t("v_dwf.mostrati_500") : "")));
   }
 
   // ---- vista
@@ -273,7 +274,13 @@ export async function mount(ctx) {
     view.ty = H / 2 + view.s * (y0 + y1) / 2;
     draw();
   }
-  function fit() { if (sheet) zoomBox(sheet.bbox); }
+  function fit() {
+    if (!sheet) return;
+    // disegno molto piu' piccolo della carta: si inquadra il disegno
+    const [a, b, c2, d] = sheet.ink, [p0, p1, p2, p3] = sheet.bbox;
+    const small = (c2 - a) * (d - b) < 0.5 * (p2 - p0) * (p3 - p1);
+    zoomBox(small ? [a - (c2 - a) * 0.03, b - (d - b) * 0.03, c2 + (c2 - a) * 0.03, d + (d - b) * 0.03] : sheet.bbox);
+  }
   const toWorld = (px, py) => [(px - view.tx) / view.s, (view.ty - py) / view.s];
   const toScreen = (x, y) => [x * view.s + view.tx, view.ty - y * view.s];
   function zoomAt(f, px = canvas.width / 2, py = canvas.height / 2) { view.tx = px - (px - view.tx) * f; view.ty = py - (py - view.ty) * f; view.s *= f; draw(); }
@@ -345,13 +352,13 @@ export async function mount(ctx) {
     if (mode === "dist") {
       const d = Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]);
       const ang = Math.atan2(pts[1][1] - pts[0][1], pts[1][0] - pts[0][0]) * 180 / Math.PI;
-      return `${fmtU(d * k, u)} ${un}${u ? `  (carta ${fmt(d, 2)} ${pu})` : ""}  ∠ ${fmt(ang, 2)}°`;
+      return `${fmtU(d * k, u)} ${un}${u ? t("v_dwf.misura_carta", fmt(d, 2), pu) : ""}  ∠ ${fmt(ang, 2)}°`;
     }
     let a = 0, per = 0;
     for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length]; a += p[0] * q[1] - q[0] * p[1]; if (i < pts.length - 1 || pts.length > 2) per += Math.hypot(q[0] - p[0], q[1] - p[1]); }
     const ar = Math.abs(a) / 2 * k * k;
-    if (u?.name === "ftin") return `Area ${fmt(ar / 144, 2)} ft²  ·  perimetro ${feetInches(per * k)}`;
-    return `Area ${fmt(ar)} ${un}²  ·  perimetro ${fmt(per * k)} ${un}`;
+    if (u?.name === "ftin") return t("v_dwf.area_0_ft2_perimetro_1", fmt(ar / 144, 2), feetInches(per * k));
+    return t("v_dwf.area_0_1_2_perimetro", fmt(ar), un, fmt(per * k), un);
   }
 
   // ---- selezione
@@ -408,7 +415,7 @@ export async function mount(ctx) {
     const [x, y] = toWorld(px, py);
     if (mode === "sel") { selectPrim(pickAt(px, py)); return; }
     const pt = msnap ? [msnap.x, msnap.y] : [x, y];
-    if (mode === "dist") { if (mpts.length >= 2) mpts = []; mpts.push(pt); if (mpts.length === 2) ctx.status("Distanza: " + measureLabel(null)); }
+    if (mode === "dist") { if (mpts.length >= 2) mpts = []; mpts.push(pt); if (mpts.length === 2) ctx.status(t("v_dwf.distanza_2") + measureLabel(null)); }
     else mpts.push(pt);
     draw();
   });
@@ -442,7 +449,7 @@ export async function mount(ctx) {
     } catch (e) {
       console.error(e);
       body.innerHTML = "";
-      body.append(el("div", { class: "center" }, el("div", { class: "panel", style: { maxWidth: "560px", textAlign: "left" } }, el("h3", { style: { marginTop: 0 } }, "Modello 3D non visualizzabile"), el("p", { class: "err" }, e.message))));
+      body.append(el("div", { class: "center" }, el("div", { class: "panel", style: { maxWidth: "560px", textAlign: "left" } }, el("h3", { style: { marginTop: 0 } }, t("v_dwf.modello_3d_non_visualizzabile")), el("p", { class: "err" }, e.message))));
     }
   }
 
@@ -454,7 +461,7 @@ export async function mount(ctx) {
     try {
       const blob = kind === "png" ? await sheetToPng(sheet, opts()) : kind === "svg" ? await sheetToSvg(sheet, opts()) : await sheetsToPdf([sheet], opts());
       await saveBlobAs(baseName() + "." + kind, blob, dirName(ctx.path));
-    } catch (e) { console.error(e); toast("Esportazione non riuscita: " + e.message, true, 6000); }
+    } catch (e) { console.error(e); toast(t("v_dwf.esportazione_non_riuscita") + e.message, true, 6000); }
   }
   async function allSheets() {
     const list = [];
@@ -475,7 +482,7 @@ export async function mount(ctx) {
     onShow() { if (stage.style.display !== "none") { resize(); draw(); } else api3d?.onShow?.(); },
     onBack() { return false; },
     saveFormats: ["pdf", "png", "svg"],
-    saveLabels: { pdf: "PDF vettoriale (tutti i fogli 2D)", png: "Immagine del foglio aperto", svg: "SVG vettoriale del foglio aperto" },
+    saveLabels: { pdf: t("v_dwf.pdf_vettoriale_tutti_i_fogli"), png: t("v_dwf.immagine_foglio_aperto"), svg: t("v_dwf.svg_vettoriale_foglio_aperto") },
     saveAsName: () => withExt(ctx.name, "pdf"),
     async save(target) {
       const ext = target.split(".").pop().toLowerCase();
@@ -484,7 +491,7 @@ export async function mount(ctx) {
       if (ext === "pdf") blob = await sheetsToPdf(await allSheets(), { ...opts(), title: pkg.title });
       else if (ext === "png") blob = await sheetToPng(sheet, opts());
       else if (ext === "svg") blob = await sheetToSvg(sheet, opts());
-      else throw new Error("Formato non supportato per i DWF: " + ext);
+      else throw new Error(t("v_dwf.formato_non_supportato_i_dwf") + ext);
       await api("save", { path: target }, { body: new Uint8Array(await blob.arrayBuffer()) });
       return { switchTo: false };
     },

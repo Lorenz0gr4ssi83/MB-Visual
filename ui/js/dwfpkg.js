@@ -5,6 +5,7 @@
 import { loadScript } from "./core.js";
 import { parseW2D } from "./w2d.js";
 import { parseFixedPage, resolveUri, deobfuscateFont, mul, apply } from "./xpspage.js";
+import { t as tr } from "./i18n.js";
 
 const MM_PER = { mm: 1, in: 25.4, inch: 25.4, inches: 25.4 };
 const xmlDoc = t => new DOMParser().parseFromString(t, "application/xml");
@@ -104,8 +105,8 @@ export async function openPackage(bytes, fileName = "") {
   const zipAt = bytes[0] === 0x50 && bytes[1] === 0x4b ? 0 : head.startsWith("(DWF V") && bytes[12] === 0x50 && bytes[13] === 0x4b ? 12 : -1;
   if (zipAt < 0) {
     // DWF fino alla 5.5 o W2D isolato: un solo foglio
-    if (!/^\((DWF|W2D) V/.test(head)) throw new Error("Il file non e' un DWF/DWFx riconoscibile");
-    const title = fileName.replace(/\.[^.]+$/, "") || "Foglio";
+    if (!/^\((DWF|W2D) V/.test(head)) throw new Error(tr("dwfpkg.file_non_dwf_dwfx_riconoscibile"));
+    const title = fileName.replace(/\.[^.]+$/, "") || tr("dwfpkg.foglio");
     return { kind: "w2d", title, props: [], sheets: [{ id: "1", title, kind: "2d", load: () => buildW2DSheet(title, [{ bytes, role: "2d streaming graphics" }], null, {}) }] };
   }
   const JSZip = await jszip();
@@ -134,7 +135,7 @@ export async function openPackage(bytes, fileName = "") {
     let fdseq = "FixedDocumentSequence.fdseq";
     if (rels) { const r = all(xmlDoc(rels), "Relationship").find(x => /fixedrepresentation/i.test(at(x, "Type"))); if (r) fdseq = norm(at(r, "Target")); }
     const seq = await text(fdseq);
-    if (!seq) throw new Error("Nel pacchetto non ci sono ne' fogli DWF ne' pagine XPS");
+    if (!seq) throw new Error(tr("dwfpkg.pacchetto_non_ci_sono_ne"));
     let n = 0;
     for (const d of all(xmlDoc(seq), "DocumentReference")) {
       const fdoc = resolveUri("/" + norm(fdseq), at(d, "Source"));
@@ -143,7 +144,7 @@ export async function openPackage(bytes, fileName = "") {
       for (const pc of all(xmlDoc(fd), "PageContent")) {
         const pageUri = resolveUri(fdoc, at(pc, "Source"));
         const k = ++n;
-        pkg.sheets.push({ id: "p" + k, title: "Pagina " + k, kind: "2d", load: () => buildXpsSheet(pkg, "Pagina " + k, pageUri, null) });
+        pkg.sheets.push({ id: "p" + k, title: tr("dwfpkg.pagina") + k, kind: "2d", load: () => buildXpsSheet(pkg, tr("dwfpkg.pagina") + k, pageUri, null) });
       }
     }
     return pkg;
@@ -211,7 +212,7 @@ function addW2D(sheet, parsed, T, opts) {
     return clipMap.get(vp);
   };
   for (const p of prims) {
-    const layer = addLayer(sheet, p.layer ? info.layers.get(p.layer) || "Layer " + p.layer : opts.layer || "");
+    const layer = addLayer(sheet, p.layer ? info.layers.get(p.layer) || tr("dwfpkg.layer") + p.layer : opts.layer || "");
     const obj = p.node ? opts.objKey(p.node) : null;
     const base = { layer, obj, mk: opts.markup ? (obj || opts.markup) : null, clip: clipIdx(p.clip), url: p.url || null };
     if (p.t === "p") {
@@ -282,7 +283,7 @@ function finish(sheet) {
   });
   // marcature senza definizione (flussi di marcatura privi di nodi): una voce per flusso
   const known = new Set(sheet.markups.map(m => m.key));
-  for (const p of sheet.prims) if (p.mk && !known.has(p.mk)) { known.add(p.mk); sheet.markups.push({ key: p.mk, label: "Marcatura " + (sheet.markups.length + 1), props: [] }); }
+  for (const p of sheet.prims) if (p.mk && !known.has(p.mk)) { known.add(p.mk); sheet.markups.push({ key: p.mk, label: tr("dwfpkg.marcatura") + (sheet.markups.length + 1), props: [] }); }
   for (const m of sheet.markups) {
     let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
     sheet.prims.forEach((p, i) => {
@@ -347,12 +348,12 @@ async function buildW2DSheet(title, streams, descriptor, extra) {
         const inf = nodeInfo.get(node);
         const nm = parsed.info.nodes.get(node);
         if (!inf && !nm && !markup) return null;
-        sheet.objects.set(key, { key, label: (markup && inf?.props.find(p => p.name === "Label")?.value) || inf?.label || nm || "Oggetto " + node, props: inf?.props || [], markup: !!markup });
-        if (markup) sheet.markups.push({ key, label: inf?.props.find(p => p.name === "Label")?.value || inf?.label || "Marcatura", props: inf?.props || [] });
+        sheet.objects.set(key, { key, label: (markup && inf?.props.find(p => p.name === "Label")?.value) || inf?.label || nm || tr("dwfpkg.oggetto") + node, props: inf?.props || [], markup: !!markup });
+        if (markup) sheet.markups.push({ key, label: inf?.props.find(p => p.name === "Label")?.value || inf?.label || tr("dwfpkg.marcatura_2"), props: inf?.props || [] });
       }
       return key;
     };
-    addW2D(sheet, parsed, T, { objKey, markup, layer: markup ? "Marcature" : "" });
+    addW2D(sheet, parsed, T, { objKey, markup, layer: markup ? tr("dwfpkg.marcature") : "" });
   }
   Object.assign(sheet, extra || {});
   return finish(sheet);
@@ -392,7 +393,7 @@ async function buildEPlotSheet(pkg, sec, getContent) {
     if (!bytes) continue;
     streams.push({ bytes, role: r.role, T: r.T, objects: /markup/i.test(r.role) ? markupDef : objDefs.get(r.id) || defaultDef });
   }
-  if (!streams.length) throw new Error("Il foglio non contiene grafica 2D leggibile");
+  if (!streams.length) throw new Error(tr("dwfpkg.foglio_non_contiene_grafica_2d"));
   // le grafiche principali prima delle marcature
   streams.sort((a, b) => (/markup/i.test(a.role) ? 1 : 0) - (/markup/i.test(b.role) ? 1 : 0));
   const sheet = await buildW2DSheet(sec.title, streams, page, { paper: paper || undefined, props });
@@ -414,7 +415,7 @@ async function buildEPlotSheet(pkg, sec, getContent) {
 // ---------------------------------------------------------------- DWFx / XPS: foglio da FixedPage
 async function buildXpsSheet(pkg, title, pageUri, d) {
   const xml = await pkg.text(pageUri);
-  if (!xml) throw new Error("Pagina non trovata nel pacchetto: " + pageUri);
+  if (!xml) throw new Error(tr("dwfpkg.pagina_non_trovata_pacchetto") + pageUri);
   const getText = async u => pkg.text(u);
   const fp = await parseFixedPage(xml, pageUri, getText);
   const sheet = newSheet(title);
@@ -456,8 +457,8 @@ async function buildXpsSheet(pkg, title, pageUri, d) {
       const nm = nodeNames.get(n);
       const markup = /markup/i.test(resRole);
       if (!inf && !nm && !markup) return null;
-      sheet.objects.set(key, { key, label: (markup && inf?.props.find(p => p.name === "Label")?.value) || inf?.label || nm || "Oggetto " + n, props: inf?.props || [], markup });
-      if (markup) sheet.markups.push({ key, label: inf?.props.find(p => p.name === "Label")?.value || inf?.label || "Marcatura", props: inf?.props || [] });
+      sheet.objects.set(key, { key, label: (markup && inf?.props.find(p => p.name === "Label")?.value) || inf?.label || nm || tr("dwfpkg.oggetto") + n, props: inf?.props || [], markup });
+      if (markup) sheet.markups.push({ key, label: inf?.props.find(p => p.name === "Label")?.value || inf?.label || tr("dwfpkg.marcatura_2"), props: inf?.props || [] });
     }
     return key;
   };
@@ -496,7 +497,7 @@ async function buildXpsSheet(pkg, title, pageUri, d) {
     if (p.name) applyExt(p.name);
     if (p.t === "g") continue;
     const markup = /markup/i.test(resRole);
-    const base = { layer: addLayer(sheet, markup ? "Marcature" : layer), obj: objKey(node), clip: clipIdx(p.clip), url, vp };
+    const base = { layer: addLayer(sheet, markup ? tr("dwfpkg.marcature") : layer), obj: objKey(node), clip: clipIdx(p.clip), url, vp };
     base.mk = markup ? base.obj || "mk:" + res : null;
     if (p.t === "p") {
       sheet.prims.push({ t: "p", rings: p.rings.map(r => xfRing(r, P)), closed: p.closed, fill: p.fill, rule: p.fillRule === "nonzero" ? "nonzero" : "evenodd", color: p.color, grad: p.gradient ? xfGrad(p.gradient, P) : null, lw: (p.lw || 0) * k, dash: p.dash ? { world: p.dash.world.map(v => v * k), offset: (p.dash.offset || 0) * k } : null, cap: p.cap, join: p.join, ...base });
