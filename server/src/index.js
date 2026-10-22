@@ -299,14 +299,32 @@ async function mobileLink(env, b, origin) {
   return json({ ...res, url: `${origin}/l/${link.token}`, scade: new Date(link.expires.replace(" ", "T") + "Z").getTime() });
 }
 
-async function claimLink(env, b) {
+// browser che non possono installare l'app: su iPhone solo Safari (Chrome, Firefox, Edge, app Google e browser interni alle
+// app non hanno "Aggiungi alla schermata Home" con la stessa memoria); su Android i browser interni alle app (WebView)
+const wrongBrowser = ua => /iphone|ipad|ipod/i.test(ua) ? (/CriOS|FxiOS|EdgiOS|OPiOS|GSA\/|FBAN|FBAV|Instagram|LinkedInApp|Snapchat|WhatsApp|Line\//i.test(ua) || !/Safari\//.test(ua))
+  : /android/i.test(ua) && /; wv\)|FBAN|FBAV|Instagram|GSA\//i.test(ua);
+const LINK_REUSE_MIN = 20; // dopo l'uso il link vale ancora per lo stesso telefono (altro browser o app installata): sposta il posto, non ne prende un altro
+
+async function claimLink(env, b, ua = "") {
   const device = String(b.device || "").slice(0, 128), name = String(b.name || "Cellulare").slice(0, 80);
   if (!device) return fail(400, "Dispositivo non riconosciuto");
+  // controllo prima di tutto: un browser sbagliato non consuma il link
+  if (wrongBrowser(ua)) return fail(403, /iphone|ipad|ipod/i.test(ua) ? "Apri questo link in Safari." : "Apri questo link in Chrome.", { stato: "browser" });
   const link = await env.DB.prepare("SELECT * FROM mobile_links WHERE token = ?").bind(String(b.link || "")).first();
-  if (!link || link.used || link.expires < now()) return fail(410, "Questo codice QR e' scaduto o e' gia' stato usato. Inquadra il codice aggiornato sul PC.", { stato: "link_scaduto" });
+  if (!link) return fail(410, "Questo codice QR e' scaduto o e' gia' stato usato. Inquadra il codice aggiornato sul PC.", { stato: "link_scaduto" });
   const lic = await getLicense(env, link.license_key);
   const p = licenseProblem(lic);
   if (p) return fail(p[0], p[1], p[2]);
+  // link gia' usato da poco: lo stesso telefono lo riapre in un altro browser -> il posto passa a questo browser
+  if (link.used) {
+    if (!link.device_id || link.used < minutesAgo(LINK_REUSE_MIN)) return fail(410, "Questo codice QR e' gia' stato usato. Inquadra il codice aggiornato sul PC.", { stato: "link_scaduto" });
+    const prev = await env.DB.prepare("SELECT * FROM devices WHERE id = ? AND status = 'active'").bind(link.device_id).first();
+    if (!prev) return fail(410, "Questo codice QR e' gia' stato usato. Inquadra il codice aggiornato sul PC.", { stato: "link_scaduto" });
+    if (prev.device !== device) await env.DB.prepare("UPDATE devices SET device = ?, name = ?, last_seen = datetime('now') WHERE id = ?").bind(device, name, prev.id).run();
+    const dev = await env.DB.prepare("SELECT * FROM devices WHERE id = ?").bind(prev.id).first();
+    return json({ ok: true, token: await makeToken(env, lic, dev), cliente: lic.customer, codice: await mobilePairCode(env, lic, dev), codice_minuti: PAIR_MIN, gia_attivo: true });
+  }
+  if (link.expires < now()) return fail(410, "Questo codice QR e' scaduto. Inquadra il codice aggiornato sul PC.", { stato: "link_scaduto" });
   // stesso telefono gia' attivo su questa licenza: niente posto in piu'
   const again = await env.DB.prepare("SELECT * FROM devices WHERE license_key = ? AND device = ? AND kind = 'mobile' AND status = 'active'").bind(lic.key, device).first();
   if (again) return json({ ok: true, token: await makeToken(env, lic, again), cliente: lic.customer, gia_attivo: true });
@@ -323,14 +341,18 @@ async function claimLink(env, b) {
   await env.DB.prepare("INSERT INTO devices (license_key, kind, device, name) VALUES (?, 'mobile', ?, ?)").bind(lic.key, device, name).run();
   const dev = await env.DB.prepare("SELECT * FROM devices WHERE license_key = ? AND device = ? AND kind = 'mobile' AND status = 'active'").bind(lic.key, device).first();
   await env.DB.prepare("UPDATE mobile_links SET device_id = ? WHERE token = ?").bind(dev.id, link.token).run();
-  let code;
-  for (let i = 0; i < 5 && !code; i++) {
-    const c = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
-    const r = await env.DB.prepare("INSERT OR IGNORE INTO pair_codes (code, license_key, device_id, expires) VALUES (?, ?, ?, ?)").bind(c, lic.key, dev.id, minutesAhead(PAIR_MIN)).run();
-    if (r.meta?.changes) code = c;
-  }
+  const code = await mobilePairCode(env, lic, dev);
   await event(env, "activation_mobile", lic.key, `Attivato cellulare "${name}" dal codice QR per ${lic.customer || lic.key}`);
   return json({ ok: true, token: await makeToken(env, lic, dev), cliente: lic.customer, codice: code, codice_minuti: PAIR_MIN });
+}
+// codice di 6 cifre per l'app aggiunta alla schermata Home (su iPhone ha una memoria separata da Safari)
+async function mobilePairCode(env, lic, dev) {
+  for (let i = 0; i < 5; i++) {
+    const c = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
+    const r = await env.DB.prepare("INSERT OR IGNORE INTO pair_codes (code, license_key, device_id, expires) VALUES (?, ?, ?, ?)").bind(c, lic.key, dev.id, minutesAhead(PAIR_MIN)).run();
+    if (r.meta?.changes) return c;
+  }
+  return undefined;
 }
 
 async function pairCode(env, b) {
@@ -356,9 +378,11 @@ const LINK_PAGE = `<!doctype html><html lang="it"><head><meta charset="utf-8">
 <style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#17191b;color:#e6e8e5;font:15px system-ui,"Segoe UI",sans-serif;padding:20px}
 .box{width:min(440px,100%);text-align:center}img{width:110px;height:110px}h1{font-size:22px;margin:10px 0 6px}p{color:#9ea29b;line-height:1.45}
 ol{text-align:left;color:#cfd2cc;line-height:1.6;padding-left:22px}.code{font:700 30px Consolas,monospace;letter-spacing:.18em;color:#f07d2e;margin:6px 0}
-button{margin-top:14px;width:100%;padding:12px;border:0;border-radius:8px;background:#f07d2e;color:#16110c;font:600 16px system-ui}.err{color:#e0605a}.hide{display:none}</style></head>
+button,.btn{display:block;margin-top:14px;width:100%;padding:12px;border:0;border-radius:8px;background:#f07d2e;color:#16110c;font:600 16px system-ui;text-decoration:none}#copy{background:#2b3035;color:#e6e8e5}.err{color:#e0605a}.hide{display:none}</style></head>
 <body><div class="box"><img src="/img/logo-512.png" alt="MB Visual"><h1>MB Visual</h1><p style="margin:-2px 0 12px;color:#8a8c89;font-size:13px;letter-spacing:.05em">Powered by MB Group</p><p id="msg">Attivazione in corso...</p>
 <div id="ok" class="hide"><p>Cellulare attivato. Ora installa l'app:</p><ol id="steps"></ol><button id="inst" class="hide">Installa l'app</button>
+<div id="wrong" class="hide"><a id="open" class="hide btn" href="#">Apri in Safari</a><button id="copy" type="button">Copia link</button>
+<ol><li>Tocca <b>Copia link</b>.</li><li>Apri <b id="wrong-app"></b>, tocca la barra degli indirizzi, incolla e vai.</li><li>Il link vale ancora qualche minuto.</li></ol></div>
 <p id="pair" class="hide">Se l'app installata chiede di nuovo l'attivazione, inserisci questo codice (valido <span id="min"></span> minuti):</p><div class="code" id="code"></div></div></div>
 <script>
 const $ = id => document.getElementById(id), ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -366,10 +390,21 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").cat
 let prompt = null;
 addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; $("inst").classList.remove("hide"); });
 $("inst").onclick = () => prompt && prompt.prompt();
+const ua = navigator.userAgent;
+// browser che non puo' installare l'app: il link NON si usa qui (resta valido per Safari / Chrome)
+const wrong = ios ? (/CriOS|FxiOS|EdgiOS|OPiOS|GSA\\/|FBAN|FBAV|Instagram|LinkedInApp|Snapchat|WhatsApp|Line\\//i.test(ua) || !/Safari\\//.test(ua))
+  : /android/i.test(ua) && /; wv\\)|FBAN|FBAV|Instagram|GSA\\//i.test(ua);
 let dev = localStorage.getItem("mbv-dispositivo");
 if (!dev) { dev = crypto.randomUUID(); localStorage.setItem("mbv-dispositivo", dev); }
-const name = (/android/i.test(navigator.userAgent) ? "Android" : ios ? "iPhone/iPad" : "Cellulare") + " " + new Date().toLocaleDateString("it-IT");
-fetch("/v1/mlink/claim", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
+const name = (/android/i.test(ua) ? "Android" : ios ? "iPhone/iPad" : "Cellulare") + " " + new Date().toLocaleDateString("it-IT");
+if (wrong) {
+  const app = ios ? "Safari" : "Chrome";
+  $("msg").innerHTML = "Per installare MB Visual apri questo link in <b>" + app + "</b>.";
+  $("wrong").classList.remove("hide");
+  $("wrong-app").textContent = app;
+  if (ios) { $("open").href = "x-safari-" + location.href; $("open").classList.remove("hide"); }
+  $("copy").onclick = async () => { try { await navigator.clipboard.writeText(location.href); $("copy").textContent = "Link copiato"; } catch { window.prompt("Copia il link:", location.href); } };
+} else fetch("/v1/mlink/claim", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
   body: JSON.stringify({ link: location.pathname.split("/").pop(), device: dev, name }) }).then(r => r.json()).then(r => {
   if (!r.ok) { $("msg").textContent = r.errore || "Attivazione non riuscita"; $("msg").className = "err"; return; }
   localStorage.setItem("mbv-licenza-scade", String(Date.now() + 30 * 86400000));
@@ -488,7 +523,7 @@ export default {
       else if (url.pathname === "/v1/account") res = await account(env, b);
       else if (url.pathname === "/v1/request") res = await request(env, b);
       else if (url.pathname === "/v1/mlink") res = await mobileLink(env, b, url.origin);
-      else if (url.pathname === "/v1/mlink/claim") res = await claimLink(env, b);
+      else if (url.pathname === "/v1/mlink/claim") res = await claimLink(env, b, req.headers.get("user-agent") || "");
       else if (url.pathname === "/v1/mlink/pair") res = await pairCode(env, b);
       else return fail(404, "Percorso sconosciuto");
       // telefono attivato dal codice QR o dal codice di 6 cifre: attivazione nel cookie

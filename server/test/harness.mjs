@@ -157,7 +157,10 @@ if (process.argv[2] === "serve") {
   ok(ml.ok && ml.liberi === 2 && ml.totali === 2 && /^https:\/\/lic\.test\/l\/[A-Za-z0-9_-]{30,}$/.test(ml.url), "QR: link monouso, 2 cellulari liberi", ml.url);
   ok((await post("/v1/mlink", { token: qpc })).d.url === ml.url, "QR: stesso link finche' non e' usato o scaduto");
   const page = await get(new URL(ml.url).pathname);
-  ok(page.status === 200 && (await page.text()).includes("/v1/mlink/claim"), "QR: pagina del telefono pubblica");
+  const pageText = await page.text();
+  ok(page.status === 200 && pageText.includes("/v1/mlink/claim") && pageText.includes("Copia link") && pageText.includes("x-safari-"), "QR: pagina del telefono pubblica (con Apri in Safari / Copia link)");
+  const lp = pageText.match(/<script>([\s\S]*)<\/script>/)[1];
+  ok(lp.includes("CriOS") && /GSA\\\//.test(lp), "QR: la pagina riconosce i browser sbagliati (espressioni intatte)");
   const linkTok = ml.url.split("/").pop();
   // due telefoni aprono lo stesso link nello stesso istante: ne passa uno solo
   const [c1, c2] = await Promise.all([post("/v1/mlink/claim", { link: linkTok, device: "tel-a", name: "Android A" }), post("/v1/mlink/claim", { link: linkTok, device: "tel-b", name: "Android B" })]);
@@ -169,7 +172,33 @@ if (process.argv[2] === "serve") {
   ok(ml.liberi === 1 && !ml.url && ml.attesa_fino > Date.now() + 30000, "QR: dopo l'attivazione 1 libero e blocco di 1 minuto senza link");
   env._db.prepare("INSERT INTO mobile_links (token, license_key, expires) VALUES ('altro-link-di-prova-123456789', ?, datetime('now','+10 minutes'))").run(qk);
   ok((await post("/v1/mlink/claim", { link: "altro-link-di-prova-123456789", device: "tel-c" })).r.status === 429, "QR: durante il blocco il server rifiuta altre attivazioni via link");
-  ok((await post("/v1/mlink/claim", { link: linkTok, device: "tel-z" })).r.status === 410, "QR: link gia' usato rifiutato");
+  // stesso telefono, altro browser (iPhone: aperto prima in Chrome, poi in Safari): il link vale ancora e il posto si sposta
+  const again = await post("/v1/mlink/claim", { link: linkTok, device: "tel-z", name: "iPhone Safari" });
+  const mobNow = (await call("/admin/licenses", undefined, true)).licenze.find(l => l.key === qk).dispositivi.filter(d => d.kind === "mobile" && d.status === "active");
+  ok(again.d.ok && /^\d{6}$/.test(again.d.codice) && mobNow.length === 1 && mobNow[0].device === "tel-z", "QR: link riaperto da un altro browser entro 20 minuti: stesso posto, nessun posto in piu'");
+  env._db.prepare("UPDATE mobile_links SET used = datetime('now','-30 minutes') WHERE token = ?").run(linkTok);
+  ok((await post("/v1/mlink/claim", { link: linkTok, device: "tel-y" })).r.status === 410, "QR: link gia' usato da piu' di 20 minuti rifiutato");
+  env._db.prepare("UPDATE mobile_links SET used = datetime('now') WHERE token = ?").run(linkTok);
+  // browser che non installano l'app: rifiutati SENZA consumare il link
+  const UA = { safari: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+    chromeIos: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/129.0.6668.69 Mobile/15E148 Safari/604.1",
+    googleApp: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) GSA/333.0.676048549 Mobile/15E148 Safari/604.1",
+    inApp: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+    android: "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36",
+    androidWv: "Mozilla/5.0 (Linux; Android 14; Pixel 8; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0.0.0 Mobile Safari/537.36" };
+  const qk2 = (await call("/admin/licenses", { customer: "QR iPhone", max_mobile: 3 }, true)).key;
+  const qpc2 = (await call("/v1/activate", { key: qk2, device: "pc-qr2", kind: "pc" })).token;
+  const tok2 = (await post("/v1/mlink", { token: qpc2 })).d.url.split("/").pop();
+  const claimUa = (ua, device) => worker.fetch(new Request("https://lic.test/v1/mlink/claim", { method: "POST", headers: { "user-agent": ua }, body: JSON.stringify({ link: tok2, device, name: "iPhone" }) }), env).then(async r => ({ status: r.status, d: await r.json() }));
+  for (const [k, label] of [["chromeIos", "Chrome su iPhone"], ["googleApp", "app Google su iPhone"], ["inApp", "browser interno di un'app su iPhone"], ["androidWv", "browser interno di un'app su Android"]]) {
+    const r = await claimUa(UA[k], "dev-" + k);
+    ok(r.status === 403 && r.d.stato === "browser", `QR: ${label} rifiutato senza usare il link`, r.d.errore);
+  }
+  const sf = await claimUa(UA.safari, "dev-safari");
+  ok(sf.d.ok && !sf.d.gia_attivo, "QR: poi Safari sullo stesso iPhone attiva normalmente (link ancora valido)");
+  const lk = (await call("/admin/licenses", undefined, true)).licenze.find(l => l.key === qk2).dispositivi.filter(d => d.kind === "mobile" && d.status === "active");
+  ok(lk.length === 1, "QR: un solo posto occupato dopo i tentativi dai browser sbagliati");
+  ok((await claimUa(UA.android, "dev-android")).d.gia_attivo === true, "QR: Chrome su Android riapre il link entro 20 minuti senza prendere un altro posto");
   // codice di 6 cifre: l'app installata (iPhone) prende il posto del browser, senza posti in piu'
   const pr = await post("/v1/mlink/pair", { code: claimed.d.codice, device: "tel-a-app", name: "iPhone app" });
   ok(pr.d.ok && /mbv_m=/.test(pr.r.headers.get("set-cookie") || ""), "QR: codice di 6 cifre nell'app installata");
