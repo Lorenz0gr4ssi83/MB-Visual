@@ -1,3 +1,5 @@
+import { decodeTiffG4 } from "./ccittg4.js";
+
 // Disegno dei fogli DWF/DWFx (modello di dwfpkg.js) su canvas 2D: preparazione in gruppi di primitive con lo stesso
 // stile (Path2D in coordinate della carta), disegno con zoom/pan, testi, immagini, ritagli, evidenziazione.
 
@@ -11,7 +13,12 @@ export async function prepareSheet(sheet) {
   for (const [key, im] of sheet.images) {
     try {
       if (im.rgba) { const c = document.createElement("canvas"); c.width = im.rgba.w; c.height = im.rgba.h; c.getContext("2d").putImageData(new ImageData(im.rgba.data, im.rgba.w, im.rgba.h), 0, 0); bitmaps.set(key, c); }
-      else if (im.mime !== "image/tiff") bitmaps.set(key, await createImageBitmap(new Blob([im.bytes], { type: im.mime })));
+      else if (im.mime === "image/tiff") { // CCITT Group 4 (bianco e nero)
+        const r = decodeTiffG4(im.bytes, im.cmap);
+        const c = document.createElement("canvas"); c.width = r.width; c.height = r.height;
+        c.getContext("2d").putImageData(new ImageData(r.rgba, r.width, r.height), 0, 0);
+        bitmaps.set(key, c);
+      } else bitmaps.set(key, await createImageBitmap(new Blob([im.bytes], { type: im.mime })));
     } catch { /* immagine non decodificabile: si disegna il riquadro */ }
   }
   // ritagli: Path2D con la catena dei genitori

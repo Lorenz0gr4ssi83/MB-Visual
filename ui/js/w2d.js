@@ -192,7 +192,7 @@ export function parseW2D(bytes, opts = {}) {
     if (kind === "png") pr.mime = "image/png";
     else if (kind === "jpeg") pr.mime = "image/jpeg";
     else if (kind === "tiff") pr.mime = "image/tiff"; // Group 4: non decodificato (riquadro segnaposto)
-    if (pr.mime) pr.bytes = data;
+    if (pr.mime) { pr.bytes = data; if (kind === "tiff" && cmap?.length >= 2) pr.cmap = cmap; }
     else {
       const px = new Uint8ClampedArray(col * row * 4);
       if (kind === "rgb" || kind === "rgba") {

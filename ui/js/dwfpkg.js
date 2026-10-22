@@ -243,9 +243,9 @@ function addW2D(sheet, parsed, T, opts) {
       sheet.prims.push({ t: "m", x, y, color: p.color, ...base });
     } else if (p.t === "i") {
       const key = "w2d:" + sheet.images.size;
-      if (p.bytes) sheet.images.set(key, { bytes: p.bytes, mime: p.mime });
+      if (p.bytes) sheet.images.set(key, { bytes: p.bytes, mime: p.mime, cmap: p.cmap });
       else if (p.rgba) sheet.images.set(key, { rgba: p.rgba });
-      sheet.prims.push({ t: "i", m: mul(T, [p.x2 - p.x1, 0, 0, -(p.y2 - p.y1), p.x1, p.y2]), src: key, placeholder: p.mime === "image/tiff", ...base });
+      sheet.prims.push({ t: "i", m: mul(T, [p.x2 - p.x1, 0, 0, -(p.y2 - p.y1), p.x1, p.y2]), src: key, ...base });
     }
   }
 }
