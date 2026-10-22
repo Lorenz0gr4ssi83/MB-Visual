@@ -16,6 +16,13 @@ FONTS_DIR = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
 # famiglia del font originale -> file di Windows (normale, grassetto, corsivo, grassetto corsivo)
 FAMILIES = [
     (r"calibri", ("calibri.ttf", "calibrib.ttf", "calibrii.ttf", "calibriz.ttf")),
+    (r"garamond", ("GARA.TTF", "GARABD.TTF", "GARAIT.TTF", "GARABD.TTF")),
+    (r"century.?gothic|gothic", ("GOTHIC.TTF", "GOTHICB.TTF", "GOTHICI.TTF", "GOTHICBI.TTF")),
+    (r"bookantiqua|book.?antiqua|palatino", ("pala.ttf", "palab.ttf", "palai.ttf", "palabi.ttf")),
+    (r"trebuchet", ("trebuc.ttf", "trebucbd.ttf", "trebucit.ttf", "trebucbi.ttf")),
+    (r"candara", ("Candara.ttf", "Candarab.ttf", "Candarai.ttf", "Candaraz.ttf")),
+    (r"consolas", ("consola.ttf", "consolab.ttf", "consolai.ttf", "consolaz.ttf")),
+    (r"franklin", ("framd.ttf", "FRADM.TTF", "framdit.ttf", "FRADMIT.TTF")),
     (r"cambria", ("cambria.ttc", "cambriab.ttf", "cambriai.ttf", "cambriaz.ttf")),
     (r"arialn|arial.?narrow", ("ARIALN.TTF", "ARIALNB.TTF", "ARIALNI.TTF", "ARIALNBI.TTF")),
     (r"verdana", ("verdana.ttf", "verdanab.ttf", "verdanai.ttf", "verdanaz.ttf")),
@@ -105,10 +112,32 @@ def _insert_text(page, rect: pymupdf.Rect, text: str, font: str, size: float, co
     tw.write_text(page)
 
 
+_NBSP = re.compile(rb"^(\s*<[0-9a-fA-F]+>\s*)<00([aA][0dD])>", re.M)
+
+
+def fix_tounicode(doc, first_xref: int = 1):
+    """I caratteri di Windows usano lo stesso glifo per spazio e spazio non separabile (e per trattino e trattino
+    morbido): MuPDF, scrivendo la tabella ToUnicode, sceglie U+00A0 / U+00AD e il testo nuovo si copia e si cerca male.
+    Nelle voci singole (bfchar) delle tabelle dei caratteri aggiunti si rimettono U+0020 e U+002D."""
+    for x in range(max(1, first_xref), doc.xref_length()):
+        try:
+            tu = doc.xref_get_key(x, "ToUnicode")
+            if tu[0] != "xref":
+                continue
+            sx = int(tu[1].split()[0])
+            data = doc.xref_stream(sx)
+            new = _NBSP.sub(lambda m: m.group(1) + (b"<0020>" if m.group(2) in (b"a0", b"A0") else b"<002D>"), data)
+            if new != data:
+                doc.update_stream(sx, new)
+        except Exception:  # noqa: BLE001
+            continue
+
+
 def apply_edits(path: str, edits: list[dict]) -> dict:
     """Modifiche applicate al file (copia di lavoro): replace (testo esistente), add (testo nuovo), redact (oscura), whiteout."""
     tmp = path + ".mbv-edit.pdf"
     with pymupdf.open(path) as doc:
+        n0 = doc.xref_length()
         by_page: dict[int, list] = {}
         for e in edits:
             by_page.setdefault(int(e["page"]), []).append(e)
@@ -142,6 +171,7 @@ def apply_edits(path: str, edits: list[dict]) -> dict:
             doc.subset_fonts()  # dei font aggiunti restano solo i caratteri usati (il file non si appesantisce)
         except Exception:  # noqa: BLE001
             pass
+        fix_tounicode(doc, n0)
         doc.save(tmp, garbage=3, deflate=True)
     os.replace(tmp, path)
     return {"ok": True}

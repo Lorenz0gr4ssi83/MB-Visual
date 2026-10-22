@@ -118,14 +118,9 @@ l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.m
   in un altro) e ridisegno dei tracciati estranei; immagini tolte con redazione solo in quel punto (`_take_image`,
   mai delete_image: cambierebbe l'immagine condivisa su tutte le pagine); `image_edit` (colori trasparenti multipli
   con tolleranza, opacita', rotazione, specchio, b/n); annotazioni `annot_add/update/delete`.
-  Interfaccia (1.3.2, ui/js/pdfeditor.js) - FATTO: barra unica sempre visibile (gruppi Annota / Modifica / Moduli /
-  Altro), pulsante acceso finche' si e' in modifica, opzioni nel pannello a destra; evidenzia, testo libero e penna
-  sono gli editor di pdf.js comandati con gli eventi switchannotationeditormode / switchannotationeditorparams
-  (i loro pulsanti sono nascosti con PDFJS_HIDE); un pulsante per tipo di campo (nome automatico, voci nel pannello,
-  strumento che resta attivo); Seleziona con selezione multipla e a riquadro, filtro, ingresso nei gruppi (doppio clic),
-  contagocce e anteprima a scacchi della trasparenza. Ogni modifica scrive un file NUOVO (mai sostituire quello
-  aperto da pdf.js). apply_ops lavora in `_apply_ops` + gc + nuovi tentativi: i campi di PyMuPDF tengono aperto il file.
-  `_page_draws` esclude dai disegni l'aspetto di campi e annotazioni (get_drawings li riporta).
+  Interfaccia: rifatta il 22/10/2026, vedi sezione "Editor PDF in stile Acrobat Pro". Ogni modifica scrive un file NUOVO
+  (mai sostituire quello aperto da pdf.js). apply_ops lavora in `_apply_ops` + gc + nuovi tentativi: i campi di PyMuPDF
+  tengono aperto il file. `_page_draws` esclude dai disegni l'aspetto di campi e annotazioni (get_drawings li riporta).
 - Inventor: vedi sezione "Autodesk Inventor senza Inventor" (22/10/2026). Creo: nessun lettore realistico.
 - Migliorie rimandate dall'utente (21/10/2026): pulsanti "Modifica in AutoCAD/BricsCAD/Inventor"; motore ODA (a pagamento).
   Funzioni Navisworks Manage: FATTE il 22/10/2026 (sezione "Funzioni di Navisworks Manage nel 3D").
@@ -815,3 +810,47 @@ Tre pulsanti nella barra del visualizzatore 3D dopo "Segnalazioni": Interferenze
   per non toccare l'integrazione con Esplora): federazione, stati, gruppi, rapporti HTML/PDF/CSV/BCF, viste, Excel, modello OBJ.
 - Da provare con i file veri: modelli Revit/Archicad con aperture (IfcOpeningElement escluso dalla lettura) e elementi non chiusi
   (dentro/fuori a maggioranza), Navisworks NWD grandi, prestazioni oltre 100.000 elementi, unita' imperiali nel computo.
+
+## Editor PDF in stile Acrobat Pro (22/10/2026) - FATTO
+Richiesta dell'utente: niente pulsanti grandi con testo, TUTTO IN UNA RIGA raggruppato per tipo di modifica, funzioni da
+Acrobat Pro / PDF-XChange / Foxit. Solo app per PC (la web app tiene la barra semplice con pdf-lib, `viewers/pdf.js`).
+- Riga unica (`ui/js/pdfedbar.js`, in `ctx.tb` con classe `pe-tbrow`): pagina / zoom / ricerca (la barra di pdf.js e'
+  nascosta con PDFJS_CHROME) + gruppi con icone, didascalia sotto e menu "altro": Seleziona (V, H), Modifica (T testo,
+  W aggiungi testo, I immagine, R forme ▾, menu: collegamento, bianchetto, copia/incolla, gruppi, ordine), Commenti (S nota,
+  U evidenzia ▾ sottolinea/barra/ondulato, X casella, D penna, N forme di commento ▾ con nuvola di revisione, K timbro ▾),
+  Moduli (Q campo ▾ 7 tipi), Pagine (organizza, inserisci ▾, ruota, C ritaglia, menu: estrai, elimina, dividi, unisci...),
+  Proteggi (Y oscura area, oscura testo cercato, firma, menu: applica oscuramenti, password, rimuovi info nascoste...),
+  Documento (intestazione/pie', filigrana, Bates, OCR, menu: sfondo, ottimizza, confronta, proprieta', segnalibri...),
+  Annulla/Ripeti con il nome del passo, pannello. Se non ci sta spariscono le didascalie (`compact`), poi scorre.
+  Misure: ~1380 px; a 1366 px di finestra sta in una riga in modo compatto.
+- `ui/js/pdfeditor.js` = nucleo (oggetto E: stato, coda delle modifiche, copia di lavoro, annulla/ripeti, strati sulle
+  pagine, strumenti, selezione con 8 maniglie + rotazione (Maiusc 15°), guide di allineamento (Alt = senza), allinea/
+  distribuisci, ordine, copia/taglia/incolla tra pagine (obj_copy), gruppi Ctrl+G (solo nella sessione), tasti di Acrobat).
+  `pdfedpanel.js` pannello a destra (schede Proprieta'/Commenti, sezioni richiudibili, posizione X/Y/L/A in mm e rotazione),
+  `pdfcomments.js` elenco commenti (filtri, risposte, stato Review, CSV), `pdfpages.js` Organizza pagine (miniature,
+  trascina per riordinare, ruota, duplica, elimina, estrai, inserisci, sostituisci), `pdfdocs.js` finestre di pagine e
+  documento (anteprima per intestazioni e filigrana), `colorpick.js` selettore colori (HEX/RGB/CMYK, opacita',
+  contagocce EyeDropper o sulla pagina, colori del documento, recenti), `pdfedicons.js`, `ui/css/pdfeditor.css`.
+  Prove dalla console: `MB.active.api._pe` (E: setMode, sel, ops, align, paste, pageCmd, docCmd...).
+- Motore: `mbvisual/pdfobjects.py` (oggetti, ops su oggetti e commenti, `annots_list`, `image_export`, `paths_hit`) +
+  `mbvisual/pdfdoc.py` (OPS di pagine e documento: page_order/replace/insert/blank/delete/rotate/duplicate, crop con
+  margini o reset, header_footer, bates, watermark, background, redact_search/redact_apply, sanitize, metadata, toc, flatten).
+  API nuove: pdf_annots, pdf_image_export, pdf_hit. Angoli in gradi orari come si vedono (filigrana: antiorari come Acrobat).
+- Insidie scoperte (PyMuPDF 2.0): Pixmap(doc, xref) da' un canale alfa TUTTO OPACO senza applicare SMask -> la maschera
+  si applica a mano (`_image_bytes`, anche /Mask a chiave di colore e /ImageMask di stencil col colore letto dalla pagina);
+  prima spostando un logo trasparente diventava un rettangolo nero. TextWriter va creato con page.rect (rettangolo visibile)
+  e morph ruota in verso antiorario: sulle pagine ruotate le righe si compongono nel verso di lettura e si riportano attorno
+  al centro. fill_textbox scrive spazi non separabili: le righe si compongono in `_write_block`. Con i caratteri di Windows
+  MuPDF scrive ToUnicode con U+00A0/U+00AD per spazio e trattino: `pdfedit.fix_tounicode` li corregge (anche nel vecchio
+  editor). I sottoinsiemi incorporati non hanno cmap: `_font_with_cmap` la ricostruisce dalla ToUnicode con fontTools e il
+  testo riscritto usa il carattere originale se ha tutti i glifi (altrimenti il carattere di Windows piu' simile).
+  Campi nuovi: proprieta' PRIMA di add_widget (nasce un /Parent). Conteggio immagini condivise dalle risorse
+  (get_image_info con xrefs decodifica tutto: 194 s su una pagina con 1951 tasselli).
+- Testo: paragrafi ricostruiti (righe piene unite, pallino + testo sulla stessa linea di base con tabulazione), allineamento
+  riconosciuto (titoli centrati sull'area del testo), una riga sola si allarga invece di andare a capo (`fit`).
+- Tavole CAD con oltre 25.000 tracciati: non si elencano; clic su un tratto / riquadro = `pdf_hit` (cache dei disegni per
+  file+pagina in memoria): 0,5 s sulla tavola da 64.830 tracciati, modifica del colore ~4 s.
+- Collaudo: `python tests/test_pdfeditor.py [cartella_pdf_reali]` (50 prove sintetiche + per ogni PDF reale lettura,
+  modifiche, immagini con maschera). Interfaccia provata con PDF reali (relazioni, tavole CAD, scansione OCR, moduli) in
+  Edge senza finestra via DevTools; schermate prima/dopo nella cartella della sessione.
+

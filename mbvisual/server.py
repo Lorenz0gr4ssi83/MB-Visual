@@ -625,6 +625,20 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError(t("srv_server.modifiche_si_applicano_solo_copia"))
         self._json(pdfobjects.apply_ops(p, self._body_json().get("ops", [])))
 
+    def api_pdf_annots(self, qs):
+        from . import pdfobjects
+        self._json(pdfobjects.annots_list(self._path(qs)))
+
+    def api_pdf_hit(self, qs):
+        from . import pdfobjects
+        b = self._body_json()
+        self._json(pdfobjects.paths_hit(self._path(qs), int(b.get("page", 0)), b.get("point"), b.get("box"), float(b.get("tol", 3))))
+
+    def api_pdf_image_export(self, qs):
+        from . import pdfobjects
+        b = self._body_json()
+        self._json(pdfobjects.image_export(self._path(qs), int(b.get("page", 0)), int(b.get("xref") or 0), b.get("box"), b["out"]))
+
     def api_pdf_lines(self, qs):
         from . import pdfedit
         self._json(pdfedit.text_lines(self._path(qs), int(_q(qs, "page", "0"))))
