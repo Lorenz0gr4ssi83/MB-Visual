@@ -945,3 +945,15 @@ Codice Python indipendente da Windows: ogni parte solo-Windows si spegne con gar
 - nwd2mbv per Mac NON compila ancora con Apple clang 16 (Xcode 16.2): std::jthread risolto con -fexperimental-library,
   ma manca std::from_chars per i double (nwd-reader src/protein_schema.cpp). Strada: LLVM di Homebrew con la sua libc++
   collegata statica, oppure ripiego a strtod in una copia locale. Nel workflow il passo e' continue-on-error.
+- Unione con main 1.5.9 (22/10/2026): una sola base di codice per Windows e Mac; workflow Build Mac anche da main.
+  Parti nuove rese indipendenti da Windows: `app.py` (guilib "cocoa" sul Mac: prima forzava edgechromium e sarebbe finito
+  nel ripiego del browser), stampa con CUPS (`mbvisual/stampa_cups.py`: lpstat, lpoptions -l, lp con media e copie; GDI e
+  DEVMODE solo Windows), `winsign`/`windialog`/`stampa` importabili ovunque (`mbvisual/wintypes_compat.py`), finestre
+  Apri/Salva/Cartella del Finder con osascript (solo per il ripiego nel browser: la finestra pywebview usa NSOpenPanel),
+  segreti (token cloud, password TSA) con Fernet e chiave nel Portachiavi (`mbvisual/secret.py`, comando security),
+  shellint spento fuori da Windows, lingua del Mac da `defaults read -g AppleLanguages`, cartelle dati da DATA_DIR.
+  Interfaccia: TOOLS.mac (api/tools) nasconde "Integrazione con Windows", "Sposta in Applicazioni", Cmd vale come Ctrl
+  (app.js, fase di cattura). Firma sul Mac: solo .p12 e CSC (smart card del Portachiavi da fare).
+- Prove automatiche sul runner: `tests/mac_smoke.py` (impronta, caratteri, stampanti CUPS, OCR Vision, conversioni, file
+  di esempio aperti in WebKit con Playwright; schermate e esito nell'artefatto prove-mac e nel riassunto del job).
+  L'app impacchettata con la licenza obbligatoria risponde 402 alle API dei file: per questo i file si provano da sorgente.

@@ -9,13 +9,17 @@ Priorità del collaudo: **1) l'app si avvia, 2) apre i file**. Il resto viene do
 
 ## 1. Scaricare la build
 
-1. Apri https://github.com/Lorenz0gr4ssi83/MB-Visual/actions ed entra con il tuo account GitHub.
-2. Nell'elenco a sinistra scegli **Build Mac**, poi clicca l'esecuzione più recente (ramo `mac-build`) con il segno verde.
+Il link diretto all'ultima build te lo manda chi ha preparato il collaudo. In alternativa:
+1. Su GitHub apri il repository **MB-Visual**, scheda **Actions**, ed entra con il tuo account.
+2. Nell'elenco a sinistra scegli **Build Mac**, poi clicca l'esecuzione più recente con il segno verde (ramo `main`).
 3. In fondo alla pagina, nella sezione **Artifacts**, scarica:
    - **MBVisual-mac-dmg**: è quello da usare;
    - **MBVisual-mac-zip**: è la riserva, nel caso il .dmg non si apra.
 4. GitHub consegna sempre un file `.zip`. Fai doppio clic per estrarlo: dentro trovi `MBVisual-<versione>-mac.dmg`
    (o `MBVisual-<versione>-mac.zip` con dentro `MB Visual.app`).
+
+Se la versione è stata pubblicata anche tra i rilasci (repository **MB-Visual-Rilasci**, pagina **Releases**), lì il
+`.dmg` si scarica direttamente, accanto al setup per Windows.
 
 ## 2. Installare
 
@@ -54,7 +58,8 @@ Poi riapri l'app. Il comando toglie il segno "scaricato da internet" a tutti i f
 
 ## 4. Licenza (da sapere prima)
 
-Sul server delle licenze il Mac conta come un **PC**. Se usi la tua chiave, già attiva sul PC Windows, il server
+Il server delle licenze è quello di sempre e sul Mac l'impronta del dispositivo è quella del Mac (non cambia
+reinstallando l'app). Il Mac conta come un **PC**. Se usi la tua chiave, già attiva sul PC Windows, il server
 risponde "Questa licenza è già attiva su un altro PC". Per il collaudo:
 - in **MB Visual Admin** crea una licenza di prova (es. cliente "Collaudo Mac", 1 PC) e usa quella chiave sul Mac;
 - a collaudo finito revocala da MB Visual Admin.
@@ -95,12 +100,20 @@ Segna ✅ (funziona), ⚠️ (funziona male) oppure ❌ (non funziona).
 |---|-------|-------|
 | 17 | **Salva con nome** in un altro formato: PDF → immagini, DOCX → PDF, immagine → PNG, video → MP4 | |
 | 18 | **OCR**: PDF scansionato > Modifica PDF > Altro > "Rendi ricercabile", poi cerca una parola | |
-| 19 | **Crea nuovo** (Cmd+N o Ctrl+N): Word, DXF, immagine | |
+| 19 | **Crea nuovo** (Cmd+N): Word, DXF, immagine | |
 | 20 | **Mostra nella cartella**: si apre il Finder sul file | |
-| 21 | **Scorciatoie**: annota se funzionano con **Cmd** (come sul Mac) o solo con **Ctrl** | |
+| 21 | **Scorciatoie** con **Cmd** come sul Mac (Cmd+O, Cmd+S, Cmd+P, Cmd+Z): annota quelle che non funzionano | |
 | 22 | **Navisworks** (.nwd): in questa build il lettore Navisworks non c'è ancora; annota solo che messaggio compare | |
+| 23 | **Stampa** (Cmd+P): compaiono le stampanti del Mac; stampa un PDF e un DXF su A4; "PDF vettoriale" salva il file | |
+| 24 | **Firma digitale** con un file **.p12/.pfx** (le smart card del Mac non ci sono ancora): firma e verifica | |
+| 25 | **Archivi cloud** (OneDrive/Google Drive/Dropbox): accesso, apertura di un file; al secondo avvio resta collegato | |
+| 26 | **Lingua**: menu File > Impostazioni › Lingua > Automatica segue la lingua del Mac; prova anche l'inglese | |
+| 27 | **Sposta in Applicazioni**: aprendo l'app fuori da Applicazioni, la voce nel menu File la copia lì e la riapre | |
+| 28 | **Ricerca nel progetto** su una cartella con PDF e DWG | |
 
-Non serve provarle ora (verranno dopo): aggiornamento automatico, anteprime Quick Look, motore IA.
+Non serve provarle ora (verranno dopo): aggiornamento automatico, anteprime Quick Look, motore IA, firma con smart card.
+Sul Mac non ci sono per scelta: "Integrazione con Windows" (miniature in Esplora risorse) e "Modifica in Word/Excel" via
+automazione (il pulsante apre comunque il file con Microsoft Office per Mac, se installato).
 
 ---
 

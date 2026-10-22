@@ -8,6 +8,14 @@ import { setupMobileQr } from "./mobileqr.js";
 import { t as tr, tn, has as trHas, LANG, LANGS, LOCALE, MANUAL, keyName, setLanguage } from "./i18n.js";
 
 const $ = id => document.getElementById(id);
+
+// Mac: le scorciatoie si fanno con Cmd. I gestori dell'app guardano ctrlKey: prima di loro (fase di cattura) un Cmd
+// premuto vale come Ctrl. Le funzioni native di WebKit (copia, incolla nei campi di testo) restano quelle del Mac.
+if (/Mac/.test(navigator.platform || navigator.userAgent) && !/iPhone|iPad/.test(navigator.userAgent)) {
+  const asCtrl = e => { if (e.metaKey && !e.ctrlKey) Object.defineProperty(e, "ctrlKey", { get: () => true }); };
+  for (const type of ["keydown", "keyup", "mousedown", "pointerdown", "click", "dblclick"]) window.addEventListener(type, asCtrl, true);
+}
+
 const VIEWER_NAMES = {
   pdf: "PDF", signed: tr("app.documento_firmato"), docx: "Word", sheet: tr("app.foglio_calcolo"), pptx: tr("app.presentazione"),
   office: tr("app.documento_office_libreoffice"), text: tr("app.testo_codice"), markdown: "Markdown", html: tr("app.pagina_web"),
