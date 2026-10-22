@@ -5,11 +5,12 @@
 //   ricostruisce modello e fogli e li stampa in PDF/SVG/PNG;
 // - modelli 3D e BIM: il visualizzatore 3D si monta in un contenitore fuori schermo e salva con il suo "Salva con nome".
 import { api, baseName, el, fmtSize, loadCss, pickFiles, pickFolder, readBytes, toast } from "./core.js";
+import { t as tr } from "./i18n.js";
 
 const FAM = {
-  cad: "disegni CAD", model3d: "modelli 3D / BIM", word: "Word", sheet: "fogli di calcolo", slides: "presentazioni", pdf: "PDF",
-  image: "immagini", svg: "SVG", media: "video", audio: "audio", email: "email", html: "pagine web", markdown: "Markdown", text: "testo",
-  xps: "XPS", epub: "eBook", archive: "archivi", font: "font", database: "database", altro: "non convertibili",
+  cad: tr("batch.disegni_cad"), model3d: tr("batch.modelli_3d_bim"), word: tr("batch.word"), sheet: tr("batch.fogli_calcolo"), slides: tr("batch.fam_presentazioni"), pdf: "PDF",
+  image: tr("batch.fam_immagini"), svg: "SVG", media: tr("batch.fam_video"), audio: tr("batch.fam_audio"), email: tr("batch.fam_email"), html: tr("batch.pagine_web"), markdown: tr("batch.markdown"), text: tr("batch.fam_testo"),
+  xps: "XPS", epub: "eBook", archive: tr("batch.fam_archivi"), font: tr("batch.fam_font"), database: tr("batch.fam_database"), altro: tr("batch.non_convertibili"),
 };
 // stessa regola di applies() in mbvisual/batch.py (serve solo a mostrare quanti file interessa ogni operazione)
 const PDF_FAMS = new Set(["word", "sheet", "slides", "email", "image", "svg", "html", "markdown", "text", "xps", "epub", "cad"]);
@@ -25,13 +26,13 @@ function applies(op, f, o, targetsOf) {
   return false;
 }
 const OP_HELP = {
-  pdf: "Documenti Office, email, immagini, pagine web, testo e disegni CAD (tutti i fogli) in PDF.",
-  format: "Ogni file nel formato scelto, se il suo tipo lo consente (es. modelli 3D in GLB/STEP/IFC, PDF in Word).",
-  image: "Ridimensiona, cambia formato e comprimi le immagini (anche RAW e HEIC).",
-  pdf_merge: "Un solo PDF con un segnalibro per file; gli altri documenti si convertono prima in PDF.",
-  pdf_compress: "Ricomprime le immagini interne e riduce i caratteri incorporati.",
-  pdf_ocr: "Aggiunge il testo invisibile alle scansioni (riconoscimento del testo di Windows, italiano).",
-  video: "H.264 + AAC in MP4, con qualita' e risoluzione a scelta.",
+  pdf: tr("batch.documenti_office_email_immagini_pagine"),
+  format: tr("batch.ogni_file_formato_scelto_se"),
+  image: tr("batch.ridimensiona_cambia_formato_comprimi_immagini"),
+  pdf_merge: tr("batch.solo_pdf_segnalibro_file_altri"),
+  pdf_compress: tr("batch.ricomprime_immagini_interne_riduce_i"),
+  pdf_ocr: tr("batch.aggiunge_testo_invisibile_alle_scansioni"),
+  video: tr("batch.h_264_aac_mp4_qualita"),
 };
 
 const KEY = "mbv-lotti";
@@ -70,10 +71,10 @@ export async function openBatch({ paths = [] } = {}) {
   const S = {
     sources: [...paths], recursive: saved.recursive ?? true, scan: null, op: saved.op || "pdf",
     opts: { ...{ layouts: "fogli", paper: "auto", orient: "auto", scale: 0, colors: "colori", lineweights: true, to: "", quality: 82, imgsize: "max", max_w: 1920, max_h: 1920, percent: 50,
-      keep_meta: false, name: "Unione", convert_others: true, bookmarks: true, dpi: 150, cquality: 75, ocr_dpi: 300, crf: 26, vmax_h: 1080, audio_kbps: 128, mute: false, report_file: true }, ...(saved.opts || {}) },
+      keep_meta: false, name: tr("batch.unione"), convert_others: true, bookmarks: true, dpi: 150, cquality: 75, ocr_dpi: 300, crf: 26, vmax_h: 1080, audio_kbps: 128, mute: false, report_file: true }, ...(saved.opts || {}) },
     out: { mode: "accanto", dir: "", collision: "rinomina", suffix: "", ...(saved.out || {}) },
   };
-  const D = frame("Conversione a lotti");
+  const D = frame(tr("batch.conversione_lotti"));
   D.onKey = e => { if (e.key === "Escape") closeDlg(); };
   document.addEventListener("keydown", D.onKey);
 
@@ -84,19 +85,19 @@ export async function openBatch({ paths = [] } = {}) {
   const ops = el("div", { class: "bt-ops" });
   const optBox = el("div", { class: "bt-sec" });
   const outBox = el("div", { class: "bt-sec" });
-  const startBtn = btn("Avvia conversione", () => start(), "primary");
+  const startBtn = btn(tr("batch.avvia_conversione"), () => start(), "primary");
   D.body.append(
-    el("div", { class: "bt-sec" }, el("h4", {}, "File da convertire"), srcList,
-      el("div", { class: "bt-line" }, btn("Aggiungi cartella...", async () => { const d = await pickFolder(); if (d) { S.sources.push(d); rescan(); } }),
-        btn("Aggiungi file...", async () => { const f = await pickFiles(); if (f?.length) { S.sources.push(...f); rescan(); } }),
-        el("label", { class: "bt-chk" }, rec, "Includi le sottocartelle")), sum),
-    el("div", { class: "bt-sec" }, el("h4", {}, "Operazione"), ops), optBox, outBox);
-  D.foot.append(el("span", { class: "bt-note grow" }, "La conversione continua in background: puoi lavorare negli altri file."), btn("Annulla", closeDlg), startBtn);
+    el("div", { class: "bt-sec" }, el("h4", {}, tr("batch.file_convertire")), srcList,
+      el("div", { class: "bt-line" }, btn(tr("batch.aggiungi_cartella"), async () => { const d = await pickFolder(); if (d) { S.sources.push(d); rescan(); } }),
+        btn(tr("batch.aggiungi_file"), async () => { const f = await pickFiles(); if (f?.length) { S.sources.push(...f); rescan(); } }),
+        el("label", { class: "bt-chk" }, rec, tr("batch.includi_sottocartelle"))), sum),
+    el("div", { class: "bt-sec" }, el("h4", {}, tr("batch.operazione")), ops), optBox, outBox);
+  D.foot.append(el("span", { class: "bt-note grow" }, tr("batch.conversione_continua_background_puoi_lavorare")), btn(tr("common.annulla"), closeDlg), startBtn);
 
   const targetsOf = f => (S.scan?.fam_targets?.[f.fam] || []); // formati possibili per tipo di file (dal motore)
   async function rescan() {
     renderSources();
-    sum.textContent = S.sources.length ? "Lettura delle cartelle..." : "Scegli una cartella o dei file.";
+    sum.textContent = S.sources.length ? tr("batch.lettura_cartelle") : tr("batch.scegli_cartella_file");
     S.scan = null;
     renderOps();
     if (!S.sources.length) return;
@@ -106,17 +107,17 @@ export async function openBatch({ paths = [] } = {}) {
       const parts = Object.entries(r.counts).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${FAM[k] || k}`);
       const size = r.files.reduce((a, f) => a + f.size, 0);
       sum.innerHTML = "";
-      sum.append(el("b", {}, `${r.files.length} file`), ` (${fmtSize(size)}): ${parts.join(", ")}` + (r.troppi ? " - elenco limitato ai primi 20.000 file" : ""));
+      sum.append(el("b", {}, `${r.files.length} file`), ` (${fmtSize(size)}): ${parts.join(", ")}` + (r.troppi ? tr("batch.elenco_limitato_primi_20_000") : ""));
       if (!r.targets.some(t => t.ext === S.opts.to)) S.opts.to = (r.targets.find(t => t.ext !== "pdf") || r.targets[0] || {}).ext || "";
-    } catch (e) { sum.textContent = "Lettura non riuscita: " + e.message; }
+    } catch (e) { sum.textContent = tr("batch.lettura_non_riuscita") + e.message; }
     renderOps();
   }
 
   function renderSources() {
     srcList.innerHTML = "";
-    if (!S.sources.length) srcList.append(el("div", { class: "bt-note" }, "Nessuna cartella o file scelto."));
-    S.sources.forEach((p, i) => srcList.append(el("div", { class: "row" }, el("span", {}, /\.[^\\/]+$/.test(p) ? "File" : "Cartella"),
-      el("span", { class: "p", title: p }, p), el("button", { class: "btn", type: "button", title: "Togli", onclick: () => { S.sources.splice(i, 1); rescan(); } }, "Togli"))));
+    if (!S.sources.length) srcList.append(el("div", { class: "bt-note" }, tr("batch.nessuna_cartella_file_scelto")));
+    S.sources.forEach((p, i) => srcList.append(el("div", { class: "row" }, el("span", {}, /\.[^\\/]+$/.test(p) ? tr("batch.file") : tr("batch.cartella")),
+      el("span", { class: "p", title: p }, p), el("button", { class: "btn", type: "button", title: tr("batch.togli"), onclick: () => { S.sources.splice(i, 1); rescan(); } }, tr("batch.togli")))));
   }
 
   function count(op) { return S.scan ? S.scan.files.filter(f => applies(op, f, S.opts, targetsOf)).length : 0; }
@@ -132,7 +133,7 @@ export async function openBatch({ paths = [] } = {}) {
     renderOut();
     const n = count(S.op);
     startBtn.disabled = !S.scan || !n || (S.out.mode === "cartella" && !S.out.dir);
-    startBtn.textContent = n ? `Avvia conversione (${n} file)` : "Avvia conversione";
+    startBtn.textContent = n ? tr("batch.avvia_conversione_0_file", n) : tr("batch.avvia_conversione");
   }
 
   // ---- opzioni dell'operazione
@@ -154,12 +155,12 @@ export async function openBatch({ paths = [] } = {}) {
   };
   const txt = (label, key) => { const i = el("input", { class: "field", type: "text", value: S.opts[key] || "" }); i.addEventListener("input", () => { S.opts[key] = i.value; }); return field(label, i); };
   const cadOpts = () => [
-    sel("Cosa stampare", "layouts", [["fogli", "I fogli (layout); il modello se non ce ne sono"], ["modello", "Solo il modello"], ["tutti", "Il modello e tutti i fogli"]]),
-    sel("Formato carta", "paper", [["auto", "Automatico (come il foglio; A3 per il modello)"], ...["A4", "A3", "A2", "A1", "A0"].map(p => [p, p])]),
-    sel("Orientamento", "orient", [["auto", "Automatico"], ["orizzontale", "Orizzontale"], ["verticale", "Verticale"]]),
-    sel("Scala (modello)", "scale", [[0, "Adatta al foglio"], ...[1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000, 2000].map(n => [n, "1:" + n])], "", Number),
-    sel("Colori", "colors", [["colori", "A colori"], ["bn", "Bianco e nero"], ["grigi", "Scala di grigi"]]),
-    chk("Spessori di linea", "lineweights"),
+    sel(tr("batch.cosa_stampare"), "layouts", [["fogli", tr("batch.i_fogli_layout_modello_se")], ["modello", tr("batch.solo_modello")], ["tutti", tr("batch.modello_tutti_i_fogli")]]),
+    sel(tr("batch.formato_carta"), "paper", [["auto", tr("batch.automatico_come_foglio_a3_modello")], ...["A4", "A3", "A2", "A1", "A0"].map(p => [p, p])]),
+    sel(tr("batch.orientamento"), "orient", [["auto", tr("batch.automatico")], ["orizzontale", tr("batch.orizzontale")], ["verticale", tr("batch.verticale")]]),
+    sel(tr("batch.scala_modello"), "scale", [[0, tr("batch.adatta_foglio")], ...[1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000, 2000].map(n => [n, "1:" + n])], "", Number),
+    sel(tr("batch.colori"), "colors", [["colori", tr("batch.colori_2")], ["bn", tr("batch.bianco_nero")], ["grigi", tr("batch.scala_grigi")]]),
+    chk(tr("batch.spessori_linea"), "lineweights"),
   ];
   function renderOpts() {
     optBox.innerHTML = "";
@@ -169,34 +170,34 @@ export async function openBatch({ paths = [] } = {}) {
     const o = S.opts;
     if (S.op === "format") {
       const ts = S.scan?.targets || [];
-      const s = el("select", { class: "field" }, ts.map(t => el("option", { value: t.ext, selected: t.ext === o.to || undefined }, `${t.ext.toUpperCase()} - ${t.label} (${t.n} file)`)));
+      const s = el("select", { class: "field" }, ts.map(t => el("option", { value: t.ext, selected: t.ext === o.to || undefined }, tr("batch.0_1_2_file", t.ext.toUpperCase(), t.label, t.n))));
       s.addEventListener("change", () => { o.to = s.value; renderOps(); });
-      g.append(field("Formato di destinazione", s));
+      g.append(field(tr("batch.formato_destinazione"), s));
     }
     const cad = fams.has("cad") && (S.op === "pdf" || (S.op === "format" && ["pdf", "png", "svg"].includes(o.to)));
-    if (cad) { g.append(...cadOpts()); notes.push("Disegni: i DWG si leggono con il lettore interno; con ODA File Converter installato (gratuito) si usano le impostazioni di stampa salvate nel disegno. Un PDF per disegno, una pagina per foglio, con i segnalibri."); }
-    if (S.op === "pdf" && (fams.has("word") || fams.has("sheet") || fams.has("slides"))) notes.push("Word, Excel e PowerPoint convertono con i programmi Office di questo PC (restano aperti per tutto il lotto: il primo file e' il piu' lento).");
-    if (S.op === "format" && fams.has("model3d")) notes.push("Modelli 3D: STEP e IFC contengono superfici a facce piane ricavate dal modello (nomi e colori degli oggetti si conservano).");
+    if (cad) { g.append(...cadOpts()); notes.push(tr("batch.disegni_i_dwg_si_leggono")); }
+    if (S.op === "pdf" && (fams.has("word") || fams.has("sheet") || fams.has("slides"))) notes.push(tr("batch.word_excel_powerpoint_convertono_i"));
+    if (S.op === "format" && fams.has("model3d")) notes.push(tr("batch.modelli_3d_step_ifc_contengono"));
     if (S.op === "image") {
-      g.append(sel("Formato", "to_img", [["uguale", "Lo stesso dell'originale"], ["jpg", "JPG"], ["png", "PNG"], ["webp", "WEBP"], ["tiff", "TIFF"], ["avif", "AVIF"], ["bmp", "BMP"]]),
-        sel("Dimensioni", "imgsize", [["uguali", "Invariate"], ["max", "Lato massimo"], ["pct", "Percentuale"]]));
-      if (o.imgsize === "max") g.append(num("Larghezza massima (px)", "max_w", 16, 20000), num("Altezza massima (px)", "max_h", 16, 20000));
-      if (o.imgsize === "pct") g.append(num("Percentuale", "percent", 1, 400));
-      g.append(num("Qualita' JPG/WEBP/AVIF (1-100)", "quality", 1, 100), chk("Conserva i dati EXIF (data, fotocamera, GPS)", "keep_meta"));
+      g.append(sel(tr("batch.formato"), "to_img", [["uguale", tr("batch.stesso_dell_originale")], ["jpg", "JPG"], ["png", "PNG"], ["webp", "WEBP"], ["tiff", "TIFF"], ["avif", "AVIF"], ["bmp", "BMP"]]),
+        sel(tr("batch.dimensioni"), "imgsize", [["uguali", tr("batch.invariate")], ["max", tr("batch.lato_massimo")], ["pct", tr("batch.percentuale")]]));
+      if (o.imgsize === "max") g.append(num(tr("batch.larghezza_massima_px"), "max_w", 16, 20000), num(tr("batch.altezza_massima_px"), "max_h", 16, 20000));
+      if (o.imgsize === "pct") g.append(num(tr("batch.percentuale"), "percent", 1, 400));
+      g.append(num(tr("batch.qualita_jpg_webp_avif_1"), "quality", 1, 100), chk(tr("batch.conserva_i_dati_exif_data"), "keep_meta"));
     }
     if (S.op === "pdf_merge") {
-      g.append(txt("Nome del PDF unico", "name"), chk("Converti anche documenti, immagini e disegni", "convert_others"), chk("Un segnalibro per ogni file", "bookmarks"));
-      notes.push("Ordine delle pagine: per cartella e nome del file (ordine alfabetico). Il PDF unico va nella cartella di uscita o in quella del primo file.");
+      g.append(txt(tr("batch.nome_pdf_unico"), "name"), chk(tr("batch.converti_anche_documenti_immagini_disegni"), "convert_others"), chk(tr("batch.segnalibro_ogni_file"), "bookmarks"));
+      notes.push(tr("batch.ordine_pagine_cartella_nome_file"));
       if (S.opts.convert_others && fams.has("cad")) g.append(...cadOpts());
     }
-    if (S.op === "pdf_compress") g.append(sel("Risoluzione delle immagini", "dpi", [[72, "72 dpi (schermo)"], [96, "96 dpi"], [120, "120 dpi"], [150, "150 dpi (consigliata)"], [200, "200 dpi (stampa)"]], "", Number),
-      sel("Qualita' delle immagini", "cquality", [[50, "Bassa"], [65, "Media"], [75, "Buona"], [85, "Alta"]], "", Number));
-    if (S.op === "pdf_ocr") { g.append(sel("Risoluzione di lettura", "ocr_dpi", [[200, "200 dpi (veloce)"], [300, "300 dpi (consigliata)"], [400, "400 dpi (testi piccoli)"]], "", Number)); notes.push("Le pagine che hanno gia' del testo restano come sono."); }
-    if (S.op === "video") g.append(sel("Qualita'", "crf", [[22, "Alta"], [26, "Media (consigliata)"], [30, "Ridotta"], [34, "Minima"]], "", Number),
-      sel("Altezza massima", "vmax_h", [[0, "Originale"], [2160, "2160 (4K)"], [1440, "1440"], [1080, "1080 (Full HD)"], [720, "720 (HD)"], [480, "480"]], "", Number),
-      sel("Audio", "audio_kbps", [[96, "96 kbps"], [128, "128 kbps"], [192, "192 kbps"]], "", Number), chk("Togli l'audio", "mute"));
+    if (S.op === "pdf_compress") g.append(sel(tr("batch.risoluzione_immagini"), "dpi", [[72, tr("batch.72_dpi_schermo")], [96, "96 dpi"], [120, "120 dpi"], [150, tr("batch.150_dpi_consigliata")], [200, tr("batch.200_dpi_stampa")]], "", Number),
+      sel(tr("batch.qualita_immagini"), "cquality", [[50, tr("batch.bassa")], [65, tr("batch.media")], [75, tr("batch.buona")], [85, tr("batch.alta")]], "", Number));
+    if (S.op === "pdf_ocr") { g.append(sel(tr("batch.risoluzione_lettura"), "ocr_dpi", [[200, tr("batch.200_dpi_veloce")], [300, tr("batch.300_dpi_consigliata")], [400, tr("batch.400_dpi_testi_piccoli")]], "", Number)); notes.push(tr("batch.pagine_che_hanno_gia_testo")); }
+    if (S.op === "video") g.append(sel(tr("batch.qualita"), "crf", [[22, tr("batch.alta")], [26, tr("batch.media_consigliata")], [30, tr("batch.ridotta")], [34, tr("batch.minima")]], "", Number),
+      sel(tr("batch.altezza_massima"), "vmax_h", [[0, tr("batch.originale")], [2160, "2160 (4K)"], [1440, "1440"], [1080, "1080 (Full HD)"], [720, "720 (HD)"], [480, "480"]], "", Number),
+      sel(tr("batch.audio"), "audio_kbps", [[96, "96 kbps"], [128, "128 kbps"], [192, "192 kbps"]], "", Number), chk(tr("batch.togli_l_audio"), "mute"));
     if (!g.childElementCount && !notes.length) return;
-    optBox.append(el("h4", {}, "Opzioni"), g, ...notes.map(n => el("p", { class: "bt-note" }, n)));
+    optBox.append(el("h4", {}, tr("batch.opzioni")), g, ...notes.map(n => el("p", { class: "bt-note" }, n)));
   }
 
   // ---- uscita
@@ -207,21 +208,21 @@ export async function openBatch({ paths = [] } = {}) {
       r.addEventListener("change", () => { S.out.mode = v; renderOps(); });
       return el("label", { class: "bt-chk" }, r, label);
     };
-    const dir = el("input", { class: "field", type: "text", value: S.out.dir, placeholder: "Cartella di uscita" });
+    const dir = el("input", { class: "field", type: "text", value: S.out.dir, placeholder: tr("batch.cartella_uscita") });
     dir.addEventListener("change", () => { S.out.dir = dir.value.trim(); renderOps(); });
-    const coll = el("select", { class: "field" }, [["rinomina", "Aggiungi un numero al nome"], ["sovrascrivi", "Sostituisci"], ["salta", "Non convertire"]].map(([v, l]) => el("option", { value: v, selected: S.out.collision === v || undefined }, l)));
+    const coll = el("select", { class: "field" }, [["rinomina", tr("batch.aggiungi_numero_nome")], ["sovrascrivi", tr("batch.sostituisci")], ["salta", tr("batch.non_convertire")]].map(([v, l]) => el("option", { value: v, selected: S.out.collision === v || undefined }, l)));
     coll.addEventListener("change", () => { S.out.collision = coll.value; });
     const suf = el("input", { class: "field", type: "text", value: S.out.suffix, placeholder: "es. _rev" });
     suf.addEventListener("input", () => { S.out.suffix = suf.value; });
-    const box = el("div", { class: "bt-out" }, radio("accanto", "Accanto agli originali"), radio("cartella", "In una cartella, con la stessa struttura di sottocartelle"));
+    const box = el("div", { class: "bt-out" }, radio("accanto", tr("batch.accanto_agli_originali")), radio("cartella", tr("batch.cartella_stessa_struttura_sottocartelle")));
     if (S.out.mode === "cartella") {
-      box.append(el("div", { class: "path" }, dir, btn("Scegli...", async () => { const d = await pickFolder(); if (d) { S.out.dir = d; renderOps(); } })));
+      box.append(el("div", { class: "path" }, dir, btn(tr("batch.scegli"), async () => { const d = await pickFolder(); if (d) { S.out.dir = d; renderOps(); } })));
       const rep = el("input", { type: "checkbox", checked: S.opts.report_file ? true : undefined });
       rep.addEventListener("change", () => { S.opts.report_file = rep.checked; });
-      box.append(el("label", { class: "bt-chk" }, rep, "Salva il rapporto (CSV) nella cartella di uscita"));
+      box.append(el("label", { class: "bt-chk" }, rep, tr("batch.salva_rapporto_csv_cartella_uscita")));
     }
-    box.append(el("div", { class: "bt-grid" }, field("Se il file di uscita esiste gia'", coll), field("Aggiungi al nome dei file", suf)));
-    outBox.append(el("h4", {}, "Dove salvare"), box);
+    box.append(el("div", { class: "bt-grid" }, field(tr("batch.se_file_uscita_esiste_gia"), coll), field(tr("batch.aggiungi_nome_file"), suf)));
+    outBox.append(el("h4", {}, tr("batch.dove_salvare")), box);
   }
 
   async function start() {
@@ -242,7 +243,7 @@ export async function openBatch({ paths = [] } = {}) {
       const files = S.scan.files.map(f => ({ path: f.path, rel: f.rel }));
       const r = await api("batch", { op: "start" }, { json: { op: S.op, opts, files, out: S.out } });
       follow(r.id, true);
-    } catch (e) { toast("Conversione non avviata: " + e.message, true, 6000); }
+    } catch (e) { toast(tr("batch.conversione_non_avviata") + e.message, true, 6000); }
   }
 
   renderSources();
@@ -250,8 +251,8 @@ export async function openBatch({ paths = [] } = {}) {
   rescan();
 }
 const OPS_FALLBACK = {
-  pdf: "Converti in PDF", format: "Converti in un altro formato", image: "Immagini: ridimensiona, converti, comprimi", pdf_merge: "Unisci in un unico PDF",
-  pdf_compress: "PDF: comprimi", pdf_ocr: "PDF scansionati: rendi ricercabili (OCR)", video: "Video: MP4 compresso",
+  pdf: tr("batch.converti_pdf"), format: tr("batch.converti_altro_formato"), image: "Immagini: ridimensiona, converti, comprimi", pdf_merge: tr("batch.unisci_unico_pdf"),
+  pdf_compress: "PDF: comprimi", pdf_ocr: tr("batch.pdf_scansionati_rendi_ricercabili_ocr"), video: "Video: MP4 compresso",
 };
 
 // ---------------------------------------------------------------- avanzamento
@@ -276,7 +277,7 @@ async function loop(R) {
     renderChip();
     if (["finito", "annullato", "errore"].includes(s.status) && !R.busy) {
       if (dlg?.id === R.id) { R.state = await api("batch", { op: "status", id: R.id }); renderProgress(R); }
-      const t = `Conversione a lotti ${s.status === "annullato" ? "interrotta" : "finita"}: ${s.riusciti} riusciti` + (s.falliti ? `, ${s.falliti} non riusciti` : "");
+      const t = tr(s.status === "annullato" ? "batch.lotti_interrotta_0" : "batch.lotti_finita_0", s.riusciti) + (s.falliti ? tr("batch.0_non_riusciti", s.falliti) : "");
       toast(t, s.falliti > 0, 6000);
       renderChip();
       break;
@@ -287,18 +288,18 @@ async function loop(R) {
 
 function showProgress(id) {
   const R = runners.get(id);
-  const D = frame("Conversione a lotti");
+  const D = frame(tr("batch.conversione_lotti"));
   D.id = id;
   D.onKey = e => { if (e.key === "Escape") { closeDlg(); renderChip(); } };
   document.addEventListener("keydown", D.onKey);
   R.ui = null;
-  D.body.append(el("div", { class: "bt-note" }, "Lettura dello stato..."));
+  D.body.append(el("div", { class: "bt-note" }, tr("batch.lettura_dello_stato")));
   renderChip();
   // stato completo (con l'elenco aggiornato dei file): mentre la finestra era ridotta si leggeva solo il riepilogo
   api("batch", { op: "status", id }).then(s => { if (s.ok) { R.state = s; R.ui = null; renderProgress(R); } }).catch(() => {});
 }
 
-const ST = { ok: "Riuscito", errore: "Non riuscito", saltato: "Saltato", annullato: "Annullato", attesa: "In coda", "in corso": "In corso" };
+const ST = { ok: tr("batch.riuscito"), errore: tr("batch.non_riuscito"), saltato: tr("batch.saltato"), annullato: tr("batch.annullato"), attesa: tr("batch.coda"), "in corso": tr("batch.corso") };
 function renderProgress(R) {
   const D = dlg;
   if (!D || D.id !== R.id) return;
@@ -315,32 +316,32 @@ function renderProgress(R) {
     D.body.append(el("div", { class: "bt-sec" }, el("h4", {}, s.label), bar, stats, cur), el("div", { class: "bt-sec" }, tabs, list));
     if (end) {
       D.foot.append(...[
-        s.report ? btn("Apri il rapporto", () => api("open_external", { path: s.report }).catch(e => toast(e.message, true))) : null,
-        s.unito ? btn("Apri il PDF unico", () => window.MB?.openFile(s.unito)) : null,
-        btn("Apri la cartella di uscita", () => reveal(s)), el("span", { class: "grow" }),
-        btn("Nuova conversione...", () => openBatch({ paths: [] })), btn("Chiudi", () => { closeDlg(); runners.delete(R.id); renderChip(); }, "primary")].filter(Boolean));
+        s.report ? btn(tr("batch.apri_rapporto"), () => api("open_external", { path: s.report }).catch(e => toast(e.message, true))) : null,
+        s.unito ? btn(tr("batch.apri_pdf_unico"), () => window.MB?.openFile(s.unito)) : null,
+        btn(tr("batch.apri_cartella_uscita"), () => reveal(s)), el("span", { class: "grow" }),
+        btn(tr("batch.nuova_conversione"), () => openBatch({ paths: [] })), btn(tr("common.chiudi"), () => { closeDlg(); runners.delete(R.id); renderChip(); }, "primary")].filter(Boolean));
     } else {
-      D.foot.append(el("span", { class: "bt-note grow" }, "Puoi ridurre la finestra e continuare a lavorare: la coda prosegue."),
-        btn("Interrompi la coda", async () => { await api("batch", { op: "cancel", id: R.id }); toast("Interruzione: si ferma dopo il file in corso (i video si fermano subito)"); }, "danger"),
-        btn("Riduci", () => { closeDlg(); renderChip(); }, "primary"));
+      D.foot.append(el("span", { class: "bt-note grow" }, tr("batch.puoi_ridurre_finestra_continuare_lavorare")),
+        btn(tr("batch.interrompi_coda"), async () => { await api("batch", { op: "cancel", id: R.id }); toast(tr("batch.interruzione_si_ferma_dopo_file")); }, "danger"),
+        btn(tr("batch.riduci"), () => { closeDlg(); renderChip(); }, "primary"));
     }
     R.ui = { bar, stats, cur, tabs, list, end, sig: "" };
   }
   const U = R.ui;
   U.bar.firstChild.style.width = Math.round((s.progress || 0) * 100) + "%";
   U.stats.innerHTML = "";
-  U.stats.append(el("span", {}, `${s.fatti} di ${s.da_fare} file`), el("span", { class: "ok" }, `${s.riusciti} riusciti`), el("span", { class: "bad" }, `${s.falliti} non riusciti`),
+  U.stats.append(el("span", {}, tr("batch.0_1_file", s.fatti, s.da_fare)), el("span", { class: "ok" }, tr("batch.0_riusciti", s.riusciti)), el("span", { class: "bad" }, tr("batch.0_non_riusciti_2", s.falliti)),
     el("span", { class: "skip" }, `${s.saltati} saltati`), el("span", { class: "skip" }, elapsed(s)));
   const curItem = s.items && s.current >= 0 ? s.items[s.current] : null;
-  U.cur.textContent = end ? (s.status === "annullato" ? "Coda interrotta." : s.status === "errore" ? "Errore: " + s.message : "Finito." + (s.unito ? " PDF unico: " + s.unito : ""))
-    : s.status === "attesa" ? "In attesa che finisca il lotto precedente..." : curItem ? "In corso: " + curItem.rel + (s.task ? " (lettura nella finestra dell'app)" : "") : s.message || "";
+  U.cur.textContent = end ? (s.status === "annullato" ? tr("batch.coda_interrotta") : s.status === "errore" ? tr("batch.errore") + s.message : tr("batch.finito") + (s.unito ? tr("batch.pdf_unico") + s.unito : ""))
+    : s.status === "attesa" ? tr("batch.attesa_che_finisca_lotto_precedente") : curItem ? tr("batch.corso_2") + curItem.rel + (s.task ? tr("batch.lettura_finestra_dell_app") : "") : s.message || "";
   if (!s.items) return;
   const counts = { tutti: s.items.length, errore: s.falliti, ok: s.riusciti, saltato: s.saltati };
   const sig = s.items.map(i => i.status[0] + i.msg.length).join("") + R.filter + s.current;
   if (sig === U.sig) return;
   U.sig = sig;
   U.tabs.innerHTML = "";
-  for (const [k, l] of [["tutti", "Tutti"], ["errore", "Non riusciti"], ["ok", "Riusciti"], ["saltato", "Saltati"]]) {
+  for (const [k, l] of [["tutti", tr("batch.tutti")], ["errore", tr("batch.non_riusciti")], ["ok", tr("batch.riusciti")], ["saltato", tr("batch.saltati")]]) {
     U.tabs.append(el("button", { class: "btn" + (R.filter === k ? " on" : ""), type: "button", onclick: () => { R.filter = k; U.sig = ""; renderProgress(R); } }, `${l} (${counts[k]})`));
   }
   const tb = el("tbody");
@@ -377,10 +378,10 @@ function renderChip() {
   if (!chip) { loadCss("css/batch.css"); chip = el("div", { class: "bt-chip" }); document.body.append(chip); }
   chip.innerHTML = "";
   const cur = s.items && s.current >= 0 ? s.items[s.current]?.rel : s.message;
-  chip.append(el("div", { class: "t" }, el("b", {}, end ? `Lotto ${s.status === "annullato" ? "interrotto" : "finito"}` : `${s.label}: ${s.fatti}/${s.da_fare}`),
-    btn("Dettagli", () => showProgress(R.id)), end ? btn("x", () => { runners.delete(R.id); renderChip(); }) : null),
+  chip.append(el("div", { class: "t" }, el("b", {}, end ? tr("batch.lotto_0", s.status === "annullato" ? "interrotto" : "finito") : `${s.label}: ${s.fatti}/${s.da_fare}`),
+    btn(tr("batch.dettagli"), () => showProgress(R.id)), end ? btn("x", () => { runners.delete(R.id); renderChip(); }) : null),
   el("div", { class: "bt-bar" }, el("span", { style: { width: Math.round((s.progress || 0) * 100) + "%" } })),
-  el("div", { class: "c" }, end ? `${s.riusciti} riusciti, ${s.falliti} non riusciti` : cur || ""));
+  el("div", { class: "c" }, end ? tr("batch.0_riusciti_1_non_riusciti", s.riusciti, s.falliti) : cur || ""));
 }
 
 // ---------------------------------------------------------------- compiti eseguiti nella pagina
@@ -392,7 +393,7 @@ async function runTask(R, task) {
     if (!t.ok) return;
     if (task.kind === "dwg") result = { db: await dwgDb(task) };
     else if (task.kind === "model3d") { await save3d(task); result = { ok: true }; }
-    else throw new Error("Compito sconosciuto: " + task.kind);
+    else throw new Error(tr("batch.compito_sconosciuto") + task.kind);
   } catch (e) {
     console.error(e);
     result = { errore: e.message || String(e) };
@@ -432,7 +433,7 @@ async function save3d(task) {
       tools: TOOLS, registry: null, reason: null, setDirty() {}, status() {}, openPaths() {}, openAs() {}, openFile() {}, fillBody() {},
     };
     a = await mod.mount(ctx);
-    if (!a?.save) throw new Error("Il modello non si e' aperto");
+    if (!a?.save) throw new Error(tr("batch.modello_non_si_aperto"));
     await a.save(task.out);
   } finally {
     try { a?.dispose?.(); } catch { /* */ }
@@ -446,8 +447,8 @@ export function explorerMenu(ev, path, isDir, openFile) {
   document.querySelectorAll(".bt-ctx").forEach(m => m.remove());
   const m = el("div", { class: "menu bt-ctx" });
   const item = (text, fn) => el("button", { type: "button", onclick: () => { m.remove(); fn(); } }, el("span", {}, text));
-  if (isDir) m.append(item("Conversione a lotti di questa cartella...", () => openBatch({ paths: [path] })));
-  else m.append(item("Apri", () => openFile(path)), item("Conversione a lotti a partire da questo file...", () => openBatch({ paths: [path] })));
+  if (isDir) m.append(item(tr("batch.conversione_lotti_questa_cartella"), () => openBatch({ paths: [path] })));
+  else m.append(item(tr("batch.apri"), () => openFile(path)), item(tr("batch.conversione_lotti_partire_questo_file"), () => openBatch({ paths: [path] })));
   document.body.append(m);
   const r = m.getBoundingClientRect();
   m.style.left = Math.min(ev.clientX, innerWidth - r.width - 8) + "px";

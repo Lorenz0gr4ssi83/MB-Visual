@@ -3,6 +3,7 @@
 // con OpenCascade e si ripete in tutte le sue occorrenze (geometria condivisa).
 import * as THREE from "three";
 import { api, fileUrl, waitJob } from "./core.js";
+import { t as tr } from "./i18n.js";
 
 const PARAMS = { linearUnit: "millimeter", linearDeflectionType: "bounding_box_ratio", linearDeflection: 0.001, angularDeflection: 0.5 };
 
@@ -13,7 +14,7 @@ function makePool(n) {
   for (let i = 0; i < n; i++) {
     const w = new Worker("/js/occtworker.js");
     w.onmessage = ev => { const p = waiting.get(ev.data.id); waiting.delete(ev.data.id); if (p) ev.data.error ? p.reject(new Error(ev.data.error)) : p.resolve(ev.data.result); };
-    w.onerror = e => { for (const [id, p] of waiting) if (p.w === w) { waiting.delete(id); p.reject(new Error(e.message || "Errore nel lettore CAD")); } };
+    w.onerror = e => { for (const [id, p] of waiting) if (p.w === w) { waiting.delete(id); p.reject(new Error(e.message || tr("inventor3d.errore_lettore_cad"))); } };
     workers.push({ w, busy: 0 });
   }
   return {
@@ -57,27 +58,27 @@ function partTemplate(res, fallbackColor) {
       }
       material = list;
     }
-    return { geometry: g, material, name: m.name || `Corpo ${i + 1}` };
+    return { geometry: g, material, name: m.name || tr("inventor3d.corpo_0", i + 1) };
   });
 }
 
 // iProperties -> righe [categoria, nome, valore] (stesso formato della scheda Navisworks)
 function propRows(part, extra) {
   const rows = [];
-  for (const [k, v] of extra) if (v) rows.push(["Documento", k, v]);
+  for (const [k, v] of extra) if (v) rows.push([tr("inventor3d.documento"), k, v]);
   for (const g of part?.gruppi || []) for (const [k, v] of g.voci) rows.push([g.nome, k, v]);
   return rows;
 }
 
 function summary(rep, miss) {
-  const tot = rep?.["facce totali"] || 0, ok = rep?.["facce convertite"] || 0;
+  const tot = rep?.[tr("inventor3d.facce_totali")] || 0, ok = rep?.[tr("inventor3d.facce_convertite")] || 0;
   return { tot, ok, miss: Object.entries(miss || {}).map(([k, v]) => `${k}: ${v}`) };
 }
 
 export async function loadInventor(ctx, ld, info) {
-  ld.set(0.05, "Lettura del file Inventor (senza Inventor)");
+  ld.set(0.05, tr("inventor3d.lettura_file_inventor_senza_inventor"));
   const { job } = await api("inventor", { path: ctx.path });
-  const res = await waitJob(job, (p, m) => ld.set(0.05 + 0.35 * p, m || "Conversione della geometria"));
+  const res = await waitJob(job, (p, m) => ld.set(0.05 + 0.35 * p, m || tr("inventor3d.conversione_geometria")));
   const keys = Object.keys(res.parti).filter(k => res.parti[k].step);
   const pool = makePool(Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 2) - 1, keys.length)));
   const templates = new Map(), errors = [];
@@ -88,11 +89,11 @@ export async function loadInventor(ctx, ld, info) {
       try {
         const buf = new Uint8Array(await (await fetch(fileUrl(p.step))).arrayBuffer());
         const r = await pool.read(buf);
-        if (!r || r.success === false) throw new Error("STEP non leggibile");
+        if (!r || r.success === false) throw new Error(tr("inventor3d.step_non_leggibile"));
         templates.set(k, partTemplate(r, p.colore));
       } catch (e) { errors.push(`${p.nome}: ${e.message}`); }
       done++;
-      ld.set(0.4 + 0.5 * done / keys.length, `Tassellazione delle parti (${done} di ${keys.length})`);
+      ld.set(0.4 + 0.5 * done / keys.length, tr("inventor3d.tassellazione_parti_0_1", done, keys.length));
     }));
   } finally { pool.close(); }
 
@@ -115,14 +116,14 @@ export async function loadInventor(ctx, ld, info) {
       out.push(item);
       if (n.figli) {
         build(n.figli, g, item.children);
-        g.userData.navisProps = [["Documento", "File", n.file || ""], ["Documento", "Tipo", "Sottoassieme"]];
+        g.userData.navisProps = [[tr("inventor3d.documento"), tr("inventor3d.file"), n.file || ""], [tr("inventor3d.documento"), tr("inventor3d.tipo"), tr("inventor3d.sottoassieme")]];
         continue;
       }
       const id = nid++;
       g.userData.navisId = id;
       if (n.mancante) {
-        g.name = item.name = `${n.nome} (file non trovato)`;
-        g.userData.navisProps = [["Documento", "File non trovato", n.mancante]];
+        g.name = item.name = tr("inventor3d.0_file_non_trovato", n.nome);
+        g.userData.navisProps = [[tr("inventor3d.documento"), tr("inventor3d.file_non_trovato"), n.mancante]];
         continue;
       }
       nOcc++;
@@ -131,9 +132,9 @@ export async function loadInventor(ctx, ld, info) {
       faces += s.tot;
       facesOk += s.ok;
       if (s.tot > s.ok || !p?.step) problems.set(p?.nome || n.nome, s);
-      g.userData.navisProps = propRows(p, [["File", p?.file], ["Facce convertite", s.tot ? `${s.ok} di ${s.tot}` : ""],
-        ...(s.miss.length ? [["Elementi non convertiti", s.miss.join("; ")]] : []), ...(p?.errore ? [["Errore", p.errore]] : [])]);
-      g.userData.classe = res.tipo === "parte" ? "Parte" : "Componente";
+      g.userData.navisProps = propRows(p, [[tr("inventor3d.file"), p?.file], [tr("inventor3d.facce_convertite_2"), s.tot ? tr("inventor3d.0_di_1", s.ok, s.tot) : ""],
+        ...(s.miss.length ? [[tr("inventor3d.elementi_non_convertiti"), s.miss.join("; ")]] : []), ...(p?.errore ? [[tr("inventor3d.errore"), p.errore]] : [])]);
+      g.userData.classe = res.tipo === "parte" ? tr("inventor3d.parte") : tr("inventor3d.componente");
       for (const t of templates.get(n.parte) || []) {
         const mesh = new THREE.Mesh(t.geometry, t.material);
         mesh.name = t.name;
@@ -147,10 +148,10 @@ export async function loadInventor(ctx, ld, info) {
   // albero: per una parte singola i corpi, per un assieme i componenti
   for (const g of root.children) tree.push(treeOf(g));
   const parts = [];
-  if (res.tipo === "assieme") parts.push(`${nOcc} componenti, ${Object.keys(res.parti).length} parti diverse`);
-  if (faces) parts.push(faces === facesOk ? `${faces} facce convertite` : `${facesOk} di ${faces} facce convertite`);
-  if (res.mancanti?.length) parts.push(`${res.mancanti.length} file non trovati`);
-  info.status = "Inventor senza Inventor: " + parts.join(", ");
+  if (res.tipo === "assieme") parts.push(tr("inventor3d.0_componenti_1_parti_diverse", nOcc, Object.keys(res.parti).length));
+  if (faces) parts.push(faces === facesOk ? tr("inventor3d.0_facce_convertite", faces) : tr("inventor3d.0_1_facce_convertite", facesOk, faces));
+  if (res.mancanti?.length) parts.push(tr("inventor3d.0_file_non_trovati", res.mancanti.length));
+  info.status = tr("inventor3d.inventor_senza_inventor") + parts.join(", ");
   info.inventor = { res, problems: [...problems.entries()], errors, root };
   if (res.gruppi?.length) root.userData.navisProps = propRows({ gruppi: res.gruppi }, []);
   return { root, tree };
@@ -166,8 +167,8 @@ export function inventorWarnings(inv) {
   if (!inv) return [];
   const out = [];
   const { res, problems, errors } = inv;
-  if (res.mancanti?.length) out.push(`File non trovati (${res.mancanti.length}): ` + res.mancanti.slice(0, 6).map(p => p.split(/[\\/]/).pop()).join(", ") + (res.mancanti.length > 6 ? "..." : "") + ". Mettili nella cartella dell'assieme o in una sua sottocartella.");
-  for (const [name, s] of problems.slice(0, 5)) out.push(s.tot ? `${name}: convertite ${s.ok} facce su ${s.tot}` + (s.miss.length ? ` (${s.miss.join("; ")})` : "") : `${name}: geometria non leggibile`);
+  if (res.mancanti?.length) out.push(tr("inventor3d.file_non_trovati_0", res.mancanti.length) + res.mancanti.slice(0, 6).map(p => p.split(/[\\/]/).pop()).join(", ") + (res.mancanti.length > 6 ? "..." : "") + tr("inventor3d.mettili_cartella_dell_assieme_sua"));
+  for (const [name, s] of problems.slice(0, 5)) out.push(s.tot ? tr("inventor3d.0_convertite_1_facce_2", name, s.ok, s.tot) + (s.miss.length ? ` (${s.miss.join("; ")})` : "") : tr("inventor3d.0_geometria_non_leggibile", name));
   for (const e of errors.slice(0, 3)) out.push(e);
   for (const n of res.note || []) out.push(n);
   return out;

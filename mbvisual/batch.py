@@ -26,13 +26,14 @@ from pathlib import Path
 
 from . import convert
 from .paths import TEMP_DIR
+from .i18n import t as tr
 
 NO_WINDOW = 0x08000000
 CAD = {"dwg", "dxf"}
 MODEL3D = set("ifc step stp p21 stpz iges igs brep brp stl obj ply gltf glb fbx 3ds dae 3mf amf wrl vrml 3dm usdz".split())
-MODEL3D_OUT = [("glb", "glTF binario"), ("step", "STEP (facce piane)"), ("ifc", "IFC 4"), ("stl", "STL"), ("obj", "OBJ"), ("3mf", "3MF"),
-               ("gltf", "glTF testo"), ("ply", "PLY"), ("dxf", "DXF 3D"), ("wrl", "VRML"), ("usdz", "USDZ")]
-CAD_OUT = [("pdf", "PDF (modello e fogli)"), ("svg", "SVG"), ("png", "PNG"), ("dxf", "DXF")]
+MODEL3D_OUT = [("glb", "srv_batch.gltf_binario"), ("step", "srv_batch.step_facce_piane"), ("ifc", "IFC 4"), ("stl", "STL"), ("obj", "OBJ"), ("3mf", "3MF"),
+               ("gltf", "srv_batch.gltf_testo"), ("ply", "PLY"), ("dxf", "DXF 3D"), ("wrl", "VRML"), ("usdz", "USDZ")]
+CAD_OUT = [("pdf", "srv_batch.pdf_modello_fogli"), ("svg", "SVG"), ("png", "PNG"), ("dxf", "DXF")]
 PDF_FAMS = {"word", "sheet", "slides", "email", "image", "svg", "html", "markdown", "text", "xps", "epub", "cad"}
 SKIP = ("~$", ".")
 SKIP_NAMES = {"desktop.ini", "thumbs.db"}
@@ -40,14 +41,22 @@ MAX_FILES = 20000
 PAPER = {"A4": (297, 210), "A3": (420, 297), "A2": (594, 420), "A1": (841, 594), "A0": (1189, 841)}
 
 OPS = {
-    "pdf": "Converti in PDF",
-    "format": "Converti in un altro formato",
-    "image": "Immagini: ridimensiona, converti, comprimi",
-    "pdf_merge": "Unisci in un unico PDF",
-    "pdf_compress": "PDF: comprimi",
-    "pdf_ocr": "PDF scansionati: rendi ricercabili (OCR)",
-    "video": "Video: MP4 compresso",
+    "pdf": "srv_batch.converti_pdf",
+    "format": "srv_batch.converti_altro_formato",
+    "image": "srv_batch.op_immagini",
+    "pdf_merge": "srv_batch.unisci_unico_pdf",
+    "pdf_compress": "srv_batch.op_pdf_comprimi",
+    "pdf_ocr": "srv_batch.pdf_scansionati_rendi_ricercabili_ocr",
+    "video": "srv_batch.op_video",
 }
+
+
+def _lab(l: str) -> str:
+    return tr(l) if l.startswith("srv_batch.") else convert._label(l)
+
+
+def _ops() -> dict:
+    return {k: tr(v) for k, v in OPS.items()}
 
 
 class Cancelled(Exception):
@@ -65,10 +74,10 @@ def family(path: str) -> str | None:
 
 def _targets(fam: str | None) -> list[tuple[str, str]]:
     if fam == "cad":
-        return CAD_OUT
+        return [(e, _lab(l)) for e, l in CAD_OUT]
     if fam == "model3d":
-        return MODEL3D_OUT
-    return convert.TARGETS.get(fam, [])
+        return [(e, _lab(l)) for e, l in MODEL3D_OUT]
+    return [(e, _lab(l)) for e, l in convert.TARGETS.get(fam, [])]
 
 
 def applies(op: str, fam: str | None, ext: str, opts: dict) -> bool:
@@ -137,7 +146,7 @@ def scan(paths: list[str], recursive: bool = True) -> dict:
             t["n"] += 1
     return {"ok": True, "files": files, "counts": counts, "targets": sorted(tg.values(), key=lambda t: (-t["n"], t["ext"])),
             "fam_targets": {fam: [e for e, _ in _targets(fam)] for fam in {f["fam"] for f in files} if fam},
-            "root": roots[0] if len(roots) == 1 else "", "troppi": len(files) >= MAX_FILES, "ops": OPS}
+            "root": roots[0] if len(roots) == 1 else "", "troppi": len(files) >= MAX_FILES, "ops": _ops()}
 
 
 # ---------------------------------------------------------------- lotto
@@ -151,13 +160,13 @@ class Batch:
         self.id = uuid.uuid4().hex[:10]
         self.op = spec.get("op") or "pdf"
         if self.op not in OPS:
-            raise ValueError("Operazione sconosciuta")
+            raise ValueError(tr("srv_batch.operazione_sconosciuta"))
         self.opts = spec.get("opts") or {}
         out = spec.get("out") or {}
         self.mode = out.get("mode") or "accanto"
         self.dest = os.path.abspath(out["dir"]) if out.get("dir") else ""
         if self.mode == "cartella" and not self.dest:
-            raise ValueError("Scegli la cartella di uscita")
+            raise ValueError(tr("srv_batch.scegli_cartella_uscita"))
         self.collision = out.get("collision") or "rinomina"
         self.suffix = out.get("suffix") or ""
         self.items = []
@@ -168,9 +177,9 @@ class Batch:
             it = {"src": p, "rel": f.get("rel") or os.path.basename(p), "fam": fam, "status": "attesa", "msg": "", "out": [], "t": 0.0}
             if not applies(self.op, fam, ext, self.opts):
                 it["status"] = "saltato"
-                it["msg"] = ("E' gia' un PDF" if fam == "pdf" and self.op == "pdf" else "Formato non convertibile" if not fam
-                             else "Formato di destinazione non disponibile per questo tipo di file" if self.op == "format"
-                             else "Non interessato da questa operazione")
+                it["msg"] = (tr("srv_batch.gia_pdf") if fam == "pdf" and self.op == "pdf" else tr("srv_batch.formato_non_convertibile") if not fam
+                             else tr("srv_batch.formato_destinazione_non_disponibile_questo") if self.op == "format"
+                             else tr("srv_batch.non_interessato_questa_operazione"))
             self.items.append(it)
         self.status = "attesa"
         self.cancelled = False
@@ -197,7 +206,7 @@ class Batch:
         todo = [i for i in self.items if i["status"] != "saltato"]
         done = sum(1 for i in todo if i["status"] in ("ok", "errore", "annullato"))
         prog = 1.0 if self.status in ("finito", "annullato") else (done + self.cur_progress) / max(len(todo), 1)
-        s = {"ok": True, "id": self.id, "op": self.op, "label": OPS[self.op], "status": self.status, "progress": prog, "message": self.message,
+        s = {"ok": True, "id": self.id, "op": self.op, "label": _ops()[self.op], "status": self.status, "progress": prog, "message": self.message,
              "current": self.current, "totale": n, "da_fare": len(todo), "fatti": done,
              "riusciti": sum(1 for i in self.items if i["status"] == "ok"), "falliti": sum(1 for i in self.items if i["status"] == "errore"),
              "saltati": sum(1 for i in self.items if i["status"] == "saltato"), "started": self.started, "ended": self.ended,
@@ -241,7 +250,7 @@ class Batch:
                         it["msg"] = str(s)
                     except Cancelled:
                         it["status"] = "annullato"
-                        it["msg"] = "Interrotto"
+                        it["msg"] = tr("srv_batch.interrotto")
                     except Exception as e:  # noqa: BLE001
                         it["status"] = "errore"
                         it["msg"] = _reason(e)
@@ -257,7 +266,7 @@ class Batch:
                     it["t"] = round(time.time() - t0, 1)
                     self.cur_progress = 0.0
                 if self.op == "pdf_merge" and merge_parts and not self.cancelled:
-                    self.message = "Unione dei PDF"
+                    self.message = tr("srv_batch.unione_pdf")
                     self.merged = self._merge(merge_parts)
                 final = "annullato" if self.cancelled else "finito"
             except Exception as e:  # noqa: BLE001
@@ -311,7 +320,7 @@ class Batch:
                     break
                 n += 1
         elif out.exists() and self.collision == "salta":
-            raise _Skip(f"Esiste gia': {out.name}")
+            raise _Skip(tr("srv_batch.esiste_gia_0", out.name))
         self.used_outputs.add(str(out).lower())
         if not out.exists():
             self.new_outputs.append(str(out))
@@ -330,37 +339,37 @@ class Batch:
                 import pymupdf
                 with pymupdf.open(src) as d:  # PDF danneggiati o protetti: falliscono qui, con il motivo
                     if d.needs_pass:
-                        raise RuntimeError("Il PDF e' protetto da password")
+                        raise RuntimeError(tr("srv_batch.pdf_protetto_password"))
                     n = len(d)
                 merge_parts.append((src, it["rel"]))
-                return {"msg": f"Aggiunto all'unione ({n} pagine)"}
+                return {"msg": tr("srv_batch.aggiunto_all_unione_0_pagine", n)}
             else:
                 tmp_out = str(self.tmp / f"{len(merge_parts):05d}.pdf")
                 self._convert_to(it, "pdf", tmp_out)
                 merge_parts.append((tmp_out, it["rel"]))
-            return {"msg": "Aggiunto all'unione"}
+            return {"msg": tr("srv_batch.aggiunto_all_unione")}
         if op == "pdf_compress":
             from . import pdfedit
             out = self.out_path(it, "pdf", " (compresso)")
             r = pdfedit.compress(src, out, int(self.opts.get("dpi", 150)), int(self.opts.get("quality", 75)))
             it["out"] = [out]
             gain = 1 - r["dopo"] / max(r["prima"], 1)
-            return {"msg": f"{_size(r['prima'])} -> {_size(r['dopo'])}" + (f" (-{gain:.0%})" if gain > 0 else " (nessun guadagno)")}
+            return {"msg": f"{_size(r['prima'])} -> {_size(r['dopo'])}" + (f" (-{gain:.0%})" if gain > 0 else tr("srv_batch.nessun_guadagno"))}
         if op == "pdf_ocr":
             from . import pdfedit
             out = self.out_path(it, "pdf", " (OCR)")
             r = pdfedit.ocr(src, out, int(self.opts.get("dpi", 300)), update=self.update)
             it["out"] = [out]
-            return {"msg": f"{r['pagine']} pagine riconosciute, {r['parole']} parole" if r["pagine"] else "Il PDF aveva gia' il testo"}
+            return {"msg": tr("srv_batch.0_pagine_riconosciute_1_parole", r['pagine'], r['parole']) if r["pagine"] else tr("srv_batch.pdf_aveva_gia_testo")}
         if op == "video":
             return self._video(it)
-        raise ValueError("Operazione sconosciuta")
+        raise ValueError(tr("srv_batch.operazione_sconosciuta"))
 
     # ------------------------------------------------------------ conversione di formato
     def _to(self, it, to):
         fam = it["fam"]
         if fam == "pdf" and to == "pdf" and self.op == "pdf":
-            raise _Skip("E' gia' un PDF")
+            raise _Skip(tr("srv_batch.gia_pdf"))
         out = self.out_path(it, to)
         res = self._convert_to(it, to, out) or {}
         outs = res.get("files") or ([res["cartella"]] if res.get("cartella") else [out])
@@ -374,7 +383,7 @@ class Batch:
         if fam == "model3d":
             self._client(it, "model3d", {"out": out, "to": to})
             if not os.path.exists(out):
-                raise RuntimeError("Il modello non e' stato salvato")
+                raise RuntimeError(tr("srv_batch.modello_non_stato_salvato"))
             return {}
         if fam in ("word", "sheet", "slides") or (fam == "html" and to not in ("pdf", "txt", "html", "htm", "mht")):
             r = self._office_convert("word" if fam == "html" else fam, src, to, out)
@@ -505,7 +514,7 @@ class Batch:
                 im = im.resize((max(1, round(w0 * k)), max(1, round(h0 * k))), Image.LANCZOS)
         fmt = misc.PIL_FORMATS.get(to)
         if not fmt:
-            raise ValueError(f"Formato immagine .{to} non scrivibile")
+            raise ValueError(tr("srv_batch.formato_immagine_0_non_scrivibile", to))
         if fmt in ("JPEG", "BMP", "PCX", "PPM") and im.mode not in ("RGB", "L"):
             if "A" in im.mode or im.mode == "P":
                 rgba = im.convert("RGBA")
@@ -530,7 +539,7 @@ class Batch:
             kw["exif"] = exif
         if icc and fmt in ("JPEG", "WEBP", "TIFF", "PNG"):
             kw["icc_profile"] = icc
-        out = self.out_path(it, to, " (elaborata)")
+        out = self.out_path(it, to, tr("srv_batch.elaborata"))
         im.save(out, fmt, **kw)
         it["out"] = [out]
         before, after = it_size(src), it_size(out)
@@ -599,7 +608,7 @@ class Batch:
     def _merge(self, parts):
         import pymupdf
         o = self.opts
-        name = (o.get("name") or "").strip() or "Unione"
+        name = (o.get("name") or "").strip() or tr("srv_batch.unione")
         if not name.lower().endswith(".pdf"):
             name += ".pdf"
         folder = Path(self.dest) if self.mode == "cartella" else Path(self.items[0]["src"]).parent
@@ -645,7 +654,7 @@ class Batch:
                 # o bloccata; una volta preso, il calcolo (es. IFC grandi) puo' durare a lungo
                 limit = 1800 if t.get("taken") else 45
                 if time.time() - max(self.last_poll, t.get("taken") or 0) > limit:
-                    raise RuntimeError("La finestra di MB Visual non ha eseguito la conversione (chiusa o non risponde)")
+                    raise RuntimeError(tr("srv_batch.finestra_mb_visual_non_ha"))
             if self.cancelled:
                 raise Cancelled()
             r = self.task_result or {}
@@ -702,13 +711,13 @@ class Batch:
                     return doc
         db = self._client(it, "dwg", {}).get("db")
         if not db:
-            raise RuntimeError("Il disegno DWG non e' stato letto")
+            raise RuntimeError(tr("srv_batch.disegno_dwg_non_stato_letto"))
         return doc_from_db(db)
 
     # ------------------------------------------------------------ rapporto
     def _write_report(self) -> str:
         stamp = datetime.now().strftime("%Y-%m-%d %H%M%S")
-        name = f"Rapporto conversione {stamp}.csv"
+        name = tr("srv_batch.rapporto_conversione_0_csv", stamp)
         if self.mode == "cartella" and self.opts.get("report_file", True):
             path = Path(self.dest) / name
         else:
@@ -716,14 +725,14 @@ class Batch:
             d.mkdir(parents=True, exist_ok=True)
             path = d / name
         path.parent.mkdir(parents=True, exist_ok=True)
-        stato = {"ok": "Riuscito", "errore": "Fallito", "saltato": "Saltato", "annullato": "Annullato", "attesa": "Non eseguito", "in corso": "Interrotto"}
+        stato = {"ok": tr("srv_batch.riuscito"), "errore": tr("srv_batch.fallito"), "saltato": tr("srv_batch.saltato"), "annullato": tr("srv_batch.annullato"), "attesa": tr("srv_batch.non_eseguito"), "in corso": tr("srv_batch.interrotto")}
         with open(path, "w", encoding="utf-8-sig", newline="") as f:
             w = csv.writer(f, delimiter=";")
-            w.writerow(["File", "Esito", "Dettaglio", "Uscita", "Secondi"])
+            w.writerow([tr("srv_batch.file"), tr("srv_batch.esito"), tr("srv_batch.dettaglio"), tr("srv_batch.uscita"), tr("srv_batch.secondi")])
             for i in self.items:
                 w.writerow([i["src"], stato.get(i["status"], i["status"]), i["msg"], " | ".join(i["out"]), str(i["t"]).replace(".", ",")])
             if self.merged:
-                w.writerow([f"PDF unico ({sum(1 for i in self.items if i['status'] == 'ok')} file)", "Riuscito", "", self.merged, ""])
+                w.writerow([tr("srv_batch.pdf_unico_0_file", sum(1 for i in self.items if i['status'] == 'ok')), tr("srv_batch.riuscito"), "", self.merged, ""])
         return str(path)
 
 
@@ -751,15 +760,15 @@ def _reason(e: Exception) -> str:
     msg = str(e) or e.__class__.__name__
     low = msg.lower()
     if isinstance(e, PermissionError) or "permission denied" in low or "access is denied" in low:
-        return "Accesso negato: il file e' aperto in un altro programma o la cartella e' protetta"
+        return tr("srv_batch.accesso_negato_file_aperto_altro")
     if isinstance(e, FileNotFoundError):
-        return "File non trovato (spostato o eliminato durante la conversione)"
+        return tr("srv_batch.file_non_trovato_spostato_eliminato")
     if "password" in low or "encrypted" in low or "kennwort" in low:
-        return "Il file e' protetto da password"
+        return tr("srv_batch.file_protetto_password")
     if "failed to open" in low or "cannot open broken" in low or "no objects found" in low or "format error" in low:
-        return "File danneggiato o non valido (il contenuto non corrisponde al tipo)"
+        return tr("srv_batch.file_danneggiato_non_valido_contenuto")
     if "com_error" in low or "-2147" in low:
-        return "Office non e' riuscito ad aprire il file (danneggiato, protetto o con finestre di dialogo): " + msg[-160:]
+        return tr("srv_batch.office_non_riuscito_ad_aprire") + msg[-160:]
     return msg[:400]
 
 
@@ -794,7 +803,7 @@ def doc_from_db(db: dict):
     for h in order:
         ents = by_owner[h]
         L = info.get(h, {})
-        name = str(L.get("layoutName") or f"Foglio {len(made) + 1}")[:200]
+        name = str(L.get("layoutName") or tr("srv_batch.foglio_0", len(made) + 1))[:200]
         base = name
         n = 1
         while name in doc.layouts:
@@ -950,7 +959,7 @@ def _extents(lay):
 def cad_render(doc, out, fmt, o, update=None) -> dict:
     import pymupdf
     lays = cad_layouts(doc, o.get("layouts") or "fogli")
-    names = [("Modello" if lay.is_modelspace else lay.name) for lay in lays]
+    names = [(tr("srv_batch.modello") if lay.is_modelspace else lay.name) for lay in lays]
     if fmt == "pdf":
         res = pymupdf.open()
         toc = []
@@ -965,7 +974,7 @@ def cad_render(doc, out, fmt, o, update=None) -> dict:
             res.set_toc(toc)
         res.save(out, garbage=3, deflate=True)
         res.close()
-        return {"msg": f"{len(lays)} " + ("pagina: " if len(lays) == 1 else "pagine: ") + ", ".join(names)[:200]}
+        return {"msg": f"{len(lays)} " + (tr("srv_batch.pagina") if len(lays) == 1 else tr("srv_batch.pagine")) + ", ".join(names)[:200]}
     # SVG / PNG: un file per spazio
     files = []
     for i, lay in enumerate(lays):
@@ -995,7 +1004,7 @@ def handle(op: str, body: dict, q) -> dict:
         return {"ok": True, "lotti": [b.state(False) for b in sorted(_BATCHES.values(), key=lambda b: -b.started)]}
     b = _BATCHES.get(q("id") or body.get("id") or "")
     if b is None:
-        return {"ok": False, "errore": "Lotto sconosciuto"}
+        return {"ok": False, "errore": tr("srv_batch.lotto_sconosciuto")}
     if op == "status":
         b.last_poll = time.time()
         return b.state(q("full") != "0")
@@ -1006,4 +1015,4 @@ def handle(op: str, body: dict, q) -> dict:
         return {"ok": b.client_take(int(body.get("seq") or 0))}
     if op == "client":
         return {"ok": b.client_done(int(body.get("seq") or 0), body.get("result") or {})}
-    raise ValueError("operazione sconosciuta")
+    raise ValueError(tr("srv_batch.operazione_sconosciuta_2"))

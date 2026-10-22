@@ -15,24 +15,25 @@ import zlib
 from datetime import datetime, timedelta, timezone
 
 import olefile
+from .i18n import t as tr
 
 # ---------------------------------------------------------------- insiemi di proprieta' (MS-OLEPS)
 
-# nomi in italiano delle proprieta' piu' usate (identificativi pubblici dell'API di Inventor)
+# chiavi dei nomi delle proprieta' piu' usate (tradotte con tr) (identificativi pubblici dell'API di Inventor)
 NOMI = {
-    "Inventor Summary Information": {2: "Titolo", 3: "Oggetto", 4: "Autore", 5: "Parole chiave", 6: "Commenti",
-                                     8: "Ultimo salvataggio di", 9: "Revisione", 18: "Programma"},
-    "Inventor Document Summary Information": {2: "Categoria", 14: "Responsabile", 15: "Societa'"},
-    "Design Tracking Properties": {4: "Data di creazione", 5: "Codice parte", 7: "Progetto", 9: "Centro di costo",
-                                   10: "Controllato da", 11: "Data controllo", 12: "Approvato da (progettazione)",
-                                   13: "Data approvazione (progettazione)", 17: "Stato", 20: "Materiale",
-                                   23: "Collegamento web", 28: "Commessa", 29: "Descrizione", 30: "Fornitore",
-                                   32: "Nome sottotipo documento", 34: "Approvato da (produzione)",
-                                   35: "Data approvazione (produzione)", 36: "Codice parte (designazione)",
-                                   41: "Progettista", 42: "Ingegnere", 43: "Autorizzato da", 44: "Note parametri",
-                                   47: "Unita' di misura distinta", 48: "Data di modifica", 55: "Codice magazzino",
-                                   58: "Massa", 59: "Area", 60: "Volume", 61: "Densita'",
-                                   67: "Aggiornato con", 72: "Aspetto"},
+    "Inventor Summary Information": {2: "srv_inventor.titolo", 3: "srv_inventor.oggetto", 4: "srv_inventor.autore", 5: "srv_inventor.parole_chiave", 6: "srv_inventor.commenti",
+                                     8: "srv_inventor.ultimo_salvataggio", 9: "srv_inventor.revisione", 18: "srv_inventor.programma"},
+    "Inventor Document Summary Information": {2: "srv_inventor.categoria", 14: "srv_inventor.responsabile", 15: "srv_inventor.societa"},
+    "Design Tracking Properties": {4: "srv_inventor.data_creazione", 5: "srv_inventor.codice_parte", 7: "srv_inventor.progetto", 9: "srv_inventor.centro_costo",
+                                   10: "srv_inventor.controllato", 11: "srv_inventor.data_controllo", 12: "srv_inventor.approvato_progettazione",
+                                   13: "srv_inventor.data_approvazione_progettazione", 17: "srv_inventor.stato", 20: "srv_inventor.materiale",
+                                   23: "srv_inventor.collegamento_web", 28: "srv_inventor.commessa", 29: "srv_inventor.descrizione", 30: "srv_inventor.fornitore",
+                                   32: "srv_inventor.nome_sottotipo_documento", 34: "srv_inventor.approvato_produzione",
+                                   35: "srv_inventor.data_approvazione_produzione", 36: "srv_inventor.codice_parte_designazione",
+                                   41: "srv_inventor.progettista", 42: "srv_inventor.ingegnere", 43: "srv_inventor.autorizzato", 44: "srv_inventor.note_parametri",
+                                   47: "srv_inventor.unita_misura_distinta", 48: "srv_inventor.data_modifica", 55: "srv_inventor.codice_magazzino",
+                                   58: "srv_inventor.massa", 59: "srv_inventor.area", 60: "srv_inventor.volume", 61: "srv_inventor.densita",
+                                   67: "srv_inventor.aggiornato", 72: "srv_inventor.aspetto"},
 }
 # proprieta' interne da non mostrare
 # unita' delle proprieta' fisiche (Inventor le salva in g, cm2, cm3, g/cm3)
@@ -146,7 +147,7 @@ def _fmt(v):
             return u.strftime("%d/%m/%Y")
         return v.strftime("%d/%m/%Y %H:%M")
     if isinstance(v, bool):
-        return "Si'" if v else "No"
+        return tr("srv_inventor.si") if v else tr("common.no")
     if isinstance(v, float):
         return f"{v:.6g}"
     return str(v)
@@ -206,9 +207,9 @@ class InventorFile:
         groups, thumb, info = [], None, {}
         order = {"Inventor Summary Information": 0, "Design Tracking Properties": 1,
                  "Inventor Document Summary Information": 2, "Inventor User Defined Properties": 3}
-        titles = {"Inventor Summary Information": "Riepilogo", "Design Tracking Properties": "Progetto",
-                  "Inventor Document Summary Information": "Documento",
-                  "Inventor User Defined Properties": "Proprieta' personalizzate"}
+        titles = {"Inventor Summary Information": tr("srv_inventor.riepilogo"), "Design Tracking Properties": tr("srv_inventor.progetto"),
+                  "Inventor Document Summary Information": tr("srv_inventor.documento"),
+                  "Inventor User Defined Properties": tr("srv_inventor.proprieta_personalizzate")}
         for s in sorted(self.property_sets(), key=lambda s: order.get(s["name"], 9)):
             name = s["name"]
             if (name in NASCOSTE and NASCOSTE[name] is None) or name.startswith("_"):  # insiemi interni di Inventor
@@ -222,10 +223,10 @@ class InventorFile:
                     continue
                 if pid in hide or v is None or v == "" or isinstance(v, tuple):
                     continue
-                label = s["names"].get(pid) or names.get(pid)
+                label = s["names"].get(pid) or (tr(names[pid]) if pid in names else None)
                 if not label:
                     if name == "Inventor User Defined Properties":
-                        label = f"Proprieta' {pid}"
+                        label = tr("srv_inventor.proprieta_0", pid)
                     else:
                         continue  # identificativi interni senza nome noto
                 unit = UNITA.get(name, {}).get(pid)
@@ -240,7 +241,7 @@ class InventorFile:
                     elif pid == 29:
                         info["descrizione"] = str(v)
             if rows:
-                groups.append({"nome": titles.get(name, name or "Proprieta'"), "voci": rows})
+                groups.append({"nome": titles.get(name, name or tr("srv_inventor.proprieta")), "voci": rows})
         info.update(gruppi=groups, anteprima=thumb)
         return info
 
@@ -543,7 +544,7 @@ def convert_part(path: str, cache_root: str) -> dict:
                 info["step"] = step
             info["rapporto"], info["mancanti"] = rep["report"], rep["missing"]
         else:
-            info["mancanti"] = {"geometria 3D non trovata nel file": 1}
+            info["mancanti"] = {tr("srv_inventor.geometria_3d_non_trovata_file"): 1}
     finally:
         inv.close()
     with open(info_path, "w", encoding="utf-8") as f:
@@ -653,12 +654,12 @@ def convert(path: str, cache_root: str, update=None) -> dict:
         if k not in parts:
             total[1] += 1
             if update:
-                update(min(0.95, 0.05 + 0.9 * total[1] / max(1, total[0])), "Conversione di " + os.path.basename(p))
+                update(min(0.95, 0.05 + 0.9 * total[1] / max(1, total[0])), tr("srv_inventor.conversione") + os.path.basename(p))
             try:
                 parts[k] = convert_part(p, cache_root)
             except Exception as e:  # noqa: BLE001 - una parte illeggibile non ferma l'assieme
                 parts[k] = {"file": p, "nome": os.path.splitext(os.path.basename(p))[0], "step": None,
-                            "errore": str(e), "gruppi": [], "mancanti": {"file non leggibile": 1}}
+                            "errore": str(e), "gruppi": [], "mancanti": {tr("srv_inventor.file_non_leggibile"): 1}}
         return k
 
     def assembly(p, depth, seen):
@@ -674,7 +675,7 @@ def convert(path: str, cache_root: str, update=None) -> dict:
         total[0] += len(occs)
         unplaced = sum(o["matrice"] is None for o in occs)
         if unplaced:
-            notes.append(f"{os.path.basename(p)}: posizione non letta per {unplaced} componenti")
+            notes.append(tr("srv_inventor.0_posizione_non_letta_1", os.path.basename(p), unplaced))
         nodes, counter = [], {}
         for o in occs:
             counter[o["nome"]] = counter.get(o["nome"], 0) + 1

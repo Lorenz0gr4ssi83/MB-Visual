@@ -21,6 +21,7 @@ import winreg
 from pathlib import Path
 
 from .paths import APP_DIR, BIN_DIR, UI_DIR
+from .i18n import t
 
 HKCU = winreg.HKEY_CURRENT_USER
 CLASSES = r"Software\Classes"
@@ -290,7 +291,7 @@ def enable(anteprime=True, libere=True, update=None) -> dict:
     others, thumbs, defaults = [], [], []
     for i, ext in enumerate(exts):
         if update and i % 40 == 0:
-            update(i / len(exts) * 0.95, f"Registrazione dei formati ({i}/{len(exts)})")
+            update(i / len(exts) * 0.95, t("srv_shellint.registrazione_formati_0_1", i, len(exts)))
         cat = fmts[ext]
         progid = PREFIX + ext
         pk = rf"{CLASSES}\{progid}"
@@ -305,7 +306,7 @@ def enable(anteprime=True, libere=True, update=None) -> dict:
         _set(rf"{CLASSES}\.{ext}\OpenWithProgids", progid, b"", winreg.REG_NONE)
         _set(CAPS + r"\FileAssociations", f".{ext}", progid)
         verb = rf"{CLASSES}\SystemFileAssociations\.{ext}\shell\{VERB}"
-        _set(verb, "MUIVerb", "Apri con MB Visual")
+        _set(verb, "MUIVerb", t("srv_shellint.apri_mb_visual"))
         _set(verb, "Icon", app_icon)
         _set(verb + r"\command", "", f'{open_cmd} "%1"')
         if libere and ext not in NO_AUTO and (ext in prev_default or not _has_default(ext)):
@@ -328,7 +329,7 @@ def enable(anteprime=True, libere=True, update=None) -> dict:
         for ext in exts:
             _set(ap + r"\SupportedTypes", f".{ext}", "")
     _set(CAPS, "ApplicationName", "MB Visual")
-    _set(CAPS, "ApplicationDescription", "Visualizzatore e editor di documenti, disegni CAD, modelli 3D e BIM")
+    _set(CAPS, "ApplicationDescription", t("srv_shellint.visualizzatore_editor_documenti_disegni_cad"))
     _set(CAPS, "ApplicationIcon", app_icon)
     _set(r"Software\RegisteredApplications", "MB Visual", CAPS)
     _set(STATE, "Attiva", 1, winreg.REG_DWORD)
@@ -343,7 +344,7 @@ def enable(anteprime=True, libere=True, update=None) -> dict:
     _cleanup_dlls(keep=dll)
     _notify()
     if update:
-        update(1, "Fatto")
+        update(1, t("srv_shellint.fatto"))
     return status()
 
 
