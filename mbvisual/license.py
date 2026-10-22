@@ -208,3 +208,18 @@ def request(kind: str, message: str = "", key: str = "") -> dict:
         _save(data)
     _cache["res"] = None
     return r
+
+
+def mobile_link() -> dict:
+    """QR della home: link monouso del server per attivare un cellulare della licenza senza scrivere la chiave.
+    attivo=False (QR nascosto) senza licenza obbligatoria, senza attivazione valida o senza internet."""
+    if not required() or not status().get("attiva"):
+        return {"ok": True, "attivo": False}
+    tok = _load().get("token")
+    try:
+        code, r = _post("/v1/mlink", {"token": tok}, timeout=8)
+    except ConnectionError:
+        return {"ok": True, "attivo": False, "offline": True}
+    if code != 200:
+        return {"ok": True, "attivo": False, "errore": r.get("errore", "")}
+    return {"ok": True, "attivo": True, **{k: r.get(k) for k in ("liberi", "totali", "url", "scade", "attesa_fino")}}

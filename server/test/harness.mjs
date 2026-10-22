@@ -175,6 +175,46 @@ if (process.argv[2] === "serve") {
   const rc2 = await worker.fetch(new Request("https://x/v1/check", { method: "POST", headers: { cookie: ck }, body: "{}" }), env);
   ok(rc2.status === 410 && /Max-Age=0/.test(rc2.headers.get("set-cookie") || ""), "vecchio cellulare: licenza sostituita, cookie tolto");
 
+  // ---- QR della home del PC: link monouso, blocco, limite, codice di 6 cifre
+  const post = async (path, body, cookie) => { const r = await worker.fetch(new Request("https://lic.test" + path, { method: "POST", headers: cookie ? { cookie } : {}, body: JSON.stringify(body) }), env); return { r, d: await r.clone().json() }; };
+  const qk = (await call("/admin/licenses", { customer: "QR" }, true)).key;
+  const qpc = (await call("/v1/activate", { key: qk, device: "pc-qr", kind: "pc" })).token;
+  let ml = (await post("/v1/mlink", { token: qpc })).d;
+  ok(ml.ok && ml.liberi === 2 && ml.totali === 2 && /^https:\/\/lic\.test\/l\/[A-Za-z0-9_-]{30,}$/.test(ml.url), "QR: link monouso, 2 cellulari liberi", ml.url);
+  ok((await post("/v1/mlink", { token: qpc })).d.url === ml.url, "QR: stesso link finche' non e' usato o scaduto");
+  const page = await get(new URL(ml.url).pathname);
+  ok(page.status === 200 && (await page.text()).includes("/v1/mlink/claim"), "QR: pagina del telefono pubblica");
+  const linkTok = ml.url.split("/").pop();
+  // due telefoni aprono lo stesso link nello stesso istante: ne passa uno solo
+  const [c1, c2] = await Promise.all([post("/v1/mlink/claim", { link: linkTok, device: "tel-a", name: "Android A" }), post("/v1/mlink/claim", { link: linkTok, device: "tel-b", name: "Android B" })]);
+  const okOne = [c1, c2].filter(x => x.d.ok);
+  ok(okOne.length === 1, "QR: lo stesso link attiva un solo telefono anche con richieste contemporanee", [c1, c2].map(x => x.r.status).join("/"));
+  const claimed = okOne[0];
+  ok(/^\d{6}$/.test(claimed.d.codice) && /mbv_m=[^;]+/.test(claimed.r.headers.get("set-cookie") || ""), "QR: telefono attivato (cookie) + codice di 6 cifre");
+  ml = (await post("/v1/mlink", { token: qpc })).d;
+  ok(ml.liberi === 1 && !ml.url && ml.attesa_fino > Date.now() + 4 * 60000, "QR: dopo l'attivazione 1 libero e blocco di 5 minuti senza link");
+  env._db.prepare("INSERT INTO mobile_links (token, license_key, expires) VALUES ('altro-link-di-prova-123456789', ?, datetime('now','+10 minutes'))").run(qk);
+  ok((await post("/v1/mlink/claim", { link: "altro-link-di-prova-123456789", device: "tel-c" })).r.status === 429, "QR: durante il blocco il server rifiuta altre attivazioni via link");
+  ok((await post("/v1/mlink/claim", { link: linkTok, device: "tel-z" })).r.status === 410, "QR: link gia' usato rifiutato");
+  // codice di 6 cifre: l'app installata (iPhone) prende il posto del browser, senza posti in piu'
+  const pr = await post("/v1/mlink/pair", { code: claimed.d.codice, device: "tel-a-app", name: "iPhone app" });
+  ok(pr.d.ok && /mbv_m=/.test(pr.r.headers.get("set-cookie") || ""), "QR: codice di 6 cifre nell'app installata");
+  ok((await post("/v1/mlink/pair", { code: claimed.d.codice, device: "tel-x" })).r.status === 410, "QR: codice usabile una volta sola");
+  const mob = (await call("/admin/licenses", undefined, true)).licenze.find(l => l.key === qk).dispositivi.filter(d => d.kind === "mobile" && d.status === "active");
+  ok(mob.length === 1 && mob[0].device === "tel-a-app", "QR: un solo cellulare occupato dopo l'abbinamento");
+  // fine del blocco (simulata) -> secondo cellulare -> QR esaurito
+  env._db.prepare("UPDATE licenses SET mobile_lock = datetime('now','-6 minutes') WHERE key = ?").run(qk);
+  ml = (await post("/v1/mlink", { token: qpc })).d;
+  ok(ml.liberi === 1 && ml.url && ml.url.split("/").pop() !== linkTok, "QR: dopo il blocco un link nuovo");
+  ok((await post("/v1/mlink/claim", { link: ml.url.split("/").pop(), device: "tel-d", name: "Android D" })).d.ok, "QR: secondo cellulare attivato");
+  env._db.prepare("UPDATE licenses SET mobile_lock = datetime('now','-6 minutes') WHERE key = ?").run(qk);
+  ml = (await post("/v1/mlink", { token: qpc })).d;
+  ok(ml.ok && ml.liberi === 0 && !ml.url, "QR: posti esauriti -> nessun link (il QR sparisce)");
+  env._db.prepare("INSERT INTO mobile_links (token, license_key, expires) VALUES ('link-oltre-il-limite-12345678', ?, datetime('now','+10 minutes'))").run(qk);
+  ok((await post("/v1/mlink/claim", { link: "link-oltre-il-limite-12345678", device: "tel-e" })).r.status === 409, "QR: oltre il limite il server rifiuta");
+  const mtry = await post("/v1/mlink", { token: pr.d.token });
+  ok(mtry.r.status === 403 && /PC/.test(mtry.d.errore), "QR: un cellulare non puo' generare il QR");
+
   console.log(fails ? `\n${fails} prove NON riuscite` : "\nTutte le prove riuscite");
   process.exit(fails ? 1 : 0);
 }

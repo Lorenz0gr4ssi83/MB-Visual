@@ -58,6 +58,9 @@ PACKAGES = [
      ["package/src/earcut.js", "package/LICENSE"]),
     ("flatbuffers", "https://registry.npmjs.org/flatbuffers/-/flatbuffers-25.9.23.tgz",
      ["package/mjs/", "package/LICENSE"]),
+    # QR della home (installazione sui cellulari): Kazuhiko Arase, MIT (licenza nell'intestazione del file)
+    ("qrcode-generator", "https://registry.npmjs.org/qrcode-generator/-/qrcode-generator-2.0.4.tgz",
+     ["package/dist/qrcode.mjs"]),
 ]
 
 # file da aggiungere dopo l'estrazione (il pacchetto npm di openskp non contiene la licenza)

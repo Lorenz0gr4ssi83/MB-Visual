@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS licenses (
   max_pc      INTEGER NOT NULL DEFAULT 1,
   max_mobile  INTEGER NOT NULL DEFAULT 2,
   expires     TEXT,                           -- scadenza facoltativa (ISO), null = senza scadenza
+  mobile_lock TEXT,                           -- ultima attivazione di un cellulare dal QR (blocco di qualche minuto)
   created     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -49,4 +50,22 @@ CREATE TABLE IF NOT EXISTS events (
   text        TEXT NOT NULL,
   read        INTEGER NOT NULL DEFAULT 0,
   created     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- QR della home del PC: link monouso (server/migrations/001_qr_cellulari.sql per i database gia' creati)
+CREATE TABLE IF NOT EXISTS mobile_links (
+  token       TEXT PRIMARY KEY,
+  license_key TEXT NOT NULL,
+  expires     TEXT NOT NULL,
+  used        TEXT,
+  device_id   INTEGER,
+  created     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+-- codice di 6 cifre per l'app installata su iPhone (non vede i cookie di Safari): stesso posto del browser
+CREATE TABLE IF NOT EXISTS pair_codes (
+  code        TEXT PRIMARY KEY,
+  license_key TEXT NOT NULL,
+  device_id   INTEGER NOT NULL,
+  expires     TEXT NOT NULL,
+  used        TEXT
 );

@@ -6,6 +6,8 @@
 //            POST /v1/check     {token}                                            -> {token} o {stato, errore}
 //            POST /v1/account   {token}                                            -> licenza, dispositivi, richieste
 //            POST /v1/request   {token | key+device, type:"change"|"report", message, name}
+//            POST /v1/mlink     {token del PC} -> link monouso per il QR (liberi, attesa_fino)   GET /l/<link> pagina del telefono
+//            POST /v1/mlink/claim {link, device, name}   POST /v1/mlink/pair {code, device, name}
 // Gestione (Authorization: Bearer ADMIN_TOKEN):
 //            GET  /admin/summary, /admin/licenses, /admin/requests, /admin/events?after=ID
 //            POST /admin/licenses {customer,email,notes,max_pc,max_mobile,expires}
@@ -215,6 +217,117 @@ async function admin(env, req, url) {
   return fail(404, "Percorso sconosciuto");
 }
 
+// ---------------------------------------------------------------- QR della home del PC: link monouso per i cellulari
+// Il PC attivato chiede un link (/v1/mlink); il QR lo mostra. Il telefono che lo apre (/l/<link>) attiva un cellulare della
+// licenza senza scrivere la chiave. Dopo ogni attivazione via link la licenza resta bloccata LOCK_MIN minuti: niente link
+// nuovi e niente altre attivazioni via link (blocco con UPDATE condizionato: atomico anche con richieste contemporanee).
+// iPhone: l'app installata dalla Home non vede i cookie di Safari -> codice di 6 cifre da inserire nell'app (stesso posto).
+const LINK_MIN = 10, LOCK_MIN = 5, PAIR_MIN = 30;
+const minutesAgo = m => new Date(Date.now() - m * 60000).toISOString().replace("T", " ").slice(0, 19);
+const minutesAhead = m => new Date(Date.now() + m * 60000).toISOString().replace("T", " ").slice(0, 19);
+const activeMobiles = async (env, key) => (await env.DB.prepare("SELECT COUNT(*) AS n FROM devices WHERE license_key = ? AND kind = 'mobile' AND status = 'active'").bind(key).first()).n;
+const lockUntil = lic => (lic.mobile_lock && lic.mobile_lock > minutesAgo(LOCK_MIN) ? new Date(lic.mobile_lock.replace(" ", "T") + "Z").getTime() + LOCK_MIN * 60000 : 0);
+
+async function mobileLink(env, b, origin) {
+  const [lic, dev, err] = await deviceFromToken(env, b.token);
+  if (err) return err;
+  if (dev.kind !== "pc") return fail(403, "Solo il PC attivato puo' generare il codice QR");
+  const free = Math.max(0, lic.max_mobile - await activeMobiles(env, lic.key));
+  const res = { ok: true, liberi: free, totali: lic.max_mobile };
+  if (!free) return json(res);
+  const until = lockUntil(lic);
+  if (until > Date.now()) return json({ ...res, attesa_fino: until });
+  let link = await env.DB.prepare("SELECT token, expires FROM mobile_links WHERE license_key = ? AND used IS NULL AND expires > ? ORDER BY expires DESC LIMIT 1").bind(lic.key, minutesAhead(1)).first();
+  if (!link) {
+    link = { token: b64u(crypto.getRandomValues(new Uint8Array(24))), expires: minutesAhead(LINK_MIN) };
+    await env.DB.prepare("INSERT INTO mobile_links (token, license_key, expires) VALUES (?, ?, ?)").bind(link.token, lic.key, link.expires).run();
+  }
+  return json({ ...res, url: `${origin}/l/${link.token}`, scade: new Date(link.expires.replace(" ", "T") + "Z").getTime() });
+}
+
+async function claimLink(env, b) {
+  const device = String(b.device || "").slice(0, 128), name = String(b.name || "Cellulare").slice(0, 80);
+  if (!device) return fail(400, "Dispositivo non riconosciuto");
+  const link = await env.DB.prepare("SELECT * FROM mobile_links WHERE token = ?").bind(String(b.link || "")).first();
+  if (!link || link.used || link.expires < now()) return fail(410, "Questo codice QR e' scaduto o e' gia' stato usato. Inquadra il codice aggiornato sul PC.", { stato: "link_scaduto" });
+  const lic = await getLicense(env, link.license_key);
+  const p = licenseProblem(lic);
+  if (p) return fail(p[0], p[1], p[2]);
+  // stesso telefono gia' attivo su questa licenza: niente posto in piu'
+  const again = await env.DB.prepare("SELECT * FROM devices WHERE license_key = ? AND device = ? AND kind = 'mobile' AND status = 'active'").bind(lic.key, device).first();
+  if (again) return json({ ok: true, token: await makeToken(env, lic, again), cliente: lic.customer, gia_attivo: true });
+  if (await activeMobiles(env, lic.key) >= lic.max_mobile) return fail(409, `Questa licenza e' gia' attiva su ${lic.max_mobile} cellulari.`, { stato: "limite" });
+  // blocco della licenza e consumo del link: aggiornamenti condizionati, vince una sola richiesta
+  const stamp = now();
+  const got = await env.DB.prepare("UPDATE licenses SET mobile_lock = ? WHERE key = ? AND (mobile_lock IS NULL OR mobile_lock < ?)").bind(stamp, lic.key, minutesAgo(LOCK_MIN)).run();
+  if (!got.meta?.changes) return fail(429, "Un'altra installazione e' in corso: riprova tra qualche minuto.", { stato: "attesa" });
+  // attivazione non avvenuta: il blocco preso qui si rilascia (solo se e' ancora il nostro)
+  const release = () => env.DB.prepare("UPDATE licenses SET mobile_lock = NULL WHERE key = ? AND mobile_lock = ?").bind(lic.key, stamp).run();
+  const used = await env.DB.prepare("UPDATE mobile_links SET used = ? WHERE token = ? AND used IS NULL").bind(now(), link.token).run();
+  if (!used.meta?.changes) { await release(); return fail(410, "Questo codice QR e' gia' stato usato.", { stato: "link_scaduto" }); }
+  if (await activeMobiles(env, lic.key) >= lic.max_mobile) { await release(); return fail(409, `Questa licenza e' gia' attiva su ${lic.max_mobile} cellulari.`, { stato: "limite" }); }
+  await env.DB.prepare("INSERT INTO devices (license_key, kind, device, name) VALUES (?, 'mobile', ?, ?)").bind(lic.key, device, name).run();
+  const dev = await env.DB.prepare("SELECT * FROM devices WHERE license_key = ? AND device = ? AND kind = 'mobile' AND status = 'active'").bind(lic.key, device).first();
+  await env.DB.prepare("UPDATE mobile_links SET device_id = ? WHERE token = ?").bind(dev.id, link.token).run();
+  let code;
+  for (let i = 0; i < 5 && !code; i++) {
+    const c = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
+    const r = await env.DB.prepare("INSERT OR IGNORE INTO pair_codes (code, license_key, device_id, expires) VALUES (?, ?, ?, ?)").bind(c, lic.key, dev.id, minutesAhead(PAIR_MIN)).run();
+    if (r.meta?.changes) code = c;
+  }
+  await event(env, "activation", lic.key, `Attivato cellulare "${name}" dal codice QR per ${lic.customer || lic.key}`);
+  return json({ ok: true, token: await makeToken(env, lic, dev), cliente: lic.customer, codice: code, codice_minuti: PAIR_MIN });
+}
+
+async function pairCode(env, b) {
+  const device = String(b.device || "").slice(0, 128);
+  const row = await env.DB.prepare("SELECT * FROM pair_codes WHERE code = ?").bind(String(b.code || "").replace(/\D/g, "")).first();
+  if (!device || !row || row.used || row.expires < now()) return fail(410, "Codice non valido o scaduto.", { stato: "codice_scaduto" });
+  const lic = await getLicense(env, row.license_key);
+  const p = licenseProblem(lic);
+  if (p) return fail(p[0], p[1], p[2]);
+  const used = await env.DB.prepare("UPDATE pair_codes SET used = ? WHERE code = ? AND used IS NULL").bind(now(), row.code).run();
+  if (!used.meta?.changes) return fail(410, "Codice gia' usato.", { stato: "codice_scaduto" });
+  // l'app installata prende il posto del browser che ha aperto il QR (stesso cellulare, nessun posto in piu')
+  await env.DB.prepare("UPDATE devices SET device = ?, name = COALESCE(NULLIF(?, ''), name), last_seen = datetime('now') WHERE id = ? AND status = 'active'").bind(device, String(b.name || ""), row.device_id).run();
+  const dev = await env.DB.prepare("SELECT * FROM devices WHERE id = ? AND status = 'active'").bind(row.device_id).first();
+  if (!dev) return fail(403, "Questo cellulare non e' piu' attivo sulla licenza.", { stato: "dispositivo_revocato" });
+  return json({ ok: true, token: await makeToken(env, lic, dev), cliente: lic.customer });
+}
+
+const LINK_PAGE = `<!doctype html><html lang="it"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e2225"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/img/icon-192.png">
+<link rel="apple-touch-icon" href="/img/icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><title>MB Visual</title>
+<style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#17191b;color:#e6e8e5;font:15px system-ui,"Segoe UI",sans-serif;padding:20px}
+.box{width:min(440px,100%);text-align:center}img{width:110px;height:110px}h1{font-size:22px;margin:10px 0 6px}p{color:#9ea29b;line-height:1.45}
+ol{text-align:left;color:#cfd2cc;line-height:1.6;padding-left:22px}.code{font:700 30px Consolas,monospace;letter-spacing:.18em;color:#f07d2e;margin:6px 0}
+button{margin-top:14px;width:100%;padding:12px;border:0;border-radius:8px;background:#f07d2e;color:#16110c;font:600 16px system-ui}.err{color:#e0605a}.hide{display:none}</style></head>
+<body><div class="box"><img src="/img/logo-512.png" alt="MB Visual"><h1>MB Visual</h1><p id="msg">Attivazione in corso...</p>
+<div id="ok" class="hide"><p>Cellulare attivato. Ora installa l'app:</p><ol id="steps"></ol><button id="inst" class="hide">Installa l'app</button>
+<p id="pair" class="hide">Se l'app installata chiede di nuovo l'attivazione, inserisci questo codice (valido <span id="min"></span> minuti):</p><div class="code" id="code"></div></div></div>
+<script>
+const $ = id => document.getElementById(id), ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+let prompt = null;
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; $("inst").classList.remove("hide"); });
+$("inst").onclick = () => prompt && prompt.prompt();
+let dev = localStorage.getItem("mbv-dispositivo");
+if (!dev) { dev = crypto.randomUUID(); localStorage.setItem("mbv-dispositivo", dev); }
+const name = (/android/i.test(navigator.userAgent) ? "Android" : ios ? "iPhone/iPad" : "Cellulare") + " " + new Date().toLocaleDateString("it-IT");
+fetch("/v1/mlink/claim", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
+  body: JSON.stringify({ link: location.pathname.split("/").pop(), device: dev, name }) }).then(r => r.json()).then(r => {
+  if (!r.ok) { $("msg").textContent = r.errore || "Attivazione non riuscita"; $("msg").className = "err"; return; }
+  localStorage.setItem("mbv-licenza-scade", String(Date.now() + 30 * 86400000));
+  if (matchMedia("(display-mode: standalone)").matches || navigator.standalone === true) return location.replace("/");
+  $("msg").textContent = r.cliente ? "Licenza di " + r.cliente : "";
+  $("steps").innerHTML = ios ? "<li>Tocca il pulsante Condividi di Safari (quadrato con la freccia).</li><li>Scegli <b>Aggiungi alla schermata Home</b>.</li><li>Apri MB Visual dalla schermata Home.</li>"
+    : "<li>Apri il menu del browser (tre puntini).</li><li>Scegli <b>Installa app</b> o <b>Aggiungi a schermata Home</b>.</li><li>Apri MB Visual dalla schermata Home.</li>";
+  if (r.codice) { $("code").textContent = r.codice; $("min").textContent = r.codice_minuti; $("pair").classList.remove("hide"); }
+  $("ok").classList.remove("hide");
+}).catch(() => { $("msg").textContent = "Serve una connessione a internet."; $("msg").className = "err"; });
+</script></body></html>`;
+
 // ---------------------------------------------------------------- app per cellulari (file statici protetti)
 // I file dell'app (cartella public, binding ASSETS) si consegnano solo con un'attivazione "mobile" valida nel cookie
 // mbv_m (HttpOnly). Senza: la pagina di attivazione (nel browser spiega come installare l'app; installata chiede la chiave).
@@ -232,6 +345,7 @@ async function mobileToken(env, req) {
 }
 async function serveApp(env, req, url) {
   if (PUBLIC.test(url.pathname)) return env.ASSETS.fetch(req);
+  if (/^\/l\/[A-Za-z0-9_-]{20,}$/.test(url.pathname)) return new Response(LINK_PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
   if (url.pathname !== "/attiva" && await mobileToken(env, req)) {
     const r = await env.ASSETS.fetch(req);
     if (url.pathname === "/" || url.pathname.endsWith(".html")) { const h = new Response(r.body, r); h.headers.set("cache-control", "no-store"); return h; }
@@ -255,7 +369,7 @@ ol{text-align:left;color:#cfd2cc;line-height:1.6;padding-left:22px}.hide{display
 <img src="/img/logo-512.png" alt="MB Visual"><h1>MB Visual</h1>
 <div id="browser"><p>L'app per cellulare si usa solo installata. Installala, poi aprila dalla schermata Home e inserisci la chiave di licenza.</p>
 <ol id="steps"></ol><button id="inst" class="hide">Installa l'app</button></div>
-<div id="app" class="hide"><p id="msg">Inserisci la chiave di licenza ricevuta. Ogni licenza vale per 1 PC e 2 cellulari.</p>
+<div id="app" class="hide"><p id="msg">Inserisci la chiave di licenza ricevuta, oppure il codice di 6 cifre mostrato dopo aver inquadrato il QR del PC.</p>
 <input id="k" placeholder="MBV-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" autocapitalize="characters" spellcheck="false">
 <p class="err" id="err"></p><button id="go">Attiva</button></div></div>
 <script>
@@ -276,12 +390,14 @@ else {
 let dev = localStorage.getItem("mbv-dispositivo");
 if (!dev) { dev = crypto.randomUUID(); localStorage.setItem("mbv-dispositivo", dev); }
 const fmt = v => { const s = v.toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/^MBV/, "").slice(0, 20); return s ? "MBV-" + s.replace(/(.{5})(?=.)/g, "$1-") : ""; };
-$("k").addEventListener("input", e => { e.target.value = fmt(e.target.value); });
+$("k").addEventListener("input", e => { const v = e.target.value; if (!/^\\s*\\d/.test(v)) e.target.value = fmt(v); });
 $("go").onclick = async () => {
   $("err").textContent = ""; $("go").disabled = true;
   try {
     const name = (/android/i.test(navigator.userAgent) ? "Android" : ios ? "iPhone/iPad" : "Cellulare") + " " + new Date().toLocaleDateString("it-IT");
-    const r = await fetch("/v1/activate", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ key: $("k").value, device: dev, kind: "mobile", name }) }).then(r => r.json());
+    const code = $("k").value.replace(/\\s/g, ""), isCode = /^\\d{6}$/.test(code);
+    const r = await fetch(isCode ? "/v1/mlink/pair" : "/v1/activate", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
+      body: JSON.stringify(isCode ? { code, device: dev, name } : { key: $("k").value, device: dev, kind: "mobile", name }) }).then(r => r.json());
     if (!r.ok) { $("err").textContent = r.errore + (r.suggerimento ? " " + r.suggerimento : ""); return; }
     localStorage.setItem("mbv-licenza-scade", String(Date.now() + 30 * 86400000));
     location.replace("/");
@@ -308,7 +424,15 @@ export default {
       else if (url.pathname === "/v1/check") res = await check(env, b);
       else if (url.pathname === "/v1/account") res = await account(env, b);
       else if (url.pathname === "/v1/request") res = await request(env, b);
+      else if (url.pathname === "/v1/mlink") res = await mobileLink(env, b, url.origin);
+      else if (url.pathname === "/v1/mlink/claim") res = await claimLink(env, b);
+      else if (url.pathname === "/v1/mlink/pair") res = await pairCode(env, b);
       else return fail(404, "Percorso sconosciuto");
+      // telefono attivato dal codice QR o dal codice di 6 cifre: attivazione nel cookie
+      if (url.pathname === "/v1/mlink/claim" || url.pathname === "/v1/mlink/pair") {
+        const data = await res.clone().json();
+        if (data.token) return setCookie(res, data.token);
+      }
       // cookie aggiornato: attivazione o rinnovo di un cellulare; tolto se la licenza non vale piu'
       if ((url.pathname === "/v1/activate" && b.kind === "mobile") || (url.pathname === "/v1/check" && viaCookie)) {
         const data = await res.clone().json();

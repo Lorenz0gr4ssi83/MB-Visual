@@ -201,6 +201,10 @@ class Handler(BaseHTTPRequestHandler):
         from . import license as lic
         self._json(lic.activate(str(self._body_json().get("key", ""))))
 
+    def api_license_mobile(self, qs):
+        from . import license as lic
+        self._json(lic.mobile_link())
+
     def api_license_account(self, qs):
         from . import license as lic
         self._json(lic.account())

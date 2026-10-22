@@ -4,6 +4,7 @@ import {
   pickSavePath, readRange, toast, waitJob, WEB,
 } from "./core.js";
 import { licenseGate, showAccount } from "./license.js";
+import { setupMobileQr } from "./mobileqr.js";
 import { t as tr, tn, has as trHas, LANG, LANGS, LOCALE, MANUAL, keyName, setLanguage } from "./i18n.js";
 
 const $ = id => document.getElementById(id);
@@ -994,6 +995,7 @@ async function boot() {
   setupBack();
   if (!WEB) import("./cloud.js").then(m => m.setupCloud()).catch(e => console.error(e)); // archivi cloud (SharePoint, Drive, Dropbox, Autodesk)
   if (!WEB) licenseGate(); // licenza dell'app per PC: senza attivazione copre l'app con la schermata della chiave
+  if (!WEB) setupMobileQr(); // QR nella home per installare l'app sul cellulare (posti liberi della licenza)
   if (!WEB) setTimeout(() => checkUpdates(false), 3000);
   setInterval(() => { if (!document.hidden) checkExternalChange(active); }, 2000);
   window.addEventListener("focus", () => tabs.forEach(checkExternalChange));

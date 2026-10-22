@@ -190,6 +190,15 @@ ode-x64 e wrangler installato in
   licenze per se' e i colleghi con MB Visual Admin. Poi rendere privato il repository MB-Visual (lo fa l'utente; prima
   spostare/spegnere la web app di GitHub Pages, sostituita dall'app per cellulari sul server).
 
+- QR della home per installare l'app sul cellulare (22/10/2026): `ui/js/mobileqr.js` (riquadro in basso a destra della home,
+  clic = QR grande; QR disegnato in locale con qrcode-generator 2.0.4 MIT in ui/vendor) + `license.mobile_link` (API
+  license/mobile, ogni 6 s mentre la home e' visibile). Server: POST /v1/mlink (link monouso 10 min, posti liberi, blocco),
+  GET /l/<link> (pagina del telefono), /v1/mlink/claim (attiva il cellulare: UPDATE condizionati -> un solo telefono per link e
+  blocco della licenza 5 min con `licenses.mobile_lock`, rilasciato se l'attivazione fallisce), /v1/mlink/pair (codice di 6 cifre
+  per l'app installata su iPhone, che non vede i cookie di Safari: prende lo stesso posto). Tabelle mobile_links e pair_codes
+  (migrazione `server/migrations/001_qr_cellulari.sql`; online `d1 execute --file` da' errore di autenticazione: usare --command).
+  Testi chiavi `mqr.*` (5 lingue). Le icone dei pulsanti hanno un contorno: sul QR va tolto (stroke: none) o copre i moduli.
+
 ## Archivi cloud (22/10/2026) - FATTO, collegamento reale da provare dopo la registrazione delle app
 Pannello "Cloud" accanto a Esplora (solo app per PC): SharePoint/OneDrive (Microsoft Graph), Google Drive, Dropbox,
 Autodesk Construction Cloud/BIM 360 (APS Data Management), senza sincronizzare le cartelle.
