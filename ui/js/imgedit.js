@@ -1916,7 +1916,7 @@ export function createEditor(ctx, init) {
   function togglePanels() { panels.hidden = !panels.hidden; root.classList.toggle("ps-nopanels", panels.hidden); schedule(); }
   function toggleAll() { root.classList.toggle("ps-full"); setTimeout(() => schedule(), 0); }
   for (const name of Object.keys(MENUS)) {
-    const b = el("button", { class: "ps-mbtn", type: "button" }, name);
+    const b = el("button", { class: "ps-mbtn", type: "button" }, tr("imgedit.menu_" + name.toLowerCase()));
     b.addEventListener("click", () => (menuEl && menuEl.dataset.m === name ? closeMenu() : (openMenu(b, MENUS[name]()), (menuEl.dataset.m = name))));
     b.addEventListener("pointerenter", () => { if (menuEl && menuEl.dataset.m && menuEl.dataset.m !== name) { openMenu(b, MENUS[name]()); menuEl.dataset.m = name; } });
     ctx.tb.append(b);

@@ -226,7 +226,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
     ...[["fit", _t("videdit.adatta")], [0.25, "25%"], [0.5, "50%"], [1, "100%"]].map(([v, n]) => el("option", { value: v }, n)));
   const tbtn = (icon, title, fn, cls = "") => { const b = el("button", { class: "ve-tbtn " + cls, type: "button", title, onclick: fn }); b.innerHTML = vIcon(icon); return b; };
   const playBtn = tbtn("play", "Riproduci/Interrompi (Spazio)", () => { focus = "program"; togglePlay(); }, "ve-play");
-  prog.append(el("div", { class: "ve-ptabs" }, el("span", { class: "ve-ptab on" }, "Programma: sequenza")), progStage,
+  prog.append(el("div", { class: "ve-ptabs" }, el("span", { class: "ve-ptab on" }, _t("videdit.programma_sequenza"))), progStage,
     el("div", { class: "ve-mbar" }, progTc, el("span", { class: "grow" }), zoomSel, resSel, el("span", { class: "grow" }), progDur),
     el("div", { class: "ve-transport" },
       tbtn("marker", _t("videdit.aggiungi_marcatore_m"), () => addMarker()), tbtn("markIn", _t("videdit.contrassegna_attacco_i"), () => markIn()), tbtn("markOut", _t("videdit.contrassegna_stacco"), () => markOut()),
@@ -1068,7 +1068,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
   const tlArea = el("div", { class: "ve-tlarea" }, tlCanvas, tlOver);
   const hsb = el("div", { class: "ve-hsb" }), hthumb = el("div", { class: "ve-hthumb" });
   hsb.append(hthumb);
-  tlPanel.append(el("div", { class: "ve-ptabs" }, el("span", { class: "ve-ptab on" }, "Timeline: sequenza")),
+  tlPanel.append(el("div", { class: "ve-ptabs" }, el("span", { class: "ve-ptab on" }, _t("videdit.timeline_sequenza"))),
     el("div", { class: "ve-tlhead" }, tlTc, snapBtn, linkBtn, mkBtn, setBtn, el("span", { class: "grow" }), zoomRange),
     el("div", { class: "ve-tlbody" }, headCol, tlArea), el("div", { class: "ve-hsbrow" }, el("div", { style: { width: HEAD_W + "px", flex: "none" } }), hsb));
   const tRows = { showThumbs: true, showWaves: true };
@@ -2212,7 +2212,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
     ],
   };
   for (const name of Object.keys(MENUS)) {
-    const b = el("button", { class: "ps-mbtn", type: "button" }, name);
+    const b = el("button", { class: "ps-mbtn", type: "button" }, _t("videdit.menu_" + name.toLowerCase()));
     b.addEventListener("click", () => (menuEl && menuEl.dataset.m === name ? closeMenu() : (openMenuAt(b, MENUS[name]()), (menuEl.dataset.m = name))));
     b.addEventListener("pointerenter", () => { if (menuEl && menuEl.dataset.m && menuEl.dataset.m !== name) { openMenuAt(b, MENUS[name]()); menuEl.dataset.m = name; } });
     ctx.tb.append(b);

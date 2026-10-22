@@ -251,8 +251,8 @@ export async function openBatch({ paths = [] } = {}) {
   rescan();
 }
 const OPS_FALLBACK = {
-  pdf: tr("batch.converti_pdf"), format: tr("batch.converti_altro_formato"), image: "Immagini: ridimensiona, converti, comprimi", pdf_merge: tr("batch.unisci_unico_pdf"),
-  pdf_compress: "PDF: comprimi", pdf_ocr: tr("batch.pdf_scansionati_rendi_ricercabili_ocr"), video: "Video: MP4 compresso",
+  pdf: tr("batch.converti_pdf"), format: tr("batch.converti_altro_formato"), image: tr("srv_batch.op_immagini"), pdf_merge: tr("batch.unisci_unico_pdf"),
+  pdf_compress: tr("srv_batch.op_pdf_comprimi"), pdf_ocr: tr("batch.pdf_scansionati_rendi_ricercabili_ocr"), video: tr("srv_batch.op_video"),
 };
 
 // ---------------------------------------------------------------- avanzamento

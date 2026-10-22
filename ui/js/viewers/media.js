@@ -125,7 +125,7 @@ export async function mount(ctx) {
     const fr = 1 / P.settings.fps, dur = Math.max(fr, Math.floor((i.dur || 1) / fr) * fr);
     if (m.kind === "video") P.clips.push({ id: uid("c"), kind: "video", track: "V1", media: m.id, start: 0, dur, in: 0, speed: 1, link, name: m.name, motion: { x: P.settings.w / 2, y: P.settings.h / 2, scale: 100, rot: 0 }, opacity: 100, blend: "normal", fx: [], kf: {} });
     if (m.audio) P.clips.push({ id: uid("c"), kind: "audio", track: "A1", media: m.id, start: 0, dur, in: 0, speed: 1, link, name: m.name, volume: 0, gain: 0, fx: [], kf: {} });
-    const path = (await api("temp_path", { name: ctx.name.replace(/\.[^.]+$/, "") + " - montaggio.mbvid" })).path;
+    const path = (await api("temp_path", { name: ctx.name.replace(/\.[^.]+$/, "") + tr("v_media.suffisso_montaggio") + ".mbvid" })).path;
     await api("save", { path }, { body: new TextEncoder().encode(JSON.stringify(P, null, 1)) });
     ctx.openFile(path, null, { untitled: true });
   }
