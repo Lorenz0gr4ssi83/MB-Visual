@@ -46,7 +46,7 @@ select.nav-grow { width: 0; }
 .nav-progbar span { display: block; height: 100%; background: var(--accent); transition: width .15s; }
 /* stati delle interferenze (colori di Navisworks: nuova, attiva, rivista, approvata, risolta) */
 .nav-st { border-radius: 9px; padding: 0 7px; font-size: 11px; font-weight: 600; color: #fff; background: var(--muted); white-space: nowrap; }
-.st-new { --st: var(--bad); } .st-active { --st: var(--warn); } .st-reviewed { --st: var(--accent); } .st-approved { --st: var(--ok); } .st-resolved { --st: var(--muted); }
+.st-new { --st: var(--bad); } .st-active { --st: var(--warn); } .st-reviewed { --st: var(--info, #2f7fc1); } .st-approved { --st: var(--ok); } .st-resolved { --st: var(--muted); }
 .nav-st[class*="st-"] { background: var(--st); }
 .nav-stsel { height: 22px; font-size: 11px; font-weight: 600; border-left: 4px solid var(--st) !important; max-width: 104px; padding: 0 2px; }
 .nav-swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; display: inline-block; }
