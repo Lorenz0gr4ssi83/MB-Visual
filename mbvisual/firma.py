@@ -21,18 +21,25 @@ from asn1crypto import algos, cms, x509
 
 from . import signed
 from .i18n import t
+from .paths import DATA_DIR, IS_WIN
 
-SETTINGS = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "MBVisual" / "firma.json"
+SETTINGS = DATA_DIR / "firma.json"
 DIGEST = "sha256"
 
 
 # ------------------------------------------------------------------ impostazioni (TSA), password protetta con DPAPI
 def _protect(text: str) -> str:
+    if not IS_WIN:  # Mac: chiave nel Portachiavi (mbvisual/secret.py)
+        from . import secret
+        return secret.protect_text(text, "tsa")
     import win32crypt
     return base64.b64encode(win32crypt.CryptProtectData(text.encode("utf-8"), "MB Visual TSA", None, None, None, 0)).decode()
 
 
 def _unprotect(blob: str) -> str:
+    if not IS_WIN:
+        from . import secret
+        return secret.unprotect_text(blob, "tsa")
     import win32crypt
     return win32crypt.CryptUnprotectData(base64.b64decode(blob), None, None, None, 0)[1].decode("utf-8")
 

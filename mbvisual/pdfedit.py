@@ -307,7 +307,7 @@ def _ocr_cmd(img: str) -> list:
         exe = next((p for p in (BIN_DIR / "mbvocr", Path.home() / ".mbvisual" / "mbvocr" / "mbvocr") if p.is_file()), None)
         if exe:
             return [str(exe), img, "it-IT"]
-    raise RuntimeError("Riconoscimento del testo non disponibile su questo sistema")
+    raise RuntimeError(t("srv_pdfedit.ocr_non_disponibile"))
 
 
 def _ocr_png(png: bytes):

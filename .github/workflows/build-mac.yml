@@ -1,13 +1,13 @@
 # App per Mac (Apple Silicon), NON firmata: "MB Visual.app" in un .dmg caricato come artefatto del workflow.
-# Si avvia a mano (Actions -> Build Mac -> Run workflow, solo quando il file e' sul ramo principale) oppure con un push
-# sul ramo mac-build: i minuti dei runner macOS costano 10 volte quelli Linux sui repository privati, per questo
-# non parte a ogni push.
+# Parte con un push su main o mac-build (non per le sole modifiche ai .md) oppure a mano: Actions -> Build Mac -> Run workflow.
+# Una build nuova annulla quella in corso sullo stesso ramo. Attenzione: se il repository diventa privato i minuti
+# dei runner macOS costano 10 volte quelli Linux.
 name: Build Mac
 
 on:
   push:
-    branches: [mac-build]
-    paths-ignore: ['**.md']
+    branches: [main, mac-build]
+    paths-ignore: ['**.md', 'avanzamento/**', 'docs/**']
   workflow_dispatch:
     inputs:
       onlyoffice:
@@ -21,6 +21,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: build-mac-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   mac:
@@ -36,7 +40,13 @@ jobs:
       - name: Dipendenze Python
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          # se un pacchetto non ha la versione per macOS arm64 si installano gli altri uno per uno (la build va avanti)
+          if ! python -m pip install -r requirements.txt; then
+            grep -v '^[[:space:]]*#' requirements.txt | sed 's/[[:space:]]*#.*//' | grep -v '^[[:space:]]*$' | while read -r req; do
+              python -m pip install "$req" || echo "::warning::NON INSTALLATO: $req"
+            done
+          fi
+          python -m pip install playwright
 
       - name: Import dei moduli (nessuna dipendenza da Windows)
         run: |
@@ -83,6 +93,13 @@ jobs:
       - name: App e disco
         run: python tools/build_mac.py --out dist-mac
 
+      - name: Prove su macOS (OCR, conversioni, stampanti, file di esempio aperti in WebKit)
+        continue-on-error: true
+        run: |
+          mkdir -p ~/.mbvisual/mbvocr && cp ~/.mbvisual/build-mac/stage/bin/mbvocr ~/.mbvisual/mbvocr/
+          python -m playwright install webkit
+          python tests/mac_smoke.py mac-prove
+
       - name: Prova di avvio (server locale, /api/update_check e /api/license/status)
         run: |
           APP="dist-mac/MB Visual.app/Contents/MacOS/MB Visual"
@@ -118,6 +135,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: avvio-log
-          path: dist-mac/avvio.log
+          name: prove-mac
+          path: |
+            dist-mac/avvio.log
+            mac-prove/
           if-no-files-found: ignore
+          retention-days: 14

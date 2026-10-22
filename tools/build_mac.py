@@ -83,6 +83,19 @@ def build_bin(stage: Path) -> Path:
     return bin_dir
 
 
+def _optional_collect(items) -> list:
+    """Argomenti di PyInstaller solo per i pacchetti installati (alcuni non hanno ruote per macOS arm64: la build va avanti
+    e il formato relativo resta non disponibile, come gia' gestito dall'app)."""
+    import importlib.util
+    args = []
+    for mod, how in items:
+        if importlib.util.find_spec(mod) is None:
+            print("ATTENZIONE: modulo non installato, escluso:", mod)
+            continue
+        args += {"all": ["--collect-all", mod], "submodules": ["--collect-submodules", mod]}.get(how, ["--hidden-import", mod])
+    return args
+
+
 def main() -> int:
     if sys.platform != "darwin":
         print("tools/build_mac.py va eseguito su macOS (in automatico: workflow GitHub build-mac.yml)")
@@ -115,12 +128,24 @@ def main() -> int:
         "--collect-all", "extract_msg", "--collect-all", "html2docx", "--collect-submodules", "pptx",
         "--collect-data", "pptx", "--collect-data", "docx",
         "--hidden-import", "asn1crypto", "--hidden-import", "mbvisual.pdftools", "--collect-submodules", "pypdf",
+        # firma digitale (pyHanko): sul Mac file .p12 e firma remota CSC; segreti nel Portachiavi (mbvisual/secret.py)
+        "--hidden-import", "mbvisual.firma", "--hidden-import", "mbvisual.winsign", "--hidden-import", "mbvisual.csc",
+        "--hidden-import", "mbvisual.firmaponte", "--hidden-import", "mbvisual.secret", "--collect-submodules", "pyhanko.sign",
+        "--collect-submodules", "pyhanko.pdf_utils", "--collect-submodules", "pyhanko.stamp", "--collect-data", "pyhanko",
+        "--collect-submodules", "pyhanko_certvalidator",
+        # stampa con CUPS
+        "--hidden-import", "mbvisual.stampa", "--hidden-import", "mbvisual.stampa_cups", "--hidden-import", "mbvisual.windialog",
         "--hidden-import", "mbvisual.pdfedit", "--hidden-import", "mbvisual.pdfobjects", "--collect-all", "pymupdf",
         "--collect-submodules", "pdf2docx", "--collect-data", "pdf2docx",
         "--hidden-import", "mbvisual.convert", "--hidden-import", "mbvisual.fonts",
         "--collect-submodules", "markdown", "--hidden-import", "openpyxl", "--hidden-import", "brotli",
         "--hidden-import", "mbvisual.cadedit", "--hidden-import", "mbvisual.update", "--collect-all", "ezdxf",
-        "--add-data", f"{ROOT / 'ia' / 'engine.py'}{sep}ia", "--hidden-import", "mbvisual.ia",
+        # nuvole di punti, ricerca nel progetto, formati aggiuntivi (stessi moduli della build Windows)
+        *_optional_collect([("mbvisual.pointcloud", None), ("laspy", "submodules"), ("lazrs", None), ("pye57", "all"),
+                            ("pyquaternion", None), ("mbvisual.search", None), ("mbvisual.search_extract", None), ("olefile", None),
+                            ("mbvisual.formati", None), ("mbvisual.fx_dicom", None), ("mbvisual.fx_cert", None), ("mbvisual.fx_sci", None),
+                            ("mbvisual.fx_iwork", None), ("mbvisual.fx_revit", None), ("pydicom", "submodules"), ("gdcm", "all"),
+                            ("h5py", "submodules"), ("pyarrow", "submodules")]),
         "--exclude-module", "tkinter", "--exclude-module", "matplotlib",
         "--exclude-module", "onnxruntime", "--exclude-module", "pymupdf4llm", "--exclude-module", "pymupdf.layout",
         "--exclude-module", "pymupdf_layout", "--exclude-module", "win32com", "--exclude-module", "pythoncom",

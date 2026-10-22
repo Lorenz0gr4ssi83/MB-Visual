@@ -17,7 +17,9 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-BASE = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "MBVisual" / "miniature"
+from .paths import DATA_DIR
+
+BASE = DATA_DIR / "miniature"
 INFO = BASE / "servizio.json"
 LOCK = BASE / "avvio.lock"
 IDLE = 90          # secondi di attesa del servizio prima di chiudersi
@@ -251,7 +253,7 @@ def _serve(first):
     t = threading.Thread(target=run, daemon=True)
     _log("servizio: finestra", f"{time.time() - _START:.1f}s")
     webview.start(t.start, private_mode=False,
-                  storage_path=os.path.join(os.environ.get("LOCALAPPDATA", ""), "MBVisual", "webview-miniature"))
+                  storage_path=str(DATA_DIR / "webview-miniature"))
     return res
 
 

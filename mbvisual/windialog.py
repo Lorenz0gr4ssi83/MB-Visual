@@ -3,10 +3,13 @@
 Servono quando MB Visual non ha la sua finestra (pythonnet bloccato da criteri aziendali o antivirus) e gira nel ripiego
 in Edge: senza queste l'interfaccia poteva solo chiedere di scrivere il percorso a mano. Ogni chiamata blocca finche'
 l'utente chiude la finestra; la finestra si aggancia a quella in primo piano (Edge) per restarle sopra.
+Sul Mac (app nel browser) le stesse finestre sono quelle del Finder, aperte con AppleScript (osascript).
 """
 import ctypes
 import os
-from ctypes import wintypes
+import subprocess
+import sys
+from .wintypes_compat import wintypes
 
 _BUF = 65536  # caratteri: abbastanza per molti file scelti insieme
 
@@ -56,7 +59,54 @@ def _ofn(buf, flags, initial_dir=None, title=None):
     return o
 
 
+# ---------------------------------------------------------------- Mac: finestre del Finder con AppleScript
+def _osa(script: str, *args) -> str | None:
+    r = subprocess.run(["/usr/bin/osascript", "-e", script, *[a or "" for a in args]], capture_output=True, text=True)
+    return r.stdout.rstrip("\n") if r.returncode == 0 else None  # annullato: codice -128
+
+
+_MAC_OPEN = """on run argv
+  set d to item 1 of argv
+  if (item 2 of argv) is "1" then
+    if d is "" then
+      set fs to choose file with multiple selections allowed
+    else
+      set fs to choose file with multiple selections allowed default location (POSIX file d)
+    end if
+  else
+    if d is "" then
+      set fs to {choose file}
+    else
+      set fs to {choose file default location (POSIX file d)}
+    end if
+  end if
+  set out to ""
+  repeat with f in fs
+    set out to out & POSIX path of f & linefeed
+  end repeat
+  return out
+end run"""
+
+_MAC_SAVE = """on run argv
+  set n to item 1 of argv
+  set d to item 2 of argv
+  if d is "" then
+    return POSIX path of (choose file name default name n)
+  end if
+  return POSIX path of (choose file name default name n default location (POSIX file d))
+end run"""
+
+_MAC_FOLDER = """on run argv
+  return POSIX path of (choose folder)
+end run"""
+
+
 def open_files(multiple=True, initial_dir=None, title=None):
+    if sys.platform == "darwin":
+        out = _osa(_MAC_OPEN, initial_dir or "", "1" if multiple else "0")
+        return [x for x in (out or "").split("\n") if x]
+    if sys.platform != "win32":
+        return []
     buf = ctypes.create_unicode_buffer(_BUF)
     o = _ofn(buf, OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | (OFN_ALLOWMULTISELECT if multiple else 0), initial_dir, title)
     if not ctypes.windll.comdlg32.GetOpenFileNameW(ctypes.byref(o)):
@@ -69,6 +119,10 @@ def open_files(multiple=True, initial_dir=None, title=None):
 
 
 def save_as(suggested="", directory="", title=None):
+    if sys.platform == "darwin":
+        return _osa(_MAC_SAVE, os.path.basename(suggested or ""), directory or os.path.dirname(suggested or "")) or None
+    if sys.platform != "win32":
+        return None
     buf = ctypes.create_unicode_buffer(_BUF)
     buf.value = os.path.basename(suggested or "")
     ext = os.path.splitext(suggested or "")[1].lstrip(".")
@@ -80,6 +134,10 @@ def save_as(suggested="", directory="", title=None):
 
 
 def choose_folder(title=None):
+    if sys.platform == "darwin":
+        return (_osa(_MAC_FOLDER) or "").rstrip("/") or None
+    if sys.platform != "win32":
+        return None
     BIF_RETURNONLYFSDIRS, BIF_NEWDIALOGSTYLE = 0x0001, 0x0040
     ctypes.windll.ole32.CoInitialize(None)
     name = ctypes.create_unicode_buffer(260)

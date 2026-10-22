@@ -81,6 +81,8 @@ class Api:
 
 def _refresh_shell():
     # integrazione con Esplora attiva ma registrata da un'altra versione o un altro exe: si riscrive (DLL nuova, percorsi)
+    if sys.platform != "win32":
+        return
     try:
         from mbvisual import shellint
         shellint.refresh_if_needed()
@@ -105,8 +107,9 @@ def _graphite_frame(window):
 def _unblock_files():
     """Toglie il segno "scaricato da Internet" (Zone.Identifier) dai file dell'app: con quel segno .NET rifiuta
     pythonnet/runtime/Python.Runtime.dll e la finestra non parte ("Failed to resolve Python.Runtime.Loader.Initialize").
-    Si fa una volta per versione (file segnaposto in _internal)."""
-    if not getattr(sys, "frozen", False):
+    Si fa una volta per versione (file segnaposto in _internal). Solo Windows (sul Mac il pacchetto .app non si tocca:
+    cambierebbe la firma)."""
+    if not getattr(sys, "frozen", False) or sys.platform != "win32":
         return
     mark = os.path.join(RES_DIR, ".sbloccato")
     if os.path.exists(mark):
@@ -188,7 +191,8 @@ def main():
         import webview
         from webview.dom import DOMEventHandler
         from webview import guilib
-        guilib.initialize("edgechromium")  # carica subito pythonnet/WebView2: se fallisce si passa al ripiego
+        # Windows: carica subito pythonnet/WebView2 (se fallisce si passa al ripiego); Mac: WebKit (Cocoa)
+        guilib.initialize("edgechromium" if sys.platform == "win32" else "cocoa" if sys.platform == "darwin" else None)
     except Exception as ex:  # noqa: BLE001
         _fallback(srv, url, ex)
         return
@@ -222,7 +226,8 @@ def main():
 
     window.events.loaded += on_loaded
     window.events.closing += on_closing
-    window.events.shown += lambda: _graphite_frame(window)
+    if sys.platform == "win32":
+        window.events.shown += lambda: _graphite_frame(window)
     icon = str(RES_DIR / "app.ico")
     try:
         webview.start(icon=icon if os.path.exists(icon) else None, private_mode=False,

@@ -193,4 +193,5 @@ def tools_status():
         "powerpoint": find_office("powerpnt.exe"),
         "onlyoffice": find_onlyoffice(),
         "nwdreader": find_nwd2mbv(),
+        "mac": IS_MAC,  # l'interfaccia nasconde le funzioni solo per Windows e adatta i testi
     }

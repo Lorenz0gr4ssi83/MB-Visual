@@ -29,10 +29,10 @@ from urllib.parse import parse_qs, quote, urlencode, urlparse
 from urllib.request import Request, build_opener
 
 from . import jobs
-from .paths import TEMP_DIR, UI_DIR
+from .paths import DATA_DIR as _DATA_DIR, IS_WIN, TEMP_DIR, UI_DIR
 from .i18n import t
 
-DATA_DIR = Path(os.environ.get("MBV_CLOUD_DIR") or (Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "MBVisual"))
+DATA_DIR = Path(os.environ.get("MBV_CLOUD_DIR") or _DATA_DIR)
 CONFIG_FILE = DATA_DIR / "cloud.json"
 TOKEN_FILE = DATA_DIR / "cloud_token.bin"
 CACHE = TEMP_DIR / "cloud"
@@ -70,6 +70,9 @@ _ENTROPY = b"MB Visual - archivi cloud"
 
 
 def _dpapi(data: bytes, protect: bool) -> bytes:
+    if not IS_WIN:  # Mac: chiave nel Portachiavi (mbvisual/secret.py)
+        from . import secret
+        return secret.protect(data, "cloud") if protect else secret.unprotect(data, "cloud")
     crypt32, kernel32 = ctypes.windll.crypt32, ctypes.windll.kernel32
     kernel32.LocalFree.argtypes = [ctypes.c_void_p]
     buf = ctypes.create_string_buffer(data, len(data))

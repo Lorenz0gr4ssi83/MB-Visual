@@ -424,12 +424,12 @@ def _mac_swap(new_app: Path, target: Path) -> None:
 def _apply_github_mac(rel: dict, update=None) -> dict:
     """Scarica il .dmg, ne estrae "MB Visual.app" in locale e la sostituisce a quella in uso dopo la chiusura."""
     if not MAC_BUNDLE:
-        raise ValueError("Pacchetto dell'app non riconosciuto: aggiornamento annullato per sicurezza")
+        raise ValueError(t("srv_update.mac_pacchetto_non_riconosciuto"))
     import shutil
     dmg = STAGING / f"MBVisual-{rel['versione']}-mac.dmg"
     _download(rel, dmg, update)
     if update:
-        update(0.96, "Preparazione della nuova versione")
+        update(0.96, t("srv_update.mac_preparazione"))
     mnt = Path(tempfile.mkdtemp(prefix="mbvisual-dmg-"))
     new_app = STAGING / "MB Visual.app"
     shutil.rmtree(new_app, ignore_errors=True)
@@ -438,12 +438,12 @@ def _apply_github_mac(rel: dict, update=None) -> dict:
     try:
         src = next(mnt.glob("*.app"), None)
         if not src:
-            raise ValueError("Il file scaricato non contiene l'app")
+            raise ValueError(t("srv_update.mac_dmg_senza_app"))
         subprocess.run(["/usr/bin/ditto", str(src), str(new_app)], check=True, capture_output=True, timeout=600)
     finally:
         subprocess.run(["/usr/bin/hdiutil", "detach", str(mnt), "-force"], capture_output=True, timeout=120)
     if update:
-        update(0.98, "Riavvio di MB Visual")
+        update(0.98, t("srv_update.riavvio_mb_visual"))
     _log(f"aggiornamento Mac -> {rel['versione']} in {MAC_BUNDLE}")
     _mac_swap(new_app, MAC_BUNDLE)
     return {"ok": True, "versione": rel["versione"]}
@@ -452,11 +452,11 @@ def _apply_github_mac(rel: dict, update=None) -> dict:
 def _install_mac(update=None) -> dict:
     """Copia l'app in /Applications (togliendo la quarantena del download) e la riapre da li'."""
     if not MAC_BUNDLE:
-        raise ValueError("Pacchetto dell'app non riconosciuto")
+        raise ValueError(t("srv_update.mac_pacchetto_non_riconosciuto"))
     if _same(MAC_BUNDLE, MAC_INSTALL):
-        raise ValueError("L'app e' gia' nella cartella Applicazioni")
+        raise ValueError(t("srv_update.mac_gia_in_applicazioni"))
     if update:
-        update(0.5, "Copia in Applicazioni")
+        update(0.5, t("srv_update.mac_copia_applicazioni"))
     _log(f"installazione Mac da {MAC_BUNDLE} in {MAC_INSTALL}")
     import shutil
     tmp = STAGING / "installa" / "MB Visual.app"
@@ -478,7 +478,7 @@ def apply(update=None) -> dict:
         _log(f"aggiornamento da GitHub {r['attuale']} -> {r['github']['versione']}")
         return _apply_github(r["github"], update)
     if not IS_WIN:
-        raise ValueError("Nessun aggiornamento disponibile")
+        raise ValueError(t("srv_update.nessun_aggiornamento_disponibile"))
     src = Path(r["fonte"])
     if _same(src, APP_DIR):
         raise ValueError(t("srv_update.l_app_avviata_cartella_onedrive"))

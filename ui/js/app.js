@@ -284,8 +284,8 @@ function fileMenu(anchor) {
     m.append(item('<svg viewBox="0 0 24 24"><path d="M4 4h10v10H4zM10 10h10v10H10M17 6l3 3-3 3"/></svg>', tr("app.conversione_lotti"), "",
       () => import("./batch.js").then(b => b.openBatch({ paths: exDir && !$("explorer").hidden ? [exDir] : [] }))));
     m.append(el("hr"), item(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount), item(ICON_UPD, tr("app.verifica_aggiornamenti"), "", () => checkUpdates(true)));
-    m.append(item('<svg viewBox="0 0 24 24"><path d="M3 5h8v6H3zM13 5h8v6h-8zM3 13h8v6H3zM13 13h8v6h-8z"/></svg>', tr("app.integrazione_windows"), "", () => import("./shellint.js").then(x => x.showShellIntegration())));
-    if (updInfo?.installabile && !updInfo.installata) m.append(item("", tr("app.installa_questo_pc"), "", askInstall));
+    if (!TOOLS.mac) m.append(item('<svg viewBox="0 0 24 24"><path d="M3 5h8v6H3zM13 5h8v6h-8zM3 13h8v6H3zM13 13h8v6h-8z"/></svg>', tr("app.integrazione_windows"), "", () => import("./shellint.js").then(x => x.showShellIntegration())));
+    if (updInfo?.installabile && !updInfo.installata) m.append(item("", tr(TOOLS.mac ? "app.installa_mac_menu" : "app.installa_questo_pc"), "", askInstall));
   }
   placeMenu(m, anchor);
 }
@@ -293,7 +293,7 @@ function fileMenu(anchor) {
 // ---- Impostazioni > Lingua: automatica (Windows) o scelta a mano; si applica ricaricando l'interfaccia
 async function showLanguage() {
   const box = el("div", { style: { display: "grid", gap: "6px", minWidth: "320px" } });
-  const opts = [["", tr("lang.automatica")], ...LANGS];
+  const opts = [["", tr(TOOLS.mac ? "lang.automatica_sistema" : "lang.automatica")], ...LANGS];
   for (const [code, name] of opts) {
     const r = el("input", { type: "radio", name: "mbv-lang", value: code });
     r.checked = MANUAL ? code === LANG : code === "";
@@ -354,6 +354,12 @@ async function checkUpdates(manual = false) {
   toast(tr("app.hai_gia_l_ultima_versione", fmtVer(r.attuale)));
 }
 async function askInstall() {
+  if (TOOLS.mac) { // Mac: copia in /Applicazioni e riapertura da li' (mbvisual/update.py _install_mac)
+    const ok = await modal(tr("app.installa_mac_menu"), el("p", {}, tr("app.installa_mac_testo")),
+      [{ label: tr("app.non_ora"), value: false }, { label: tr("app.installa"), value: true, primary: true }]);
+    if (ok) await runUpdateJob("update_install", tr("app.installazione_mb_visual"), tr("app.installata_mb_visual_si_riapre"), {});
+    return;
+  }
   const integ = el("input", { type: "checkbox", checked: true });
   const ok = await modal(tr("app.installa_mb_visual_questo_pc"), el("div", {},
     el("p", {}, tr("app.stai_usando_l_app_direttamente")),
@@ -565,7 +571,7 @@ export function showError(ctx, e) {
     el("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
       el("button", { class: "btn primary", onclick: () => ctx.openAs("hex") }, tr("app.apri_come_esadecimale")),
       el("button", { class: "btn", onclick: () => ctx.openAs("text") }, tr("app.apri_come_testo")),
-      el("button", { class: "btn", onclick: () => api("open_external", { path: ctx.path }).catch(err => toast(err.message, true)) }, tr("app.apri_programma_windows"))))));
+      el("button", { class: "btn", onclick: () => api("open_external", { path: ctx.path }).catch(err => toast(err.message, true)) }, tr(TOOLS.mac ? "app.apri_programma_predefinito" : "app.apri_programma_windows"))))));
 }
 
 // ------------------------------------------------------------------ salvataggio

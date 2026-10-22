@@ -12,6 +12,7 @@ from __future__ import annotations
 import ctypes
 import json
 import locale
+import sys
 import threading
 
 from .paths import UI_DIR
@@ -23,7 +24,16 @@ _LANG = "it"
 
 
 def windows_language() -> str:
-    """Lingua dell'interfaccia di Windows (es. "en-US"); "" se non si riesce a leggerla."""
+    """Lingua dell'interfaccia del sistema (es. "en-US"; sul Mac la prima delle lingue preferite); "" se non si legge."""
+    if sys.platform == "darwin":
+        try:
+            import re
+            import subprocess
+            out = subprocess.run(["/usr/bin/defaults", "read", "-g", "AppleLanguages"], capture_output=True, text=True, timeout=5).stdout
+            m = re.search(r'"?([a-z]{2}(?:-[A-Za-z]+)*)"?', out.split("(", 1)[-1])
+            return m.group(1) if m else ""
+        except Exception:  # noqa: BLE001
+            return ""
     try:
         lcid = ctypes.windll.kernel32.GetUserDefaultUILanguage()
         name = locale.windows_locale.get(lcid, "")

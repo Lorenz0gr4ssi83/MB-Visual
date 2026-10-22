@@ -17,7 +17,7 @@ export async function mount(ctx) {
       el("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
         el("button", { class: "btn", onclick: () => ctx.openAs("text") }, t("v_office.apri_come_testo")),
         el("button", { class: "btn", onclick: () => ctx.openAs("hex") }, t("v_office.apri_come_esadecimale")),
-        el("button", { class: "btn", onclick: () => api("open_external", { path: ctx.path }) }, t("v_office.apri_programma_windows"))))));
+        el("button", { class: "btn", onclick: () => api("open_external", { path: ctx.path }) }, t(ctx.tools?.mac ? "app.apri_programma_predefinito" : "v_office.apri_programma_windows"))))));
     return {};
   }
   const ld = loading(ctx.el, t("v_office.conversione_libreoffice"));

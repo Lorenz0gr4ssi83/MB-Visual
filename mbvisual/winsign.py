@@ -6,13 +6,17 @@ NCryptSignHash (CNG) o, per i vecchi driver, CryptSignHash (CryptoAPI). Il PIN l
 """
 import ctypes
 import hashlib
-from ctypes import wintypes as W
+import sys
+from .wintypes_compat import wintypes as W
 
 from .i18n import t
 
-crypt32 = ctypes.WinDLL("crypt32", use_last_error=True)
-ncrypt = ctypes.WinDLL("ncrypt")
-advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+if sys.platform == "win32":
+    crypt32 = ctypes.WinDLL("crypt32", use_last_error=True)
+    ncrypt = ctypes.WinDLL("ncrypt")
+    advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+else:  # Mac e Linux: niente magazzino di Windows (firma con .p12 o remota CSC)
+    crypt32 = ncrypt = advapi32 = None
 
 X509_ASN_ENCODING = 0x1
 PKCS_7_ASN_ENCODING = 0x10000
@@ -77,40 +81,41 @@ class CERT_CHAIN_PARA(ctypes.Structure):
     _fields_ = [("cbSize", W.DWORD), ("dwType", W.DWORD), ("cUsage", W.DWORD), ("rgpszUsage", ctypes.c_void_p)]
 
 
-crypt32.CertOpenStore.restype = ctypes.c_void_p
-crypt32.CertOpenStore.argtypes = [ctypes.c_void_p, W.DWORD, ctypes.c_void_p, W.DWORD, ctypes.c_void_p]
-crypt32.PFXImportCertStore.restype = ctypes.c_void_p
-crypt32.PFXImportCertStore.argtypes = [ctypes.POINTER(CRYPT_DATA_BLOB), W.LPCWSTR, W.DWORD]
-crypt32.CertDuplicateStore.restype = ctypes.c_void_p
-crypt32.CertDuplicateStore.argtypes = [ctypes.c_void_p]
-crypt32.CertCloseStore.argtypes = [ctypes.c_void_p, W.DWORD]
-crypt32.CertEnumCertificatesInStore.restype = PCCERT_CONTEXT
-crypt32.CertEnumCertificatesInStore.argtypes = [ctypes.c_void_p, PCCERT_CONTEXT]
-crypt32.CertDuplicateCertificateContext.restype = PCCERT_CONTEXT
-crypt32.CertDuplicateCertificateContext.argtypes = [PCCERT_CONTEXT]
-crypt32.CertFreeCertificateContext.argtypes = [PCCERT_CONTEXT]
-crypt32.CertGetCertificateContextProperty.restype = W.BOOL
-crypt32.CertGetCertificateContextProperty.argtypes = [PCCERT_CONTEXT, W.DWORD, ctypes.c_void_p, ctypes.POINTER(W.DWORD)]
-crypt32.CryptAcquireCertificatePrivateKey.restype = W.BOOL
-crypt32.CryptAcquireCertificatePrivateKey.argtypes = [PCCERT_CONTEXT, W.DWORD, ctypes.c_void_p, ctypes.POINTER(ctypes.c_size_t),
-                                                       ctypes.POINTER(W.DWORD), ctypes.POINTER(W.BOOL)]
-crypt32.CertGetCertificateChain.restype = W.BOOL
-crypt32.CertGetCertificateChain.argtypes = [ctypes.c_void_p, PCCERT_CONTEXT, ctypes.c_void_p, ctypes.c_void_p,
-                                            ctypes.POINTER(CERT_CHAIN_PARA), W.DWORD, ctypes.c_void_p,
-                                            ctypes.POINTER(ctypes.POINTER(CERT_CHAIN_CONTEXT))]
-crypt32.CertFreeCertificateChain.argtypes = [ctypes.POINTER(CERT_CHAIN_CONTEXT)]
-ncrypt.NCryptSignHash.restype = ctypes.c_long
-ncrypt.NCryptSignHash.argtypes = [ctypes.c_size_t, ctypes.c_void_p, ctypes.c_char_p, W.DWORD, ctypes.c_void_p, W.DWORD,
-                                  ctypes.POINTER(W.DWORD), W.DWORD]
-ncrypt.NCryptFreeObject.argtypes = [ctypes.c_size_t]
-advapi32.CryptCreateHash.restype = W.BOOL
-advapi32.CryptCreateHash.argtypes = [ctypes.c_size_t, W.DWORD, ctypes.c_size_t, W.DWORD, ctypes.POINTER(ctypes.c_size_t)]
-advapi32.CryptSetHashParam.restype = W.BOOL
-advapi32.CryptSetHashParam.argtypes = [ctypes.c_size_t, W.DWORD, ctypes.c_char_p, W.DWORD]
-advapi32.CryptSignHashW.restype = W.BOOL
-advapi32.CryptSignHashW.argtypes = [ctypes.c_size_t, W.DWORD, W.LPCWSTR, W.DWORD, ctypes.c_void_p, ctypes.POINTER(W.DWORD)]
-advapi32.CryptDestroyHash.argtypes = [ctypes.c_size_t]
-advapi32.CryptReleaseContext.argtypes = [ctypes.c_size_t, W.DWORD]
+if crypt32 is not None:
+    crypt32.CertOpenStore.restype = ctypes.c_void_p
+    crypt32.CertOpenStore.argtypes = [ctypes.c_void_p, W.DWORD, ctypes.c_void_p, W.DWORD, ctypes.c_void_p]
+    crypt32.PFXImportCertStore.restype = ctypes.c_void_p
+    crypt32.PFXImportCertStore.argtypes = [ctypes.POINTER(CRYPT_DATA_BLOB), W.LPCWSTR, W.DWORD]
+    crypt32.CertDuplicateStore.restype = ctypes.c_void_p
+    crypt32.CertDuplicateStore.argtypes = [ctypes.c_void_p]
+    crypt32.CertCloseStore.argtypes = [ctypes.c_void_p, W.DWORD]
+    crypt32.CertEnumCertificatesInStore.restype = PCCERT_CONTEXT
+    crypt32.CertEnumCertificatesInStore.argtypes = [ctypes.c_void_p, PCCERT_CONTEXT]
+    crypt32.CertDuplicateCertificateContext.restype = PCCERT_CONTEXT
+    crypt32.CertDuplicateCertificateContext.argtypes = [PCCERT_CONTEXT]
+    crypt32.CertFreeCertificateContext.argtypes = [PCCERT_CONTEXT]
+    crypt32.CertGetCertificateContextProperty.restype = W.BOOL
+    crypt32.CertGetCertificateContextProperty.argtypes = [PCCERT_CONTEXT, W.DWORD, ctypes.c_void_p, ctypes.POINTER(W.DWORD)]
+    crypt32.CryptAcquireCertificatePrivateKey.restype = W.BOOL
+    crypt32.CryptAcquireCertificatePrivateKey.argtypes = [PCCERT_CONTEXT, W.DWORD, ctypes.c_void_p, ctypes.POINTER(ctypes.c_size_t),
+                                                           ctypes.POINTER(W.DWORD), ctypes.POINTER(W.BOOL)]
+    crypt32.CertGetCertificateChain.restype = W.BOOL
+    crypt32.CertGetCertificateChain.argtypes = [ctypes.c_void_p, PCCERT_CONTEXT, ctypes.c_void_p, ctypes.c_void_p,
+                                                ctypes.POINTER(CERT_CHAIN_PARA), W.DWORD, ctypes.c_void_p,
+                                                ctypes.POINTER(ctypes.POINTER(CERT_CHAIN_CONTEXT))]
+    crypt32.CertFreeCertificateChain.argtypes = [ctypes.POINTER(CERT_CHAIN_CONTEXT)]
+    ncrypt.NCryptSignHash.restype = ctypes.c_long
+    ncrypt.NCryptSignHash.argtypes = [ctypes.c_size_t, ctypes.c_void_p, ctypes.c_char_p, W.DWORD, ctypes.c_void_p, W.DWORD,
+                                      ctypes.POINTER(W.DWORD), W.DWORD]
+    ncrypt.NCryptFreeObject.argtypes = [ctypes.c_size_t]
+    advapi32.CryptCreateHash.restype = W.BOOL
+    advapi32.CryptCreateHash.argtypes = [ctypes.c_size_t, W.DWORD, ctypes.c_size_t, W.DWORD, ctypes.POINTER(ctypes.c_size_t)]
+    advapi32.CryptSetHashParam.restype = W.BOOL
+    advapi32.CryptSetHashParam.argtypes = [ctypes.c_size_t, W.DWORD, ctypes.c_char_p, W.DWORD]
+    advapi32.CryptSignHashW.restype = W.BOOL
+    advapi32.CryptSignHashW.argtypes = [ctypes.c_size_t, W.DWORD, W.LPCWSTR, W.DWORD, ctypes.c_void_p, ctypes.POINTER(W.DWORD)]
+    advapi32.CryptDestroyHash.argtypes = [ctypes.c_size_t]
+    advapi32.CryptReleaseContext.argtypes = [ctypes.c_size_t, W.DWORD]
 
 # errori frequenti con smart card e token: messaggi comprensibili (chiavi srv_firma.win_*)
 _ERRORI = {
@@ -182,6 +187,8 @@ def use_test_pfx(pfx: bytes | None, password: str = "") -> None:
 
 def list_certificates() -> list[dict]:
     """Certificati personali con chiave privata associata: [{id (SHA-1), der, provider}]."""
+    if crypt32 is None:
+        return []
     out = []
     store = _open_store()
     try:

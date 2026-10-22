@@ -16,8 +16,9 @@ from pathlib import Path
 
 from . import signed
 from .i18n import t
+from .paths import DATA_DIR
 
-SETTINGS = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "MBVisual" / "firma.json"
+SETTINGS = DATA_DIR / "firma.json"
 NOME_CARTELLA = "MB Visual - Firma"
 SIGNED_EXT = (".pdf", ".p7m", ".p7s")
 _S: dict = {}  # sessioni attive: id -> stato

@@ -25,10 +25,9 @@ from datetime import datetime
 from pathlib import Path
 
 from . import convert
-from .paths import TEMP_DIR
+from .paths import NO_WINDOW, TEMP_DIR
 from .i18n import t as tr
 
-NO_WINDOW = 0x08000000
 CAD = {"dwg", "dxf"}
 MODEL3D = set("ifc step stp p21 stpz iges igs brep brp stl obj ply gltf glb fbx 3ds dae 3mf amf wrl vrml 3dm usdz".split())
 MODEL3D_OUT = [("glb", "srv_batch.gltf_binario"), ("step", "srv_batch.step_facce_piane"), ("ifc", "IFC 4"), ("stl", "STL"), ("obj", "OBJ"), ("3mf", "3MF"),
@@ -427,7 +426,7 @@ class Batch:
         """Come convert._office_* ma senza riavviare il programma a ogni file (avvio di Word/Excel/PowerPoint: 30-100 s).
         None = formato non gestito qui (se ne occupa convert.convert). Una password finta evita le finestre di richiesta
         sui file protetti: falliscono subito invece di bloccare la coda."""
-        from .paths import find_office
+        from .convert import find_office  # Office via COM solo su Windows
         src, out = os.path.abspath(src), os.path.abspath(out)
         if fam == "word" and to in convert.WORD_FMT and find_office("winword.exe"):
             progid = "Word.Application"

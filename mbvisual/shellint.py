@@ -17,13 +17,17 @@ import json
 import os
 import shutil
 import sys
-import winreg
 from pathlib import Path
 
-from .paths import APP_DIR, BIN_DIR, UI_DIR
+try:
+    import winreg
+except ImportError:  # Mac e Linux: l'integrazione con Esplora non esiste (status() lo dice, il resto rifiuta)
+    winreg = None
+
+from .paths import APP_DIR, BIN_DIR, DATA_DIR, UI_DIR
 from .i18n import t
 
-HKCU = winreg.HKEY_CURRENT_USER
+HKCU = winreg.HKEY_CURRENT_USER if winreg else None
 CLASSES = r"Software\Classes"
 STATE = r"Software\MB Visual\Integrazione"
 CAPS = r"Software\MB Visual\Capabilities"
@@ -34,7 +38,7 @@ SHELLEX_PREVIEW = "{8895B1C6-B41F-4C1C-A562-0D564250836F}"
 PREVHOST_APPID = "{6D2B5079-2F0B-48DD-AB7F-97CEC514D30B}"
 VERB = "MBVisual.apri"
 PREFIX = "MBVisual."
-LOCAL = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "MBVisual"
+LOCAL = DATA_DIR
 
 # estensioni che non si associano mai (programmi, collegamenti)
 NEVER = {"exe", "dll", "lnk", "url", "bat", "cmd", "com", "scr", "msi", "msp", "sys", "cpl", "ocx", "drv", "pif", "appref-ms",
@@ -57,7 +61,7 @@ NO_AUTO = {"pdb"}
 
 
 # ------------------------------------------------------------------ registro
-def _set(path, name, value, kind=winreg.REG_SZ, root=HKCU):
+def _set(path, name, value, kind=winreg.REG_SZ if winreg else 1, root=HKCU):
     with winreg.CreateKeyEx(root, path, 0, winreg.KEY_WRITE) as k:
         winreg.SetValueEx(k, name, 0, kind, value)
 
@@ -252,6 +256,10 @@ def _icon(ext, cat, big=False):
 
 # ------------------------------------------------------------------ attivazione / rimozione
 def status() -> dict:
+    if winreg is None:
+        return {"attiva": False, "disponibile": False, "supportato": False, "arch": "", "versione": None, "comando": None,
+                "anteprime": False, "libere": False, "dll": None, "predefinito": [], "altri_gestori": [], "estensioni": 0,
+                "miniature": [], "cache_mb": 0}
     on = bool(_get(STATE, "Attiva"))
     st = {"attiva": on, "arch": native_arch(), "versione": _get(STATE, "Versione"), "comando": _get(STATE, "Comando"),
           "anteprime": bool(_get(STATE, "Anteprime")), "libere": bool(_get(STATE, "Libere")), "dll": _get(STATE, "Dll"),
@@ -265,6 +273,8 @@ def status() -> dict:
 
 def enable(anteprime=True, libere=True, update=None) -> dict:
     """Registra tutto per l'utente corrente. Si puo' ripetere (aggiorna percorsi e DLL)."""
+    if winreg is None:
+        raise RuntimeError(t("srv_shellint.solo_windows"))
     prev_default = set(_get(STATE, "Predefinito") or [])
     disable(keep_state=True)
     fmts = _formats()
@@ -350,6 +360,8 @@ def enable(anteprime=True, libere=True, update=None) -> dict:
 
 def disable(keep_state=False) -> dict:
     """Toglie tutto cio' che enable() ha scritto (solo le voci di MB Visual)."""
+    if winreg is None:
+        return status()
     root = CLASSES
     try:
         with winreg.OpenKey(HKCU, root) as k:
@@ -422,7 +434,7 @@ def _app_version():
 
 def refresh_if_needed() -> None:
     """All'avvio dell'app: se l'integrazione e' attiva ma punta a un altro exe o a una DLL vecchia, si riscrive."""
-    if not _get(STATE, "Attiva"):
+    if winreg is None or not _get(STATE, "Attiva"):
         return
     _, cmd = _commands()
     dll = _get(STATE, "Dll") or ""

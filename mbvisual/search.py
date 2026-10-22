@@ -17,10 +17,10 @@ from pathlib import Path
 
 from . import search_extract as X
 from .i18n import t
-from .paths import TEMP_DIR
+from .paths import DATA_DIR, TEMP_DIR
 
 VERSION = 1  # versione degli estrattori: aumentarla fa rileggere tutti i file
-BASE = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local") / "MBVisual" / "indice"
+BASE = DATA_DIR / "indice"
 CLOUD_ATTRS = 0x400000 | 0x40000 | 0x1000  # RECALL_ON_DATA_ACCESS | RECALL_ON_OPEN | OFFLINE (come server._solo_online)
 SKIP_DIRS = {"$recycle.bin", "system volume information", "node_modules", "__pycache__", ".git", ".svn", ".hg", ".vs", ".idea"}
 SKIP_FILES = {"desktop.ini", "thumbs.db", ".ds_store"}

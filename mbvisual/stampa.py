@@ -2,7 +2,7 @@
 
 Percorso unico per ogni file: sorgente -> PDF -> "PDF di stampa" (una pagina per foglio, gia' alla dimensione della
 carta, contenuto vettoriale posato con show_pdf_page) -> anteprima (le stesse pagine e lo stesso stile della stampa)
--> stampante di Windows oppure PDF vettoriale.
+-> stampante di Windows (GDI) o del Mac (CUPS, mbvisual/stampa_cups.py) oppure PDF vettoriale.
 
 - Sorgenti: PDF cosi' come sono; disegni CAD (DXF; i DWG arrivano gia' convertiti in DXF dall'interfaccia, che li legge
   con libredwg come il visualizzatore) disegnati da ezdxf direttamente sul foglio, in scala esatta (1:50, 1:100...) o
@@ -26,10 +26,10 @@ import shutil
 import tempfile
 import threading
 import uuid
-from ctypes import wintypes
+from .wintypes_compat import wintypes
 from pathlib import Path
 
-from .paths import TEMP_DIR
+from .paths import IS_WIN, NO_WINDOW, TEMP_DIR
 from .i18n import t
 
 PDF_VIRTUAL = "__pdf__"
@@ -52,6 +52,14 @@ _JOBS: dict[str, dict] = {}      # cid -> PDF di stampa composto
 
 # ================================================================ stampanti (pywin32)
 def printers() -> dict:
+    if not IS_WIN:
+        from . import stampa_cups
+        from .cadedit import find_oda
+        names, default = stampa_cups.printers()
+        lst = [{"name": PDF_VIRTUAL, "label": t("srv_stampa.pdf_vettoriale_mb_visual"), "virtual": True}]
+        for n in sorted(names, key=str.lower):
+            lst.append({"name": n, "label": n.replace("_", " "), "default": n == default, "plotter": bool(PLOTTER_HINTS.search(n))})
+        return {"ok": True, "printers": lst, "default": default, "oda": bool(find_oda())}
     import win32print
     names, seen = [], set()
     flags = win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
@@ -78,6 +86,9 @@ def printer_info(name: str) -> dict:
         return {"ok": True, "name": name, "virtual": True, "forms": forms, "color": True, "dpi": [300, 600],
                 "copies": 1, "custom": {"min": [10, 10], "max": [5000, 50000]}, "rolls": ROLLS, "plotter": True,
                 "default": {"paper": "A4", "orientation": "portrait", "color": True}}
+    if not IS_WIN:
+        from . import stampa_cups
+        return stampa_cups.printer_info(name, ROLLS, _drawing_form)
     import win32con
     import win32print
     dc = win32print.DeviceCapabilities
@@ -148,29 +159,33 @@ DMPAPER_USER = 256
 HORZRES, VERTRES, LOGPIXELSX, LOGPIXELSY = 8, 10, 88, 90
 PHYSICALWIDTH, PHYSICALHEIGHT, PHYSICALOFFSETX, PHYSICALOFFSETY = 110, 111, 112, 113
 
-_winspool = ctypes.WinDLL("winspool.drv", use_last_error=True)
-_gdi = ctypes.WinDLL("gdi32", use_last_error=True)
-_user = ctypes.WinDLL("user32")
-_winspool.OpenPrinterW.argtypes = [wintypes.LPWSTR, ctypes.POINTER(wintypes.HANDLE), ctypes.c_void_p]
-_winspool.ClosePrinter.argtypes = [wintypes.HANDLE]
-_winspool.DocumentPropertiesW.argtypes = [wintypes.HWND, wintypes.HANDLE, wintypes.LPWSTR, ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD]
-_winspool.DocumentPropertiesW.restype = ctypes.c_long
-_gdi.CreateDCW.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.LPCWSTR, ctypes.c_void_p]
-_gdi.CreateDCW.restype = wintypes.HDC
-_gdi.CreateICW.argtypes = _gdi.CreateDCW.argtypes
-_gdi.CreateICW.restype = wintypes.HDC
-_gdi.ResetDCW.argtypes = [wintypes.HDC, ctypes.c_void_p]
-_gdi.ResetDCW.restype = wintypes.HDC
-_gdi.DeleteDC.argtypes = [wintypes.HDC]
-_gdi.GetDeviceCaps.argtypes = [wintypes.HDC, ctypes.c_int]
-_gdi.StartDocW.argtypes = [wintypes.HDC, ctypes.POINTER(DOCINFOW)]
-_gdi.StartPage.argtypes = [wintypes.HDC]
-_gdi.EndPage.argtypes = [wintypes.HDC]
-_gdi.EndDoc.argtypes = [wintypes.HDC]
-_gdi.AbortDoc.argtypes = [wintypes.HDC]
-_gdi.SetStretchBltMode.argtypes = [wintypes.HDC, ctypes.c_int]
-_gdi.StretchDIBits.argtypes = [wintypes.HDC, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
-                               ctypes.c_int, ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p, wintypes.UINT, wintypes.DWORD]
+if IS_WIN:
+    _winspool = ctypes.WinDLL("winspool.drv", use_last_error=True)
+    _gdi = ctypes.WinDLL("gdi32", use_last_error=True)
+    _user = ctypes.WinDLL("user32")
+else:  # Mac e Linux: stampa con CUPS (stampa_cups.py)
+    _winspool = _gdi = _user = None
+if IS_WIN:
+    _winspool.OpenPrinterW.argtypes = [wintypes.LPWSTR, ctypes.POINTER(wintypes.HANDLE), ctypes.c_void_p]
+    _winspool.ClosePrinter.argtypes = [wintypes.HANDLE]
+    _winspool.DocumentPropertiesW.argtypes = [wintypes.HWND, wintypes.HANDLE, wintypes.LPWSTR, ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD]
+    _winspool.DocumentPropertiesW.restype = ctypes.c_long
+    _gdi.CreateDCW.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.LPCWSTR, ctypes.c_void_p]
+    _gdi.CreateDCW.restype = wintypes.HDC
+    _gdi.CreateICW.argtypes = _gdi.CreateDCW.argtypes
+    _gdi.CreateICW.restype = wintypes.HDC
+    _gdi.ResetDCW.argtypes = [wintypes.HDC, ctypes.c_void_p]
+    _gdi.ResetDCW.restype = wintypes.HDC
+    _gdi.DeleteDC.argtypes = [wintypes.HDC]
+    _gdi.GetDeviceCaps.argtypes = [wintypes.HDC, ctypes.c_int]
+    _gdi.StartDocW.argtypes = [wintypes.HDC, ctypes.POINTER(DOCINFOW)]
+    _gdi.StartPage.argtypes = [wintypes.HDC]
+    _gdi.EndPage.argtypes = [wintypes.HDC]
+    _gdi.EndDoc.argtypes = [wintypes.HDC]
+    _gdi.AbortDoc.argtypes = [wintypes.HDC]
+    _gdi.SetStretchBltMode.argtypes = [wintypes.HDC, ctypes.c_int]
+    _gdi.StretchDIBits.argtypes = [wintypes.HDC, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                   ctypes.c_int, ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p, wintypes.UINT, wintypes.DWORD]
 
 
 class _DevMode:
@@ -234,7 +249,9 @@ class _DevMode:
 
 def printer_dialog(name: str, base64_dm: str | None = None) -> dict:
     """Finestra "Proprieta'" del driver (qualita', rotolo, taglierina...): restituisce il DEVMODE scelto."""
-    if name == PDF_VIRTUAL:
+    if name == PDF_VIRTUAL or not IS_WIN:  # sul Mac le opzioni del driver sono quelle di CUPS
+        if not IS_WIN and name != PDF_VIRTUAL:
+            return {"ok": True, "devmode": base64_dm, "annullato": True, "nota": t("srv_stampa.proprieta_driver_solo_windows")}
         return {"ok": True, "devmode": None}
     dm = _DevMode(name, base64_dm)
     h = wintypes.HANDLE()
@@ -262,6 +279,8 @@ def hardware_margins(name: str, paper: dict, landscape: bool, base64_dm: str | N
     """Margini non stampabili (mm: sinistra, alto, destra, basso) per quel formato, letti dal driver."""
     if name == PDF_VIRTUAL:
         return [0, 0, 0, 0]
+    if not IS_WIN:  # CUPS non espone i margini fisici: valore tipico delle stampanti da ufficio
+        return [5.0, 5.0, 5.0, 5.0]
     key = (name, paper.get("id"), paper.get("w"), paper.get("h"), landscape, base64_dm)
     if key in _MARGIN_CACHE:
         return _MARGIN_CACHE[key]
@@ -385,7 +404,7 @@ def _dwg_with_oda(path: str) -> str | None:
         return str(out)
     tin, tout = Path(tempfile.mkdtemp(dir=TEMP_DIR)), Path(tempfile.mkdtemp(dir=TEMP_DIR))
     shutil.copy2(path, tin / Path(path).name)
-    subprocess.run([exe, str(tin), str(tout), "ACAD2018", "DXF", "0", "1", "*.DWG"], capture_output=True, timeout=600, creationflags=0x08000000)
+    subprocess.run([exe, str(tin), str(tout), "ACAD2018", "DXF", "0", "1", "*.DWG"], capture_output=True, timeout=600, creationflags=NO_WINDOW)
     res = next(tout.glob("*.dxf"), None)
     if not res:
         return None
@@ -818,7 +837,27 @@ def run(cid: str, extra: dict | None = None, update=None) -> dict:
     name = st.get("printer") or PDF_VIRTUAL
     if name == PDF_VIRTUAL:
         return _save_pdf(job, st, update)
+    if not IS_WIN:
+        return _print_cups(job, st, name, update)
     return _print_gdi(job, st, name, update)
+
+
+def _print_cups(job: dict, st: dict, name: str, update) -> dict:
+    """Mac e Linux: il PDF di stampa (con gli stili gia' applicati) va a CUPS con lp."""
+    from . import stampa_cups
+    tmp = stampa_cups.temp_pdf()
+    try:
+        _save_pdf(job, {**st, "output": tmp}, update)
+        info = printer_info(name)
+        color = (st.get("style") or "color") == "color" and info.get("color", True)
+        stampa_cups.print_pdf(tmp, job["pages"], name, int(st.get("copies") or 1), bool(st.get("collate", True)), color,
+                              st.get("title") or "MB Visual", update)
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+    return {"ok": True, "pagine": len(job["pages"]), "stampante": name, "avvisi": []}
 
 
 def _save_pdf(job: dict, st: dict, update) -> dict:
