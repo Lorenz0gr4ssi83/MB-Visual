@@ -8,7 +8,7 @@ import { SHAPES, shapeCmds, computeLayouts, drawPage, CanvasPainter, aabb, isLin
 import { caretPos, paraBounds, insertText, deleteRange, setParaStyle } from "./pubtext.js";
 import { TEMPLATES } from "./pubtemplates.js";
 import { exportPdfFile, exportMergedPdf } from "./pubexport.js";
-import { t as tr, LOCALE } from "./i18n.js";
+import { t as tr, LOCALE, has as trHas } from "./i18n.js";
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const cm = v => +(v / CM).toFixed(2);
@@ -411,10 +411,12 @@ export function buildRibbon(E, ctx, host) {
         sm("select", tr("pubribbon.seleziona"), null, { menu: () => [{ label: tr("pubribbon.seleziona_tutto_testo_casella"), run: () => { const o = one(); if (o?.type === "text") { E.beginEdit(o, 0); const st = doc().stories[o.story]; E.edit().anchor = 0; E.edit().caret = st.chars.length - 1; E.refresh(); } }, dis: () => one()?.type !== "text" }, { label: tr("pubribbon.seleziona_tutti_oggetti"), keys: "Ctrl+A", run: () => E.setSel(E.items().slice()) }, { label: tr("pubribbon.seleziona_oggetti"), run: () => E.setTool(null) }] }))),
     ];
   }
+  // nomi degli stili predefiniti (chiavi nel documento, in italiano) mostrati nella lingua scelta
+  const styleLabel = n => { const k = "pubstyle." + n.toLowerCase().replace(/[^a-z0-9]+/g, "_"); return trHas(k) ? tr(k) : n; };
   const stylesMenu = () => {
     const ps = E.paraStyle();
     const D = doc();
-    return [...Object.entries(D.styles).map(([n, s]) => ({ label: n, checked: ps?.st === n, font: fontName(D, s.f), style: { fontSize: clamp(s.z || 10, 10, 18) + "px", fontWeight: s.b ? "700" : "400", fontStyle: s.i ? "italic" : "normal", color: color(D, s.c || "s0") }, run: () => E.applyStyle(n) })),
+    return [...Object.entries(D.styles).map(([n, s]) => ({ label: styleLabel(n), checked: ps?.st === n, font: fontName(D, s.f), style: { fontSize: clamp(s.z || 10, 10, 18) + "px", fontWeight: s.b ? "700" : "400", fontStyle: s.i ? "italic" : "normal", color: color(D, s.c || "s0") }, run: () => E.applyStyle(n) })),
       "-", { label: tr("pubribbon.nuovo_stile_selezione"), run: newStyleDlg }, { label: tr("pubribbon.modifica_stile"), run: () => editStyleDlg(ps?.st || "Normale") }];
   };
   const tableMenu = () => {
@@ -753,7 +755,7 @@ export function buildRibbon(E, ctx, host) {
   }
   async function newStyleDlg() {
     const cs = E.charStyle() || {}, ps = E.paraStyle() || {};
-    const name = el("input", { type: "text", class: "field", value: "Stile " + (Object.keys(doc().styles).length + 1) });
+    const name = el("input", { type: "text", class: "field", value: tr("pubribbon.stile_0", Object.keys(doc().styles).length + 1) });
     const form = styleForm({ ...cs, ...ps });
     const ok = await modal(tr("pubribbon.nuovo_stile"), el("div", {}, row(tr("common.nome"), name), form.body), [{ label: tr("common.annulla"), value: false }, { label: "OK", value: true, primary: true }]);
     if (!ok || !name.value.trim()) return after();
