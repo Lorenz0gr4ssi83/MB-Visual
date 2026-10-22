@@ -3,6 +3,7 @@
 import { api, fileUrl, loading, readBytes } from "../core.js";
 import { createEditor, openImageDoc } from "../imgedit.js";
 import { t } from "../i18n.js";
+import { measureBtn } from "../measure/mbutton.js";
 
 const NATIVE = new Set(["png", "apng", "jpg", "jpeg", "jpe", "jfif", "pjpeg", "pjp", "gif", "webp", "bmp", "dib", "ico", "cur", "avif"]);
 const RAW = new Set(["cr2", "cr3", "crw", "nef", "nrw", "arw", "srf", "sr2", "orf", "rw2", "raf", "dng", "pef", "ptx", "srw", "x3f", "3fr", "fff", "erf", "kdc", "dcr", "mos", "mef", "mrw", "rwl", "iiq", "raw", "rwz", "bay", "cap", "eip"]);
@@ -25,5 +26,16 @@ export async function mount(ctx) {
     const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error(t("v_image.immagine_non_leggibile"))); i.src = src; });
     doc = await openImageDoc(img, "");
   }
-  return createEditor(ctx, { ...doc, meta, raw: RAW.has(ctx.ext) });
+  const api = createEditor(ctx, { ...doc, meta, raw: RAW.has(ctx.ext) });
+  // misure su scansioni e foto di tavole (taratura, scala 1:N dai dpi): pannello comune a PDF, CAD e 3D
+  if (api.measureHost) {
+    let meas = null, measP = null;
+    const measGet = () => (measP ??= import("../measure/mimg.js").then(async m => (meas = await m.attachImage(ctx, api.measureHost))));
+    const b = measureBtn(async () => { const m = await measGet(); m.toggle(); b.classList.toggle("on", m.open); });
+    ctx.tb.append(b);
+    api._meas = { get: measGet };
+    const dispose0 = api.dispose;
+    api.dispose = () => { meas?.dispose(); dispose0?.call(api); };
+  }
+  return api;
 }

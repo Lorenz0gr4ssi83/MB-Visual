@@ -1,0 +1,8 @@
+# Intestazione "Dati del progettista" della relazione tecnica di asseverazione (moduli unificati 2017)
+## DATI DEL PROGETTISTA
+Cognome e Nome {prog.cognome_nome:*}
+Iscritto all'ordine/collegio {prog.albo:56} di {prog.albo_prov:34} al n. {prog.albo_n:*}
+@nota N.B.: Tutti gli altri dati relativi al progettista (anagrafici, timbro ecc.) sono contenuti nella sezione 2 dell'allegato "Soggetti coinvolti"
+## DICHIARAZIONI
+Il progettista, in qualità di tecnico asseverante, preso atto di assumere la qualità di persona esercente un servizio di pubblica necessità ai sensi degli articoli 359 e 481 del Codice Penale, consapevole che le dichiarazioni false, la falsità negli atti e l'uso di atti falsi comportano l'applicazione delle sanzioni penali previste dagli artt. 75 e 76 del d.P.R. n. 445/2000 e di quelle di cui all'art. 19, comma 6, della legge n. 241/1990, sotto la propria responsabilità
+!! DICHIARA

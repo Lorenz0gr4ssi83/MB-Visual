@@ -5,6 +5,7 @@ import {
 } from "./core.js";
 import { licenseGate, showAccount } from "./license.js";
 import { setupMobileQr } from "./mobileqr.js";
+import { initTouch, afterMount } from "./touch.js";
 import { t as tr, tn, has as trHas, LANG, LANGS, LOCALE, MANUAL, keyName, setLanguage } from "./i18n.js";
 
 const $ = id => document.getElementById(id);
@@ -21,10 +22,11 @@ const VIEWER_NAMES = {
   office: tr("app.documento_office_libreoffice"), text: tr("app.testo_codice"), markdown: "Markdown", html: tr("app.pagina_web"),
   image: tr("app.immagine"), svg: "SVG", media: tr("app.audio_video"), cad2d: tr("app.disegno_cad_2d"), model3d: tr("app.modello_3d"), inventor: tr("app.documento_inventor"),
   external: tr("app.programma_esterno"), archive: tr("app.archivio"), email: tr("app.email"), epub: "eBook", font: "Font",
-  dwf: tr("app.pubblicazione_dwf"), sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), visio: tr("app.diagramma_visio"), gis: tr("app.mappa_gis"), bcf: tr("app.segnalazioni_bim_bcf"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"), compare: tr("app.confronto_revisioni"),
-  solidcad: tr("app.solidworks_solid_edge"),
+  dwf: tr("app.pubblicazione_dwf"), sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), visio: tr("app.diagramma_visio"), gis: tr("app.mappa_gis"), bcf: tr("app.segnalazioni_bim_bcf"), pratica: tr("newfile.pratica_edilizia"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"), compare: tr("app.confronto_revisioni"),
+  solidcad: tr("app.solidworks_solid_edge"), recover: tr("app.recupero_file"),
   dicom: tr("app.immagine_medica_dicom"), calendar: tr("app.calendario"), contacts: tr("app.contatti"), cert: tr("app.certificato_digitale"),
   iwork: "Apple iWork", hpgl: tr("app.plotter_hpgl"), scidata: tr("app.dati_scientifici"), revit: "Revit",
+  mail: tr("mail.posta"), mailcompose: tr("mail.nuovo_messaggio"),
 };
 // documenti che sul PC si aprono nell'editor ONLYOFFICE integrato (modifica completa come nei programmi originali)
 const OO_EXTS = new Set(["docx", "docm", "dotx", "dotm", "doc", "dot", "rtf", "odt", "ott", "fodt", "xlsx", "xlsm", "xltx", "xltm", "xls", "xlt", "ods", "fods", "csv",
@@ -89,7 +91,7 @@ export function resolveCategory(name, sniff) {
 
 // ------------------------------------------------------------------ badge per tipo di file
 const BADGE_COLOR = { pdf: "pdf", signed: "sig", word: "doc", "office-lo": "doc", sheet: "xls", pptx: "ppt", publisher: "cad", visio: "doc", cad2d: "cad",
-  cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", inventor: "3d", "inventor-doc": "cad", solidcad: "3d", vis3d: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", videoproject: "av", bcf: "3d",
+  cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", inventor: "3d", "inventor-doc": "cad", solidcad: "3d", vis3d: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", videoproject: "av", bcf: "3d", pratica: "doc",
   archive: "zip", email: "mail", text: "code", markdown: "code", html: "code", ebook: "code", font: "code", database: "db", gis: "img",
   dicom: "img", calendar: "mail", contacts: "mail", cert: "sig", iwork: "doc", hpgl: "cad", scidata: "db", revit: "3d" };
 export function badgeFor(name, isDir = false) {
@@ -104,6 +106,8 @@ export function badgeFor(name, isDir = false) {
 // ------------------------------------------------------------------ schede
 const ICON_HOME = '<svg viewBox="0 0 24 24"><path d="M4 11l8-6 8 6v9H4zM10 20v-5h4v5"/></svg>';
 const ICON_X = '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const ICON_MAIL = '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/></svg>';
+const ICON_MAIL_NEW = '<svg viewBox="0 0 24 24"><path d="M20 12.5V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h8.5"/><path d="M3.5 6.5l8.5 6.5 3-2.3M18 3.5l2.5 2.5-5 5H13V8.5z"/></svg>';
 const ICON_FORMATS = '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>';
 function renderTabs() {
   const box = $("tabs");
@@ -114,9 +118,9 @@ function renderTabs() {
   box.append(el("div", { class: "tab home-tab" + (atHome ? " active" : ""), role: "tab", title: tr("app.home_trascina_qui_i_file"), onclick: () => activate(null) },
     el("span", { html: ICON_HOME }), el("span", { class: "name" }, tr("app.home"))));
   for (const t of tabs) {
-    const b = el("div", { class: "tab" + (t === active && !fmtOpen ? " active" : ""), role: "tab", title: t.path, onclick: () => activate(t) },
-      badgeFor(t.info?.nome || t.name),
-      el("span", { class: "name" }, t.name + (t.forced ? "  ·  " + VIEWER_NAMES[t.viewer] : "")),
+    const b = el("div", { class: "tab" + (t === active && !fmtOpen ? " active" : ""), role: "tab", title: t.path.startsWith("mail://") ? t.name : t.path, onclick: () => activate(t) },
+      t.path.startsWith("mail://") ? el("span", { html: t.viewer === "mail" ? ICON_MAIL : ICON_MAIL_NEW }) : badgeFor(t.info?.nome || t.name),
+      el("span", { class: "name" }, t.name + (t.forced && !t.path.startsWith("mail://") ? "  ·  " + VIEWER_NAMES[t.viewer] : "")),
       t.dirty ? el("span", { class: "dot", title: tr("app.modifiche_non_salvate") }) : null,
       el("button", { class: "x", title: tr("common.chiudi"), html: ICON_X, onclick: e => { e.stopPropagation(); closeTab(t); } }));
     b.addEventListener("auxclick", e => { if (e.button === 1) closeTab(t); });
@@ -130,26 +134,29 @@ function renderTabs() {
     el("span", { html: ICON_X }))); // solo icona: piu' spazio ai nomi dei file (il testo e' nel suggerimento)
   box.querySelector(".tab.active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
   const has = !!active;
-  for (const id of ["btn-as", "btn-folder", "btn-external", "btn-info"]) $(id).disabled = !has;
+  const isFile = has && !active.path.startsWith("mail://");
+  for (const id of ["btn-as", "btn-folder", "btn-external", "btn-info"]) $(id).disabled = !isFile;
   $("home").hidden = has || fmtOpen;
   $("views").hidden = !has || fmtOpen;
   document.body.classList.toggle("at-home", atHome);
   $("btn-home").classList.toggle("on", atHome);
+  $("btn-mail")?.classList.toggle("on", !!active && active.viewer === "mail" && !fmtOpen);
   updateStatus();
   try { window.pywebview?.api?.set_dirty?.(tabs.filter(t => t.dirty).length); } catch { /* */ } // per la domanda alla chiusura
 }
 
 function updateStatus() {
   const t = active;
-  $("st-path").textContent = t ? (t.path.startsWith("web://") ? t.info?.nome || t.name : t.path) : tr("app.pronto");
+  const virt = t && (t.path.startsWith("web://") || t.path.startsWith("mail://"));
+  $("st-path").textContent = t ? (virt ? t.info?.nome || t.name : t.path) : tr("app.pronto");
   $("st-type").textContent = t ? VIEWER_NAMES[t.viewer] + (t.info?.sniff?.descr ? " · " + t.info.sniff.descr : "") : "";
-  $("st-size").textContent = t ? fmtSize(t.info?.size) : "";
+  $("st-size").textContent = t && !t.path.startsWith("mail://") ? fmtSize(t.info?.size) : "";
   $("st-extra").textContent = t?.extra || "";
   // percorso del file attivo a destra nella barra comandi: due cartelle e il nome
   const cr = $("crumb");
   cr.innerHTML = "";
   const fmt = !$("formats").hidden;
-  const parts = t && !fmt && !t.path.startsWith("web://") && !t.untitled ? t.path.split(/[\\/]/).filter(Boolean) : [];
+  const parts = t && !fmt && !virt && !t.untitled ? t.path.split(/[\\/]/).filter(Boolean) : [];
   const segs = parts.length ? parts.slice(-3) : [fmt ? tr("idx.formati") : t ? t.name : tr("app.home")];
   if (!parts.length) segs.unshift("MB Visual");
   segs.forEach((s, i) => {
@@ -289,6 +296,7 @@ function fileMenu(anchor) {
   if (WEB && window.MBV_MOBILE) m.append(el("hr"), item(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount)); // app per cellulari con licenza
   if (!WEB) {
     // conversione a lotti (ui/js/batch.js): cartella del pannello Esplora gia' proposta
+    m.append(item(ICON_TODRAW, tr("todrawing.converti_disegno_menu"), "", () => toDrawing(), !canToDrawing(active)));
     m.append(item('<svg viewBox="0 0 24 24"><path d="M4 4h10v10H4zM10 10h10v10H10M17 6l3 3-3 3"/></svg>', tr("app.conversione_lotti"), "",
       () => import("./batch.js").then(b => b.openBatch({ paths: exDir && !$("explorer").hidden ? [exDir] : [] }))));
     m.append(el("hr"), item(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount), item(ICON_UPD, tr("app.verifica_aggiornamenti"), "", () => checkUpdates(true)));
@@ -515,7 +523,8 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   const existing = tabs.find(t => t.path === path && (!forcedViewer || t.viewer === forcedViewer));
   if (existing && !extraCtx.fresh) return activate(existing);
   let info;
-  try { info = await api("info", { path }); } catch (e) { return toast(tr("app.impossibile_aprire") + e.message, true); }
+  if (path.startsWith("mail://")) info = { nome: extraCtx.displayName || tr("mail.posta"), size: 0, modificato: 0, scrivibile: true }; // posta: scheda senza file (ui/js/mail)
+  else try { info = await api("info", { path }); } catch (e) { return toast(tr("app.impossibile_aprire") + e.message, true); }
   if (info.nuvola) {
     // file solo su OneDrive: si scarica solo con conferma; se il download viene annullato l'apertura si ferma
     const ok = await confirmBox(tr("app.file_solo_onedrive"), tr("app.0_1_non_ancora_questo", info.nome, fmtSize(info.size)), tr("app.scarica_apri"));
@@ -527,11 +536,23 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   const name = extraCtx.displayName || info.nome;
   const { cat } = resolveCategory(extraCtx.displayName && !extOf(extraCtx.displayName) ? info.nome : name, info.sniff);
   const ext = extFor(info.nome);
-  let viewer = forcedViewer || (cat ? cat.viewer : "hex");
+  // estensione non in elenco: schermata di riconoscimento e recupero (ui/js/viewers/recover.js); i byte grezzi restano a un clic
+  let viewer = forcedViewer || (cat ? cat.viewer : WEB ? "hex" : "recover");
   if (!forcedViewer && !WEB && TOOLS.onlyoffice && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
   // Navisworks senza Navisworks: NWD e NWC si aprono nel visualizzatore 3D (lettore nwd2mbv)
   if (!forcedViewer && !WEB && TOOLS.nwdreader && ["nwd", "nwc", "nwf"].includes(ext)) viewer = "model3d";
   if (!forcedViewer) viewer = await gisViewer(path, ext, viewer);
+  // controllo veloce dei formati principali (coda dei PDF, indice degli ZIP, fine delle immagini...): se il file e'
+  // danneggiato si mostra subito la schermata di recupero, con "Apri comunque l'originale" (mbvisual/recover.py check)
+  let recovery = null;
+  if (!WEB && (!forcedViewer || forcedViewer === "recover") && !extraCtx.noCheck && (cat || forcedViewer)) {
+    try {
+      const chk = await api("recover", { op: "check", path, ext });
+      if (chk.danneggiato) { recovery = { mode: "damaged", check: chk, intended: viewer === "recover" ? (cat?.viewer || null) : viewer }; viewer = "recover"; }
+      else if (forcedViewer === "recover") recovery = { mode: "manual", check: chk, intended: cat?.viewer || null };
+    } catch { /* il controllo non deve mai impedire l'apertura */ }
+  }
+  if (!recovery && viewer === "recover") recovery = { mode: cat ? "manual" : "unknown", intended: cat?.viewer || null };
   const view = el("div", { class: "view" });
   const tb = el("div", { class: "tb" });
   const body = el("div", { class: "body" });
@@ -540,10 +561,10 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   const tab = { path, name, viewer, forced: !!forcedViewer, info, view, dirty: false, extra: "", cat, compareWith: extraCtx.compareWith };
   tabs.push(tab);
   activate(tab);
-  if (!extraCtx.untitled) remember(path);
+  if (!extraCtx.untitled && !path.startsWith("mail://")) remember(path);
   const ctx = {
     path, name, ext, info, cat, el: body, tb, tab, tools: TOOLS, registry: REG,
-    reason: !cat && !forcedViewer ? "unlisted" : null, ...extraCtx,
+    reason: !cat && !forcedViewer ? "unlisted" : null, recovery, ...extraCtx,
     setDirty(v) { if (tab.dirty !== v) { tab.dirty = v; renderTabs(); } },
     status(text) { tab.extra = text || ""; if (active === tab) updateStatus(); },
     openPaths, openAs: v => openFile(tab.path, v), openFile,
@@ -553,11 +574,49 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
     const mod = await import(`./viewers/${viewer}.js`);
     tab.api = (await mod.mount(ctx)) || {};
     addOfficeButton(tab, tb);
+    addDrawingButton(tab, tb);
+    afterMount(ctx); // tablet: pannello laterale a scomparsa
     if (extraCtx.untitled) { tab.untitled = true; tab.dirty = true; renderTabs(); } // file nuovo: si salva quando e dove si vuole
   } catch (e) {
     console.error(e);
     showError(ctx, e);
   }
+}
+
+// anteprima di un file dentro un pannello di un altro visualizzatore (es. allegati nella lettura della posta): stesso
+// visualizzatore delle schede, senza aprire una scheda. host deve essere posizionato (position: relative).
+export async function mountPreview(path, host, extra = {}) {
+  await READY;
+  const info = await api("info", { path });
+  const { cat } = resolveCategory(info.nome, info.sniff);
+  const ext = extFor(info.nome);
+  let viewer = cat ? cat.viewer : "hex";
+  if (!WEB && TOOLS.onlyoffice && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
+  if (!WEB && TOOLS.nwdreader && ["nwd", "nwc", "nwf"].includes(ext)) viewer = "model3d";
+  viewer = await gisViewer(path, ext, viewer);
+  host.innerHTML = "";
+  const tb = el("div", { class: "tb" });
+  const body = el("div", { class: "body" });
+  const view = el("div", { class: "view preview-view" }, tb, body);
+  host.append(view);
+  const tab = { path, name: info.nome, viewer, info, view: extra.ownerView || view, dirty: false, extra: "", cat, preview: true };
+  const ctx = {
+    path, name: info.nome, ext, info, cat, el: body, tb, tab, tools: TOOLS, registry: REG, reason: cat ? null : "unlisted", ...extra,
+    setDirty() { /* anteprima: niente salvataggi */ }, status() { /* */ }, openPaths, openAs: v => openFile(path, v), openFile,
+    fillBody(fill = true) { body.classList.toggle("fill", fill); },
+  };
+  try {
+    const mod = await import(`./viewers/${viewer}.js`);
+    tab.api = (await mod.mount(ctx)) || {};
+  } catch (e) { console.error(e); showError(ctx, e); }
+  return { tab, viewer, name: VIEWER_NAMES[viewer] || viewer, dispose() { try { tab.api?.dispose?.(); } catch { /* */ } view.remove(); } };
+}
+
+// posta elettronica (ui/js/mail): una scheda sola, riattivata se gia' aperta
+export function openMail(opts = {}) {
+  const t = tabs.find(x => x.viewer === "mail");
+  if (t) { activate(t); if (opts.go) t.api?.go?.(opts.go); return t; }
+  return openFile("mail://posta", "mail", { displayName: tr("mail.posta"), ...opts });
 }
 
 // GeoTIFF e zip con shapefile si aprono nella mappa GIS (ui/js/viewers/gis.js); gli altri TIFF e ZIP restano immagini e archivi
@@ -571,6 +630,12 @@ async function gisViewer(path, ext, viewer) {
 }
 
 export function showError(ctx, e) {
+  // al posto del messaggio di errore: schermata di recupero (cosa e' successo, cosa si e' salvato, Apri il recuperato...)
+  if (!WEB) return import("./viewers/recover.js").then(m => m.showRecovery(ctx, e)).then(a => { if (ctx.tab) ctx.tab.api = a || {}; }).catch(err => { console.error(err); showErrorPlain(ctx, e); });
+  showErrorPlain(ctx, e);
+}
+
+function showErrorPlain(ctx, e) {
   ctx.el.innerHTML = "";
   ctx.el.append(el("div", { class: "center" }, el("div", { class: "panel", style: { maxWidth: "560px", textAlign: "left" } },
     el("h3", { style: { marginTop: 0 } }, tr("app.non_stato_possibile_mostrare_contenuto")),
@@ -616,6 +681,10 @@ async function save(asNew) {
 }
 
 async function doSave(t, a, target) {
+  if (t.path.startsWith("mail://")) { // messaggio in composizione: "salva" = bozza (ui/js/mail/compose.js)
+    try { await a.save(target); t.dirty = false; renderTabs(); } catch (e) { toast(e.message, true, 6000); }
+    return;
+  }
   try {
     const res = (await a.save(target)) || {};
     t.dirty = false;
@@ -663,6 +732,8 @@ async function chooseFormat(t, a) {
 }
 
 async function convertTo(t, a, target) {
+  // PDF e immagini in DXF/DWG: la finestra "Converti in disegno" (scala, layer, pulizia, anteprima) con il nome gia' scelto
+  if (/^(dxf|dwg)$/.test(extOf(target)) && canToDrawing(t)) return toDrawing(t, target);
   try {
     let src = t.path;
     // modifiche non ancora salvate: prima si salva una copia temporanea, poi si converte quella
@@ -680,6 +751,21 @@ async function convertTo(t, a, target) {
     console.error(e);
     toast(tr("app.conversione_non_riuscita") + e.message, true, 8000);
   }
+}
+
+// ------------------------------------------------------------------ PDF e immagini -> disegno DXF/DWG (ui/js/todrawing.js, mbvisual/todrawing.py)
+const ICON_TODRAW = '<svg viewBox="0 0 24 24"><path d="M4 4h9l4 4v5M13 4v4h4M4 4v16h7"/><path d="M14 17h7M14 21l7-8M17.5 21a3.5 3.5 0 0 0 0-7"/></svg>';
+const TODRAW_EXT = /^(pdf|png|jpe?g|jpe|jfif|tiff?|bmp|dib|gif|webp|avif|heic|heif|jp2|j2k|jpx|tga|pcx|ppm|pgm|pbm|pnm|qoi)$/;
+const canToDrawing = t => !!t && !WEB && !!t.path && !t.path.startsWith("web://") && !t.path.startsWith("download://") && TODRAW_EXT.test(extOf(t.info?.nome || t.path));
+function toDrawing(t = active, out = null) {
+  if (!canToDrawing(t)) return;
+  import("./todrawing.js").then(m => m.openToDrawing({ path: t.path, out, openFile }));
+}
+function addDrawingButton(t, tb) {
+  if (!canToDrawing(t) || !["pdf", "image"].includes(t.viewer)) return;
+  const b = button(tr("todrawing.converti_disegno"), ICON_TODRAW, () => toDrawing(t), { title: tr("todrawing.converti_disegno_aiuto") });
+  b.classList.add("td-btn");
+  tb.prepend(b, el("span", { class: "sep" }));
 }
 
 // ------------------------------------------------------------------ modifica nei programmi Office e ricarica automatica
@@ -701,7 +787,7 @@ async function syncStat(t) {
 
 // un file aperto e salvato da un altro programma (Excel, Word, AutoCAD...) si ricarica da solo
 async function checkExternalChange(t) {
-  if (!t || WEB || !t.info || t.reloading || t.checking || t.path.startsWith("web://") || t.path.startsWith("download://")) return;
+  if (!t || WEB || !t.info || t.reloading || t.checking || t.path.startsWith("web://") || t.path.startsWith("download://") || t.path.startsWith("mail://")) return;
   t.checking = true;
   try {
     let s;
@@ -766,6 +852,7 @@ function compatibleViewers(t) {
   if (ext === "pdf" || kind === "pdf") add("pdf");
   if (kind === "text" || TEXT_LIKE.has(ext)) add("text");
   if (kind === "zip" || ZIP_BASED.has(ext)) add("archive");
+  if (!WEB) add("recover"); // riconoscimento dal contenuto, recupero, file incorporati
   add("hex"); // i byte grezzi si possono sempre vedere
   return out;
 }
@@ -922,7 +1009,10 @@ function openPalette() {
     c(ICON_I("M3 6h6l2 2h10v11H3zM3 10h18"), tr("app.cartella_progetto"), "", chooseExplorerFolder, !WEB),
     c(ICON_I("M11 17.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM16 16l4.5 4.5"), tr("search.cerca_titolo"), "Ctrl+Shift+F", () => import("./search.js").then(m => m.toggle(true)), !WEB),
     c(ICON_FORMATS, tr("idx.elenco_completo_formati_supportati"), "", () => { if ($("formats").hidden) toggleFormats(); }),
+    c(ICON_MAIL, tr("mail.posta_titolo"), "", () => openMail(), !WEB),
+    c(ICON_MAIL_NEW, tr("mail.nuovo_messaggio"), "", () => import("./mail/mailapp.js").then(m => m.newMessage()), !WEB),
     c(ICON_I("M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18"), tr("app.firma_digitale"), "", () => import("./firma.js").then(f => f.signDialog({ path: active.path, openFile })), !WEB && !!active?.path),
+    c(ICON_TODRAW, tr("todrawing.converti_disegno_menu"), "", () => toDrawing(), canToDrawing(active)),
     c(ICON_I("M4 4h7v16H4zM13 4h7v16h-7M8 9l-2 2 2 2M16 9l2 2-2 2"), tr("app.confronta_con"), "", compareWith, has && active.viewer !== "compare" && COMPARE_EXT.test(extOf(active.info?.nome || active.name))),
     c(ICON_I("M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"), tr("idx.tema_chiaro_scuro"), "", () => $("btn-theme").click()),
     c(ICON_I("M3 6h18v12H3zM6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"), tr("app.scorciatoie_tastiera"), "F1", showShortcuts),
@@ -1011,7 +1101,9 @@ async function boot() {
   setupDrop();
   setupTheme();
   setupBack();
+  initTouch();
   if (!WEB) import("./cloud.js").then(m => m.setupCloud()).catch(e => console.error(e)); // archivi cloud (SharePoint, Drive, Dropbox, Autodesk)
+  if (!WEB) import("./mail/mailbadge.js").then(m => m.setupMailBadge()).catch(e => console.error(e)); // posta in background: messaggi da leggere, avvisi
   if (!WEB) licenseGate(); // licenza dell'app per PC: senza attivazione copre l'app con la schermata della chiave
   if (!WEB) setupMobileQr(); // QR nella home per installare l'app sul cellulare (posti liberi della licenza)
   if (!WEB) setTimeout(() => checkUpdates(false), 3000);
@@ -1042,6 +1134,7 @@ async function boot() {
   $("btn-formats").addEventListener("click", toggleFormats);
   $("btn-home").addEventListener("click", () => activate(null));
   $("btn-search").addEventListener("click", () => import("./search.js").then(m => m.toggle()));
+  $("btn-mail").addEventListener("click", () => openMail());
   $("btn-keys").addEventListener("click", showShortcuts);
   $("btn-palette").addEventListener("click", openPalette);
   document.addEventListener("click", e => { if (!e.target.closest(".menu-wrap")) closeMenus(); });
@@ -1062,5 +1155,5 @@ async function boot() {
   renderTabs();
 }
 
-window.MB = { openPaths, openFile, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, get exDir() { return exDir; }, activate, modal, askQuit, print: doPrint };
+window.MB = { openPaths, openFile, openMail, mountPreview, closeTab, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, get exDir() { return exDir; }, activate, modal, askQuit, print: doPrint, save: asNew => save(!!asNew) };
 const READY = boot();

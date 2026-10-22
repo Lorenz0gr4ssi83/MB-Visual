@@ -1,0 +1,136 @@
+/* Tablet (iPad, Android) e schermi tattili: caricato da ui/js/touch.js solo sui dispositivi con il tocco.
+   html.touch = il dito e' il puntatore principale (con tastiera e trackpad collegati all'iPad la classe resta, i bersagli
+   restano comodi). Bersagli tattili di almeno 40 px, pannelli a scomparsa, tastiera virtuale, aree sicure dell'app installata.
+   Colori e raggi: solo i token di app.css ("Grafite di precisione"). */
+
+/* ---------------------------------------------------------------- base */
+html.touch body { height: var(--app-h, 100%); -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none;
+  touch-action: pan-x pan-y; } /* niente zoom della pagina intera: il pizzico lo gestiscono i documenti (PDF, disegni, 3D, mappe) */
+html.touch .tabs, html.touch .cmdbar, html.touch .rail, html.touch .tb, html.touch .menu, html.touch .statusbar { -webkit-user-select: none; user-select: none; }
+html.touch input, html.touch textarea, html.touch select { font-size: max(16px, 1em); } /* iOS non ingrandisce la pagina sui campi da 16 px */
+html.touch .tb input, html.touch .tb select, html.touch .field { font-size: 16px; }
+/* tastiera virtuale aperta: finestre e avvisi restano sopra la tastiera */
+html.kb-open .modal-back { bottom: var(--kb, 0px); }
+html.kb-open .modal { max-height: calc(var(--app-h, 100vh) - 24px); }
+html.kb-open .toast { bottom: calc(var(--kb, 0px) + 12px); }
+html.kb-open .statusbar { display: none; }
+
+/* app installata (Aggiungi alla schermata Home): barra di stato del sistema e indicatore Home */
+html.standalone .titlebar { padding-top: env(safe-area-inset-top, 0px); height: calc(40px + env(safe-area-inset-top, 0px)); }
+html.standalone .statusbar { padding-bottom: env(safe-area-inset-bottom, 0px); height: calc(26px + env(safe-area-inset-bottom, 0px)); }
+html.standalone .workspace { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+
+/* ---------------------------------------------------------------- bersagli tattili (almeno 40 px) */
+html.touch .titlebar { height: 48px; }
+html.standalone.touch .titlebar { height: calc(48px + env(safe-area-inset-top, 0px)); }
+html.touch .tab { height: 42px; padding-left: 14px; }
+html.touch .tab .x { width: 40px; height: 40px; border-radius: 10px; margin-right: -4px; }
+html.touch .tab .x svg { width: 15px; height: 15px; }
+html.touch .tab:not(.active):not(:hover) .x { opacity: .55; } /* niente "al passaggio del mouse": la X si vede sempre */
+html.touch .tab-closeall { height: 40px; min-width: 40px; justify-content: center; margin-bottom: 2px; }
+html.touch .omni { height: 40px; }
+html.touch .cmdbar { height: 54px; }
+html.touch .cmd { height: 42px; min-width: 42px; padding: 0 12px; }
+html.touch .cmd.icon-only { padding: 0 11px; }
+html.touch .rail { width: 60px; gap: 6px; }
+html.touch .rail button { width: 46px; height: 46px; border-radius: 12px; }
+html.touch .rail button svg { width: 22px; height: 22px; }
+html.touch .tb { min-height: 54px; gap: 4px; padding: 6px 10px; }
+html.touch .tb button, html.touch .btn { height: 40px; min-width: 40px; padding: 0 12px; justify-content: center; }
+html.touch .tb button.icon { padding: 0; width: 42px; }
+html.touch .tb input[type="number"], html.touch .tb input[type="text"], html.touch .tb input[type="search"], html.touch .tb select, html.touch .field { height: 40px; }
+html.touch .tb input[type="range"] { height: 40px; }
+html.touch .tb .sep { height: 26px; }
+html.touch .seg button { height: 36px !important; min-width: 40px; }
+html.touch .seg { padding: 2px; }
+html.touch .menu { padding: 8px; }
+html.touch .menu button { min-height: 46px; font-size: 14.5px; padding: 8px 12px; }
+html.touch .menu .hint { display: none; }
+html.touch .modal .row .btn { height: 44px; padding: 0 20px; }
+html.touch .modal input[type="text"], html.touch .modal input[type="password"], html.touch .modal input[type="search"] { height: 44px; }
+html.touch .mini { height: 40px; padding: 0 14px; }
+html.touch .ex-item { min-height: 44px; }
+html.touch .ex-filter { height: 42px; }
+html.touch .new-chip { height: 46px; }
+html.touch .tree .node, html.touch label.node { min-height: 40px; }
+html.touch input[type="checkbox"], html.touch input[type="radio"] { width: 20px; height: 20px; }
+html.touch ::-webkit-scrollbar { width: 6px; height: 6px; }
+/* niente scorciatoie da tastiera dove non c'e' una tastiera */
+@media (pointer: coarse) and (not (any-pointer: fine)) {
+  html.touch .omni kbd, html.touch .btn kbd, html.touch .home-keys, html.touch .menu .hint { display: none; }
+}
+
+/* ---------------------------------------------------------------- pannelli laterali a scomparsa (touch.js afterMount) */
+html.touch .drawer-btn svg { width: 19px; height: 19px; }
+.drawer { position: relative; }
+.drawer > :first-child { transition: transform .22s cubic-bezier(.2, .8, .2, 1), box-shadow .22s; }
+.drawer.drawer-closed { grid-template-columns: 0 1fr !important; }
+.drawer.drawer-closed > :first-child { visibility: hidden; border: 0; }
+@media (max-width: 1099px), (orientation: portrait) {
+  /* il pannello e' fuori dalla griglia (assoluto): il documento occupa l'unica colonna */
+  .drawer, .drawer.drawer-closed { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: minmax(0, 1fr) !important; }
+  .drawer > :first-child { position: absolute; z-index: 25; left: 0; top: 0; bottom: 0; width: min(360px, 84%); max-height: none !important;
+    box-shadow: var(--sh-3); border-right: 1px solid var(--line-strong); transform: translateX(-104%); visibility: visible; }
+  .drawer.drawer-open > :first-child { transform: none; }
+  .drawer.drawer-closed > :first-child { visibility: hidden; }
+}
+
+/* ---------------------------------------------------------------- tablet in verticale e iPad 11" (761-1099 px) */
+@media (min-width: 761px) and (max-width: 1099px) {
+  html.touch .omni { width: 52px; padding: 0; justify-content: center; }
+  html.touch .omni span, html.touch .omni kbd { display: none; }
+  html.touch .crumb { display: none; }
+  html.touch .cmd > span { display: none; }
+  html.touch .cmd.primary-cmd > span { display: inline; }
+  html.touch .tb .note { display: none; }
+  html.touch .tb { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  html.touch .tb::-webkit-scrollbar { display: none; }
+  html.touch .tb > * { flex: none; }
+  html.touch .tb .grow { flex: 1 0 0; }
+  html.touch .formats { padding: 24px 22px 48px; }
+  html.touch .explorer { width: 300px; }
+}
+/* barra del visualizzatore: una riga che scorre anche nei tablet in orizzontale, invece di andare su piu' righe */
+@media (min-width: 1100px) {
+  html.touch .tb { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  html.touch .tb::-webkit-scrollbar { display: none; }
+  html.touch .tb > * { flex: none; }
+  html.touch .tb .note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
+}
+
+/* ---------------------------------------------------------------- visualizzatori: bersagli trovati piccoli nelle prove su tablet */
+html.touch .link { min-height: 40px; display: inline-flex; align-items: center; }
+html.touch .seg button { height: 40px !important; }
+/* editor di immagini (Photoshop) */
+html.touch .ps-root { grid-template-columns: 54px 1fr 300px; }
+html.touch .ps-root.ps-nopanels { grid-template-columns: 54px 1fr 0; }
+html.touch .ps-root.ps-full { grid-template-columns: 0 1fr 0; }
+html.touch .ps-tool { width: 44px; height: 42px; }
+html.touch .ps-colors { width: 48px; height: 52px; }
+html.touch .ps-sw { width: 30px; height: 30px; }
+html.touch .ps-sw-bg { left: 16px; top: 20px; }
+html.touch .ps-mini { width: 22px; height: 22px; align-items: center; justify-content: center; }
+html.touch .ps-dtab { height: 40px; padding: 0 14px; font-size: 13px; }
+html.touch .ps-num { height: 36px; font-size: 16px; }
+html.touch .ps-obtn { width: 40px; height: 40px; }
+html.touch .ps-eye { width: 40px; }
+html.touch .ps-mbtn { height: 40px; padding: 0 12px; font-size: 14px; }
+html.touch .ps-options { min-height: 52px; }
+@media (max-width: 760px) { html.touch .ps-root, html.touch .ps-root.ps-nopanels { grid-template-columns: 54px 1fr 0; } html.touch .ps-root .ps-panels { left: 54px; } }
+/* mappa GIS */
+html.touch .gis-left-head button, html.touch .gis-layer-row button, html.touch .gis-prop-btns button { height: 40px; min-width: 40px; justify-content: center; }
+html.touch .ol-zoom button, html.touch .ol-control button { width: 40px; height: 40px; font-size: 22px; }
+/* confronto tra revisioni */
+html.touch .cmp-bar button { height: 40px; padding: 0 12px; font-size: 13px; }
+html.touch .cmp-bar button.icon { width: 42px; padding: 0; justify-content: center; }
+html.touch .cmp-sec h4 button { min-height: 40px; padding: 0 8px; }
+html.touch .ps-lyb { width: 42px; height: 40px; }
+html.touch .ps-num { height: 40px; }
+html.touch .ps-eye { min-height: 40px; }
+html.touch .cmp-sec h4 button { min-width: 40px; }
+/* confronto: in verticale anche il dettaglio delle proprieta' (IFC) scorre sopra il disegno, a destra */
+@media (max-width: 1099px), (orientation: portrait) {
+  .cmp-root.drawer > .cmp-detail { position: absolute; z-index: 24; right: 0; top: 0; bottom: 0; width: min(360px, 84%); box-shadow: var(--sh-3); }
+}
+/* voci dei menu degli editor (Photoshop, Publisher, CAD, Visio) */
+html.touch .ps-mit, html.touch .pb-mit, html.touch .cad-menu-it { min-height: 44px; font-size: 14px; }

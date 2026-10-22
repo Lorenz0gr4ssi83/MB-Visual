@@ -5,6 +5,7 @@ import { openPackage } from "../dwfpkg.js";
 import { prepareSheet, drawSheet, pick, snap, buildIndex, primBBox, primQuad } from "../dwfdraw.js";
 import { sheetToPng, sheetToSvg, sheetsToPdf } from "../dwfexport.js";
 import { t, LOCALE } from "../i18n.js";
+import { measureBtn, mbmisOf } from "../measure/mbutton.js";
 
 const fmt = (v, d = 4) => (isFinite(v) ? v.toLocaleString(LOCALE, { maximumFractionDigits: d }) : "-");
 const UNIT_LABEL = { mm: "mm", in: "in", ft: "ft", m: "m", cm: "cm", ftin: "" };
@@ -79,7 +80,15 @@ export async function mount(ctx) {
   const bSvg = button("SVG", "download", () => exportCur("svg"), { title: t("v_dwf.foglio_svg_vettoriale") });
   const bPdf = button("PDF", "download", () => exportCur("pdf"), { title: t("v_dwf.foglio_pdf_vettoriale_salva_nome") });
   bText.classList.add("on"); bMk.classList.add("on");
-  tb2d.push(bFit, bIn, bOut, el("span", { class: "sep" }), bSel, bDist, bArea, el("span", { class: "sep" }), bText, bThin, bMk, bDark, el("span", { class: "sep" }), bPng, bSvg, bPdf);
+  // misure ed estrazioni (pannello comune a PDF, CAD e 3D: ui/js/measure/mcad.js attachDwf; misure nel file .mbmis accanto)
+  let meas = null, measP = null;
+  const measGet = () => (measP ??= import("../measure/mcad.js").then(async m => (meas = await m.attachDwf(ctx, {
+    host: stage, draw: () => draw(), toWorld: (x, y) => toWorld(x, y), toScreen: (x, y) => toScreen(x, y), get view() { return view; }, zoomTo: bb => zoomBox(bb),
+    sheet: () => sheet, sheetIndex: () => pkg.sheets.indexOf(cur), openIndex: i => openSheet(pkg.sheets[i]), isVisible: p => isVisible(p),
+  }))));
+  const bMeas = measureBtn(async () => { const m = await measGet(); m.toggle(); bMeas.classList.toggle("on", m.open); });
+  if (!WEB && ctx.path) api("stat", { path: mbmisOf(ctx.path) }, { allowFail: true }).then(r => { if (r?.ok) measGet().then(() => draw()); }).catch(() => {});
+  tb2d.push(bFit, bIn, bOut, el("span", { class: "sep" }), bSel, bDist, bArea, bMeas, el("span", { class: "sep" }), bText, bThin, bMk, bDark, el("span", { class: "sep" }), bPng, bSvg, bPdf);
   const tbNote = el("span", { class: "note" }, t("v_dwf.rotella_zoom_trascina_sposta_doppio"));
   const tb2dBox = el("span", { style: { display: "contents" } }, ...tb2d, el("span", { class: "grow" }), tbNote);
   const tb3dBox = el("span", { style: { display: "none" } });
@@ -130,6 +139,7 @@ export async function mount(ctx) {
       sheet = sh; prep = pr;
       for (const L of sheet.layers.values()) if (!L.on) hiddenLayers.add(L.name);
       highlight = new Set(); selIndex = null; mpts = [];
+      meas?.sheetChanged();
       renderLayers(); renderMarkups(); renderProps(null); searchBox.value = ""; renderSearch();
       tbNote.textContent = sheet.warnings.length ? t("v_dwf.lettura_parziale") + sheet.warnings[0] : t("v_dwf.rotella_zoom_trascina_sposta_doppio");
       bMk.style.display = sheet.markups.length ? "" : "none";
@@ -327,6 +337,8 @@ export async function mount(ctx) {
       else { g2.moveTo(x - r, y - r); g2.lineTo(x + r, y + r); g2.moveTo(x + r, y - r); g2.lineTo(x - r, y + r); }
       g2.stroke();
     }
+    g2.setTransform(1, 0, 0, 1, 0, 0);
+    meas?.paint(g2);
   }
 
   // ---- misure in unita' del disegno (riquadro o foglio) e in unita' della carta
@@ -388,6 +400,7 @@ export async function mount(ctx) {
   canvas.addEventListener("pointerdown", e => {
     if (!sheet) return;
     const [px, py] = pos(e);
+    if (e.button === 0 && meas?.down(e, px, py)) { try { canvas.setPointerCapture(e.pointerId); } catch { /* */ } return; }
     drag = { px, py, tx: view.tx, ty: view.ty, moved: false, button: e.button };
     try { canvas.setPointerCapture(e.pointerId); } catch { /* eventi simulati */ }
   });
@@ -404,12 +417,15 @@ export async function mount(ctx) {
     const u = unitsAt(x, y);
     if (u) { const [dx, dy] = applyM(u.toDrawing, x, y); ctx.status(`X ${fmtU(dx, u, 3)}  Y ${fmtU(dy, u, 3)} ${UNIT_LABEL[u.name] ?? u.raw ?? ""}${u.label ? " · " + u.label : ""}`); }
     else ctx.status(`X ${fmt(x, 2)}  Y ${fmt(y, 2)} ${sheet.paper?.units || ""}`);
+    if (meas?.move(e, px, py)) return;
     if (mode !== "sel") { msnap = snap(sheet, x, y, 8 * dpr() / view.s, isVisible); draw(); }
   });
   canvas.addEventListener("pointerup", e => {
+    if (meas?.up(e, ...pos(e))) return;
     if (!drag || !sheet) { drag = null; return; }
     const d = drag;
     drag = null;
+    if (!d.moved && d.button === 2 && meas?.context()) return;
     if (d.moved || d.button !== 0) return;
     const [px, py] = pos(e);
     const [x, y] = toWorld(px, py);
@@ -419,7 +435,8 @@ export async function mount(ctx) {
     else mpts.push(pt);
     draw();
   });
-  canvas.addEventListener("dblclick", () => {
+  canvas.addEventListener("dblclick", e => {
+    if (meas?.dbl(e, ...pos(e))) return;
     if (mode === "area" && mpts.length > 2) { mpts.pop(); ctx.status(measureLabel(null)); toast(measureLabel(null), false, 6000); mode = "area"; const done = [...mpts]; mpts = done; draw(); return; }
     if (mode === "sel") fit();
   });
@@ -427,6 +444,7 @@ export async function mount(ctx) {
   canvas.addEventListener("wheel", e => { e.preventDefault(); const [px, py] = pos(e); zoomAt(e.deltaY < 0 ? 1.2 : 1 / 1.2, px, py); }, { passive: false });
   const onKey = e => {
     if (ctx.tab.view.hidden || stage.style.display === "none" || /input|textarea|select/i.test(document.activeElement?.tagName || "")) return;
+    if (meas?.key(e)) { e.preventDefault(); return; }
     if (e.key === "Escape") { mpts = []; selectPrim(null); }
     else if (e.key === "Enter" && mode === "area" && mpts.length > 2) { toast(measureLabel(null), false, 6000); }
   };
@@ -495,7 +513,8 @@ export async function mount(ctx) {
       await api("save", { path: target }, { body: new Uint8Array(await blob.arrayBuffer()) });
       return { switchTo: false };
     },
-    dispose() { window.removeEventListener("keydown", onKey); try { api3d?.dispose?.(); } catch { /* */ } },
+    _meas: { get: measGet }, // collaudo dalla console: (await MB.active.api._meas.get()).M
+    dispose() { window.removeEventListener("keydown", onKey); meas?.dispose(); try { api3d?.dispose?.(); } catch { /* */ } },
   };
 }
 const applyM = (M, x, y) => [M[0] * x + M[2] * y + M[4], M[1] * x + M[3] * y + M[5]];

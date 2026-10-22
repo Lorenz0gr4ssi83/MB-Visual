@@ -1,0 +1,36 @@
+{
+ "pdf": {
+  "scala": 100,
+  "area_locale": 20.0,
+  "perimetro_locale": 18.0,
+  "area_pavimento": 23.0,
+  "tubo": 10.0,
+  "simboli_cerchio": 10,
+  "simboli_quadrato": 5,
+  "dettaglio_scala": 20,
+  "dettaglio_linea": 1.0
+ },
+ "dxf": {
+  "MURI_len_mm": 23497.787143782138,
+  "TUBI_len_mm": 10000,
+  "PAVIMENTO_area_mm2": 23000000.0,
+  "SEDIA": 16,
+  "TAVOLO": 3,
+  "GRUPPO": 2,
+  "chiuse_area_mm2": {
+   "rett": 20000000.0,
+   "cerchio": 785398.1633974483
+  }
+ },
+ "ifc": {
+  "volume": {
+   "Calcestruzzo": 24.48,
+   "Laterizio": 5.4
+  },
+  "livello": {
+   "Piano terra": 14.88,
+   "Piano primo": 15.0
+  },
+  "W1_area": 67.8
+ }
+}

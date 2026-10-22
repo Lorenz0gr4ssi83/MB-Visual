@@ -1,0 +1,3 @@
+Messaggi PEC di prova generati da tools/make_pec_samples.py con un gestore simulato (tests/pecsim.py):
+firma S/MIME con un certificato autofirmato creato al momento, daticert.xml come da regole tecniche.
+Non hanno valore legale.

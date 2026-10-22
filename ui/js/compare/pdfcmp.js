@@ -3,6 +3,7 @@
 import { button, el, readBytes, toast } from "../core.js";
 import { COL, canvasJpeg, csvBlob, diffHunks, diffList, footerNumbers, legend, pdfDoc, reportHeader, reportTable, saveXlsx, chipBox } from "./common.js";
 import { t as tr } from "../i18n.js";
+import { pinchPan } from "../touch.js";
 
 let LIB = null;
 async function pdfjs() {
@@ -476,6 +477,14 @@ export async function mountCompare(env) {
     } else { ovScroll.scrollLeft = drag.sl - dx; ovScroll.scrollTop = drag.st - dy; }
   });
   sheet.addEventListener("pointerup", () => { if (drag && moveMode) aligned(); drag = null; });
+  // tablet: un dito sposta (sopra), pizzico = zoom e due dita = scorrimento; lo zoom si applica una volta per fotogramma
+  sheet.style.touchAction = "none";
+  let pinchF = 1, pinchRaf = 0;
+  pinchPan(sheet, {
+    onStart: () => { drag = null; },
+    onPan: (dx, dy) => { ovScroll.scrollLeft -= dx; ovScroll.scrollTop -= dy; },
+    onZoom: f => { pinchF *= f; if (!pinchRaf) pinchRaf = requestAnimationFrame(() => { pinchRaf = 0; const k = pinchF; pinchF = 1; zoomBy(k); }); },
+  });
   ovScroll.addEventListener("wheel", e => { if (e.ctrlKey) { e.preventDefault(); zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15); } }, { passive: false });
   const onKey = e => {
     if (ctx.tab.view.hidden || /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || "")) return;

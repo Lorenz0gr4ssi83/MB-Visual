@@ -47,6 +47,7 @@ OPS = {
     "pdf_compress": "srv_batch.op_pdf_comprimi",
     "pdf_ocr": "srv_batch.pdf_scansionati_rendi_ricercabili_ocr",
     "video": "srv_batch.op_video",
+    "drawing": "srv_batch.op_disegno",
 }
 
 
@@ -96,6 +97,8 @@ def applies(op: str, fam: str | None, ext: str, opts: dict) -> bool:
         return fam == "pdf"
     if op == "video":
         return fam == "media"
+    if op == "drawing":
+        return fam in ("pdf", "image")
     return False
 
 
@@ -362,6 +365,17 @@ class Batch:
             return {"msg": tr("srv_batch.0_pagine_riconosciute_1_parole", r['pagine'], r['parole']) if r["pagine"] else tr("srv_batch.pdf_aveva_gia_testo")}
         if op == "video":
             return self._video(it)
+        if op == "drawing":
+            # PDF vettoriali, scansioni e immagini -> DXF/DWG (mbvisual/todrawing.py, stesse opzioni della finestra)
+            from . import todrawing
+            to = "dwg" if self.opts.get("to") == "dwg" else "dxf"
+            out = self.out_path(it, to)
+            r = todrawing.convert(src, out, self.opts, update=self.update)
+            it["out"] = [out]
+            st = r.get("stats") or {}
+            n = sum(st.values())
+            msg = tr("srv_batch.disegno_0_entita", n) + (" - " + tr("srv_batch.disegno_approssimato") if r.get("approx") else "")
+            return {"msg": msg}
         raise ValueError(tr("srv_batch.operazione_sconosciuta"))
 
     # ------------------------------------------------------------ conversione di formato

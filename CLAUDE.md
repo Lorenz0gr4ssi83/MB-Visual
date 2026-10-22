@@ -435,6 +435,43 @@ Librerie in fetch_vendor.py: ol (BSD-2), proj4 2.12.1 (MIT), geotiff 2.1.3 (MIT)
   serve un venv a parte con pyproj e pyshp, NON nell'app). Prove dalla console: `MB.active.api._gis` (map, layers, sel, addPaths, saveVector).
 - Prove nel riquadro browser: il cookie "mbv" e' per host e non per porta, quindi altre sessioni con un server di prova lo sovrascrivono
   (403 "non autorizzato"): usare http://localhost:PORTA/?t=... oppure aggiungere ?t= alle richieste.
+## Disegni e tavole sulla mappa (22/10/2026) - FATTO
+DWG/DXF e PDF come livelli del visualizzatore GIS. Ingressi: pulsante "Mostra sulla mappa" nel CAD 2D (`ctx.openAs("gis")`: il GIS
+apre il disegno come primo file), "Aggiungi disegno..." nella barra del GIS, trascinamento di dwg/dxf/pdf sulla mappa (acceptDrop).
+- `ui/js/georef.js` = solo calcolo (collaudo `node tests/test_georef.mjs`, 41 prove): affine X = aX+bY+c, Y = dx+ey+f ai minimi
+  quadrati su coordinate ridotte ai baricentri; metodi rigida (scala nota: unita' del disegno o scala della tavola, 1+ punti,
+  rotazione data con un punto), similarita' (2+), affine (3+); scarti per punto e RMS in metri, punti escludibili (off).
+  GEODATA: DXF letto dal testo (`geodataFromDxf`), DWG con l'API dinamica di libredwg (`dwgGeodata` in cad2d.js, solo se
+  `ctx.geodata`): punto di progetto -> punto di riferimento (tipo 3 = lon/lat, proiettato nel sistema), scala orizzontale,
+  rotazione dalla direzione del nord; sistema da `<Alias id="EPSG">` dell'XML di AutoCAD/Map 3D, WKT o nome (`epsgFromCsDef`).
+  Coordinate gia' georeferenziate riconosciute dall'estensione (`guessFromExtent`: Gauss-Boaga O/E, fuso Italia, UTM -> 7791).
+- `ui/js/gisdraw.js`: ogni disegno ha una proiezione OpenLayers "MBVDRAW:n" (piano del disegno) collegata con
+  addCoordinateTransforms a TUTTI i sistemi di giscrs (affine + proj4): riproiezione, esportazioni GeoJSON/KML/shapefile
+  (exportFeatures di gis.js) e raster PDF riproiettato (ImageStatic con projection = quella del disegno) funzionano senza casi
+  speciali. CAD: `readDrawing`/`buildModel` -> un MultiLineString / MultiPolygon ogni 2000 tratti per gruppo layer+colore (non
+  un elemento per entita': troppi oggetti OpenLayers), testi = punti con stile in pixel da altezza x scala / risoluzione; bianco
+  ACI 7 -> scuro; layer CAD accendibili (`L.drawing.cadLayers`; quelli spenti non si esportano). PDF: pagina resa con pdf.js
+  (max 8192 px / 36 Mpx), bianco reso trasparente (si puo' togliere). Ordine iniziale: `<file>.mbgeo` -> GEODATA -> coordinate
+  -> posizione provvisoria al centro della mappa (pannello di georeferenziazione aperto da solo; "Sposta qui" la porta al centro
+  della vista e sceglie il fuso UTM 32/33 dalla longitudine).
+- Pannello (in alto a destra della mappa): sistema, metodo, unita' (mm/cm/m...) o scala 1:N, rotazione, "Aggiungi punti"
+  (clic sul disegno, poi sulla mappa; Esc finisce), "Quota nota" (due clic sul disegno + distanza reale = scala), tabella con
+  E/N modificabili a mano, scarti (in evidenza se > 3 x RMS), riepilogo scala/rotazione/RMS, opacita'. Aggancio GEOMETRICO
+  (indice spaziale delle sorgenti, non la hit detection di OpenLayers che dipende dal disegno a schermo): prima le entita'
+  PUNTO (`D.nodes`; la crocetta disegnata ha estremi a +-0,5 unita' e ingannava l'aggancio), poi i vertici; sul lato mappa i
+  vertici degli altri livelli vettoriali (anche un altro disegno gia' georeferenziato). Misure Distanza/Area agganciate ai
+  vertici dei disegni (ol.interaction.Snap, fino a ~300.000 vertici).
+- `.mbgeo` = JSON accanto al file con il nome completo (`lotto.dxf.mbgeo`, cosi' lotto.dxf e lotto.pdf non si scontrano):
+  crs, method, unit, transform, points, rms, page/pdfScale per i PDF. Si scrive solo con "Salva georeferenziazione" (nella
+  web app si scarica). Testi: chiavi `gisdraw.*` (5 lingue).
+- Campioni: `python tools/make_georef_samples.py` -> `tests/samples/georef` (stesso lotto a Bologna: UTM 32N in metri, locale
+  in mm ruotato di 25 gradi, locale con GEODATA, tavola PDF A3 1:500, `punti_controllo.json`). Provato nell'app: UTM e GEODATA
+  si sovrappongono da soli (errore 0), locale con 3 punti (uno con 4 cm di errore) RMS 1,6 cm e vertice di verifica a 1,5 mm,
+  PDF 1:500 con 2 punti; .mbgeo salvato e riapplicato; GeoJSON e shapefile (.prj RDN2008/UTM 32N) corretti; DWG reale
+  (libredwg) in 0,5 s. NON provato: GEODATA dentro un DWG vero (nessun campione; i nomi dei campi sono quelli di libredwg).
+- Prove nel riquadro del browser nascosto: OpenLayers non disegna (rAF fermo) -> `map.renderSync()` prima dei clic simulati
+  (`MB.active.api._gis.drw.onMapClick({ coordinate, pixel })`).
+
 ## Nuvole di punti da rilievo (22/10/2026) - FATTO
 LAS, LAZ, E57, PTS, PTX (Leica), XYZ e PLY a soli punti (categoria `pointcloud` in formats.json, visualizzatore model3d;
 LAS resta anche tra i testi e PTX tra i RAW Pentax: decide `misc.sniff` dal contenuto, `LASF` / `ASTM-E57` / due interi in testa).
@@ -957,3 +994,262 @@ Codice Python indipendente da Windows: ogni parte solo-Windows si spegne con gar
 - Prove automatiche sul runner: `tests/mac_smoke.py` (impronta, caratteri, stampanti CUPS, OCR Vision, conversioni, file
   di esempio aperti in WebKit con Playwright; schermate e esito nell'artefatto prove-mac e nel riassunto del job).
   L'app impacchettata con la licenza obbligatoria risponde 402 alle API dei file: per questo i file si provano da sorgente.
+
+## Recupero dei file danneggiati e sconosciuti (22/10/2026) - FATTO
+Motore `mbvisual/recover.py` (+ `recover_zip.py`, `recover_sqlite.py`), API unica `api/recover?op=check|identify|start|carve|text|
+as_ext|save|put|out`, schermata `ui/js/viewers/recover.js` + `ui/css/recover.css` (viewer "recover"). Solo app per PC (la web app
+resta con l'errore semplice ed esadecimale). Testi: chiavi `rec.*` e `srv_recover.*` (5 lingue).
+- Quando compare: (1) all'apertura `check` (letture veloci: %%EOF/startxref dei PDF, indice finale degli ZIP e testzip < 25 MB,
+  fine di JPEG/PNG/GIF e PIL < 40 MB, atomi MP4/MOV, intestazione e quick_check SQLite < 50 MB, intestazione DWG, contenitore
+  .msg) -> se danneggiato si apre "recover" con "Apri comunque l'originale"; (2) il visualizzatore lancia un errore: `showError`
+  di app.js chiama `showRecovery`; (3) estensione non in elenco: "recover" in modo "unknown" al posto dell'esadecimale (che resta a
+  un clic); (4) "Apri come -> Recupero e analisi" per qualsiasi file.
+- Recupero (lavoro in background, copie in %TEMP%\MBVisual\recupero\<sha1 percorso|dimensione|data>; l'originale si legge soltanto,
+  `save` rifiuta la destinazione = originale e le sorgenti fuori dalla cartella di recupero):
+  PDF = PyMuPDF (ricostruisce l'xref) poi, se non trova pagine, `_pdf_rebuild` (oggetti "N G obj..endobj" sparsi, nuovo albero
+  delle pagine e catalogo). pikepdf NON e' installato. ZIP/Office/OpenDocument = intestazioni locali una per una (deflate si
+  ferma da solo: funziona anche con i data descriptor), XML troncati ricostruiti con lxml recover=True, [Content_Types].xml/_rels
+  ricostruiti se mancano, relazioni/Override verso parti perse tolte, manifest ODF e mimetype in testa. Immagini = Pillow con
+  LOAD_TRUNCATED_IMAGES (stima della parte leggibile solo se il file e' davvero troncato); intestazione rotta -> immagini
+  incorporate. Audio/video = FFmpeg -err_detect ignore_err -fflags +genpts+discardcorrupt+igndts (-ignore_editlist solo MP4: con
+  MKV FFmpeg rifiuta l'opzione), prima copia dei flussi in MKV poi ricodifica H.264/AAC; MP4 senza moov: non recuperabile, spiegato.
+  SQLite = `.recover` di sqlite3.exe se c'e' (bin/sqlite o PATH, oggi NO) altrimenti lettore interno delle pagine (B-tree da
+  sqlite_master, overflow, righe orfane in lost_and_found come .recover). Email = .eml riletto con compat32 e base64 tollerante,
+  .msg con olefile per flussi (__substg1.0_*) o, se il contenitore e' illeggibile, testo UTF-16 + allegati ritagliati; il
+  risultato e' un .eml ricostruito. DWG = anteprima incorporata (indirizzo a 0x0D, BMP/PNG) + copie .bak/.sv$ (cartella del
+  disegno e TEMP) copiate come .dwg; il disegno lo rilegge la pagina con libredwg chiamando `dwg_read_file` senza fermarsi agli
+  errori (anche con il file allungato di zeri) e lo salva in DXF con cad_save.
+- Sconosciuti: `identify` (circa 100 firme: documenti, immagini, audio/video, archivi, CAD/3D, database, programmi, font,
+  certificati, testi XML/JSON/CSV/email...) -> "Aprilo come X" = copia con l'estensione giusta in recupero\<chiave>\come (oltre
+  1,5 GB si apre l'originale col visualizzatore forzato). `carve` = JPEG, PNG, GIF, BMP, PDF, ZIP (tipo Office riconosciuto),
+  RIFF, GZIP, 7z, SQLite, RTF dentro qualsiasi file (primo GB). `text` = testo leggibile in un .txt aperto nell'editor.
+- Collaudo: `python tools/make_damaged_samples.py [--dwg disegno.dwg]` -> `tests/samples/danneggiati` (attese in ATTESI.json;
+  i disegno_troncato* da un DWG reale sono in .gitignore) poi `python tests/test_recover.py` (97 prove: ogni copia recuperata si
+  riapre con PyMuPDF/python-docx/openpyxl/python-pptx/Pillow/sqlite3/email/FFmpeg, originali invariati). Il .msg di prova e'
+  scritto da un piccolo scrittore CFB nello script (nessuna libreria lo crea).
+
+## Converti in disegno: PDF e scansioni -> DXF/DWG (22/10/2026) - FATTO
+Comando "Converti in disegno" nella barra del visualizzatore PDF e delle immagini, File -> "Converti in disegno (DXF)...", palette
+dei comandi, "Salva con nome" -> DXF/DWG (apre la stessa finestra con il nome scelto) e operazione "drawing" della conversione a lotti.
+Solo app per PC. Il risultato si apre subito nell'editor CAD. DWG solo con ODA File Converter (`cadedit._to_dwg`).
+- `mbvisual/todrawing.py` = ingresso unico (info, page_png, preview, convert; API `api/drawing?op=info|page|preview|convert`),
+  formato neutro delle entita' (in testa al file: unita' della sorgente con y in alto), scrittore DXF (`Writer`: layer, colori
+  ACI/true color, spessori, tipi di linea MBV_<hash> dai tratteggi, stili TrueType, HATCH, MTEXT), scala: `scale` = 1:N,
+  `ref_mm` + `ref_len` = quota nota (distanza misurata in mm della CARTA, cosi' vale per PDF e pixel), unita' mm/cm/m.
+  Pagine affiancate nel modello (riquadro sul layer CONTORNO-PAGINA, non stampabile) o `layout: sheets` = anche un layout per
+  pagina con la carta e una VIEWPORT in scala sulla sua parte di modello.
+- `mbvisual/pdfvec.py` (PyMuPDF get_drawings + get_texttrace): Bezier -> arco se il cerchio per estremi e punto medio regge a
+  t=1/8..7/8 E le tangenti negli estremi sono perpendicolari al raggio; archi consecutivi con lo stesso centro uniti, chiusi a 360
+  = CIRCLE; polilinee di >= 5 segmenti uguali con curvatura costante -> archi (`_arcs_from_lines`); il resto spline (bezier_to_bspline).
+  Layer: OCG del PDF (campo "layer"), altrimenti "C<RRGGBB>-<mm>" per colore e spessore; testi sul layer TESTI, testi invisibili
+  (render mode 3: OCR, SHX di AutoCAD) su TESTI-NASCOSTI spento. Altezza TEXT = altezza delle maiuscole (OS/2 sCapHeight con
+  fontTools, 0,716 se manca), fattore di larghezza misurato, carattere di Windows piu' simile (`publisher._font_file`).
+  Righe allineate e con interlinea regolare -> MTEXT. Riempimenti bianchi ignorati (maschere). Insidia: le linee orizzontali/
+  verticali hanno un Rect vuoto e `Rect.intersects` da' False (prima sparivano).
+- `mbvisual/rastervec.py` (solo numpy + Pillow; NIENTE OpenCV/potrace): sfondo uniformato, Otsu, inversione automatica,
+  raddrizzamento (proiezioni dei punti neri, +-6 gradi; `Image.rotate(+ang)`), macchie e buchi tolti con le componenti connesse
+  per corse (`components`), OCR di Windows (`pdfedit._ocr_png`, max 10000 px per lato) anche ruotato di 90 gradi; una parola vale
+  se l'inchiostro estraneo nel suo riquadro (pixel veri, non riquadri delle componenti) e' sotto il 25%. "Linee d'asse" = Zhang-Suen
+  a ondate sui soli pixel di bordo + scaletta tolta con tabella, catene tra nodi, incroci uniti nel baricentro, rametti tolti;
+  "Solo contorni" = crack following (anelli densificati prima del cerchio). Poi Douglas-Peucker, archi/cerchi ai minimi quadrati
+  (scarto <= max(1,5 tol, min(1,5% r, 2,5 tol)), freccia >= 2,5 px), archi dello stesso cerchio riuniti (>= 300 gradi = cerchio:
+  pilastri attraversati dagli assi), linee quasi H/V raddrizzate, segmenti allineati riuniti attraverso gli incroci.
+- Interfaccia `ui/js/todrawing.js` + `ui/css/todrawing.css`: opzioni a sinistra, anteprima sovrapposta (Sovrapposti / Solo disegno /
+  Originale; rotella = zoom, trascina = sposta, doppio clic = adatta), scale trovate nel testo della tavola ("SCALA 1:100") come
+  pulsanti, "Indica due punti" con aggancio agli estremi, avviso fisso "Risultato approssimato" per le scansioni. Testi `todrawing.*`,
+  `srv_drawing.*` (5 lingue; anche i nomi dei layer creati). app.js: `addDrawingButton`, `toDrawing`, `canToDrawing`.
+- Collaudo: `python tests/test_todrawing.py [--keep cartella]` (61 prove: DXF noto -> PDF di ezdxf 1:100 con OCG -> DXF entro
+  0,05 mm di carta, archi con angoli, bulge, layer, spessori, quota nota, fogli con VIEWPORT 1:100; testi PyMuPDF con rotazioni,
+  MTEXT, tratteggi, HATCH; scansione sintetica con rumore, macchie, rotazione 1,5 gradi, OCR, contorni, PDF scansionato).
+  NB ezdxf arrotonda la pagina ai punti interi e scala il disegno: nel collaudo il foglio e' 25400 x 17780 mm (720 x 504 pt).
+  Campioni realistici (pianta A3 1:100 vettoriale + "scansione" TIFF storta): `python tools/make_todrawing_samples.py <cartella>`
+  (non nel repo: il TIFF pesa 15 MB). Tempi: PDF immediato, scansione A3 300 dpi ~17 s con OCR.
+- Da provare con le tavole vere dell'utente (AutoCAD/Revit, scansioni A1/A0): PDF con testi SHX (tratti + testo nascosto),
+  archi spezzati in segmenti, retini a tratteggio (restano linee), scansioni a colori/cianografie, testi inclinati (l'OCR di Windows
+  legge solo orizzontale e verticale).
+## Posta elettronica in stile Outlook (22/10/2026) - FATTO (tappe 1-4; account veri da provare con l'utente)
+Scheda "Posta" (pulsante busta nella barra laterale, `MB.openMail()`; percorso virtuale `mail://posta`, i messaggi nuovi
+`mail://scrivi/<n>` con il visualizzatore `mailcompose`). Solo app per PC. Guida utente: `ui/guide/posta.md`.
+- Motore `mbvisual/mail/` (API unica `api/mail?op=...` -> `mail/api.py handle`; errori MailError/ValueError = `{ok:false}`):
+  `vault.py` chiave AES-256 in posta/chiave.bin protetta DPAPI, blob AES-GCM (MBV1+nonce+zlib); `store.py` indice SQLite IN
+  MEMORIA salvato cifrato in posta/indice.bin 3 s dopo le modifiche (serialize/deserialize; FTS5 subject/people/body/atts) +
+  messaggi completi cifrati in posta/msg/<aa>/<sha256>.bin; `accounts.py` account.json (senza segreti) + segreti.bin, preset
+  PEC (Aruba, Legalmail, Namirial, Postecert/Postecertifica, Register, Actalis, Libero, TIM) e caselle comuni, autoconfig
+  (preset -> autoconfig del dominio -> ISPDB Thunderbird -> MX con nslookup -> Autodiscover POX -> nomi tipici);
+  `imapc.py` imaplib (+XOAUTH2, UTF-7 modificato, parser FETCH, MOVE/COPYUID/APPENDUID, ruoli SPECIAL-USE o dai nomi);
+  `compose.py` MIME (immagini data: -> cid, inviti text/calendar come alternativa) e SMTP; `parse.py` riepilogo/lettura,
+  PEC (X-Ricevuta, X-Trasporto, X-Riferimento-Message-ID, daticert.xml, postacert.eml anche in busta S/MIME opaca);
+  `engine.py` un thread per account + pianificatore, operazioni in coda (tabella ops: flags/move/expunge/append/cartelle)
+  applicate subito in locale e sul server quando c'e' rete, posta in uscita con invio programmato, conversazioni
+  (References/In-Reply-To, poi oggetto normalizzato entro 60 giorni), stato PEC del messaggio inviato (`pec_status`:
+  accettazione, consegne/errori per destinatario certificato, esterni) salvato in messages.pec_state; `ver` cambia solo
+  con i dati (lo stato degli account no); `rules.py` regole + commessa automatica se certa; `commesse.py` archiviazione in
+  <cartella>/<sottocartella "Posta">/<data ora> <oggetto>/ (.eml + allegati; PEC con daticert e "Ricevute PEC");
+  `bigfile.py` invii grandi come link (OneDrive createLink anonimo 30 gg -> organizzazione, Drive permesso anyone, Dropbox
+  shared link: aggiunto sharing.write agli ambiti di cloud.py); `ical.py` + `calapi.py` risposte agli inviti (REPLY
+  all'organizzatore + evento nel calendario dell'account).
+- Interfaccia `ui/js/mail/`: `mailapp.js` (cartelle/preferiti/PEC/commesse/account, elenco virtuale a righe da 74 px con
+  conversazioni espandibili, filtri, ricerca con operatori, menu, trascinamento su cartelle e commesse, notifiche e
+  promemoria, tasti di Outlook con `keymap`), `mailread.js` (iframe sandbox allow-same-origin senza script + CSP che
+  blocca le immagini remote; proxy `op=img`; cid -> `op=part`; avviso link ingannevoli; PEC; inviti; allegati in anteprima
+  con `MB.mountPreview` = stesso visualizzatore delle schede montato in un riquadro), `compose.js`, `mailsettings.js`,
+  `mailicons.js`, `ui/css/mail.css`. In app.js: `openMail`, `mountPreview`, `closeTab` in window.MB, scheda mail:// senza file.
+  Le appendici con figli opzionali usano `ap()` (DOM append scriverebbe "null").
+- Testi: chiavi `mail.*` e `srv_mail.*` nelle 5 lingue.
+- Prove: `python tests/test_mail.py` (73 prove, archivio in cartella temporanea, server di prova `tests/mailserver.py` IMAP+SMTP
+  con gestore PEC simulato `tests/pecsim.py`: buste e ricevute firmate S/MIME, daticert); interfaccia: `python tests/mail_demo.py`
+  (stampa l'indirizzo; account mario@studio.prova.it e studio@pec.prova.it, password "prova").
+- Microsoft 365 / Outlook.com e Gmail (tappa 2): `oauth.py` (PKCE con l'ascoltatore di cloud.py, ID applicazione di cloud.config:
+  "onedrive" per Microsoft, "gdrive" con segreto per Google; ambiti Mail.ReadWrite/Mail.Send/Calendars/Contacts e
+  https://mail.google.com/ + calendar + contacts; token per account in segreti["oauth"], rinnovo automatico; refresh
+  rifiutato = MailError auth -> "Accedi di nuovo" nelle impostazioni dell'account). `graphmail.py` GraphProvider: cartelle
+  (+childFolders, ruoli dalle well-known), delta per cartella (folders.delta), elenco da intestazioni sintetiche, MIME da
+  /$value, flags/categorie/completamento con PATCH (op "local" per categorie), move (nuovo id), DELETE, bozze e APPEND con
+  POST /me/messages MIME, invio /me/sendMail MIME (<3,5 MB) o bozza JSON + upload session + /send. Gmail = IMAP/SMTP
+  XOAUTH2 (salva_inviati false: la copia locale in Inviata si aggancia a quella del server per Message-ID).
+  Collaudo `python tests/test_mail_oauth.py` (25 prove: finto OAuth, finto Graph per la posta, server di prova con XOAUTH2).
+- Calendario e contatti (tappa 3): `calsync.py` CalDAV/CardDAV (scoperta current-user-principal -> *-home-set -> collezioni,
+  solo calendari con VEVENT; REPORT calendar-query in una finestra -120/+400 giorni, ctag per saltare i calendari fermi; PUT
+  con If-Match / If-None-Match, DELETE; vCard riscritte conservando le proprieta' non gestite; Google = stesso codice con
+  il token OAuth: principal .../caldav/v2/<email>/user e rubrica .../carddav/v1/principals/<email>/lists/default/),
+  Microsoft Graph (calendars + calendarView = occorrenze gia' espanse, rrule "occ"; eventi POST/PATCH/DELETE: gli inviti li
+  manda Exchange; contatti /me/contacts), calendario e rubrica locali (href "locale" / "locale-rubrica"). Giro ogni 10 min
+  (dopo la posta) o subito dopo una modifica. Eventi con partecipanti: invito METHOD:REQUEST spedito dall'account
+  (CANCEL quando si eliminano); risposte agli inviti ricevuti: REPLY o, con Microsoft 365, accept/tentativelyAccept/decline.
+  `calapi.upcoming` = avvisi 15 min prima (status "eventi"). Interfaccia `mailcal.js` (giorno, settimana lavorativa,
+  settimana, mese, agenda, mini calendario, calendari con colori; ricorrenze CalDAV espanse con pim.parseCalendar) e
+  `mailpeople.js` (rubrica, scheda dal vCard con pim.parseVcards, Scrivi, messaggi recenti), stili `ui/css/mailcal.css`.
+  core.js `el`: le chiavi di style che iniziano con "--" ora usano setProperty (prima le variabili CSS si perdevano).
+  Collaudo `python tests/test_mail_cal.py` (22 prove, server `tests/davserver.py`) + calendario/contatti Graph in
+  test_mail_oauth.py (30 prove).
+- Rifiniture (tappa 4): `ui/js/mail/mailbadge.js` avviato da app.js all'avvio (solo PC): il motore della posta parte subito,
+  contatore dei da leggere sul pulsante Posta, avvisi di messaggi nuovi/promemoria/eventi quando la scheda Posta non e' aperta
+  (la scheda aperta consuma lei i "nuovi"). Conferme di lettura: barra "Invia conferma" (op `mdn`, multipart/report RFC 8098,
+  msgid ricordati in settings "mdn_inviati"). File .eml PEC aperti dal disco (viewers/email.js + misc.read_email): si
+  mostra postacert.eml con i dati del gestore o l'esito della ricevuta. Campioni `python tools/make_pec_samples.py` ->
+  tests/samples/pec. Collaudo `python tests/test_mail_bigfile.py` (8 prove: link OneDrive anonimo/organizzazione, Dropbox, MDN).
+- Da provare con l'utente: account veri (registrazioni in ui/guide/posta.md cap. 6), firma degli allegati con il suo
+  dispositivo, invii come link con il suo OneDrive/Dropbox (per Dropbox rifare l'accesso: nuovo ambito sharing.write).
+
+## Tablet e iPad (22/10/2026) - FATTO (prova su iPad/Android veri: la fa l'utente)
+Web app (app per cellulari sul server delle licenze) finalizzata per tablet 768-1366 px, verticale e orizzontale.
+- `ui/js/touch.js` (avviato da app.js `initTouch`, `afterMount` dopo ogni visualizzatore) + `ui/css/touch.css` (caricato solo con
+  schermo tattile). Classi su <html>: `touch` (dito = puntatore principale; un portatile touch con mouse NON la prende), `ipad`
+  (iPadOS si presenta come Mac: si riconosce da maxTouchPoints), `standalone` (app installata: aree sicure), `kb-open`.
+  Bersagli di almeno 40 px (cmd, schede, barra laterale, menu 46 px, editor Photoshop/GIS/confronto); scorciatoie nascoste
+  senza tastiera; body `touch-action: pan-x pan-y` (niente zoom della pagina: il pizzico lo gestiscono i documenti).
+  Pannelli a scomparsa: `.side`, `.gis`, `.cmp-root` diventano `.drawer` (pulsante `.drawer-btn` nella barra): in verticale o
+  sotto 1100 px il pannello scorre sopra il documento (chiuso all'avvio), in orizzontale resta affiancato e si chiude.
+  NB: il pannello in assoluto esce dalla griglia, quindi la griglia passa a una colonna sola. Telefono (lato corto < 600 px):
+  nessun cassetto, resta la disposizione di app.css. Tastiera virtuale: `--app-h`/`--kb` da visualViewport + viewport
+  `interactive-widget=resizes-content`. Tocco lungo = `contextmenu` sintetico (Safari non lo manda; con quello nativo di
+  Android non si duplica). `pinchPan(el, {onStart,onPan,onZoom})`: pizzico e due dita sui canvas (cad2d, imgedit, cadcmp, pdfcmp);
+  il secondo dito annulla l'operazione del primo. Three.js (OrbitControls) e OpenLayers gestiscono il tocco da soli.
+- Penna `ui/js/ink.js` + `ui/css/ink.css` (barra in basso al centro): penna con pressione, evidenziatore, gomma a tratti,
+  colori, 3 spessori, annulla/ripeti, "dito disegna" (si spegne da solo al primo uso della penna = rifiuto del palmo, ricordato
+  in localStorage `mbv-ink-penna`), contatti larghi ignorati, tasto laterale S Pen / coda gomma = gomma, doppio tocco della punta =
+  strumento precedente (il doppio tocco sul corpo dell'Apple Pencil NON arriva alle web app). Le dita le gestisce sempre l'app
+  (`nativeTouch: false`): con lo scorrimento nativo Chrome annulla i tratti della penna (pointercancel).
+  * PDF (solo web app, pulsante Penna): livello per pagina dentro i `.page` di pdf.js; Salva -> `ui/js/inkpdf.js` aggiunge
+    annotazioni /Ink con /InkList e aspetto /AP (spessore variabile, evidenziatore in Multiply) con pdf-lib, poi il PDF si
+    ricarica. I byte di pdf.js vengono dall'iframe: per pdf-lib vanno copiati in un Uint8Array del documento principale.
+  * DWG/DXF (pulsante Penna dove non c'e' l'editor CAD, cioe' nella web app): `ui/js/inkdxf.js` aggiunge in fondo a ENTITIES
+    LWPOLYLINE con larghezza per vertice su layer MARKUP e MARKUP-EVID (trasparenza 440, colore vero 420 + ACI), layer nella
+    tabella, maniglie da $HANDSEED; R12 -> POLYLINE/VERTEX; il resto del file resta identico (righe dei codici comprese).
+    DWG: "Salva con nome" DXF = file a parte con le sole revisioni nelle stesse coordinate. PNG/PDF/SVG includono i tratti.
+    cad2d.js ora disegna le larghezze delle polilinee (40/41/43) e la trasparenza (440); dxf.js le legge.
+  * Immagini (imgedit, anche sul PC): "Fine" mette i tratti in un livello "Annotazioni N"; il pennello usa la pressione
+    della penna; con la penna in uso il dito sposta la vista.
+- Installazione iPad/iPhone: build_web.py genera apple-touch-icon 152/167/180 (quadrate piene) e le schermate di avvio
+  `img/splash-WxH.png` per 9 iPad e 9 iPhone (verticale e orizzontale); stesso elenco `SPLASH` in server/src/index.js, perche'
+  l'app si installa spesso dalle pagine di attivazione (`APPLE_HEAD` in LINK_PAGE e ACTIVATION_PAGE; immagini in PUBLIC).
+  Pagine di attivazione: iPad riconosciuto (istruzioni con il Condividi in alto a destra, nome dispositivo "iPad"/"Tablet Android").
+  L'app installata su iPad ha cookie separati da Safari come su iPhone: chiede la chiave o il codice di 6 cifre.
+- Prove (Edge senza finestra + DevTools: emulazione tocco/UA, penna con `Input.dispatchMouseEvent pointerType:"pen" force`,
+  dita con `Input.dispatchTouchEvent`), iPad Pro 12,9" 1024x1366, iPad 10,9" 820x1180, Android 1280x800 nei due versi:
+  nessun elemento fuori schermo; bersagli sotto 40 px solo i colori sovrapposti di Photoshop e l'attribuzione OSM.
+  DXF salvati validati con ezdxf (audit 0 errori), PDF con PyMuPDF (annotazioni Ink lette e disegnate). Testi: chiavi
+  `ink.*`, `touch.*` nelle 5 lingue. Collaudi dalla console: `MB.active.api._ink` (PDF).
+
+## Pratiche edilizie e moduli unificati (22/10/2026) - FATTO (da provare con pratiche e visure vere dell'utente)
+"Crea nuovo" -> "Pratica edilizia": si sceglie la cartella di commessa e il nome, nasce `<nome>.mbcomm` (JSON = anagrafica:
+committenti anche piu' di uno con CF/P.IVA e residenza, immobile con dati catastali e titoli precedenti, tecnici con albo,
+imprese con regolarita' contributiva, intervento, procuratore; struttura in `nuova()`), e si apre il visualizzatore `pratica`.
+- Motore `mbvisual/edilizia.py` (API unica `api/pratica?op=moduli|leggi|scrivi|genera|fascicolo|visura|file`, genera e
+  fascicolo = lavori in background). Modelli in `ui/templates/edilizia/*.mbm` (linguaggio a righe descritto in `parse`: `##` fascia,
+  `###` quadro, `[codice?condizione]` casella, `{percorso:mm}` campo, `{=percorso}` testo, `|` tabelle con `|?cond|` righe
+  condizionate, `@per x in elenco`, `@se`, `@include _frammento`, `@firma`). Condizioni: `a.b`, `!a.b`, `a=v1|v2`, `a!=v`,
+  `x|y` (o tra percorsi), `&`, `1`. Variabili in `contesto()` (tit, titolari_altri, imm, tt = titoli per tipo, prog, dl, pr =
+  procuratore o progettista, imp, int, com, prat, luogo_data...). FONTI e licenze: `ui/templates/edilizia/FONTI.md`.
+- Moduli: CILA, SCIA, SCIA alternativa (Accordo C.U. 4/5/2017 + modifiche "Salva Casa" Accordo 27/3/2025), CILA-Superbonus
+  (Accordo 4/8/2021), fine lavori, soggetti coinvolti = trascrizioni dei moduli nazionali; inizio lavori, procura speciale,
+  delega = schemi sui quadri unificati; relazione tecnica asseverata e dichiarazione di conformita' = DOCX (python-docx).
+  Testo dei moduli in italiano (atti italiani); interfaccia con chiavi `pratica.*`, `srv_edilizia.*`, `fmt.pratica.*` (5 lingue).
+- PDF: Arial di Windows con TextWriter (un solo inserimento per pagina: insert_text parola per parola era lentissimo) e Shape;
+  i campi (PyMuPDF Widget) si aggiungono su pagine d'appoggio una alla volta (add_widget controlla i nomi su tutto il modulo:
+  tempo quadratico, 7 s per 600 campi) e il contenuto si posa sotto con show_pdf_page; poi `pdfedit.fix_tounicode`.
+  Nomi dei campi = percorso o codice del quadro, ripetizioni con `#2` (mai `_2`: X_1_2 e' un codice). SCIA 21 pagine ~3 s.
+- Regione: tendina (REGIONI in edilizia.py con l'atto regionale); si generano sempre i moduli nazionali e, se la regione ha
+  modulistica propria, il pannello lo segnala. Da aggiungere i modelli regionali dedicati (elenco in FONTI.md).
+- Visura catastale PDF (`visura`): comune, foglio/particella/sub, categoria/classe/consistenza/rendita, indirizzo, piano, interno,
+  intestati (cognome/nome divisi con il codice fiscale, diritto e quota -> "proprietario"/"comproprietario"), societa'.
+  Scritta sull'impaginazione delle visure AdE ma provata solo su visure sintetiche (`tools/make_edilizia_samples.py`).
+- Fascicolo: frontespizio con i dati della commessa, indice con numeri di pagina e collegamenti, segnalibri (anche quelli dei
+  documenti), campi appiattiti (opzione), DOCX convertiti con Word/LibreOffice o, senza, impaginazione semplice del testo.
+  Si salva accanto al .mbcomm come "<nome> - Fascicolo.pdf". Firma: pulsanti "Firma" che aprono `firma.js` (PAdES).
+- pdf.js: `.annotationLayer { color-scheme: light }` in viewers/pdf.js (nel tema scuro la spunta delle caselle era bianca).
+- Collaudo: `python tests/test_edilizia.py` (121 prove: condizioni, campi riletti dal PDF, sintassi non trapelata, DOCX,
+  generazione, fascicolo, visure). Prove dalla console: `MB.active.api._pt` (a, generate, makeBook, editData, files).
+
+## Misure ed estrazioni di quantita' (22/10/2026) - FATTO (da provare sui file veri dell'utente)
+Pannello "Misure" UNICO per PDF, disegni CAD (DWG/DXF), fogli DWF/DWFx e modelli 3D/BIM (stile Bluebeam Revu Measurements /
+Quantity Takeoff). Pulsante "Misure" nella barra di ogni visualizzatore; moduli in `ui/js/measure/`, stile `ui/css/measure.css`.
+- `mcore.js` (puro, senza DOM): geometria (aree con fori per parita' di annidamento, Newell 3D, angoli, cerchio per 3 punti 2D/3D),
+  scale `{page, box, k = unita' reali per unita' del disegno, unit, label}` (riquadro che contiene il primo punto > pagina >
+  documento > base), `ratioScale(N, unit, paperM)` / `calibrate`, `parseScales` (testi del cartiglio), quantita' `compute`/`row`
+  (unita' mostrate, importo = prezzo x quantita' principale), `groupRows` (si sommano solo le quantita' PRINCIPALI: il perimetro
+  di un'area non e' una lunghezza), CSV, `.mbmis` (`serialize` con 12 cifre significative: arrotondare a 1e-6 sbagliava le scale
+  PDF), mesh (`meshQuantities` volume/superficie, `planarFace`, `sectionSegments`/`sectionArea`, `gridVolume` nuvole, `hull2`).
+- `mtool.js` motore degli strumenti 2D (anche 3D: i punti agganciati hanno `s.p` con z) su "superfici" fornite dal visualizzatore
+  (toScreen/toWorld/snap/pick/similar): lunghezza, polilinea, perimetro, area, foro, volume (area x altezza), angolo, raggio, quota
+  di livello (riferimento ±0,00 in `doc.ref`), conteggio con simboli, taratura, riquadro con scala propria, oggetto con un clic,
+  simboli uguali; Maiusc ortogonale, Alt senza aggancio, Invio/doppio clic/destro finiscono, Backspace toglie l'ultimo punto,
+  selezione e trascinamento dei vertici, Canc. Aggancio 2D = `cadgeom.osnap` (stesso indice di cad2d: `snapModel`).
+- `mpanel.js` sessione + pannello (schede Misure / Estrazioni / Scala o Unita'): voci con colore (tavolozza automatica) e prezzo,
+  layer, note, raggruppamento, totali, Excel (Riepilogo + Misure + ultima estrazione) e CSV. Estrazioni: record con quantita' in
+  unita' del disegno (`real: true` = gia' reali, 3D) aggregati con la scala della pagina/riquadro; "Aggiungi all'elenco" = righe `ext`.
+- `mextract.js` (puro): CAD lunghezze per layer/colore/tipo linea/tipo entita' (quote escluse, blocchi esplosi), aree di polilinee
+  chiuse/cerchi/retini con fori, blocchi con lo stesso nome anche annidati (esclusi quelli delle quote e gli anonimi), testi e quote
+  (DIMENSION senza codice 42: valore dai punti di definizione); tracciati vettoriali (DWF, PDF) lunghezze/aree per stile e layer,
+  simboli uguali (firma dei segmenti normalizzati, anche ruotati di 90 gradi), `vecPick` (un clic dentro un foro prende il foro).
+- cad2d.js `build` ora restituisce anche `closed` (polilinee chiuse, cerchi), `hatches` (contorni dei retini), `inserts` (blocchi con
+  profondita') e su ogni elemento `c` (colore) e `lt` (tipo linea). `mcad.js` = adattatori CAD (`attachCad`, unita' da $INSUNITS,
+  computo mostrato in metri per i disegni in mm) e DWF (`attachDwf`, scale dai riquadri del DWF per foglio). Misure nel file
+  `<nome>.mbmis` accanto al disegno/modello (salvataggio automatico; nella web app = scaricamento).
+- PDF (`mpdf.js`, solo app per PC): uno strato canvas per pagina di pdf.js (`.mbm-layer`, eventi solo con uno strumento attivo; gli
+  strumenti dell'editor PDF e quelli di misura si escludono). Motore `mbvisual/measure.py` (API unica `api/measure?op=`): pdf_page
+  (tracciati nello spazio PDF, cerchi riconosciuti dalle 4 Bezier), pdf_scales (/VP /Measure di Acrobat/Bluebeam + "Scala 1:N"
+  nei testi, proposta all'apertura del pannello), pdf_texts (quote e livelli), pdf_tables (testo delle celle letto con il ritaglio:
+  extract() riordinava "20,00" in "2000 ,"), pdf_lines (per pagina, regione e stile; layer = contenuto opzionale), pdf_symbols /
+  pdf_similar, pdf_read / pdf_strip / pdf_write. Salva (Ctrl+S, "Salva nel PDF" = MB.save) scrive nel file salvato: Line /
+  PolyLine / Polygon con /IT ...Dimension e /Measure (1 pt = k unita'), etichette FreeText legate con /IRT /RT /Group, fori come
+  poligoni bianchi, /VP "MB Visual ..." per pagina e riquadro, allegato `misure.mbmis` con tutti i dati. Aprendo il pannello su un
+  PDF con misure di MB Visual la copia di lavoro si ricrea senza quelle annotazioni (le disegna lo strato); misure di altri
+  programmi con /Measure si importano. Insidie PyMuPDF 2.0: `embfile_upd` non accetta bytes (si cancella e si riaggiunge),
+  cancellando un'annotazione spariscono anche le sue /IRT (si cancella per xref con load_annot).
+- 3D (`m3d.js`, ponte = bcfHost di model3d.js con `pickHook` e `measureActive`): punti sulla superficie con aggancio a vertici,
+  medi degli spigoli, centri delle facce piane, punti delle nuvole; strumenti Faccia (area piana), Elemento (volume se la mesh e'
+  chiusa, superficie, ingombro), Sezione (piano attivo o orizzontale nel punto). Estrazioni: quantita' per elemento per classe /
+  materiale (IfcRelAssociatesMaterial) / livello (qtocore.levelMap(...).levelOf) / elemento, sezione con area, nuvola di punti
+  (punti caricati, impronta, volume sopra la quota piu' bassa). IFC: quota di livello = Z del progetto (ref = coordMatrix[13]).
+- Testi: chiavi `mis.*` e `srv_measure.*` (5 lingue). Collaudo: `python tools/make_measure_samples.py` (tests/samples/misure: PDF
+  A3 1:100 con dettaglio /VP 1:20, DXF in mm, IFC con materiali e piani, valori in attesi.json) poi `node tests/test_measure.mjs`
+  (57 prove: nucleo, DXF con il modello vero di cad2d, IFC con web-ifc, tracciati) e `python tests/test_measure.py` (32 prove:
+  scale, aggancio, lunghezze/aree/simboli/tabelle/testi, scrittura e rilettura nel PDF). Provato nell'app (Edge senza finestra via
+  DevTools): PDF, DXF, DWF (blocks_and_tables.dwf) e IFC con valori esatti. Prove dalla console: `(await MB.active.api._meas.get()).M`.
+- Immagini (`mimg.js`, scansioni e foto di tavole): strato sopra la vista dell'editor di immagini (`measureHost` di imgedit.js:
+  zoom/spostamento in sola lettura + `onPaint`), riceve il mouse solo con uno strumento attivo; senza taratura = millimetri di
+  stampa ai dpi del file (96 se mancano), scala 1:N dai dpi, taratura, riquadri. Nessun aggancio (immagine raster).
+- DA FARE / limiti: nei DWF i caratteri disegnati come tracciati
+  finiscono tra i "simboli uguali"; volumi solo per mesh chiuse; nessuna prova con PDF da 60.000 tracciati (l'aggancio si ferma a
+  300.000 segmenti per pagina, i simboli oltre 25.000 tracciati).

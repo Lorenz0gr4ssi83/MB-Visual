@@ -218,6 +218,21 @@ def read_email(path: str) -> dict:
         return {"ok": True, "messaggi": msgs}
     with open(path, "rb") as f:
         msg = email.message_from_binary_file(f, policy=email.policy.default)
+    # PEC: si mostra il messaggio originale (postacert.eml) con i dati del gestore (daticert.xml); ricevute con il loro esito
+    try:
+        from .mail import parse as mparse
+        pec = mparse.pec_info(msg)
+    except Exception:  # noqa: BLE001
+        pec = None
+    if pec:
+        view = pec["post"] if pec["tipo"] == "posta-certificata" and pec["post"] is not None else msg
+        out = _eml(view, dirp)
+        out["pec"] = {"tipo": pec["tipo"], "daticert": pec["daticert"], "busta": []}
+        for i, nome in ((pec["dc_i"], "daticert.xml"), (pec["post_i"], "postacert.eml")):
+            if i >= 0:
+                data, _, _ = mparse.part_bytes(msg, i)
+                out["pec"]["busta"].append({"nome": nome, "path": _save_attachment(dirp, nome, data)})
+        return {"ok": True, "messaggi": [out]}
     return {"ok": True, "messaggi": [_eml(msg, dirp)]}
 
 

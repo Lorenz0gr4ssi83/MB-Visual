@@ -28,3 +28,4 @@ python-gdcm  # DICOM compressi: JPEG lossless, JPEG-LS, JPEG 2000 (Apache-2.0, G
 h5py  # HDF5 e NetCDF-4 (BSD-3)
 pyarrow  # Parquet, Feather, Arrow (Apache-2.0)
 olefile  # Revit .rvt/.rfa (BSD-2)
+tzdata  # fusi orari degli inviti e dei calendari (Apache-2.0) - mbvisual/mail/ical.py

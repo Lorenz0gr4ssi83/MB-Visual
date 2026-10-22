@@ -1,0 +1,58 @@
+# Comunicazione di inizio lavori per interventi con titolo edilizio gia' efficace (permesso di costruire, SCIA
+# condizionata, SCIA alternativa). Non esiste un modulo unificato nazionale per questa comunicazione: lo schema segue
+# la struttura e i quadri dei moduli unificati (titolare, localizzazione, tecnici, imprese, sicurezza d.lgs. 81/2008).
+@meta titolo Comunicazione di inizio lavori
+@meta descrizione Data di inizio dei lavori assentiti, direttore dei lavori, impresa e adempimenti d.lgs. 81/2008
+@meta fonte Schema sulla struttura dei moduli unificati nazionali (quadri dei titolari e della sicurezza: Accordo C.U. 4/5/2017); art. 15 d.P.R. 380/2001, art. 90 d.lgs. 81/2008
+@meta fonte_breve Schema sui quadri dei moduli unificati
+@meta gruppo lavori
+@imposta doc comunicazione
+@colonne 56,44
+| Al Comune di {com.nome:*}<br>[?1] COMUNICAZIONE DI INIZIO LAVORI | Pratica edilizia {prat.numero:*}<br>del {prat.data:30} Protocollo {prat.protocollo:*}<br>da compilare a cura del SUE/SUAP<br>[?com.sportello=SUAP] SUAP [?com.sportello=SUE] SUE<br>Indirizzo {com.indirizzo:*}<br>PEC / Posta elettronica {com.pec:*} |
+= Comunicazione di inizio lavori
+~ (art. 15 d.P.R. 6 giugno 2001, n. 380 - art. 90, comma 9, d.lgs. 9 aprile 2008, n. 81)
+@include _titolare
+## DICHIARAZIONI | (artt. 46 e 47 del d.P.R. n. 445/2000)
+Il/la sottoscritto/a, consapevole delle sanzioni penali previste dalla legge per le false dichiarazioni e attestazioni (art. 76 del d.P.R. n. 445/2000 e Codice Penale), sotto la propria responsabilità
+!! COMUNICA
+### a) Titolo edilizio
+che i lavori sono assentiti dal seguente titolo edilizio:
+>[a.1?int.titolo_tipo=Permesso di costruire|PdC] permesso di costruire
+>[a.2?int.titolo_tipo=SCIA alternativa|SCIA alternativa al permesso di costruire] SCIA alternativa al permesso di costruire
+>[a.3?int.titolo_tipo=SCIA|SCIA condizionata] SCIA condizionata ad atti di assenso
+>[a.4?int.titolo_tipo!=Permesso di costruire|PdC|SCIA alternativa|SCIA alternativa al permesso di costruire|SCIA|SCIA condizionata|] altro {int.titolo_tipo:*}
+n. / prot. {int.titolo_n:50} del {int.titolo_data:30}
+### b) Localizzazione dell'intervento
+che l'intervento interessa l'immobile sito in (via, piazza, ecc.) {imm.via:86} n. {imm.civico:*}
+scala {imm.scala:18} piano {imm.piano:18} interno {imm.interno:18} C.A.P. {imm.cap:22}
+censito al catasto [?imm.catasto=fabbricati] fabbricati [?imm.catasto=terreni] terreni
+foglio n. {imm.foglio:22} map. {imm.particella:24} (se presenti) sub. {imm.subalterno:18} sez. {imm.sezione:14} sez. urb. {imm.sez_urbana:*}
+### c) Inizio dei lavori
+che i lavori hanno avuto / avranno inizio in data {int.inizio_lavori:30}
+e che la loro ultimazione è prevista entro il {int.fine_lavori:30}
+@nota Il permesso di costruire indica i termini di inizio e di ultimazione dei lavori: il termine per l'inizio non può essere superiore ad un anno dal rilascio del titolo; quello di ultimazione non può superare tre anni dall'inizio dei lavori, salvo proroga (art. 15 d.P.R. n. 380/2001).
+### d) Tecnici incaricati
+che il direttore dei lavori è il tecnico {dl.cognome_nome:*}
+iscritto all'ordine/collegio {dl.albo:56} di {dl.albo_prov:34} al n. {dl.albo_n:*}
+>[d.1?prog.anche_dl] il direttore dei lavori coincide con il progettista {prog.cognome_nome:*}
+>[d.2?altri_tecnici] gli altri tecnici incaricati sono indicati alla sezione 2 dell'allegato "Soggetti coinvolti"
+### e) Impresa esecutrice dei lavori
+>[e.1?imprese] che i lavori sono eseguiti dalla impresa {imp.ragione:*}
+>>codice fiscale / p. IVA {imp.cf_piva:52} con sede in {imp.sede_comune:*}
+>>e dalle eventuali altre imprese indicate alla sezione 3 dell'allegato "Soggetti coinvolti"
+>[e.2?int.in_economia] che, in quanto opere di modesta entità che non interessano le specifiche normative di settore, i lavori sono eseguiti in prima persona, senza alcun affidamento a ditte esterne
+### f) Rispetto degli obblighi in materia di salute e sicurezza nei luoghi di lavoro
+@include _sicurezza
+### g) Rispetto della normativa sulla privacy
+di aver letto l'informativa sul trattamento dei dati personali posta al termine del presente modulo
+@nota Attenzione: qualora dai controlli successivi il contenuto delle dichiarazioni risulti non corrispondente al vero, oltre alle sanzioni penali, è prevista la decadenza dai benefici ottenuti sulla base delle dichiarazioni stesse (art. 75 del d.P.R. n. 445/2000).
+@firme Il/I Dichiarante/i|Il Direttore dei lavori (per accettazione)
+## QUADRO RIEPILOGATIVO DELLA DOCUMENTAZIONE
+@colonne 9,45,14,32
+|# Allegato | Denominazione | Quadro informativo di riferimento | Casi in cui è previsto |
+| [?proc.attivo] | Procura/delega | - | Nel caso di procura/delega a presentare la comunicazione |
+| [?1] | Soggetti coinvolti | d), e) | Sempre |
+| [?int.notifica_99] | Notifica preliminare (articolo 99 del d.lgs. n. 81/2008) | f) | Se l'intervento è soggetto all'invio della notifica |
+| [?imprese] | Documento unico di regolarità contributiva delle imprese esecutrici e dichiarazione dell'organico medio annuo | f) | Se i lavori sono affidati a imprese (art. 90, comma 9, d.lgs. n. 81/2008) |
+| [] | Copia del documento di identità del/i titolare/i | - | Solo se i soggetti coinvolti non hanno sottoscritto digitalmente e/o in assenza di procura/delega |
+@include _privacy

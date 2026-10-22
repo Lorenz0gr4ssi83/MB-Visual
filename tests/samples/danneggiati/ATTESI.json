@@ -1,0 +1,133 @@
+{
+ "relazione_troncata.pdf": {
+  "famiglia": "pdf",
+  "danneggiato": true,
+  "min_pagine": 3
+ },
+ "xref_rotta.pdf": {
+  "famiglia": "pdf",
+  "danneggiato": true,
+  "min_pagine": 6
+ },
+ "oggetti_sparsi.pdf": {
+  "famiglia": "pdf",
+  "danneggiato": true,
+  "min_pagine": 6
+ },
+ "verbale_senza_indice.docx": {
+  "famiglia": "zip",
+  "danneggiato": true,
+  "apre": "docx",
+  "testo": "Verbale di sopralluogo"
+ },
+ "verbale_troncato.docx": {
+  "famiglia": "zip",
+  "danneggiato": true,
+  "apre": "docx",
+  "testo": "Verbale di sopralluogo"
+ },
+ "computo_stili_rovinati.xlsx": {
+  "famiglia": "zip",
+  "danneggiato": true,
+  "apre": "xlsx",
+  "celle": "Voce 200"
+ },
+ "presentazione_senza_indice.pptx": {
+  "famiglia": "zip",
+  "danneggiato": true,
+  "apre": "pptx"
+ },
+ "relazione_troncata.odt": {
+  "famiglia": "zip",
+  "danneggiato": true,
+  "apre": "odt"
+ },
+ "archivio_troncato.zip": {
+  "famiglia": "zip",
+  "danneggiato": true,
+  "min_voci": 6
+ },
+ "foto_troncata.jpg": {
+  "famiglia": "image",
+  "danneggiato": true,
+  "larghezza": 900
+ },
+ "schema_troncato.png": {
+  "famiglia": "image",
+  "danneggiato": true,
+  "larghezza": 900
+ },
+ "animazione_troncata.gif": {
+  "famiglia": "image",
+  "danneggiato": true,
+  "larghezza": 900
+ },
+ "ripresa_troncata.mp4": {
+  "famiglia": "media",
+  "danneggiato": true,
+  "recuperabile": true
+ },
+ "ripresa_senza_indice.mp4": {
+  "famiglia": "media",
+  "danneggiato": true,
+  "recuperabile": false
+ },
+ "ripresa_rovinata.mkv": {
+  "famiglia": "media",
+  "danneggiato": false,
+  "recuperabile": true
+ },
+ "commesse_troncato.sqlite": {
+  "famiglia": "sqlite",
+  "danneggiato": true,
+  "min_righe": 800
+ },
+ "commesse_pagine_rovinate.sqlite": {
+  "famiglia": "sqlite",
+  "danneggiato": true,
+  "min_righe": 4000
+ },
+ "verbale_rovinato.eml": {
+  "famiglia": "email",
+  "danneggiato": false,
+  "allegati": 1,
+  "testo": "verbale del sopralluogo"
+ },
+ "riunione.msg": {
+  "famiglia": "email",
+  "danneggiato": false,
+  "allegati": 2,
+  "testo": "Ordine del giorno"
+ },
+ "riunione_rovinata.msg": {
+  "famiglia": "email",
+  "danneggiato": true,
+  "allegati": 1,
+  "testo": "Ordine del giorno"
+ },
+ "disegno_troncato.dwg": {
+  "famiglia": "dwg",
+  "alternative": 2
+ },
+ "disegno_rovinato.dwg": {
+  "famiglia": "dwg",
+  "anteprima": true
+ },
+ "documento_senza_estensione": {
+  "identifica": "pdf"
+ },
+ "foto_rinominata.xyz": {
+  "identifica": "png"
+ },
+ "elenco.dat": {
+  "identifica": "csv"
+ },
+ "contenitore_ignoto.bin": {
+  "incorporati": [
+   "jpg",
+   "png",
+   "pdf"
+  ],
+  "testo": "intestazione proprietaria"
+ }
+}

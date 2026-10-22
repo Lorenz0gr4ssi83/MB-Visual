@@ -67,14 +67,14 @@ def main() -> int:
         "--hidden-import", "mbvisual.convert", "--hidden-import", "win32com.client", "--hidden-import", "pythoncom",
         "--collect-submodules", "markdown", "--hidden-import", "openpyxl", "--hidden-import", "brotli",
         # editor CAD (ezdxf) e OCR con il motore di Windows (winrt)
-        "--hidden-import", "mbvisual.cadedit", "--hidden-import", "mbvisual.update", "--collect-all", "ezdxf", "--exclude-module", "winrt",
+        "--hidden-import", "mbvisual.cadedit", "--hidden-import", "mbvisual.todrawing", "--hidden-import", "mbvisual.pdfvec", "--hidden-import", "mbvisual.rastervec", "--hidden-import", "mbvisual.update", "--collect-all", "ezdxf", "--exclude-module", "winrt",
         "--add-data", f"{ROOT / 'mbvisual' / 'ocr.ps1'}{sep}mbvisual",
         # nuvole di punti: LAS/LAZ (laspy + lazrs, caricato da laspy solo al bisogno) ed E57 (pye57 con la DLL di Xerces)
         "--hidden-import", "mbvisual.pointcloud", "--collect-submodules", "laspy", "--hidden-import", "lazrs",
         "--collect-all", "pye57", "--hidden-import", "pyquaternion",
         "--hidden-import", "mbvisual.search", "--hidden-import", "mbvisual.search_extract", "--hidden-import", "olefile",  # ricerca nel progetto
         # formati aggiuntivi (mbvisual/formati.py): DICOM (pydicom + GDCM), HDF5 (h5py), Parquet/Arrow (pyarrow), Revit (olefile)
-        "--hidden-import", "mbvisual.formati", "--hidden-import", "mbvisual.fx_dicom", "--hidden-import", "mbvisual.fx_cert",
+        "--hidden-import", "mbvisual.edilizia", "--hidden-import", "mbvisual.formati", "--hidden-import", "mbvisual.fx_dicom", "--hidden-import", "mbvisual.fx_cert",
         "--hidden-import", "mbvisual.fx_sci", "--hidden-import", "mbvisual.fx_iwork", "--hidden-import", "mbvisual.fx_revit",
         "--collect-submodules", "pydicom", "--collect-all", "gdcm", "--collect-submodules", "h5py", "--collect-submodules", "pyarrow", "--hidden-import", "olefile",
         "--exclude-module", "tkinter", "--exclude-module", "matplotlib",

@@ -1,0 +1,40 @@
+/* Schermata di recupero dei file danneggiati o sconosciuti (ui/js/viewers/recover.js). Solo token di app.css. */
+.rc { max-width: 880px; margin: 0 auto; padding: 22px 20px 40px; display: grid; gap: 14px; }
+.rc h2 { font: 600 21px/1.25 var(--display); margin: 4px 0 2px; letter-spacing: -.01em; }
+.rc h3 { font: 600 14px var(--display); margin: 0; letter-spacing: .01em; }
+.rc h4 { font: 600 12px var(--ui); margin: 14px 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.rc .note { color: var(--muted); }
+.rc .err { color: var(--bad); }
+.rc-head { display: grid; grid-template-columns: 44px 1fr; gap: 14px; background: var(--panel-2); border-radius: var(--r-lg); box-shadow: var(--sh-2); padding: 18px 20px; }
+.rc-ico { width: 44px; height: 44px; border-radius: var(--r-md); background: var(--accent-soft); display: grid; place-items: center; }
+.rc-ico svg { width: 24px; height: 24px; fill: none; stroke: var(--accent-ink); stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; }
+.rc-ico.mute { background: var(--hover); }
+.rc-ico.mute svg { stroke: var(--muted); }
+.rc-headtxt { min-width: 0; }
+.rc-headtxt p { margin: 4px 0 0; }
+.rc-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rc-meta { font: 500 11.5px var(--mono); color: var(--faint); }
+.rc-name { font: 500 13px var(--mono); color: var(--fg); overflow-wrap: anywhere; }
+.rc-what { font-size: 13px; overflow-wrap: anywhere; }
+.rc-safe { font-size: 12px; color: var(--muted); }
+.rc-card { background: var(--panel-2); border-radius: var(--r-lg); box-shadow: var(--sh-2); padding: 16px 18px; display: grid; gap: 8px; }
+.rc-card .progress { margin: 4px 0 0; }
+.rc-btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.rc-btns .btn svg, .rc-copy .btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; margin-right: 6px; vertical-align: -3px; }
+.rc-list { display: grid; gap: 2px; }
+.rc-row, .rc-copy { display: grid; grid-template-columns: 54px 1fr auto; gap: 12px; align-items: center; padding: 8px 10px; border-radius: var(--r-md); }
+.rc-row:hover { background: var(--hover); }
+.rc-copy { background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent-line) inset; padding: 12px; margin-top: 4px; }
+.rc-rowtxt { display: grid; min-width: 0; }
+.rc-rowtxt b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-rowtxt .note { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-badge { font: 600 10.5px var(--mono); letter-spacing: .04em; text-align: center; padding: 4px 0; border-radius: var(--r-sm); color: var(--muted); background: var(--hover); }
+.rc-msgs { margin: 0; padding-left: 18px; display: grid; gap: 3px; font-size: 13px; }
+.rc-prev { margin: 4px 0 0; display: grid; gap: 4px; justify-items: start; }
+.rc-prev img { max-width: 100%; max-height: 260px; border-radius: var(--r-md); box-shadow: var(--sh-1); background: #000; }
+@media (max-width: 640px) {
+  .rc { padding: 14px 12px 30px; }
+  .rc-head { grid-template-columns: 1fr; }
+  .rc-row, .rc-copy { grid-template-columns: 44px 1fr; }
+  .rc-row > .rc-btns, .rc-row > .btn, .rc-copy > .rc-btns { grid-column: 1 / -1; }
+}

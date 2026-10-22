@@ -691,7 +691,7 @@ class Dropbox(Provider):
     CONTENT = "https://content.dropboxapi.com/2"
     AUTH = "https://www.dropbox.com/oauth2/authorize"
     TOKEN = "https://api.dropboxapi.com/oauth2/token"
-    SCOPES = "account_info.read files.metadata.read files.content.read files.content.write"
+    SCOPES = "account_info.read files.metadata.read files.content.read files.content.write sharing.write"  # sharing.write: link degli invii grandi (mbvisual/mail/bigfile.py)
     SMALL = 140 * 1024 * 1024
     CHUNK = 32 * 1024 * 1024
 

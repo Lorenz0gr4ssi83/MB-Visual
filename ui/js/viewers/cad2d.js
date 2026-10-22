@@ -4,6 +4,10 @@ import { createCadEditor } from "../cadedit.js";
 import { parseDxf } from "../dxf.js";
 import { I, TAU, R2D, mul, ap, apv, det, similar, arcPts, sweepPts, bulgeArc, bulgePts, splinePts, textLayout, patternDefLines, hatchSegments, dimGeom, dimTextEntity, osnap, drawSnapMarker } from "../cadgeom.js";
 import { t as tr, LOCALE } from "../i18n.js";
+import { INK_ICON, paint as paintInk, widthAt } from "../ink.js";
+import { LAYER_PEN } from "../inkdxf.js";
+import { pinchPan } from "../touch.js";
+import { measureBtn, mbmisOf } from "../measure/mbutton.js";
 
 
 // ---------------------------------------------------------------- colori ACI
@@ -70,7 +74,9 @@ function build(db) {
     if (pat.length && pat.some(v => v)) ltypes.set(String(t.name).toLowerCase(), pat);
   }
   const groups = new Map(), texts = [], items = [], ents = [];
-  let owner = -1, sub = "";
+  // per le misure (ui/js/measure/mcad.js): contorni chiusi, retini e inserimenti di blocchi con layer, colore e tipo linea
+  const closedL = [], hatches = [], inserts = [];
+  let owner = -1, sub = "", curSt = null;
   const xs = [], ys = [];
 
   const layerOf = n => { if (!layers.has(n)) layers.set(n, { name: n, aci: 7, off: false, count: 0, lt: "", lw: -3 }); return layers.get(n); };
@@ -87,11 +93,30 @@ function build(db) {
     if (pts.length < (fill ? 3 : 2)) return;
     const key = st.key + (fill ? "" : st.dashKey);
     let g = groups.get(key);
-    if (!g) groups.set(key, (g = { layer: st.layer, color: st.color, lw: st.lw, dash: fill ? null : st.dash, lines: [], fills: [] }));
+    if (!g) groups.set(key, (g = { layer: st.layer, color: st.color, lw: st.lw, dash: fill ? null : st.dash, a: st.a, lines: [], fills: [] }));
     (fill ? g.fills : g.lines).push({ pts, closed });
     for (const [x, y] of pts) if (xs.length < 400000 && isFinite(x) && isFinite(y)) { xs.push(x); ys.push(y); }
   }
-  function item(it, layer) { it.o = owner; it.s = sub; it.l = layer; items.push(it); (ents[owner] ||= []).push(items.length - 1); return it; }
+  // polilinee con larghezza (codici 40/41/43): tratti pieni come in AutoCAD; sui layer delle revisioni a penna (MARKUP*)
+  // giunzioni tonde, perche' sono tratti a mano libera con molti vertici
+  function widths(st, N, e, closed, lname) {
+    const V = e.vertices || [], cw = e.constantWidth || 0;
+    if (!V.length || !(cw > 0 || V.some(p => p.startWidth > 0 || p.endWidth > 0))) return false;
+    const round = /^MARKUP/i.test(lname);
+    const segs = closed ? V.length : V.length - 1;
+    for (let i = 0; i < segs; i++) {
+      const a = V[i], b = V[(i + 1) % V.length];
+      if (a.bulge) continue; // archi larghi: resta la linea centrale
+      const w0 = (a.startWidth ?? cw) || cw, w1 = (a.endWidth ?? a.startWidth ?? cw) || cw;
+      const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy);
+      if (!L || (!w0 && !w1)) continue;
+      const nx = -dy / L, ny = dx / L;
+      emit(st, [[a.x - nx * w0 / 2, a.y - ny * w0 / 2], [b.x - nx * w1 / 2, b.y - ny * w1 / 2], [b.x + nx * w1 / 2, b.y + ny * w1 / 2], [a.x + nx * w0 / 2, a.y + ny * w0 / 2]].map(([x, y]) => ap(N, x, y)), true, true);
+      if (round) for (const [p, w] of [[a, w0], [b, w1]]) if (w > 0) emit(st, Array.from({ length: 10 }, (_, k) => ap(N, p.x + Math.cos(k * TAU / 10) * w / 2, p.y + Math.sin(k * TAU / 10) * w / 2)), true, true);
+    }
+    return true;
+  }
+  function item(it, layer) { it.o = owner; it.s = sub; it.l = layer; if (curSt) { it.c = curSt.color; it.lt = curSt.ltn; } items.push(it); (ents[owner] ||= []).push(items.length - 1); return it; }
   const line = (st, A, x1, y1, x2, y2) => {
     const [a, b] = ap(A, x1, y1), [c, d] = ap(A, x2, y2);
     emit(st, [[a, b], [c, d]]);
@@ -143,10 +168,14 @@ function build(db) {
       const k2 = Math.sqrt(Math.abs(det(N))) || 1;
       const pat = ltypes.get(lt);
       const dash = pat ? pat.map(v => Math.max(Math.abs(v), 0) * LTS * (e.lineTypeScale || 1) * k2 || 0.02 * LTS * k2) : null;
-      const st = { layer: lname, color: col, lw, dash, key: lname + "|" + col.join(",") + "|" + lw, dashKey: dash ? "|" + dash.map(v => v.toPrecision(4)).join(",") : "" };
+      // evidenziatore delle revisioni a penna anche nei DXF R12, che non hanno la trasparenza: layer MARKUP-EVID al 38%
+      const alpha = e.alpha ?? (/^MARKUP-EVID$/i.test(lname) ? 0.38 : undefined);
+      const st = { layer: lname, color: col, lw, dash, a: alpha, ltn: lt || "continuous", key: lname + "|" + col.join(",") + "|" + lw + (alpha !== undefined ? "|a" + alpha.toFixed(3) : ""), dashKey: dash ? "|" + dash.map(v => v.toPrecision(4)).join(",") : "" };
+      curSt = st;
+      const shape = (pts, kind) => closedL.push({ o: owner, s: sub, l: lname, c: col, lt: st.ltn, kind, pts });
       switch (e.type) {
         case "LINE": line(st, N, e.startPoint.x, e.startPoint.y, e.endPoint.x, e.endPoint.y); break;
-        case "CIRCLE": arc(st, N, e.center.x, e.center.y, e.radius, 0, TAU); break;
+        case "CIRCLE": arc(st, N, e.center.x, e.center.y, e.radius, 0, TAU); shape(sweepPts(e.center.x, e.center.y, e.radius, e.radius, 0, 0, TAU).map(([x, y]) => ap(N, x, y)), "CIRCLE"); break;
         case "ARC": { let sw = e.endAngle - e.startAngle; while (sw <= 0) sw += TAU; arc(st, N, e.center.x, e.center.y, e.radius, e.startAngle, sw); break; }
         case "ELLIPSE": {
           const mx = e.majorAxisEndPoint.x, my = e.majorAxisEndPoint.y, r = Math.hypot(mx, my);
@@ -161,7 +190,9 @@ function build(db) {
           const draw = [[v[0].x, v[0].y]];
           for (let i = 1; i < v.length; i++) bulgePts(v[i - 1], v[i], v[i - 1].bulge, draw);
           if (closed) bulgePts(v[v.length - 1], v[0], v[v.length - 1].bulge, draw);
-          emit(st, draw.map(([x, y]) => ap(N, x, y)));
+          // con la larghezza disegnata e trasparente (evidenziatore) la linea centrale non si ripassa
+          if (!widths(st, N, e, closed, lname) || st.a === undefined) emit(st, draw.map(([x, y]) => ap(N, x, y)));
+          if (closed && v.length > 2) shape(draw.map(([x, y]) => ap(N, x, y)), e.type);
           const segs = closed ? v.length : v.length - 1;
           for (let i = 0; i < segs; i++) {
             const a = v[i], b = v[(i + 1) % v.length], B = a.bulge ? bulgeArc(a.x, a.y, b.x, b.y, a.bulge) : null;
@@ -219,6 +250,7 @@ function build(db) {
             else for (const P of loops) emit(st, P, true);
           }
           for (const P of loops) item({ t: "F", pts: [...P, P[0]], closed: true, hatch: true }, lname);
+          if (loops.length) hatches.push({ o: owner, s: sub, l: lname, c: col, pattern: solid ? "SOLID" : e.patternName || "", loops });
           break;
         }
         case "TEXT": case "ATTRIB": case "MTEXT": text(st, e, N); break;
@@ -232,6 +264,7 @@ function build(db) {
           }
           const b = blocks.get(e.name);
           const inh2 = { layer: lname, color: col, lt, lw };
+          if (e.type === "INSERT") { const [ix, iy] = ap(N, e.insertionPoint.x, e.insertionPoint.y); inserts.push({ o: owner, s: sub, l: lname, c: col, name: e.name, x: ix, y: iy, depth, attribs: (e.attribs || []).map(a => [a.tag, a.text]) }); }
           if (b) {
             const bp = b.basePoint || { x: 0, y: 0 };
             const cols = Math.max(1, e.columnCount || 1), rows = Math.max(1, e.rowCount || 1);
@@ -252,6 +285,7 @@ function build(db) {
               sub = keep;
             }
           }
+          curSt = st;
           if (e.type === "INSERT") {
             node(N, e.insertionPoint.x, e.insertionPoint.y, lname);
             if (e.attribs?.length) { const keep = sub; e.attribs.forEach(a => { a._attr = true; }); walk(e.attribs, M, inh2, depth + 1, sub, sel); sub = keep; }
@@ -281,7 +315,7 @@ function build(db) {
     for (const { pts } of g.fills) { g.fillPath.moveTo(pts[0][0], pts[0][1]); for (let k = 1; k < pts.length; k++) g.fillPath.lineTo(pts[k][0], pts[k][1]); g.fillPath.closePath(); }
   }
   const index = gridIndex(items, bbox);
-  return { layers, groups: [...groups.values()], texts, bbox, items, ents, query: index, header: H };
+  return { layers, groups: [...groups.values()], texts, bbox, items, ents, query: index, header: H, closed: closedL, hatches, inserts };
 }
 
 // indice spaziale a griglia: query(x0, y0, x1, y1) -> indici degli elementi il cui ingombro tocca il rettangolo
@@ -326,6 +360,7 @@ export async function decodeDwg(bytes, ctx, ld) { // usata anche dalla conversio
       const data = lib.dwg_read_data(bytes.buffer, type);
       if (data === undefined || data === null) throw new Error(tr("v_cad2d.file_dwg_non_leggibile_versione"));
       const db = lib.convert(data);
+      if (ctx.geodata) try { db.geodata = dwgGeodata(lib, data, m); } catch { /* */ } // mappa (ui/js/gisdraw.js)
       try { lib.dwg_free(data); } catch { /* */ }
       return db;
     } catch (e) {
@@ -339,6 +374,23 @@ export async function decodeDwg(bytes, ctx, ld) { // usata anche dalla conversio
   }
 }
 
+// GEODATA del DWG (georeferenziazione di AutoCAD): libredwg-web non lo converte, si legge con l'API dinamica
+function dwgGeodata(lib, data, m) {
+  const type = m.Dwg_Object_Type?.DWG_TYPE_GEODATA ?? 639;
+  const n = lib.dwg_get_num_objects(data);
+  for (let i = 0; i < n; i++) {
+    const obj = lib.dwg_get_object(data, i);
+    if (!obj || lib.dwg_object_get_fixedtype(obj) !== type) continue;
+    const tio = lib.dwg_object_to_object_tio(obj);
+    if (!tio) continue;
+    const v = f => { try { return lib.dwg_dynapi_entity_data(tio, f); } catch { return undefined; } };
+    const xy = (p, d) => (p && typeof p === "object" ? [+p.x || 0, +p.y || 0] : d);
+    return { type: +v("coord_type") || 2, design: xy(v("design_pt"), [0, 0]), ref: xy(v("ref_pt"), [0, 0]), scale: +v("unit_scale_horiz") || 1,
+      units: +v("units_value_horiz") || 0, north: xy(v("north_dir"), [0, 1]), def: String(v("coord_system_def") || "") };
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------- visualizzatore
 export async function mount(ctx) {
   const ld = loading(ctx.el, tr("v_cad2d.lettura_disegno"));
@@ -346,11 +398,15 @@ export async function mount(ctx) {
   let db;
   const head = new TextDecoder("latin1").decode(bytes.subarray(0, 6));
   const dxfText = ctx.ext === "dxf" && !head.startsWith("AutoCA");
+  let srcText = null, srcEnc = "utf-8"; // testo del DXF: le revisioni a penna si aggiungono a questo (inkdxf.js)
   if (dxfText) {
-    const text = new TextDecoder(isUtf8(bytes) ? "utf-8" : "windows-1252").decode(bytes);
+    srcEnc = isUtf8(bytes) ? "utf-8" : "windows-1252";
+    const text = srcText = new TextDecoder(srcEnc).decode(bytes);
     db = parseDxf(text);
   } else {
     db = await decodeDwg(bytes, ctx, ld);
+    // DWG non piccolo senza nemmeno un oggetto: libredwg ha letto solo l'intestazione (file danneggiato) -> schermata di recupero
+    if (!db?.entities?.length && bytes.length > 60000) throw new Error(tr("v_cad2d.dwg_nessun_oggetto"));
   }
   normalize(db, dxfText ? "dxf" : "dwg");
   ld.set(0.7, tr("v_cad2d.preparazione_disegno"));
@@ -379,7 +435,33 @@ export async function mount(ctx) {
   ctx.el.append(wrap);
   ctx.fillBody(true);
   let dark = true, measure = false, mpts = [], showText = true, showLw = false, msnap = null;
+  // ---- misure ed estrazioni (pannello comune a PDF, CAD e 3D: ui/js/measure/mcad.js; misure nel file .mbmis accanto)
+  let meas = null, measP = null;
+  const measGet = () => (measP ??= import("../measure/mcad.js").then(async m => (meas = await m.attachCad(ctx, {
+    host: stage, db, getModel: () => model, toWorld: (x, y) => toWorld(x, y), toScreen: (x, y) => toScreen(x, y), draw: () => draw(),
+    zoomTo: bb => zoomBox(bb), get view() { return view; }, onPanel: v => measBtn.classList.toggle("on", v),
+  }))));
+  const measBtn = measureBtn(async () => (await measGet()).toggle());
+  if (!WEB && ctx.path) api("stat", { path: mbmisOf(ctx.path) }, { allowFail: true }).then(r => { if (r?.ok) measGet().then(() => draw()); }).catch(() => {});
   const lineScale = { v: 1 };
+  // revisioni a mano libera (web app: tablet con penna) sul layer MARKUP del disegno (ui/js/ink.js, inkdxf.js)
+  let ink = null;
+  const inkBtn = editor ? null : button(tr("ink.penna"), INK_ICON, () => toggleInk(), { class: "ink-toggle", title: tr("ink.annota_cad") });
+  async function toggleInk() {
+    if (!ink) {
+      const { createInk } = await import("../ink.js");
+      const dpr = () => devicePixelRatio || 1;
+      ink = createInk({
+        host: stage, nativeTouch: false,
+        surfaces: () => [{ key: 0, el: stage, toDoc: (x, y) => toWorld(x * dpr(), y * dpr()), toLocal: (x, y) => { const p = toScreen(x, y); return [p[0] / dpr(), p[1] / dpr()]; } }],
+        pan: (dx, dy) => { view.tx += dx * dpr(); view.ty += dy * dpr(); draw(); },
+        zoom: (f, cx, cy) => zoomAt(f, cx * dpr(), cy * dpr()),
+        onChange: () => ctx.setDirty(true),
+        onToggle: on => inkBtn.classList.toggle("on", on),
+      });
+    }
+    ink.toggle();
+  }
 
   const bgBtn = button(tr("v_cad2d.sfondo_chiaro"), "sun", () => { dark = !dark; bgBtn.lastChild.textContent = dark ? tr("v_cad2d.sfondo_chiaro") : tr("v_cad2d.sfondo_scuro"); draw(); });
   const mBtn = button(tr("v_cad2d.misura"), "ruler", () => { measure = !measure; mBtn.classList.toggle("on", measure); mpts = []; draw(); }, { title: tr("v_cad2d.distanza_tra_due_punti_aggancio") });
@@ -389,8 +471,9 @@ export async function mount(ctx) {
   // nell'app per PC gli strumenti di modifica (barra come AutoCAD + riga di comando) sono sempre visibili, come aprendo
   // un disegno in AutoCAD: niente pulsante "Modifica disegno"; la misura e' nel pannello Utilita' (Distanza, Area)
   ctx.tb.append(...[button(tr("v_cad2d.adatta"), "fit", fit), button("", "zoomIn", () => zoomAt(1.4), { iconOnly: true, title: tr("v_cad2d.ingrandisci") }), button("", "zoomOut", () => zoomAt(1 / 1.4), { iconOnly: true, title: tr("v_cad2d.riduci") }),
-    el("span", { class: "sep" }), editor ? null : mBtn, tBtn, lwBtn, bgBtn, el("span", { class: "sep" }),
+    el("span", { class: "sep" }), editor ? null : mBtn, measBtn, inkBtn, tBtn, lwBtn, bgBtn, el("span", { class: "sep" }),
     button("PNG", "download", () => exportPng()), button("SVG", "download", () => exportSvg()), button("PDF", "download", () => exportPdf()),
+    button(tr("gisdraw.mostra_mappa"), '<svg viewBox="0 0 24 24"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>', () => ctx.openAs("gis"), { title: tr("gisdraw.mostra_mappa_tip") }),
     ctx.ext === "dxf" ? button(tr("v_cad2d.modifica_dxf_testo"), "code", () => ctx.openAs("text")) : null,
     ctx.tools.trueview ? button(tr("v_cad2d.apri_dwg_trueview"), "open", () => api("open_external", { path: ctx.path, app: "trueview" })) : null,
     el("span", { class: "grow" }), el("span", { class: "note" }, tr("v_cad2d.rotella_zoom_trascina_tasto_centrale"))].filter(Boolean));
@@ -449,6 +532,7 @@ export async function mount(ctx) {
       let col = g.color;
       if (!isDark && col[0] > 230 && col[1] > 230 && col[2] > 230) col = [20, 20, 20];
       c2.strokeStyle = c2.fillStyle = rgb(col);
+      c2.globalAlpha = g.a ?? 1; // trasparenza dell'entita' (evidenziatore delle revisioni)
       if (g.fills.length) c2.fill(g.fillPath);
       if (!g.lines.length) continue;
       const lw = g.lw >= 0 ? g.lw : 25;
@@ -459,6 +543,7 @@ export async function mount(ctx) {
       c2.stroke(g.path);
     }
     c2.setLineDash([]);
+    c2.globalAlpha = 1;
     if (showText) {
       for (const t of model.texts) {
         const L = model.layers.get(t.layer);
@@ -487,6 +572,8 @@ export async function mount(ctx) {
     render(g2, canvas.width, canvas.height, view.s, view.tx, view.ty, dark, showLw ? 3.78 * dpr : 0);
     g2.setTransform(1, 0, 0, 1, 0, 0);
     editor?.overlay(g2);
+    ink?.refresh();
+    meas?.paint(g2);
     if (measure && (mpts.length || msnap)) {
       g2.strokeStyle = "#ff9f1a";
       g2.fillStyle = "#ff9f1a";
@@ -535,6 +622,7 @@ export async function mount(ctx) {
   const pos = e => { const r = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1; return [(e.clientX - r.left) * dpr, (e.clientY - r.top) * dpr]; };
   canvas.addEventListener("pointerdown", e => {
     const [px, py] = pos(e);
+    if (e.button === 0 && meas?.down(e, px, py)) { capture(e); return; }
     if (e.button === 0 && editor?.pointerDown(e, px, py)) { capture(e); return; }
     if (measure && e.button === 0) {
       if (mpts.length === 2) mpts = [];
@@ -557,20 +645,28 @@ export async function mount(ctx) {
       return;
     }
     if (!measure && !editor?.on) ctx.status(`X ${fmt(wx)}  Y ${fmt(wy)}`);
+    if (meas?.move(e, px, py)) return;
     if (editor?.pointerMove(e, px, py)) return;
     if (measure) { msnap = snapM(px, py); draw(); }
   });
   canvas.addEventListener("pointerup", e => {
     const [px, py] = pos(e);
-    if (drag) { const d = drag; drag = null; if (!d.moved && d.button === 2) editor?.rightClick(); return; }
+    if (drag) { const d = drag; drag = null; if (!d.moved && d.button === 2 && !meas?.context()) editor?.rightClick(); return; }
+    if (meas?.up(e, px, py)) return;
     editor?.pointerUp(e, px, py);
   });
   canvas.addEventListener("pointerleave", () => editor?.pointerLeave());
+  // tablet: pizzico = zoom, due dita = sposta (il primo dito resta per spostare, misurare e modificare)
+  pinchPan(canvas, {
+    onStart: () => { drag = null; editor?.pointerLeave(); },
+    onPan: (dx, dy) => { const d = devicePixelRatio || 1; view.tx += dx * d; view.ty += dy * d; draw(); },
+    onZoom: (f, cx, cy) => { const d = devicePixelRatio || 1; zoomAt(f, cx * d, cy * d); },
+  });
   canvas.addEventListener("contextmenu", e => e.preventDefault());
-  const onKey = e => { if (!ctx.tab.view.hidden && editor?.key(e)) e.preventDefault(); };
+  const onKey = e => { if (ctx.tab.view.hidden) return; if (meas?.key(e)) { e.preventDefault(); return; } if (editor?.key(e)) e.preventDefault(); };
   window.addEventListener("keydown", onKey);
   canvas.addEventListener("wheel", e => { e.preventDefault(); const [px, py] = pos(e); zoomAt(e.deltaY < 0 ? 1.2 : 1 / 1.2, px, py); }, { passive: false });
-  canvas.addEventListener("dblclick", e => { if (editor?.dblclick(e)) return; if (!measure && !editor?.on) fit(); });
+  canvas.addEventListener("dblclick", e => { if (meas?.dbl(e, ...pos(e))) return; if (editor?.dblclick(e)) return; if (!measure && !editor?.on) fit(); });
   new ResizeObserver(() => { const s = canvas.width; resize(); if (s <= 1) fit(); else draw(); }).observe(canvas);
   requestAnimationFrame(fit);
 
@@ -581,7 +677,9 @@ export async function mount(ctx) {
     const c = document.createElement("canvas");
     c.width = Math.ceil(w * k * 1.04);
     c.height = Math.ceil(h * k * 1.04);
-    render(c.getContext("2d"), c.width, c.height, k, c.width / 2 - k * (x0 + x1) / 2, c.height / 2 + k * (y0 + y1) / 2, false);
+    const tx = c.width / 2 - k * (x0 + x1) / 2, ty = c.height / 2 + k * (y0 + y1) / 2;
+    render(c.getContext("2d"), c.width, c.height, k, tx, ty, false);
+    if (ink?.hasStrokes()) for (const st of ink.strokes) paintInk(c.getContext("2d"), st, (x, y) => [x * k + tx, ty - y * k], k);
     return c;
   }
   async function exportPng() {
@@ -590,10 +688,12 @@ export async function mount(ctx) {
     await saveBlobAs(withExt(ctx.name, "png"), blob, ctx.path.replace(/[\\/][^\\/]*$/, ""));
   }
   async function exportPdf() {
+    await saveBlobAs(withExt(ctx.name, "pdf"), new Blob([await pdfBytes()]), ctx.path.replace(/[\\/][^\\/]*$/, ""));
+  }
+  async function pdfBytes() {
     const c = offscreen(5000);
     const jpg = await new Promise(r => c.toBlob(r, "image/jpeg", 0.92));
-    const pdf = jpegToPdf(new Uint8Array(await jpg.arrayBuffer()), c.width, c.height);
-    await saveBlobAs(withExt(ctx.name, "pdf"), new Blob([pdf]), ctx.path.replace(/[\\/][^\\/]*$/, ""));
+    return jpegToPdf(new Uint8Array(await jpg.arrayBuffer()), c.width, c.height);
   }
   async function exportSvg() {
     const [x0, y0, x1, y1] = model.bbox;
@@ -617,6 +717,15 @@ export async function mount(ctx) {
       const k = t.F / 100, m = mul([1, 0, 0, -1, 0, 0], mul(t.A, [k, 0, 0, -k, 0, 0]));
       for (const r of t.rows) parts.push(`<text x="${(r.x / k).toFixed(3)}" y="${(-r.y / k).toFixed(3)}" font-size="100" font-family="Arial" fill="${rgb(col)}" transform="matrix(${m.map(v => +v.toFixed(6)).join(" ")})">${esc(r.s)}</text>`);
     }
+    if (ink?.hasStrokes()) {
+      parts.push(`<g data-layer="${LAYER_PEN}" fill="none" stroke-linecap="round" stroke-linejoin="round">`);
+      for (const st of ink.strokes) {
+        const P = st.pts, op = st.o < 1 ? ` stroke-opacity="${st.o}"` : "";
+        if (st.tool === "hl" || !st.pressure || P.length < 2) parts.push(`<path d="M${P.map(p => p[0].toFixed(4) + " " + (-p[1]).toFixed(4)).join("L")}${P.length < 2 ? "h0.0001" : ""}" stroke="${st.color}" stroke-width="${widthAt(st, 0).toFixed(4)}"${op}/>`);
+        else for (let i = 1; i < P.length; i++) parts.push(`<path d="M${P[i - 1][0].toFixed(4)} ${(-P[i - 1][1]).toFixed(4)}L${P[i][0].toFixed(4)} ${(-P[i][1]).toFixed(4)}" stroke="${st.color}" stroke-width="${((widthAt(st, i - 1) + widthAt(st, i)) / 2).toFixed(4)}"/>`);
+      }
+      parts.push("</g>");
+    }
     parts.push("</svg>");
     await saveBlobAs(withExt(ctx.name, "svg"), new Blob([parts.join("")], { type: "image/svg+xml" }), ctx.path.replace(/[\\/][^\\/]*$/, ""));
   }
@@ -634,10 +743,25 @@ export async function mount(ctx) {
         view: [...toWorld(0, canvas.height), ...toWorld(canvas.width, 0)], limits: lo && hi && hi[0] > lo[0] && hi[1] > lo[1] ? [...lo, ...hi] : null };
     },
     saveInPlace: ctx.ext === "dxf",
-    saveFormats: editor ? ["dxf", "dwg", "pdf", "svg", "png"] : ["png", "svg", "pdf"],
-    saveAsName: () => withExt(ctx.name, "dxf"),
+    get saveFormats() { return editor ? ["dxf", "dwg", "pdf", "svg", "png"] : ink?.hasStrokes() ? ["dxf", "png", "pdf"] : ["png", "svg", "pdf"]; },
+    get saveLabels() { return !editor && !srcText ? { dxf: tr("ink.solo_revisioni_dxf") } : undefined; },
+    saveAsName: () => (!editor && !srcText && ink?.hasStrokes() ? ctx.name.replace(/\.[^.]+$/, "") + "-" + tr("ink.nome_revisioni") + ".dxf" : withExt(ctx.name, "dxf")),
     async save(target) {
       const ext = target.split(".").pop().toLowerCase();
+      if (!editor && ext === "dxf" && ink?.hasStrokes()) {
+        // DXF: revisioni aggiunte al file (layer MARKUP); DWG: DXF a parte con le sole revisioni, nelle stesse coordinate
+        const { addMarkupToDxf, markupOnlyDxf } = await import("../inkdxf.js");
+        const text = srcText ? addMarkupToDxf(srcText, ink.strokes) : markupOnlyDxf(ink.strokes);
+        await api("save", { path: target }, { body: encodeText(text, srcText ? srcEnc : "windows-1252") });
+        if (srcText && target === ctx.path) {
+          srcText = text;
+          db = parseDxf(text); normalize(db, "dxf");
+          model = build(db); refreshLayers(); ink.reset(); draw();
+        }
+        ctx.setDirty(false);
+        return { switchTo: false };
+      }
+      if (!editor && ext === "pdf") { await api("save", { path: target }, { body: await pdfBytes() }); return { switchTo: false }; }
       if (editor && ["dxf", "dwg", "pdf", "svg", "png"].includes(ext)) {
         const r = await api("cad_save", { path: ctx.path }, { json: { out: target, edits: editor.payload() } });
         if (r.non_scritti) toast(tr("v_cad2d.0_elementi_tipo_non_supportato", r.non_scritti), true, 6000);
@@ -646,8 +770,19 @@ export async function mount(ctx) {
       if (ext === "png") { const c = offscreen(); await api("save", { path: target }, { body: new Uint8Array(await (await new Promise(r => c.toBlob(r, "image/png"))).arrayBuffer()) }); return { switchTo: false }; }
       throw new Error(tr("v_cad2d.usa_i_pulsanti_png_svg"));
     },
-    dispose() { window.removeEventListener("keydown", onKey); },
+    dispose() { window.removeEventListener("keydown", onKey); meas?.dispose(); },
+    _meas: { get: measGet }, // collaudo dalla console: (await MB.active.api._meas.get()).M
   };
+}
+
+// testo -> byte nella codifica del file originale (i DXF vecchi sono in Windows-1252)
+function encodeText(text, enc) {
+  if (enc === "utf-8") return new TextEncoder().encode(text);
+  const dec = new TextDecoder("windows-1252"), map = new Map();
+  for (let b = 0; b < 256; b++) map.set(dec.decode(new Uint8Array([b])), b);
+  const out = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) out[i] = map.get(text[i]) ?? 63;
+  return out;
 }
 
 function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }

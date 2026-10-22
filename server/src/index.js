@@ -371,21 +371,31 @@ async function pairCode(env, b) {
   return json({ ok: true, token: await makeToken(env, lic, dev), cliente: lic.customer });
 }
 
+// iPad e iPhone: l'app si installa spesso da queste pagine (Condividi > Aggiungi alla schermata Home), quindi icone e
+// schermate di avvio vanno dichiarate anche qui. STESSO elenco di SPLASH in tools/build_web.py (che genera le immagini).
+const SPLASH = [[1032, 1376, 2], [1024, 1366, 2], [834, 1210, 2], [834, 1194, 2], [820, 1180, 2], [834, 1112, 2], [810, 1080, 2], [768, 1024, 2], [744, 1133, 2],
+  [440, 956, 3], [430, 932, 3], [402, 874, 3], [393, 852, 3], [390, 844, 3], [428, 926, 3], [414, 896, 2], [375, 812, 3], [375, 667, 2]];
+const APPLE_HEAD = `<link rel="apple-touch-icon" href="/img/apple-touch-icon-180.png"><link rel="apple-touch-icon" sizes="152x152" href="/img/apple-touch-icon-152.png">
+<link rel="apple-touch-icon" sizes="167x167" href="/img/apple-touch-icon-167.png"><link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="MB Visual">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+` + SPLASH.flatMap(([w, h, r]) => [false, true].map(land => `<link rel="apple-touch-startup-image" media="(device-width: ${w}px) and (device-height: ${h}px) and (-webkit-device-pixel-ratio: ${r}) and (orientation: ${land ? "landscape" : "portrait"})" href="/img/splash-${land ? h * r + "x" + w * r : w * r + "x" + h * r}.png">`)).join("\n");
+
 const LINK_PAGE = `<!doctype html><html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1e2225"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/img/icon-192.png">
-<link rel="apple-touch-icon" href="/img/icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><title>MB Visual</title>
+<meta name="theme-color" content="#0f1114"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/img/icon-192.png">
+${APPLE_HEAD}<title>MB Visual</title>
 <style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#17191b;color:#e6e8e5;font:15px system-ui,"Segoe UI",sans-serif;padding:20px}
 .box{width:min(440px,100%);text-align:center}img{width:110px;height:110px}h1{font-size:22px;margin:10px 0 6px}p{color:#9ea29b;line-height:1.45}
 ol{text-align:left;color:#cfd2cc;line-height:1.6;padding-left:22px}.code{font:700 30px Consolas,monospace;letter-spacing:.18em;color:#f07d2e;margin:6px 0}
 button,.btn{display:block;margin-top:14px;width:100%;padding:12px;border:0;border-radius:8px;background:#f07d2e;color:#16110c;font:600 16px system-ui;text-decoration:none}#copy{background:#2b3035;color:#e6e8e5}.err{color:#e0605a}.hide{display:none}</style></head>
 <body><div class="box"><img src="/img/logo-512.png" alt="MB Visual"><h1>MB Visual</h1><p style="margin:-2px 0 12px;color:#8a8c89;font-size:13px;letter-spacing:.05em">Powered by MB Group</p><p id="msg">Attivazione in corso...</p>
-<div id="ok" class="hide"><p>Cellulare attivato. Ora installa l'app:</p><ol id="steps"></ol><button id="inst" class="hide">Installa l'app</button>
+<div id="ok" class="hide"><p>Dispositivo attivato. Ora installa l'app:</p><ol id="steps"></ol><button id="inst" class="hide">Installa l'app</button>
 <div id="wrong" class="hide"><a id="open" class="hide btn" href="#">Apri in Safari</a><button id="copy" type="button">Copia link</button>
 <ol><li>Tocca <b>Copia link</b>.</li><li>Apri <b id="wrong-app"></b>, tocca la barra degli indirizzi, incolla e vai.</li><li>Il link vale ancora qualche minuto.</li></ol></div>
 <p id="pair" class="hide">Se l'app installata chiede di nuovo l'attivazione, inserisci questo codice (valido <span id="min"></span> minuti):</p><div class="code" id="code"></div></div></div>
 <script>
-const $ = id => document.getElementById(id), ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const $ = id => document.getElementById(id), ipad = /ipad/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1), ios = /iphone|ipod/i.test(navigator.userAgent) || ipad;
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 let prompt = null;
 addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; $("inst").classList.remove("hide"); });
@@ -396,7 +406,7 @@ const wrong = ios ? (/CriOS|FxiOS|EdgiOS|OPiOS|GSA\\/|FBAN|FBAV|Instagram|Linked
   : /android/i.test(ua) && /; wv\\)|FBAN|FBAV|Instagram|GSA\\//i.test(ua);
 let dev = localStorage.getItem("mbv-dispositivo");
 if (!dev) { dev = crypto.randomUUID(); localStorage.setItem("mbv-dispositivo", dev); }
-const name = (/android/i.test(ua) ? "Android" : ios ? "iPhone/iPad" : "Cellulare") + " " + new Date().toLocaleDateString("it-IT");
+const name = (/android/i.test(ua) ? (/mobile/i.test(ua) ? "Android" : "Tablet Android") : ipad ? "iPad" : ios ? "iPhone" : "Cellulare") + " " + new Date().toLocaleDateString("it-IT");
 if (wrong) {
   const app = ios ? "Safari" : "Chrome";
   $("msg").innerHTML = "Per installare MB Visual apri questo link in <b>" + app + "</b>.";
@@ -410,7 +420,7 @@ if (wrong) {
   localStorage.setItem("mbv-licenza-scade", String(Date.now() + 30 * 86400000));
   if (matchMedia("(display-mode: standalone)").matches || navigator.standalone === true) return location.replace("/");
   $("msg").textContent = r.cliente ? "Licenza di " + r.cliente : "";
-  $("steps").innerHTML = ios ? "<li>Tocca il pulsante Condividi di Safari (quadrato con la freccia).</li><li>Scegli <b>Aggiungi alla schermata Home</b>.</li><li>Apri MB Visual dalla schermata Home.</li>"
+  $("steps").innerHTML = ios ? (ipad ? "<li>Tocca il pulsante Condividi di Safari, in alto a destra (quadrato con la freccia).</li>" : "<li>Tocca il pulsante Condividi di Safari (quadrato con la freccia).</li>") + "<li>Scegli <b>Aggiungi alla schermata Home</b> (se non c'e', scorri l'elenco in basso).</li><li>Apri MB Visual dalla schermata Home.</li>"
     : "<li>Apri il menu del browser (tre puntini).</li><li>Scegli <b>Installa app</b> o <b>Aggiungi a schermata Home</b>.</li><li>Apri MB Visual dalla schermata Home.</li>";
   if (r.codice) { $("code").textContent = r.codice; $("min").textContent = r.codice_minuti; $("pair").classList.remove("hide"); }
   $("ok").classList.remove("hide");
@@ -421,7 +431,7 @@ if (wrong) {
 // I file dell'app (cartella public, binding ASSETS) si consegnano solo con un'attivazione "mobile" valida nel cookie
 // mbv_m (HttpOnly). Senza: la pagina di attivazione (nel browser spiega come installare l'app; installata chiede la chiave).
 const COOKIE = "mbv_m";
-const PUBLIC = /^\/(manifest\.webmanifest|sw\.js|img\/(icon-\d+|icon-maskable-512|logo-512|logo)\.png|favicon\.ico)$/;
+const PUBLIC = /^\/(manifest\.webmanifest|sw\.js|img\/(icon-\d+|icon-maskable-512|apple-touch-icon-\d+|splash-\d+x\d+|logo-512|logo)\.png|favicon\.ico)$/;
 const getCookie = (req, name) => (req.headers.get("cookie") || "").split(/;\s*/).map(c => c.split("=")).find(([k]) => k === name)?.[1] || "";
 const setCookie = (res, token) => {
   const r = new Response(res.body, res);
@@ -447,30 +457,31 @@ async function serveApp(env, req, url) {
 
 const ACTIVATION_PAGE = `<!doctype html><html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1e2225"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/img/icon-192.png">
-<link rel="apple-touch-icon" href="/img/icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f1114"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/img/icon-192.png">
+${APPLE_HEAD}
 <title>MB Visual</title>
 <style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#17191b;color:#e6e8e5;font:15px system-ui,"Segoe UI",sans-serif;padding:20px}
 .box{width:min(440px,100%);text-align:center}img{width:110px;height:110px}h1{font-size:22px;margin:10px 0 6px}p{color:#9ea29b;line-height:1.45}
 input{width:100%;font:17px Consolas,monospace;letter-spacing:.04em;text-align:center;padding:12px;border-radius:8px;border:1px solid #454a4e;background:#26292c;color:#e6e8e5}
-button{margin-top:14px;width:100%;padding:12px;border:0;border-radius:8px;background:#6aa7d8;color:#0d1b26;font:600 16px system-ui}.err{color:#e0605a;min-height:1.3em}
+button{margin-top:14px;width:100%;padding:12px;border:0;border-radius:8px;background:#f07d2e;color:#16110c;font:600 16px system-ui}.err{color:#e0605a;min-height:1.3em}
 ol{text-align:left;color:#cfd2cc;line-height:1.6;padding-left:22px}.hide{display:none}</style></head><body><div class="box">
 <img src="/img/logo-512.png" alt="MB Visual"><h1>MB Visual</h1><p style="margin:-2px 0 12px;color:#8a8c89;font-size:13px;letter-spacing:.05em">Powered by MB Group</p>
-<div id="browser"><p>L'app per cellulare si usa solo installata. Installala, poi aprila dalla schermata Home e inserisci la chiave di licenza.</p>
+<div id="browser"><p>L'app per cellulari e tablet si usa solo installata. Installala, poi aprila dalla schermata Home e inserisci la chiave di licenza.</p>
 <ol id="steps"></ol><button id="inst" class="hide">Installa l'app</button></div>
 <div id="app" class="hide"><p id="msg">Inserisci la chiave di licenza ricevuta, oppure il codice di 6 cifre mostrato dopo aver inquadrato il QR del PC.</p>
 <input id="k" placeholder="MBV-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" autocapitalize="characters" spellcheck="false">
 <p class="err" id="err"></p><button id="go">Attiva</button></div></div>
 <script>
 const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const ipad = /ipad/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const ios = /iphone|ipod/i.test(navigator.userAgent) || ipad;
 const $ = id => document.getElementById(id);
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 const why = new URLSearchParams(location.search).get("motivo");
 if (why) $("msg").textContent = why;
 if (standalone) { $("browser").classList.add("hide"); $("app").classList.remove("hide"); }
 else {
-  $("steps").innerHTML = ios ? "<li>Tocca il pulsante Condividi di Safari (quadrato con la freccia).</li><li>Scegli <b>Aggiungi alla schermata Home</b>.</li><li>Apri MB Visual dalla schermata Home.</li>"
+  $("steps").innerHTML = ios ? (ipad ? "<li>Tocca il pulsante Condividi di Safari, in alto a destra (quadrato con la freccia).</li>" : "<li>Tocca il pulsante Condividi di Safari (quadrato con la freccia).</li>") + "<li>Scegli <b>Aggiungi alla schermata Home</b> (se non c'e', scorri l'elenco in basso).</li><li>Apri MB Visual dalla schermata Home.</li>"
     : "<li>Apri il menu del browser (tre puntini).</li><li>Scegli <b>Installa app</b> o <b>Aggiungi a schermata Home</b>.</li><li>Apri MB Visual dalla schermata Home.</li>";
   let prompt = null;
   addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; $("inst").classList.remove("hide"); });
@@ -483,7 +494,7 @@ $("k").addEventListener("input", e => { const v = e.target.value; if (!/^\\s*\\d
 $("go").onclick = async () => {
   $("err").textContent = ""; $("go").disabled = true;
   try {
-    const name = (/android/i.test(navigator.userAgent) ? "Android" : ios ? "iPhone/iPad" : "Cellulare") + " " + new Date().toLocaleDateString("it-IT");
+    const name = (/android/i.test(navigator.userAgent) ? (/mobile/i.test(navigator.userAgent) ? "Android" : "Tablet Android") : ipad ? "iPad" : ios ? "iPhone" : "Cellulare") + " " + new Date().toLocaleDateString("it-IT");
     const code = $("k").value.replace(/\\s/g, ""), isCode = /^\\d{6}$/.test(code);
     const r = await fetch(isCode ? "/v1/mlink/pair" : "/v1/activate", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
       body: JSON.stringify(isCode ? { code, device: dev, name } : { key: $("k").value, device: dev, kind: "mobile", name }) }).then(r => r.json());

@@ -339,6 +339,23 @@ class Handler(BaseHTTPRequestHandler):
         out = self._body_json()["out"]
         self._json({"ok": True, "job": jobs.start(convert.convert, self._path(qs), out)})
 
+    def api_drawing(self, qs):
+        # "Converti in disegno": PDF vettoriali, scansioni e immagini -> DXF/DWG (mbvisual/todrawing.py)
+        from . import todrawing
+        op, path = _q(qs, "op", ""), self._path(qs)
+        if op == "info":
+            return self._json(todrawing.info(path))
+        if op == "page":
+            png, meta = todrawing.page_png(path, int(_q(qs, "page", "0") or 0), int(_q(qs, "max", "1600") or 1600))
+            return self._send(200, png, "image/png", {"X-W": str(meta["w"]), "X-H": str(meta["h"]), "X-Px": str(meta["px"]),
+                                                      "Access-Control-Expose-Headers": "*"})
+        b = self._body_json()
+        if op == "preview":
+            return self._json({"ok": True, "job": jobs.start(todrawing.preview, path, int(b.get("page", 0)), b.get("opts") or {})})
+        if op == "convert":
+            return self._json({"ok": True, "job": jobs.start(todrawing.convert, path, b["out"], b.get("opts") or {})})
+        self._json({"ok": False, "errore": "op"}, 400)
+
     def api_batch(self, qs):
         # conversione a lotti (mbvisual/batch.py): scan, start, status, cancel, list, take/client (compiti della pagina)
         from . import batch
@@ -491,6 +508,32 @@ class Handler(BaseHTTPRequestHandler):
 
     def api_strings(self, qs):
         self._json({"ok": True, "strings": misc.strings(self._path(qs))})
+
+    # ------------------------------------------------------------ recupero dei file danneggiati e sconosciuti (mbvisual/recover.py)
+    def api_recover(self, qs):
+        from . import recover
+        op = _q(qs, "op", "")
+        p = self._path(qs)
+        if op == "check":
+            return self._json(recover.check(p, _q(qs, "ext", "")))
+        if op == "identify":
+            return self._json(recover.identify(p))
+        if op == "start":
+            return self._json({"ok": True, "job": jobs.start(recover.recover, p, fam=_q(qs, "fam") or None)})
+        if op == "carve":
+            return self._json({"ok": True, "job": jobs.start(recover.carve, p)})
+        if op == "text":
+            return self._json(recover.extract_text(p))
+        if op == "as_ext":
+            return self._json(recover.as_ext(p, _q(qs, "ext", "")))
+        if op == "save":
+            b = self._body_json()
+            return self._json(recover.save_copy(b["src"], b["out"], p))
+        if op == "put":  # file prodotto dall'interfaccia (DXF dal DWG riletto)
+            return self._json(recover.write_bytes(p, _q(qs, "name", "recuperato.bin"), self._body()))
+        if op == "out":
+            return self._json(recover.out_path(p, _q(qs, "name", "recuperato.bin")))
+        self._json({"ok": False, "errore": t("srv_server.api_sconosciuta")}, 404)
 
     def api_reveal(self, qs):
         reveal(self._path(qs))
@@ -678,6 +721,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": True, "job": jobs.start(fn, b["path"], b["out"], b)})
         self._json(firma.run(op, b))
 
+    def api_pratica(self, qs):
+        # pratiche edilizie (mbvisual/edilizia.py, ui/js/viewers/pratica.js): anagrafica .mbcomm, moduli compilati, fascicolo, visura
+        from . import edilizia
+        self._json(edilizia.handle(_q(qs, "op", ""), self._body_json(), jobs.start))
+
     # ------------------------------------------------------------ stampa (mbvisual/stampa.py)
     def api_print_printers(self, qs):
         from . import stampa
@@ -779,6 +827,15 @@ class Handler(BaseHTTPRequestHandler):
         b = self._body_json()
         self._json(office.save_docx_from_html(b["html"], self._path(qs), b.get("title", "")))
 
+    # ------------------------------------------------------------ misure ed estrazioni dai PDF (mbvisual/measure.py, ui/js/measure/)
+    def api_measure(self, qs):
+        from . import measure
+        op = _q(qs, "op", "")
+        p = self._path(qs) if _q(qs, "path") else None
+        if op == "pdf_write" and p and not p.lower().endswith(".pdf"):
+            raise ValueError("pdf")
+        self._json(measure.handle(op, p, self._body_json()))
+
     # ------------------------------------------------------------ formati aggiuntivi (DICOM, certificati, dati scientifici, iWork, Revit): mbvisual/formati.py
     def api_fx(self, qs):
         from . import formati
@@ -786,6 +843,23 @@ class Handler(BaseHTTPRequestHandler):
         if isinstance(r, tuple):
             data, hdr = r
             return self._send(200, data, hdr.pop("Content-Type", "application/octet-stream"), {**hdr, "Access-Control-Expose-Headers": "*"})
+        self._json(r)
+
+    # ------------------------------------------------------------ posta elettronica (mbvisual/mail, ui/js/mail)
+    def api_mail(self, qs):
+        from .mail import api as mailapi
+        q = {k: v[0] for k, v in qs.items()}
+        b = self._body_json() if self.command == "POST" else {}
+        try:
+            r = mailapi.handle(q.get("op", ""), q, b)
+        except Exception as e:  # noqa: BLE001 - errori del motore della posta come messaggio leggibile
+            from .mail.imapc import MailError
+            if not isinstance(e, (MailError, ValueError, KeyError)):
+                raise
+            return self._json({"ok": False, "errore": str(e), "auth": getattr(e, "auth", False), "offline": getattr(e, "offline", False)}, 200)
+        if isinstance(r, tuple):
+            data, hdr = r
+            return self._send(200, data, hdr.pop("Content-Type", "application/octet-stream"), hdr)
         self._json(r)
 
     # ------------------------------------------------------------ email / sqlite

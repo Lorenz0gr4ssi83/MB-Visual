@@ -1,0 +1,104 @@
+/* Pannello "Misure" comune a PDF, disegni CAD/DWF e modelli 3D (ui/js/measure/mpanel.js): solo token dell'app */
+.mm-panel { position: absolute; top: 0; right: 0; bottom: 0; width: 420px; max-width: 94%; display: flex; flex-direction: column; min-height: 0;
+  background: var(--panel); color: var(--fg); font-size: 12.5px; border-left: 1px solid var(--line-strong); box-shadow: var(--shadow); z-index: 45; }
+.mm-grip { position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; z-index: 2; }
+.mm-head { display: flex; align-items: stretch; border-bottom: 1px solid var(--line-strong); background: var(--panel-2); flex: none; }
+.mm-tabs { display: flex; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.mm-tab { border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); padding: 8px 12px 6px; font: inherit; font-weight: 600; white-space: nowrap; }
+.mm-tab:hover { color: var(--fg); }
+.mm-tab.on { color: var(--accent-ink); border-bottom-color: var(--accent); background: var(--panel); }
+.mm-x { border: 0; background: none; color: var(--muted); padding: 0 10px; display: inline-flex; align-items: center; }
+.mm-x:hover { color: var(--fg); }
+.mm-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.mm-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.mm-pane[hidden] { display: none; }
+
+/* strumenti */
+.mm-tools { padding: 6px 8px 4px; border-bottom: 1px solid var(--line); flex: none; }
+.mm-trow { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; }
+.mm-tb { width: 30px; height: 30px; border: 1px solid transparent; border-radius: var(--r-sm); background: none; color: var(--fg); display: inline-grid; place-items: center; padding: 0; }
+.mm-tb:hover { background: var(--hover); }
+.mm-tb.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-ink); }
+.mm-tsep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+.mm-opts { padding: 6px 8px; border-bottom: 1px solid var(--line); display: grid; gap: 5px; flex: none; }
+.mm-orow { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; min-width: 0; }
+.mm-in { height: 26px; min-width: 0; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--panel-2); color: var(--fg); padding: 0 6px; font: inherit; font-size: 12px; }
+.mm-orow > .mm-in { flex: 1 1 90px; }
+.mm-orow > .mm-sym { flex: 0 1 120px; }
+.mm-orow > .mm-h { flex: 0 0 70px; }
+textarea.mm-in { height: auto; padding: 4px 6px; resize: vertical; }
+.mm-col { width: 28px; height: 26px; padding: 1px; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--panel-2); flex: none; }
+
+/* elenco */
+.mm-lhead { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-bottom: 1px solid var(--line); flex: none; }
+.mm-lhead .mm-in { flex: 0 1 180px; }
+.mm-list { flex: 1; min-height: 70px; overflow: auto; padding: 2px 0; }
+.mm-empty { color: var(--muted); padding: 18px 14px; margin: 0; line-height: 1.5; }
+.mm-grow, .mm-row { display: flex; align-items: center; gap: 6px; padding: 4px 8px 4px calc(8px + var(--d, 0) * 14px); min-width: 0; }
+.mm-grow { font-weight: 600; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+.mm-grow:hover, .mm-row:hover { background: var(--hover); }
+.mm-row.sel { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); }
+.mm-twist { width: 12px; color: var(--muted); flex: none; font-size: 10px; }
+.mm-sw { width: 10px; height: 10px; border-radius: 2px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); display: inline-block; }
+.mm-sw.sym { border-radius: 50%; }
+.mm-gname, .mm-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mm-gtot { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
+.mm-val { font-family: var(--mono); font-size: 11.5px; white-space: nowrap; }
+.mm-amt { font-family: var(--mono); font-size: 11px; color: var(--muted); min-width: 0; white-space: nowrap; }
+.mm-tag { margin-left: 5px; font-size: 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 0 3px; }
+.mm-ib { border: 0; background: none; color: var(--muted); width: 24px; height: 22px; display: inline-grid; place-items: center; padding: 0; border-radius: var(--r-sm); flex: none; }
+.mm-ib:hover { color: var(--fg); background: var(--hover); }
+.mm-ib.off { opacity: .4; }
+
+/* dettaglio della misura scelta */
+.mm-detail { border-top: 1px solid var(--line-strong); padding: 6px 8px 8px; flex: 0 1 auto; max-height: 30%; min-height: 0; overflow: auto; background: var(--panel); }
+.mm-detail[hidden] { display: none; }
+.mm-dhead { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; min-width: 0; }
+.mm-dhead b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mm-dgrid { display: grid; grid-template-columns: minmax(80px, auto) 1fr; gap: 4px 8px; align-items: center; }
+.mm-dgrid .mm-in { width: 100%; }
+.mm-fc { display: inline-flex; gap: 6px; align-items: center; min-width: 0; }
+.mm-dvals { display: grid; grid-template-columns: minmax(80px, auto) 1fr; gap: 2px 8px; margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--line); font-family: var(--mono); font-size: 11.5px; }
+.mm-dvals .note { font-family: var(--ui); }
+
+/* totali e azioni */
+.mm-foot { border-top: 1px solid var(--line-strong); padding: 6px 8px; flex: none; display: grid; gap: 6px; background: var(--panel-2); }
+.mm-total { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.mm-total span { font-family: var(--mono); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; }
+.mm-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; margin-top: 4px; }
+
+/* scheda Scala / Unita' */
+.mm-pane > .mm-sec:first-child { margin-top: 4px; }
+.mm-sec { padding: 8px 10px; border-bottom: 1px solid var(--line); display: grid; gap: 6px; }
+.mm-sec h4 { margin: 0; font-family: var(--display); font-size: 12.5px; font-weight: 600; }
+.mm-sec .note { margin: 0; line-height: 1.45; }
+.mm-pane:has(.mm-sec) { overflow: auto; }
+.mm-scales { display: grid; gap: 3px; }
+.mm-srow { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "a d" "b d" "c d"; gap: 0 8px; padding: 5px 6px; border: 1px solid var(--line); border-radius: var(--r-sm); }
+.mm-srow > :nth-child(1) { grid-area: a; font-weight: 600; }
+.mm-srow > :nth-child(2) { grid-area: b; }
+.mm-srow > :nth-child(3) { grid-area: c; font-family: var(--mono); font-size: 11px; }
+.mm-srow > :nth-child(4) { grid-area: d; align-self: center; }
+.mm-chk { display: flex; align-items: center; gap: 6px; }
+.mm-dlg { display: grid; gap: 10px; min-width: min(420px, 86vw); }
+.mm-dlg .mm-f { display: grid; grid-template-columns: 140px 1fr; gap: 8px; align-items: center; }
+.mm-dlg .mm-in { width: 100%; }
+
+/* scheda Estrazioni */
+.mm-pane:has(.mm-exbar) { overflow: auto; padding: 8px 10px; gap: 8px; }
+.mm-pane:has(.mm-exbar) > *, .mm-ex > * { flex: none; min-height: auto; }
+.mm-pane > p.note { margin: 0; }
+.mm-exbar { display: flex; flex-wrap: wrap; gap: 6px; }
+.mm-ex { display: grid; gap: 6px; }
+.mm-exhead { display: flex; gap: 4px; align-items: baseline; flex-wrap: wrap; }
+.mm-extable { display: grid; grid-auto-rows: max-content; grid-template-columns: minmax(110px, 1.6fr) repeat(calc(var(--cols) - 1), minmax(72px, 1fr)); border: 1px solid var(--line); border-radius: var(--r-sm); overflow: auto; max-height: 52vh; font-size: 11.5px; }
+.mm-exth { position: sticky; top: 0; background: var(--panel-2); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-extd { padding: 3px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 5px; align-items: center; }
+.mm-extd.link:hover { background: var(--hover); color: var(--accent-ink); }
+.num { justify-content: flex-end; text-align: right; font-family: var(--mono); }
+.mm-extd.tot { font-weight: 700; background: var(--panel-2); border-bottom: 0; }
+.mm-warn { color: var(--warn); }
+
+/* strato di disegno sopra la scena 3D */
+.mm-3d-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4; }
+@media (max-width: 760px) { .mm-panel { width: 100% !important; max-width: 100%; } }

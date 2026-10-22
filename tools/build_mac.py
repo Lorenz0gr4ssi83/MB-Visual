@@ -141,6 +141,8 @@ def main() -> int:
         "--hidden-import", "mbvisual.convert", "--hidden-import", "mbvisual.fonts",
         "--collect-submodules", "markdown", "--hidden-import", "openpyxl", "--hidden-import", "brotli",
         "--hidden-import", "mbvisual.cadedit", "--hidden-import", "mbvisual.update", "--collect-all", "ezdxf",
+        # tutti i moduli dell'app (anche quelli caricati solo al bisogno: posta, recupero file, misure, edilizia, DXF da PDF)
+        "--collect-submodules", "mbvisual", "--collect-data", "tzdata",
         # nuvole di punti, ricerca nel progetto, formati aggiuntivi (stessi moduli della build Windows)
         *_optional_collect([("mbvisual.pointcloud", None), ("laspy", "submodules"), ("lazrs", None), ("pye57", "all"),
                             ("pyquaternion", None), ("mbvisual.search", None), ("mbvisual.search_extract", None), ("olefile", None),
