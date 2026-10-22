@@ -12,24 +12,27 @@ from __future__ import annotations
 import json
 import re
 from xml.etree import ElementTree as ET
+from .i18n import t as tr
 
-LABELS = {
-    "Worksharing": "Condivisione del lavoro", "Username": "Utente", "Central Model Path": "Percorso del modello centrale",
-    "Revit Build": "Build di Revit", "Format": "Formato (versione)", "Build": "Build", "Last Save Path": "Ultimo percorso di salvataggio",
-    "Open Workset Default": "Workset aperti per impostazione", "Project Spark File": "File Spark", "Central Model Identity": "Identita' del modello centrale",
-    "Locale when saved": "Lingua al salvataggio", "All Local Changes Saved To Central": "Modifiche locali salvate nel centrale",
-    "Central model's version number corresponding to the last reload latest": "Versione del centrale all'ultimo aggiornamento",
-    "Central model's episode GUID corresponding to the last reload latest": "GUID dell'episodio del centrale",
-    "Unique Document GUID": "GUID del documento", "Unique Document Increments": "Incrementi del documento", "Model Identity": "Identita' del modello",
-    "IsSingleUserCloudModel": "Modello cloud per un utente", "Author": "Autore",
+def _labels():  # testi nella lingua attiva al momento della richiesta
+    return {
+    "Worksharing": tr("srv_fx_revit.condivisione_lavoro"), "Username": tr("srv_fx_revit.utente"), "Central Model Path": tr("srv_fx_revit.percorso_modello_centrale"),
+    "Revit Build": tr("srv_fx_revit.build_revit"), "Format": tr("srv_fx_revit.formato_versione"), "Build": "Build", "Last Save Path": tr("srv_fx_revit.ultimo_percorso_salvataggio"),
+    "Open Workset Default": tr("srv_fx_revit.workset_aperti_impostazione"), "Project Spark File": tr("srv_fx_revit.file_spark"), "Central Model Identity": tr("srv_fx_revit.identita_modello_centrale"),
+    "Locale when saved": tr("srv_fx_revit.lingua_salvataggio"), "All Local Changes Saved To Central": tr("srv_fx_revit.modifiche_locali_salvate_centrale"),
+    "Central model's version number corresponding to the last reload latest": tr("srv_fx_revit.versione_centrale_all_ultimo_aggiornamento"),
+    "Central model's episode GUID corresponding to the last reload latest": tr("srv_fx_revit.guid_dell_episodio_centrale"),
+    "Unique Document GUID": tr("srv_fx_revit.guid_documento"), "Unique Document Increments": tr("srv_fx_revit.incrementi_documento"), "Model Identity": tr("srv_fx_revit.identita_modello"),
+    "IsSingleUserCloudModel": tr("srv_fx_revit.modello_cloud_utente"), "Author": tr("srv_fx_revit.autore"),
 }
-WORKSHARING = {"Not enabled": "Non attiva", "Local": "File locale (copia di un centrale)", "Central": "File centrale"}
+def _worksharing():  # testi nella lingua attiva al momento della richiesta
+    return {"Not enabled": tr("srv_fx_revit.non_attiva"), "Local": tr("srv_fx_revit.file_locale_copia_centrale"), "Central": tr("srv_fx_revit.file_centrale")}
 
 
 def _ole(path):
     import olefile
     if not olefile.isOleFile(path):
-        raise ValueError("Non e' un file Revit valido (contenitore OLE assente)")
+        raise ValueError(tr("srv_fx_revit.non_file_revit_valido_contenitore"))
     return olefile.OleFileIO(path)
 
 
@@ -44,12 +47,12 @@ def _basic_info(b: bytes) -> list:
     """Le voci "Chiave: valore" del flusso BasicFileInfo (testo UTF-16 in mezzo a campi binari, a volte disallineato)."""
     rows = []
     texts = [b.decode("utf-16-le", "replace"), b[1:].decode("utf-16-le", "replace")]
-    for k, label in LABELS.items():
+    for k, label in _labels().items():
         for txt in texts:
             m = re.search(r"(?<![A-Za-z' (])" + re.escape(k) + r": ?([^\r\n\x00\u0a0d\ufffd]*)", txt)
             if m:
                 v = m.group(1).strip()
-                rows.append({"k": k, "campo": label, "valore": WORKSHARING.get(v, v) if k == "Worksharing" else v})
+                rows.append({"k": k, "campo": label, "valore": _worksharing().get(v, v) if k == "Worksharing" else v})
                 break
     return rows
 
@@ -171,7 +174,7 @@ def read(path: str) -> dict:
             pass
         res["metadati"] = meta
         ext = path.rsplit(".", 1)[-1].lower()
-        res["tipo"] = {"rvt": "Progetto", "rfa": "Famiglia", "rte": "Modello di progetto", "rft": "Modello di famiglia"}.get(ext, "File Revit")
+        res["tipo"] = {"rvt": tr("srv_fx_revit.progetto"), "rfa": tr("srv_fx_revit.famiglia"), "rte": tr("srv_fx_revit.modello_progetto"), "rft": tr("srv_fx_revit.modello_famiglia")}.get(ext, tr("srv_fx_revit.file_revit"))
         return res
     finally:
         o.close()
@@ -184,7 +187,7 @@ def preview(path: str):
     finally:
         o.close()
     if not png:
-        raise ValueError("Il file non contiene un'anteprima")
+        raise ValueError(tr("srv_fx_revit.file_non_contiene_anteprima"))
     return png, {"Content-Type": "image/png"}
 
 
@@ -199,18 +202,18 @@ def export(path: str, out: str) -> dict:
             json.dump(read(path), f, ensure_ascii=False, indent=2)
     elif ext == "txt":
         r = read(path)
-        lines = [f"{r['tipo']} Revit {r['versione']}".strip(), ""]
+        lines = [tr("srv_fx_revit.0_revit_1", r['tipo'], r['versione']).strip(), ""]
         lines += [f"{x['campo']}: {x['valore']}" for x in r["info"]]
         fam = r.get("famiglia")
         if fam:
-            lines += ["", f"Famiglia: {fam['titolo']}", f"Categoria: {', '.join(fam['categorie'])}", f"Ospite: {fam['ospite']}", f"Tipi: {fam.get('numero_tipi', '')}"]
+            lines += ["", tr("srv_fx_revit.famiglia_0", fam['titolo']), tr("srv_fx_revit.categoria_0", ', '.join(fam['categorie'])), tr("srv_fx_revit.ospite_0", fam['ospite']), tr("srv_fx_revit.tipi_0", fam.get('numero_tipi', ''))]
             lines += [f"  [{p['gruppo']}] {p['nome']} = {p['valore']}" for p in fam["parametri"]]
             for t in fam["tipi"]:
-                lines += [f"Tipo: {t['nome']}"] + [f"  {p['nome']} = {p['valore']} {p['unita']}".rstrip() for p in t["parametri"]]
+                lines += [tr("srv_fx_revit.tipo_0", t['nome'])] + [f"  {p['nome']} = {p['valore']} {p['unita']}".rstrip() for p in t["parametri"]]
         if r["riferimenti"]:
-            lines += ["", "Riferimenti esterni:"] + [f"  {x['tipo']}: {x['percorso']} ({x['stato']})" for x in r["riferimenti"]]
+            lines += ["", tr("srv_fx_revit.riferimenti_esterni")] + [f"  {x['tipo']}: {x['percorso']} ({x['stato']})" for x in r["riferimenti"]]
         with open(out, "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
     else:
-        raise ValueError(f"Formato non previsto: .{ext}")
+        raise ValueError(tr("srv_fx_revit.formato_non_previsto_0", ext))
     return {"ok": True, "path": out}

@@ -2,6 +2,7 @@
 // esportazione SVG/PDF/PNG. Interprete in ui/js/hpgl.js (funziona anche nella web app; il PDF solo su PC).
 import { api, button, el, loadCss, readBytes, saveBytes, WEB } from "../core.js";
 import { DEFAULT_PENS, parseHpgl, toSvg } from "../hpgl.js";
+import { t as tr, LOCALE } from "../i18n.js";
 
 export async function mount(ctx) {
   loadCss("css/formati.css");
@@ -10,9 +11,9 @@ export async function mount(ctx) {
   ctx.fillBody(true);
   if (!model.prims.length) {
     ctx.el.append(el("div", { class: "fx-empty" }, model.raster
-      ? "Il file contiene un'immagine raster per stampante (PCL/RTL), non un disegno vettoriale HP-GL."
-      : "Nel file non ci sono comandi di disegno HP-GL riconoscibili (potrebbe essere un altro tipo di file .plt, ad esempio uno script di gnuplot).",
-    el("br"), el("br"), el("button", { class: "btn", onclick: () => ctx.openAs("text") }, "Apri come testo")));
+      ? tr("v_hpgl.file_contiene_immagine_raster_stampante")
+      : tr("v_hpgl.file_non_ci_sono_comandi"),
+    el("br"), el("br"), el("button", { class: "btn", onclick: () => ctx.openAs("text") }, tr("v_hpgl.apri_come_testo"))));
     return {};
   }
   const pens = {};
@@ -25,34 +26,34 @@ export async function mount(ctx) {
   const cv = el("canvas");
   stage.append(cv);
   const penBox = el("div", { class: "plt-pens" });
-  const left = el("div", { class: "fx-pane left" }, el("div", { class: "head" }, "Penne"), el("div", { class: "scroll" }, penBox));
+  const left = el("div", { class: "fx-pane left" }, el("div", { class: "head" }, tr("v_hpgl.penne")), el("div", { class: "scroll" }, penBox));
   ctx.el.append(el("div", { class: "fx-split with-left" }, left, stage));
 
-  const bMeasure = button("Misura", "ruler", () => { measuring = !measuring; mpts = []; bMeasure.classList.toggle("on", measuring); draw(); }, { title: "Due clic: distanza in mm sul foglio" });
-  const bWidth = button("Spessori", null, () => { widths = !widths; bWidth.classList.toggle("on", widths); draw(); }, { title: "Mostra gli spessori reali delle penne" });
+  const bMeasure = button(tr("v_hpgl.misura"), "ruler", () => { measuring = !measuring; mpts = []; bMeasure.classList.toggle("on", measuring); draw(); }, { title: tr("v_hpgl.due_clic_distanza_mm_foglio") });
+  const bWidth = button(tr("v_hpgl.spessori"), null, () => { widths = !widths; bWidth.classList.toggle("on", widths); draw(); }, { title: tr("v_hpgl.mostra_spessori_reali_penne") });
   bWidth.classList.add("on");
-  ctx.tb.append(button("", "fit", () => { fit(); draw(); }, { iconOnly: true, title: "Adatta alla finestra" }),
-    button("", "zoomIn", () => zoomAt(1.25), { iconOnly: true, title: "Ingrandisci" }), button("", "zoomOut", () => zoomAt(0.8), { iconOnly: true, title: "Riduci" }),
+  ctx.tb.append(button("", "fit", () => { fit(); draw(); }, { iconOnly: true, title: tr("v_hpgl.adatta_finestra") }),
+    button("", "zoomIn", () => zoomAt(1.25), { iconOnly: true, title: tr("v_hpgl.ingrandisci") }), button("", "zoomOut", () => zoomAt(0.8), { iconOnly: true, title: tr("v_hpgl.riduci") }),
     el("span", { class: "sep" }), bMeasure, bWidth,
-    button("Sfondo", "sun", () => { dark = !dark; stage.classList.toggle("dark", dark); draw(); }, { title: "Sfondo chiaro / scuro" }),
+    button(tr("v_hpgl.sfondo"), "sun", () => { dark = !dark; stage.classList.toggle("dark", dark); draw(); }, { title: tr("v_hpgl.sfondo_chiaro_scuro") }),
     el("span", { class: "grow" }), el("span", { class: "note" }, sizeText()));
 
   function sizeText() {
     const [x0, y0, x1, y1] = model.bbox;
-    return `Disegno ${fmt((x1 - x0) * model.unit)} x ${fmt((y1 - y0) * model.unit)} mm`;
+    return tr("v_hpgl.disegno_0_x_1_mm", fmt((x1 - x0) * model.unit), fmt((y1 - y0) * model.unit));
   }
 
   function renderPens() {
     penBox.innerHTML = "";
     for (const p of model.pens) {
       const st = pens[p];
-      const color = el("input", { type: "color", value: st.color, title: "Colore della penna" });
+      const color = el("input", { type: "color", value: st.color, title: tr("v_hpgl.colore_penna") });
       color.addEventListener("input", () => { st.color = color.value; draw(); });
       const chk = el("input", { type: "checkbox" });
       chk.checked = st.on;
       chk.addEventListener("change", () => { st.on = chk.checked; draw(); });
       const w = model.prims.find(x => x.pen === p && x.t === "l")?.w;
-      penBox.append(el("label", {}, chk, color, `Penna ${p}`, w ? el("span", { class: "fx-muted fx-small" }, `${fmt(w)} mm`) : null));
+      penBox.append(el("label", {}, chk, color, tr("v_hpgl.penna_0", p), w ? el("span", { class: "fx-muted fx-small" }, `${fmt(w)} mm`) : null));
     }
   }
 
@@ -123,7 +124,7 @@ export async function mount(ctx) {
       }
     }
     const pos = hover ? `x ${fmt(hover[0] * model.unit)}  y ${fmt(hover[1] * model.unit)} mm · ` : "";
-    ctx.status(`${pos}${model.prims.length} elementi · ${model.pens.length} penne · scala ${fmt(zoom / (model.unit * 96 / 25.4) * 100)}% del reale`);
+    ctx.status(tr("v_hpgl.0_1_elementi_2_penne", pos, model.prims.length, model.pens.length, fmt(zoom / (model.unit * 96 / 25.4) * 100)));
   }
   function zoomAt(f, sx, sy) {
     const { W, H } = view();
@@ -171,17 +172,17 @@ export async function mount(ctx) {
   return {
     saveInPlace: false,
     saveFormats: WEB ? ["svg", "png"] : ["pdf", "svg", "png"],
-    saveLabels: { pdf: "PDF vettoriale (dimensioni reali)", svg: "SVG vettoriale (in mm)", png: "Immagine a 300 dpi" },
+    saveLabels: { pdf: tr("v_hpgl.pdf_vettoriale_dimensioni_reali"), svg: tr("v_hpgl.svg_vettoriale_mm"), png: tr("v_hpgl.immagine_300_dpi") },
     async save(target) {
       const ext = target.split(".").pop().toLowerCase();
       if (ext === "svg") await saveBytes(target, new TextEncoder().encode(svgText()));
       else if (ext === "pdf") await api("fx", { op: "svg_pdf" }, { json: { svg: svgText(), out: target } });
       else if (ext === "png") { const b = await new Promise(r => png().toBlob(r, "image/png")); await saveBytes(target, new Uint8Array(await b.arrayBuffer())); }
-      else throw new Error("Formato non previsto");
+      else throw new Error(tr("v_hpgl.formato_non_previsto"));
       return { switchTo: false };
     },
     onShow() { draw(); },
   };
 }
 
-function fmt(v) { return (Math.round(v * 100) / 100).toLocaleString("it-IT"); }
+function fmt(v) { return (Math.round(v * 100) / 100).toLocaleString(LOCALE); }

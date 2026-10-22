@@ -15,6 +15,7 @@ import os
 import struct
 
 import numpy as np
+from .i18n import t as tr
 
 MAX_NODES = 5000
 MAX_COLS = 300
@@ -112,7 +113,7 @@ def _h5_tree(path):
             try:
                 n["attributi"] = [{"k": k, "v": _attr(v)} for k, v in list(obj.attrs.items())[:500]]
             except Exception as e:  # noqa: BLE001
-                n["attributi"] = [{"k": "(attributi)", "v": f"non leggibili: {e}"}]
+                n["attributi"] = [{"k": "(attributi)", "v": tr("srv_fx_sci.non_leggibili_0", e)}]
             if isinstance(obj, h5py.Dataset):
                 n.update(tipo="dataset", forma=list(obj.shape) if obj.shape is not None else [], dtype=_h5_dtype(obj.dtype),
                          compressione=obj.compression or "", blocchi=list(obj.chunks) if obj.chunks else None,
@@ -150,7 +151,7 @@ class NC3:
         self.m = mmap.mmap(self.f.fileno(), 0, access=mmap.ACCESS_READ)
         b = self.m
         if b[:3] != b"CDF":
-            raise ValueError("Non e' un file NetCDF classico")
+            raise ValueError(tr("srv_fx_sci.non_file_netcdf_classico"))
         self.ver = b[3]
         self.p = 4
         big = self.ver == 5
@@ -237,8 +238,8 @@ class NC3:
 def _nc3_tree(path):
     nc = NC3(path)
     try:
-        nodes = [{"nome": "/", "tipo": "gruppo", "attributi": nc.attrs + [{"k": "(formato)", "v": {1: "NetCDF 3 classico", 2: "NetCDF 3 offset a 64 bit", 5: "NetCDF CDF-5"}[nc.ver]},
-                                                                      {"k": "(dimensioni)", "v": ", ".join(f"{n} = {'illimitata (' + str(nc.numrecs) + ')' if s == 0 else s}" for n, s in nc.dims)}]}]
+        nodes = [{"nome": "/", "tipo": "gruppo", "attributi": nc.attrs + [{"k": tr("srv_fx_sci.formato"), "v": {1: tr("srv_fx_sci.netcdf_3_classico"), 2: tr("srv_fx_sci.netcdf_3_offset_64_bit"), 5: "NetCDF CDF-5"}[nc.ver]},
+                                                                      {"k": tr("srv_fx_sci.dimensioni"), "v": ", ".join(f"{n} = {'illimitata (' + str(nc.numrecs) + ')' if s == 0 else s}" for n, s in nc.dims)}]}]
         for v in nc.vars:
             nodes.append({"nome": "/" + v["nome"], "tipo": "variabile", "forma": v["forma"], "dimensioni": v["dims"], "dtype": NC_TYPES[v["tipo"]][2],
                           "numerico": v["tipo"] not in (2,), "attributi": v["attributi"], "campi": []})
@@ -260,7 +261,7 @@ def _arrow_table(path, k):
 
 
 def _schema_rows(schema):
-    return [{"k": f.name, "v": str(f.type) + ("" if f.nullable else " (non nullo)")} for f in schema]
+    return [{"k": f.name, "v": str(f.type) + ("" if f.nullable else tr("srv_fx_sci.non_nullo"))} for f in schema]
 
 
 def _table_tree(path, k):
@@ -268,23 +269,23 @@ def _table_tree(path, k):
         import pyarrow.parquet as pq
         pf = pq.ParquetFile(path)
         md = pf.metadata
-        meta = [{"k": "Righe", "v": md.num_rows}, {"k": "Colonne", "v": md.num_columns}, {"k": "Gruppi di righe", "v": md.num_row_groups},
-                {"k": "Creato da", "v": md.created_by or ""}, {"k": "Versione formato", "v": md.format_version}]
+        meta = [{"k": tr("srv_fx_sci.righe"), "v": md.num_rows}, {"k": tr("srv_fx_sci.colonne"), "v": md.num_columns}, {"k": tr("srv_fx_sci.gruppi_righe"), "v": md.num_row_groups},
+                {"k": tr("srv_fx_sci.creato"), "v": md.created_by or ""}, {"k": tr("srv_fx_sci.versione_formato"), "v": md.format_version}]
         if md.num_row_groups:
             rg = md.row_group(0)
             comp = {rg.column(i).compression for i in range(rg.num_columns)}
-            meta.append({"k": "Compressione", "v": ", ".join(sorted(comp))})
+            meta.append({"k": tr("srv_fx_sci.compressione"), "v": ", ".join(sorted(comp))})
         for key, val in (pf.schema_arrow.metadata or {}).items():
-            meta.append({"k": "metadati: " + key.decode("utf-8", "replace"), "v": _short(val.decode("utf-8", "replace"), 2000)})
+            meta.append({"k": tr("srv_fx_sci.metadati") + key.decode("utf-8", "replace"), "v": _short(val.decode("utf-8", "replace"), 2000)})
         schema = pf.schema_arrow
         rows = md.num_rows
     else:
         t = _arrow_table(path, k)
         schema, rows = t.schema, t.num_rows
-        meta = [{"k": "Righe", "v": rows}, {"k": "Colonne", "v": t.num_columns},
-                {"k": "Formato", "v": {"arrow": "Arrow IPC (file) / Feather 2", "feather1": "Feather 1", "arrow_stream": "Arrow IPC (flusso)"}[k]}]
+        meta = [{"k": tr("srv_fx_sci.righe"), "v": rows}, {"k": tr("srv_fx_sci.colonne"), "v": t.num_columns},
+                {"k": tr("srv_fx_sci.formato_2"), "v": {"arrow": tr("srv_fx_sci.arrow_ipc_file_feather_2"), "feather1": "Feather 1", "arrow_stream": tr("srv_fx_sci.arrow_ipc_flusso")}[k]}]
         for key, val in (schema.metadata or {}).items():
-            meta.append({"k": "metadati: " + key.decode("utf-8", "replace"), "v": _short(val.decode("utf-8", "replace"), 2000)})
+            meta.append({"k": tr("srv_fx_sci.metadati") + key.decode("utf-8", "replace"), "v": _short(val.decode("utf-8", "replace"), 2000)})
     return [{"nome": "/", "tipo": "tabella", "forma": [rows, len(schema)], "dtype": "tabella", "attributi": meta, "schema": _schema_rows(schema),
              "campi": schema.names, "numerico": False}]
 
@@ -322,8 +323,8 @@ def open_file(path: str) -> dict:
         try:
             nodes = _table_tree(path, k)
         except Exception as e:  # noqa: BLE001
-            raise ValueError(f"Formato non riconosciuto (ne' HDF5, NetCDF, Parquet o Arrow): {e}") from e
-        fmt = {"parquet": "Parquet", "arrow": "Arrow / Feather 2", "feather1": "Feather 1", "arrow_stream": "Arrow (flusso IPC)"}[k]
+            raise ValueError(tr("srv_fx_sci.formato_non_riconosciuto_ne_hdf5", e)) from e
+        fmt = {"parquet": "Parquet", "arrow": tr("srv_fx_sci.arrow_feather_2"), "feather1": "Feather 1", "arrow_stream": tr("srv_fx_sci.arrow_flusso_ipc")}[k]
     return {"ok": True, "formato": fmt, "tipo": k, "nodi": nodes, "troncato": len(nodes) >= MAX_NODES}
 
 
@@ -479,7 +480,7 @@ def export(path: str, name: str, out: str, fetta=None) -> dict:
     elif ext == "xlsx":
         from openpyxl import Workbook
         wb = Workbook(write_only=True)
-        ws = wb.create_sheet((name.strip("/").replace("/", "_") or "Dati")[:31])
+        ws = wb.create_sheet((name.strip("/").replace("/", "_") or tr("srv_fx_sci.dati"))[:31])
         ws.append(cols)
         for r in it:
             if n >= 1_048_575:
@@ -488,5 +489,5 @@ def export(path: str, name: str, out: str, fetta=None) -> dict:
             n += 1
         wb.save(out)
     else:
-        raise ValueError(f"Formato di esportazione non previsto: .{ext}")
+        raise ValueError(tr("srv_fx_sci.formato_esportazione_non_previsto_0", ext))
     return {"ok": True, "path": out, "righe": n}

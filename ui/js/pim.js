@@ -1,6 +1,7 @@
 // Lettura di iCalendar (RFC 5545, anche vCalendar 1.0) e vCard (2.1, 3.0, 4.0) senza librerie esterne,
 // piu' le esportazioni comuni (CSV, Excel, PDF) usate da viewers/calendar.js e viewers/contacts.js.
 import { api, loadScript, saveBytes, WEB } from "./core.js";
+import { t as tr, LOCALE, tn } from "./i18n.js";
 
 // ---------------------------------------------------------------- righe e proprieta'
 export function decodeText(bytes) {
@@ -131,7 +132,8 @@ function parseDuration(v) {
 }
 
 const DAYS = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
-const IT_DAYS = ["domenica", "lunedi'", "martedi'", "mercoledi'", "giovedi'", "venerdi'", "sabato"];
+// nomi dei giorni nella lingua dell'interfaccia (4 gennaio 1970 = domenica)
+const IT_DAYS = DAYS.map((_, i) => new Date(1970, 0, 4 + i).toLocaleDateString(LOCALE, { weekday: "long" }));
 
 function parseRule(v) {
   const r = {};
@@ -142,12 +144,12 @@ function parseRule(v) {
 export function describeRule(v) {
   if (!v) return "";
   const r = parseRule(v), n = +(r.INTERVAL || 1);
-  const unit = { DAILY: ["giorno", "giorni"], WEEKLY: ["settimana", "settimane"], MONTHLY: ["mese", "mesi"], YEARLY: ["anno", "anni"] }[r.FREQ] || ["", ""];
-  let s = n === 1 ? `Ogni ${unit[0]}` : `Ogni ${n} ${unit[1]}`;
-  if (r.BYDAY) s += ", " + r.BYDAY.split(",").map(d => { const m = /^([+-]?\d+)?(\w\w)$/.exec(d); if (!m) return d; const day = IT_DAYS[DAYS.indexOf(m[2])] || m[2]; return m[1] ? (m[1] === "-1" ? "ultimo " : m[1] + "° ") + day : day; }).join(", ");
-  if (r.BYMONTHDAY) s += ", giorno " + r.BYMONTHDAY;
-  if (r.COUNT) s += `, ${r.COUNT} volte`;
-  if (r.UNTIL) { const d = parseDate({ value: r.UNTIL, params: {} }); if (d) s += ", fino al " + d.date.toLocaleDateString("it-IT"); }
+  const unit = { DAILY: [tr("pim.giorno"), tr("pim.giorni")], WEEKLY: [tr("pim.settimana"), tr("pim.settimane")], MONTHLY: [tr("pim.mese"), tr("pim.mesi")], YEARLY: [tr("pim.anno"), tr("pim.anni")] }[r.FREQ] || ["", ""];
+  let s = n === 1 ? tr("pim.ogni_0", unit[0]) : tr("pim.ogni_0_1", n, unit[1]);
+  if (r.BYDAY) s += ", " + r.BYDAY.split(",").map(d => { const m = /^([+-]?\d+)?(\w\w)$/.exec(d); if (!m) return d; const day = IT_DAYS[DAYS.indexOf(m[2])] || m[2]; return m[1] ? (m[1] === "-1" ? tr("pim.ultimo") : m[1] + "° ") + day : day; }).join(", ");
+  if (r.BYMONTHDAY) s += tr("pim.giorno_n", r.BYMONTHDAY);
+  if (r.COUNT) s += tr("pim.n_volte", r.COUNT);
+  if (r.UNTIL) { const d = parseDate({ value: r.UNTIL, params: {} }); if (d) s += tr("pim.fino") + d.date.toLocaleDateString(LOCALE); }
   return s;
 }
 
@@ -213,8 +215,8 @@ function expand(start, ruleText, exdates, horizon) {
 function person(p) {
   if (!p) return null;
   const mail = p.value.replace(/^mailto:/i, "");
-  return { nome: p.params.CN || mail, email: mail, stato: { ACCEPTED: "ha accettato", DECLINED: "ha rifiutato", TENTATIVE: "forse", "NEEDS-ACTION": "in attesa", DELEGATED: "delegato" }[(p.params.PARTSTAT || "").toUpperCase()] || "",
-    ruolo: { "REQ-PARTICIPANT": "obbligatorio", "OPT-PARTICIPANT": "facoltativo", CHAIR: "presidente", "NON-PARTICIPANT": "per conoscenza" }[(p.params.ROLE || "").toUpperCase()] || "" };
+  return { nome: p.params.CN || mail, email: mail, stato: { ACCEPTED: tr("pim.ha_accettato"), DECLINED: tr("pim.ha_rifiutato"), TENTATIVE: "forse", "NEEDS-ACTION": tr("pim.attesa"), DELEGATED: "delegato" }[(p.params.PARTSTAT || "").toUpperCase()] || "",
+    ruolo: { "REQ-PARTICIPANT": "obbligatorio", "OPT-PARTICIPANT": "facoltativo", CHAIR: "presidente", "NON-PARTICIPANT": tr("pim.conoscenza") }[(p.params.ROLE || "").toUpperCase()] || "" };
 }
 
 export function parseCalendar(text) {
@@ -264,13 +266,13 @@ function toItem(c) {
   const allDay = !!st?.allDay;
   // gli eventi di una giornata intera finiscono il giorno DOPO (escluso): per mostrarli si usa l'ultimo giorno incluso
   if (allDay && fine && fine > st.date) fine = new Date(fine.getTime() - 1);
-  const t = s => unescapeText(prop(c, s)?.value || "");
-  const tipo = { VEVENT: "Evento", VTODO: "Attivita'", VJOURNAL: "Nota", VFREEBUSY: "Disponibilita'" }[c.type];
+  const pv = s => unescapeText(prop(c, s)?.value || "");
+  const tipo = { VEVENT: tr("pim.evento"), VTODO: tr("pim.attivita"), VJOURNAL: tr("pim.nota"), VFREEBUSY: tr("pim.disponibilita") }[c.type];
   if (!st && !due && c.type !== "VTODO" && c.type !== "VJOURNAL") return null;
   return {
-    uid: prop(c, "UID")?.value || "", tipo, titolo: t("SUMMARY") || "(senza titolo)", luogo: t("LOCATION"), descrizione: t("DESCRIPTION"),
+    uid: prop(c, "UID")?.value || "", tipo, titolo: pv("SUMMARY") || tr("pim.senza_titolo"), luogo: pv("LOCATION"), descrizione: pv("DESCRIPTION"),
     inizio: st?.date || null, fine, giornata: allDay, scadenza: due?.date || null, fuso: st?.tz || "",
-    stato: { CONFIRMED: "Confermato", TENTATIVE: "Provvisorio", CANCELLED: "Annullato", "NEEDS-ACTION": "Da fare", COMPLETED: "Completata", "IN-PROCESS": "In corso" }[(prop(c, "STATUS")?.value || "").toUpperCase()] || "",
+    stato: { CONFIRMED: tr("pim.confermato"), TENTATIVE: tr("pim.provvisorio"), CANCELLED: tr("pim.annullato"), "NEEDS-ACTION": tr("pim.fare"), COMPLETED: tr("pim.completata"), "IN-PROCESS": tr("pim.corso") }[(prop(c, "STATUS")?.value || "").toUpperCase()] || "",
     categorie: props(c, "CATEGORIES").flatMap(p => p.value.split(",").map(x => unescapeText(x.trim()))).filter(Boolean),
     organizzatore: person(prop(c, "ORGANIZER")), partecipanti: props(c, "ATTENDEE").map(person),
     url: prop(c, "URL")?.value || "", priorita: prop(c, "PRIORITY")?.value || "", classe: prop(c, "CLASS")?.value || "",
@@ -281,10 +283,10 @@ function toItem(c) {
 function describeAlarm(p) {
   if (!p) return "";
   const ms = parseDuration(p.value);
-  if (ms === null) { const d = parseDate(p); return d ? "il " + d.date.toLocaleString("it-IT") : ""; }
+  if (ms === null) { const d = parseDate(p); return d ? tr("pim.il_0", d.date.toLocaleString(LOCALE)) : ""; }
   const m = Math.abs(ms) / 60000;
-  const txt = m === 0 ? "all'inizio" : m % 1440 === 0 ? `${m / 1440} giorn${m / 1440 === 1 ? "o" : "i"}` : m % 60 === 0 ? `${m / 60} or${m / 60 === 1 ? "a" : "e"}` : `${m} minuti`;
-  return m === 0 ? txt : `${txt} ${ms < 0 ? "prima" : "dopo"}`;
+  const txt = m === 0 ? tr("pim.all_inizio") : m % 1440 === 0 ? tn("pim.n_giorni", m / 1440) : m % 60 === 0 ? tn("pim.n_ore", m / 60) : tn("pim.n_minuti", m);
+  return m === 0 ? txt : tr(ms < 0 ? "pim.0_prima" : "pim.0_dopo", txt);
 }
 
 // ---------------------------------------------------------------- vCard
@@ -296,7 +298,7 @@ export function parseVcards(text) {
   return cards;
 }
 
-const TEL_TYPES = { cell: "Cellulare", work: "Lavoro", home: "Casa", fax: "Fax", voice: "Voce", pager: "Cercapersone", text: "SMS", video: "Video", main: "Principale", iphone: "iPhone" };
+const TEL_TYPES = { cell: tr("pim.cellulare"), work: tr("pim.lavoro"), home: tr("pim.casa"), fax: tr("pim.fax"), voice: tr("pim.voce"), pager: tr("pim.cercapersone"), text: "SMS", video: tr("pim.video"), main: tr("pim.principale"), iphone: "iPhone" };
 function typeLabel(params, map = TEL_TYPES) {
   const t = (params.TYPE || []).filter(x => x !== "pref" && x !== "internet" && x !== "voice" && x !== "x400");
   return t.map(x => map[x] || x).join(", ");
@@ -320,7 +322,7 @@ function toCard(c) {
   }
   const nomeCompleto = v("FN") || [n[3], n[1], n[2], n[0], n[4]].filter(Boolean).join(" ");
   return {
-    nome: nomeCompleto || v("EMAIL") || v("ORG") || "(senza nome)", cognome: n[0] || "", nome_proprio: n[1] || "", altri_nomi: n[2] || "", titolo_nome: n[3] || "", suffisso: n[4] || "",
+    nome: nomeCompleto || v("EMAIL") || v("ORG") || tr("pim.senza_nome"), cognome: n[0] || "", nome_proprio: n[1] || "", altri_nomi: n[2] || "", titolo_nome: n[3] || "", suffisso: n[4] || "",
     soprannome: v("NICKNAME"), azienda: org[0] || "", reparto: org.slice(1).join(", "), qualifica: v("TITLE"), ruolo: v("ROLE"),
     telefoni: props(c, "TEL").map(p => ({ tipo: typeLabel(p.params), valore: p.value.replace(/^tel:/i, "").trim(), pref: (p.params.TYPE || []).includes("pref") || p.params.PREF === "1" })),
     email: props(c, "EMAIL").map(p => ({ tipo: typeLabel(p.params), valore: p.value.trim() })),
@@ -344,8 +346,9 @@ function splitEsc(s) {
 
 // ---------------------------------------------------------------- esportazioni
 export function toCsv(cols, rows) {
-  const esc = v => { const s = v === null || v === undefined ? "" : String(v); return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-  return "﻿" + [cols.map(esc).join(";"), ...rows.map(r => r.map(esc).join(";"))].join("\r\n") + "\r\n";
+  const Q = String.fromCharCode(34); // virgolette doppie
+  const esc = v => { const s = v === null || v === undefined ? "" : String(v); return /[;\n\r]/.test(s) || s.includes(Q) ? Q + s.replaceAll(Q, Q + Q) + Q : s; };
+  return "\ufeff" + [cols.map(esc).join(";"), ...rows.map(r => r.map(esc).join(";"))].join("\r\n") + "\r\n";
 }
 
 export async function saveTable(target, sheetName, cols, rows) {
@@ -358,11 +361,11 @@ export async function saveTable(target, sheetName, cols, rows) {
     window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.aoa_to_sheet([cols, ...rows]), sheetName.slice(0, 31));
     return saveBytes(target, new Uint8Array(window.XLSX.write(wb, { type: "array", bookType: "xlsx" })));
   }
-  throw new Error("Formato non previsto: ." + ext);
+  throw new Error(tr("pim.formato_non_previsto") + ext);
 }
 
 export async function savePdf(target, html, landscape = false) {
-  if (WEB) throw new Error("Nella web app il PDF si ottiene con Stampa -> Salva come PDF");
+  if (WEB) throw new Error(tr("pim.web_app_pdf_si_ottiene"));
   return api("fx", { op: "html_pdf" }, { json: { html, out: target, orizzontale: landscape } });
 }
 

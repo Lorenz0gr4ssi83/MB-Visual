@@ -15,6 +15,7 @@ import re
 import struct
 import zipfile
 from xml.etree import ElementTree as ET
+from .i18n import t as tr
 
 IMG_EXT = (".jpg", ".jpeg", ".png", ".gif", ".tif", ".tiff", ".bmp", ".heic", ".webp")
 
@@ -58,7 +59,7 @@ def snappy_decompress(buf: bytes) -> bytes:
             off = int.from_bytes(buf[pos:pos + 4], "little")
             pos += 4
         if off <= 0 or off > len(out):
-            raise ValueError("Dati Snappy non validi")
+            raise ValueError(tr("srv_fx_iwork.dati_snappy_non_validi"))
         start = len(out) - off
         if off >= ln:
             out += out[start:start + ln]
@@ -107,7 +108,7 @@ def pb(b: bytes) -> dict:
         elif w == 5:
             v, p = b[p:p + 4], p + 4
         else:
-            raise ValueError("protobuf non valido")
+            raise ValueError(tr("srv_fx_iwork.protobuf_non_valido"))
         out.setdefault(f, []).append(v)
     return out
 
@@ -166,7 +167,8 @@ def _app(path: str, names) -> str:
 
 
 # ---------------------------------------------------------------- iWork 2013+: testo e tabelle dagli oggetti IWA
-STORAGE_KIND = {0: "Testo principale", 1: "Intestazione/pie' di pagina", 2: "Nota", 3: "Casella di testo", 4: "Note del relatore", 5: "Cella", 6: "Testo"}
+def _storage_kind():  # testi nella lingua attiva al momento della richiesta
+    return {0: tr("srv_fx_iwork.testo_principale"), 1: tr("srv_fx_iwork.intestazione_pie_pagina"), 2: tr("srv_fx_iwork.nota"), 3: tr("srv_fx_iwork.casella_testo"), 4: tr("srv_fx_iwork.note_relatore"), 5: tr("srv_fx_iwork.cella"), 6: tr("srv_fx_iwork.testo")}
 
 
 def _clean(t: str) -> str:
@@ -217,7 +219,7 @@ def _iwa_texts(objs: dict, app: str) -> list:
             continue  # testi segnaposto dei modelli
         if kind == 5:
             continue  # testi delle celle: vanno nelle tabelle
-        out.append({"tipo": STORAGE_KIND.get(kind, "Testo"), "parte": where, "testo": txt, "_ord": (0 if kind == 0 else 1, _natural(where), ident)})
+        out.append({"tipo": _storage_kind().get(kind, tr("srv_fx_iwork.testo")), "parte": where, "testo": txt, "_ord": (0 if kind == 0 else 1, _natural(where), ident)})
     out.sort(key=lambda x: x.pop("_ord"))
     return out
 
@@ -311,7 +313,7 @@ def _cell(buf: bytes, strings: dict, rich: dict, new: bool):
     if t == 7:
         return f"{num:g} s" if num is not None else None
     if t == 8:
-        return "#ERRORE"
+        return tr("srv_fx_iwork.errore")
     if t == 9:
         return rich.get(ridx, "")
     return None
@@ -358,7 +360,7 @@ def _iwa_table(objs, model_id) -> dict | None:
     while grid and all(v is None for v in grid[-1]):
         grid.pop()
     width = max((max((i + 1 for i, v in enumerate(r) if v is not None), default=0) for r in grid), default=0)
-    return {"nome": name or "Tabella", "righe": [r[:width] for r in grid], "intestazione": m.get(9, [0])[0]}
+    return {"nome": name or tr("srv_fx_iwork.tabella"), "righe": [r[:width] for r in grid], "intestazione": m.get(9, [0])[0]}
 
 
 def _iwa_tables(objs) -> list:
@@ -447,13 +449,13 @@ def _xml_texts(root, app) -> list:
             acc = []
             _paras(slide, acc)
             if acc:
-                out.append({"tipo": "Diapositiva", "parte": f"Diapositiva {i + 1}", "testo": _clean("\n".join(acc))})
+                out.append({"tipo": tr("srv_fx_iwork.diapositiva"), "parte": tr("srv_fx_iwork.diapositiva_0", i + 1), "testo": _clean("\n".join(acc))})
         return out
     body = next((e for e in root.iter() if _local(e.tag) == "body-storage"), None)
     acc = []
     _paras(body if body is not None else root, acc)
     if acc:
-        out.append({"tipo": "Testo principale", "parte": "Documento", "testo": _clean("\n".join(acc))})
+        out.append({"tipo": tr("srv_fx_iwork.testo_principale"), "parte": "", "testo": _clean("\n".join(acc))})
     return out
 
 
@@ -514,7 +516,7 @@ def _xml_tables(root) -> list:
         rows = [cells[i:i + ncols] for i in range(0, min(len(cells), (nrows or 10 ** 9) * ncols), ncols)]
         while rows and all(v is None for v in rows[-1]):
             rows.pop()
-        out.append({"nome": _attr(tm, "name") or "Tabella", "foglio": "", "righe": rows, "intestazione": 1})
+        out.append({"nome": _attr(tm, "name") or tr("srv_fx_iwork.tabella"), "foglio": "", "righe": rows, "intestazione": 1})
     return out
 
 
@@ -534,22 +536,22 @@ def read(path: str) -> dict:
     app = _app(path, pk.names)
     res = {"ok": True, "programma": app, "parti": len(pk.names), **_previews(pk), "testi": [], "tabelle": [], "note": []}
     if any(n.endswith(".iwa") for n in pk.names):
-        res["versione"] = "iWork 2013 o successivo"
+        res["versione"] = tr("srv_fx_iwork.iwork_2013_successivo")
         objs = _iwa_all(pk)
         if not objs and ".iwpv2" in " ".join(pk.names).lower():
-            res["note"].append("Documento protetto da password: il contenuto e' cifrato, si vede solo l'anteprima.")
+            res["note"].append(tr("srv_fx_iwork.documento_protetto_password_contenuto_cifrato"))
         res["testi"] = _iwa_texts(objs, app)
         try:
             res["tabelle"] = _iwa_tables(objs)
         except Exception as e:  # noqa: BLE001
-            res["note"].append(f"Tabelle non leggibili: {e}")
+            res["note"].append(tr("srv_fx_iwork.tabelle_non_leggibili_0", e))
     else:
         res["versione"] = "iWork '09"
         try:
             root = _xml(pk)
         except Exception as e:  # noqa: BLE001
             root = None
-            res["note"].append(f"Contenuto XML non leggibile: {e}")
+            res["note"].append(tr("srv_fx_iwork.contenuto_xml_non_leggibile_0", e))
         if root is not None:
             res["testi"] = _xml_texts(root, app)
             res["tabelle"] = _xml_tables(root)
@@ -563,7 +565,7 @@ def read(path: str) -> dict:
         except Exception:
             res["pagine_pdf"] = 0
     if not res["pdf"] and not res["immagine"] and not res["testi"] and not res["tabelle"]:
-        res["note"].append("Il documento non contiene un'anteprima ne' testo leggibile.")
+        res["note"].append(tr("srv_fx_iwork.documento_non_contiene_anteprima_ne"))
     return res
 
 
@@ -579,7 +581,7 @@ def _jsonable(v):
 def part(path: str, name: str):
     pk = Pack(path)
     if name not in pk.names:
-        raise ValueError("Parte non trovata nel documento")
+        raise ValueError(tr("srv_fx_iwork.parte_non_trovata_documento"))
     ext = os.path.splitext(name)[1].lower()
     ctype = {".pdf": "application/pdf", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif",
              ".tif": "image/tiff", ".tiff": "image/tiff", ".bmp": "image/bmp", ".webp": "image/webp"}.get(ext, "application/octet-stream")
@@ -592,7 +594,7 @@ def page_png(path: str, n: int = 0):
     pk = Pack(path)
     pdf = _previews(pk)["pdf"]
     if not pdf:
-        raise ValueError("Il documento non ha un PDF di anteprima")
+        raise ValueError(tr("srv_fx_iwork.documento_non_ha_pdf_anteprima"))
     doc = pymupdf.open(stream=pk.read(pdf), filetype="pdf")
     page = doc[max(0, min(doc.page_count - 1, int(n)))]
     zoom = min(2.0, 1600 / max(page.rect.width, page.rect.height))
@@ -610,7 +612,7 @@ def export(path: str, out: str) -> dict:
             import pymupdf
             data = pymupdf.open(stream=pk.read(r["immagine"]), filetype="jpg").convert_to_pdf()
         else:
-            raise ValueError("Il documento non ha un'anteprima da esportare in PDF")
+            raise ValueError(tr("srv_fx_iwork.documento_non_ha_anteprima_esportare"))
         with open(out, "wb") as f:
             f.write(data)
     elif ext in ("png", "jpg"):
@@ -620,7 +622,7 @@ def export(path: str, out: str) -> dict:
             import pymupdf
             src = pymupdf.open(stream=pk.read(r["pdf"]), filetype="pdf")[0].get_pixmap(dpi=150).tobytes("png")
         else:
-            raise ValueError("Il documento non ha un'anteprima")
+            raise ValueError(tr("srv_fx_iwork.documento_non_ha_anteprima"))
         from PIL import Image
         im = Image.open(io.BytesIO(src))
         (im.convert("RGB") if ext == "jpg" else im).save(out, "JPEG" if ext == "jpg" else "PNG")
@@ -632,7 +634,7 @@ def export(path: str, out: str) -> dict:
             f.write(txt.strip() + "\n")
     elif ext in ("csv", "xlsx"):
         if not r["tabelle"]:
-            raise ValueError("Il documento non contiene tabelle")
+            raise ValueError(tr("srv_fx_iwork.documento_non_contiene_tabelle"))
         from .formati import rows_xlsx, write_csv
         if ext == "xlsx":
             rows_xlsx([{"nome": (tb["foglio"] + " - " if tb["foglio"] else "") + tb["nome"], "colonne": [], "righe": tb["righe"]} for tb in r["tabelle"]], out)
@@ -644,5 +646,5 @@ def export(path: str, out: str) -> dict:
                 rows += tb["righe"]
             write_csv(out, [], rows)
     else:
-        raise ValueError(f"Formato non previsto: .{ext}")
+        raise ValueError(tr("srv_fx_iwork.formato_non_previsto_0", ext))
     return {"ok": True, "path": out}

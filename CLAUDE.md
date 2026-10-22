@@ -729,5 +729,8 @@ I DICOM SENZA estensione (o con nome numerico) si aprono col visualizzatore DICO
   PartAtom (famiglie: categoria, parametri, tipi), TransmissionData (collegamenti esterni). Geometria non leggibile.
 - Prove: `python tools/make_fx_samples.py [--pubblici]` -> tests/samples/fx (campioni generati + `pubblici/` da Apache Tika e
   DynamoRevit, Apache-2.0, vedi FONTI.md), poi `python tests/test_fx_formats.py` (46 controlli).
+- Testi in 5 lingue: chiavi v_dicom.*, v_cert.*, v_calendar.*, v_contacts.*, v_hpgl.*, v_scidata.*, v_iwork.*, v_revit.*, pim.*,
+  srv_fx_*.*, srv_formati.*, fmt.<id>.*. Nei moduli Python le etichette fisse sono funzioni (_names(), _labels()...) perche' la lingua
+  e' quella della richiesta, non quella dell'importazione; le chiavi tecniche (BasicFileInfo di Revit, blocchi PEM) restano in inglese.
 - Librerie nuove (requirements.txt + hidden import in build_portable.py): pydicom MIT, python-gdcm Apache-2.0/BSD, h5py BSD-3,
   pyarrow Apache-2.0, olefile BSD-2.

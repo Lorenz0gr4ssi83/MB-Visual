@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from .i18n import t
 
 
 def handle(op: str, path: str | None, qs: dict, body: bytes):
@@ -78,7 +79,7 @@ def handle(op: str, path: str | None, qs: dict, body: bytes):
     if op == "xlsx":
         b = js()
         return rows_xlsx(b["fogli"], b["out"])
-    raise ValueError(f"Operazione sconosciuta: {op}")
+    raise ValueError(t("srv_formati.operazione_sconosciuta_0", op))
 
 
 def html_pdf(html: str, out: str, formato="A4", orizzontale=False) -> dict:
@@ -114,7 +115,7 @@ def rows_xlsx(fogli: list, out: str) -> dict:
     wb = Workbook()
     wb.remove(wb.active)
     for f in fogli:
-        ws = wb.create_sheet(_sheet_name(f.get("nome") or "Foglio", wb))
+        ws = wb.create_sheet(_sheet_name(f.get("nome") or t("srv_formati.foglio"), wb))
         cols = f.get("colonne") or []
         if cols:
             ws.append(cols)
@@ -141,7 +142,7 @@ def _cell(v):
 
 def _sheet_name(name: str, wb) -> str:
     bad = '[]:*?/\\'
-    base = "".join("_" if ch in bad else ch for ch in name)[:31] or "Foglio"
+    base = "".join("_" if ch in bad else ch for ch in name)[:31] or t("srv_formati.foglio")
     n, k = base, 2
     while n in wb.sheetnames:
         suffix = f" ({k})"

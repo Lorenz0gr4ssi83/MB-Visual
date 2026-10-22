@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import threading
+from .i18n import t as tr
 
 MAX_SERIE = 4000          # file esaminati al massimo nella cartella
 _CACHE: dict = {}         # (percorso, mtime) -> dataset senza pixel (per i tag e la LUT)
@@ -233,11 +234,11 @@ def open_series(path: str, uid: str | None = None) -> dict:
     if "DirectoryRecordSequence" in ds:
         lst = _dicomdir(path, ds)
         if not lst:
-            raise ValueError("Il DICOMDIR non elenca nessuna immagine")
+            raise ValueError(tr("srv_fx_dicom.dicomdir_non_elenca_nessuna_immagine"))
         pick = next((s for s in lst if s["uid"] == uid), lst[0])
         slices = _slices_from([f for f in pick["file"] if os.path.isfile(f)], None)
         if not slices:
-            raise ValueError("Le immagini elencate nel DICOMDIR non si trovano accanto al file")
+            raise ValueError(tr("srv_fx_dicom.immagini_elencate_dicomdir_non_si"))
         first = _read(slices[0]["path"])
         return _result(first, slices, lst, pick["uid"], dicomdir=True)
     series = _folder_series(folder)
@@ -308,7 +309,7 @@ def frame(path: str, index: int = 0) -> tuple[bytes, dict]:
 def _val(el) -> str:
     vr = el.VR
     if el.tag in (0x7FE00010, 0x7FE00008, 0x7FE00009):
-        return f"<dati dei pixel: {len(el.value or b'')} byte>" if isinstance(el.value, (bytes, bytearray)) else "<dati dei pixel>"
+        return tr("srv_fx_dicom.dati_pixel_0_byte", len(el.value or b'')) if isinstance(el.value, (bytes, bytearray)) else tr("srv_fx_dicom.dati_pixel")
     v = el.value
     if vr in ("OB", "OW", "OF", "OD", "OL", "OV", "UN") or isinstance(v, (bytes, bytearray)):
         b = bytes(v or b"")
@@ -334,13 +335,13 @@ def _tags_of(ds, depth, out, limit=20000):
             row["valore"] = f"{len(el.value)} elementi"
             out.append(row)
             for i, item in enumerate(el.value):
-                out.append({"tag": "", "nome": f"Elemento {i + 1}", "vr": "", "livello": depth + 1, "valore": "", "voce": True})
+                out.append({"tag": "", "nome": tr("srv_fx_dicom.elemento_0", i + 1), "vr": "", "livello": depth + 1, "valore": "", "voce": True})
                 _tags_of(item, depth + 2, out, limit)
         else:
             try:
                 row["valore"] = _val(el)
             except Exception as e:  # noqa: BLE001
-                row["valore"] = f"<non leggibile: {e}>"
+                row["valore"] = tr("srv_fx_dicom.non_leggibile_0", e)
             out.append(row)
 
 

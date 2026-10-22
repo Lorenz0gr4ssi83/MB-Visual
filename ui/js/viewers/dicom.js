@@ -2,24 +2,26 @@
 // misure (distanza, angolo, ROI con media e deviazione), sonda del valore, tag DICOM in tabella con ricerca.
 // I pixel arrivano grezzi da mbvisual/fx_dicom.py (valori reali, es. HU): la finestra si applica qui con una LUT.
 import { api, button, el, loadCss, loading, pickFolder, pickSavePath, saveBytes, toast } from "../core.js";
+import { toCsv } from "../pim.js";
+import { t as tr, LOCALE } from "../i18n.js";
 
 const PRESETS = [
-  ["Cervello", 40, 80], ["Tessuti molli", 40, 400], ["Addome", 60, 400], ["Fegato", 60, 160], ["Mediastino", 50, 350],
-  ["Polmone", -600, 1500], ["Osso", 400, 1800], ["Vertebre", 530, 2300], ["Angio", 300, 600],
+  [tr("v_dicom.cervello"), 40, 80], [tr("v_dicom.tessuti_molli"), 40, 400], [tr("v_dicom.addome"), 60, 400], [tr("v_dicom.fegato"), 60, 160], [tr("v_dicom.mediastino"), 50, 350],
+  [tr("v_dicom.polmone"), -600, 1500], [tr("v_dicom.osso"), 400, 1800], [tr("v_dicom.vertebre"), 530, 2300], [tr("v_dicom.angio"), 300, 600],
 ];
 const TOOLS = [
-  ["wl", "Finestra", "Trascina: orizzontale = ampiezza, verticale = livello (sempre anche col tasto destro)"],
-  ["pan", "Sposta", "Trascina per spostare l'immagine (sempre anche col tasto centrale)"],
-  ["zoom", "Zoom", "Trascina in verticale per ingrandire (anche Ctrl + rotella)"],
-  ["line", "Distanza", "Clic sul primo e sul secondo punto"],
-  ["angle", "Angolo", "Tre clic: estremo, vertice, estremo"],
-  ["ellipse", "ROI ellisse", "Trascina: media, deviazione, min/max e area"],
-  ["rect", "ROI rettangolo", "Trascina: media, deviazione, min/max e area"],
+  ["wl", tr("v_dicom.finestra"), tr("v_dicom.trascina_orizzontale_ampiezza_verticale_livello")],
+  ["pan", tr("v_dicom.sposta"), tr("v_dicom.trascina_spostare_l_immagine_sempre")],
+  ["zoom", tr("v_dicom.zoom"), tr("v_dicom.trascina_verticale_ingrandire_anche_ctrl")],
+  ["line", tr("v_dicom.distanza"), tr("v_dicom.clic_primo_secondo_punto")],
+  ["angle", tr("v_dicom.angolo"), tr("v_dicom.tre_clic_estremo_vertice_estremo")],
+  ["ellipse", tr("v_dicom.roi_ellisse"), tr("v_dicom.trascina_media_deviazione_min_max")],
+  ["rect", tr("v_dicom.roi_rettangolo"), tr("v_dicom.trascina_media_deviazione_min_max")],
 ];
 
 export async function mount(ctx) {
   loadCss("css/formati.css");
-  const ld = loading(ctx.el, "Lettura della serie DICOM");
+  const ld = loading(ctx.el, tr("v_dicom.lettura_serie_dicom"));
   let S = await api("fx", { op: "dicom_open", path: ctx.path });
   ctx.el.innerHTML = "";
   ctx.fillBody(true);
@@ -40,16 +42,16 @@ export async function mount(ctx) {
   const ovTL = el("div", { class: "dcm-ov tl" }), ovTR = el("div", { class: "dcm-ov tr" });
   const ovBL = el("div", { class: "dcm-ov bl" }), ovBR = el("div", { class: "dcm-ov br" });
   const ovErr = el("div", { class: "dcm-ov err", hidden: true });
-  const slider = el("input", { type: "range", class: "dcm-slider", min: 0, max: Math.max(0, S.fotogrammi.length - 1), value: idx, title: "Sezione" });
+  const slider = el("input", { type: "range", class: "dcm-slider", min: 0, max: Math.max(0, S.fotogrammi.length - 1), value: idx, title: tr("v_dicom.sezione") });
   stage.append(cv, ovTL, ovTR, ovBL, ovBR, ovErr, slider);
   slider.hidden = S.fotogrammi.length < 2;
 
-  const tagSearch = el("input", { type: "search", class: "field", placeholder: "Cerca tag, nome o valore" });
+  const tagSearch = el("input", { type: "search", class: "field", placeholder: tr("v_dicom.cerca_tag_nome_valore") });
   const tagBox = el("div", { class: "scroll" });
-  const tagPane = el("div", { class: "fx-pane" }, el("div", { class: "head" }, "Tag DICOM", tagSearch,
-    button("", "download", () => exportTagsCsv(), { iconOnly: true, title: "Esporta i tag in CSV" })), tagBox);
+  const tagPane = el("div", { class: "fx-pane" }, el("div", { class: "head" }, tr("v_dicom.tag_dicom"), tagSearch,
+    button("", "download", () => exportTagsCsv(), { iconOnly: true, title: tr("v_dicom.esporta_i_tag_csv") })), tagBox);
   const seriesBox = el("div", { class: "scroll" });
-  const leftPane = el("div", { class: "fx-pane left" }, el("div", { class: "head" }, "Studio e serie"), seriesBox);
+  const leftPane = el("div", { class: "fx-pane left" }, el("div", { class: "head" }, tr("v_dicom.studio_serie")), seriesBox);
   const split = el("div", { class: "fx-split with-left" }, leftPane, stage, tagPane);
   tagPane.hidden = true;
   ctx.el.append(split);
@@ -59,12 +61,12 @@ export async function mount(ctx) {
   for (const [id, label, tip] of TOOLS) {
     toolBtns[id] = button(label, null, () => setTool(id), { title: tip });
   }
-  const presetSel = el("select", { title: "Finestre predefinite" }, el("option", { value: "" }, "Finestra..."));
+  const presetSel = el("select", { title: tr("v_dicom.finestre_predefinite") }, el("option", { value: "" }, tr("v_dicom.finestra_2")));
   const fillPresets = () => {
     presetSel.innerHTML = "";
-    presetSel.append(el("option", { value: "" }, "Finestra..."));
-    (S.immagine.finestre || []).forEach((f, i) => presetSel.append(el("option", { value: "f" + i }, `Del file${f.nome ? " - " + f.nome : ""} (${fmt(f.c)}/${fmt(f.w)})`)));
-    presetSel.append(el("option", { value: "auto" }, "Automatica (min/max)"));
+    presetSel.append(el("option", { value: "" }, tr("v_dicom.finestra_2")));
+    (S.immagine.finestre || []).forEach((f, i) => presetSel.append(el("option", { value: "f" + i }, tr("v_dicom.file_0_1_2", f.nome ? " - " + f.nome : "", fmt(f.c), fmt(f.w)))));
+    presetSel.append(el("option", { value: "auto" }, tr("v_dicom.automatica_min_max")));
     if (S.riepilogo.modalita === "CT") PRESETS.forEach(([n, c, w], i) => presetSel.append(el("option", { value: "p" + i }, `${n} (${c}/${w})`)));
   };
   presetSel.addEventListener("change", () => {
@@ -75,16 +77,16 @@ export async function mount(ctx) {
     presetSel.value = "";
     render();
   });
-  const playBtn = button("Riproduci", "play", () => togglePlay(), { title: "Scorre le sezioni in sequenza (barra spaziatrice)" });
-  const fps = el("input", { type: "number", min: 1, max: 60, value: 10, title: "Sezioni al secondo" });
+  const playBtn = button(tr("v_dicom.riproduci"), "play", () => togglePlay(), { title: tr("v_dicom.scorre_sezioni_sequenza_barra_spaziatrice") });
+  const fps = el("input", { type: "number", min: 1, max: 60, value: 10, title: tr("v_dicom.sezioni_secondo") });
   ctx.tb.append(...Object.values(toolBtns), el("span", { class: "sep" }), presetSel,
-    button("Inverti", null, () => { invert = !invert; render(); }, { title: "Inverte i grigi (I)" }),
-    button("", "fit", () => { fitted = true; render(); }, { iconOnly: true, title: "Adatta alla finestra (R ripristina tutto)" }),
-    button("Cancella misure", "trash", () => { meas.delete(idx); render(); }, { title: "Toglie le misure di questa sezione (Ctrl+Z toglie l'ultima)" }),
+    button(tr("v_dicom.inverti"), null, () => { invert = !invert; render(); }, { title: tr("v_dicom.inverte_i_grigi_i") }),
+    button("", "fit", () => { fitted = true; render(); }, { iconOnly: true, title: tr("v_dicom.adatta_finestra_r_ripristina_tutto") }),
+    button(tr("v_dicom.cancella_misure"), "trash", () => { meas.delete(idx); render(); }, { title: tr("v_dicom.toglie_misure_questa_sezione_ctrl") }),
     el("span", { class: "sep" }), playBtn, el("label", {}, "fps", fps),
     el("span", { class: "grow" }),
-    button("Tag DICOM", "table", () => toggleTags(), { title: "Mostra tutti i tag del file (T)" }),
-    button("Esporta sezioni", "download", () => exportAll(), { title: "Salva tutte le sezioni in PNG con la finestra attuale" }));
+    button(tr("v_dicom.tag_dicom"), "table", () => toggleTags(), { title: tr("v_dicom.mostra_tutti_i_tag_file") }),
+    button(tr("v_dicom.esporta_sezioni"), "download", () => exportAll(), { title: tr("v_dicom.salva_tutte_sezioni_png_finestra") }));
   setTool("wl");
 
   // ---------------------------------------------------------------- serie
@@ -93,22 +95,22 @@ export async function mount(ctx) {
     seriesBox.innerHTML = "";
     const dl = el("dl", { class: "kv stack", style: { padding: "10px 12px", fontSize: "12.5px" } });
     const add = (k, v) => { if (v) dl.append(el("dt", {}, k), el("dd", {}, v)); };
-    add("Paziente", r.paziente); add("ID", r.id_paziente);
-    add("Nascita / sesso / eta'", [r.nascita, r.sesso, r.eta].filter(Boolean).join(" · "));
-    add("Studio", r.studio); add("Data", r.data); add("Modalita'", [r.modalita, r.parte].filter(Boolean).join(" · "));
-    add("Serie", [r.numero_serie && "n. " + r.numero_serie, r.serie].filter(Boolean).join(" - "));
-    add("Istituto", r.istituto); add("Apparecchio", r.apparecchio); add("Tipo", r.sop); add("Codifica", r.sintassi);
+    add(tr("v_dicom.paziente"), r.paziente); add("ID", r.id_paziente);
+    add(tr("v_dicom.nascita_sesso_eta"), [r.nascita, r.sesso, r.eta].filter(Boolean).join(" · "));
+    add(tr("v_dicom.studio"), r.studio); add(tr("v_dicom.data"), r.data); add(tr("v_dicom.modalita"), [r.modalita, r.parte].filter(Boolean).join(" · "));
+    add(tr("v_dicom.serie"), [r.numero_serie && "n. " + r.numero_serie, r.serie].filter(Boolean).join(" - "));
+    add(tr("v_dicom.istituto"), r.istituto); add(tr("v_dicom.apparecchio"), r.apparecchio); add(tr("v_dicom.tipo"), r.sop); add(tr("v_dicom.codifica"), r.sintassi);
     const im = S.immagine;
-    add("Immagine", `${im.colonne} x ${im.righe} px · ${im.bit} bit${im.campioni > 1 ? " · colore" : ""}`);
-    if (im.spaziatura) add("Pixel", `${fmt(im.spaziatura[1])} x ${fmt(im.spaziatura[0])} mm`);
-    if (im.spessore) add("Spessore sezione", fmt(im.spessore) + " mm");
-    add("Sezioni", `${S.fotogrammi.length}${S.sezioni.length !== S.fotogrammi.length ? ` (in ${S.sezioni.length} file)` : ""}`);
+    add(tr("v_dicom.immagine"), `${im.colonne} x ${im.righe} px · ${im.bit} bit${im.campioni > 1 ? tr("v_dicom.colore") : ""}`);
+    if (im.spaziatura) add(tr("v_dicom.pixel"), `${fmt(im.spaziatura[1])} x ${fmt(im.spaziatura[0])} mm`);
+    if (im.spessore) add(tr("v_dicom.spessore_sezione"), fmt(im.spessore) + " mm");
+    add(tr("v_dicom.sezioni"), `${S.fotogrammi.length}${S.sezioni.length !== S.fotogrammi.length ? tr("v_dicom.0_file", S.sezioni.length) : ""}`);
     seriesBox.append(dl);
     if (S.serie.length > 1 || S.dicomdir) {
-      seriesBox.append(el("div", { style: { padding: "4px 12px", fontWeight: 600, fontSize: "12.5px" } }, S.dicomdir ? "Serie nel DICOMDIR" : "Altre serie nella cartella"));
+      seriesBox.append(el("div", { style: { padding: "4px 12px", fontWeight: 600, fontSize: "12.5px" } }, S.dicomdir ? tr("v_dicom.serie_dicomdir") : tr("v_dicom.altre_serie_cartella")));
       const t = el("div", { class: "tree" });
       for (const s of S.serie) t.append(el("div", { class: "node" + (s.uid === S.uid ? " sel" : ""), title: s.uid, onclick: () => switchSeries(s.uid) },
-        el("span", {}, `${s.modalita || "?"} ${s.numero ? "#" + s.numero : ""} ${s.descrizione || "(senza descrizione)"}`), el("span", { class: "note", style: { marginLeft: "auto" } }, s.n)));
+        el("span", {}, `${s.modalita || "?"} ${s.numero ? "#" + s.numero : ""} ${s.descrizione || tr("v_dicom.senza_descrizione")}`), el("span", { class: "note", style: { marginLeft: "auto" } }, s.n)));
       seriesBox.append(t);
     }
   }
@@ -116,7 +118,7 @@ export async function mount(ctx) {
   async function switchSeries(uid) {
     if (uid === S.uid) return;
     stopPlay();
-    const lp = loading(stage, "Apertura della serie");
+    const lp = loading(stage, tr("v_dicom.apertura_serie"));
     try {
       S = await api("fx", { op: "dicom_open", path: ctx.path, uid });
     } catch (e) { toast(e.message, true); }
@@ -132,11 +134,11 @@ export async function mount(ctx) {
   // ---------------------------------------------------------------- pixel
   function frameOf(i) {
     const f = S.fotogrammi[i];
-    if (!f) return Promise.reject(new Error("Sezione inesistente"));
+    if (!f) return Promise.reject(new Error(tr("v_dicom.sezione_inesistente")));
     if (cache.has(i)) return Promise.resolve(cache.get(i));
     const p = (async () => {
       const r = await api("fx", { op: "dicom_frame", path: S.sezioni[f.s].path, frame: f.f }, { raw: true });
-      if (!r.ok) { let m = "Immagine non decodificabile"; try { m = (await r.json()).errore || m; } catch { /* */ } throw new Error(m); }
+      if (!r.ok) { let m = tr("v_dicom.immagine_non_decodificabile"); try { m = (await r.json()).errore || m; } catch { /* */ } throw new Error(m); }
       const buf = await r.arrayBuffer();
       const w = +r.headers.get("X-W"), h = +r.headers.get("X-H"), c = +r.headers.get("X-C"), t = r.headers.get("X-T");
       const data = t === "u8" ? new Uint8Array(buf) : t === "i16" ? new Int16Array(buf) : new Float32Array(buf);
@@ -310,8 +312,8 @@ export async function mount(ctx) {
     ovTR.textContent = [r.istituto, r.studio, r.data, [r.modalita, r.serie].filter(Boolean).join(" · ")].filter(Boolean).join("\n");
     const f = S.fotogrammi[idx];
     const pos = f && S.sezioni[f.s]?.posizione;
-    ovBL.textContent = [`Sezione ${idx + 1} / ${S.fotogrammi.length}`, pos ? `Posizione ${pos.map(v => fmt(v)).join(", ")}` : "",
-      cur && cur.c === 1 && wc !== null ? `F ${fmt(ww)}  L ${fmt(wc)}${invert ? "  (invertita)" : ""}` : ""].filter(Boolean).join("\n");
+    ovBL.textContent = [tr("v_dicom.sezione_0_1", idx + 1, S.fotogrammi.length), pos ? tr("v_dicom.posizione_0", pos.map(v => fmt(v)).join(", ")) : "",
+      cur && cur.c === 1 && wc !== null ? `F ${fmt(ww)}  L ${fmt(wc)}${invert ? tr("v_dicom.invertita") : ""}` : ""].filter(Boolean).join("\n");
     let probe = "";
     if (hover && cur) {
       const [x, y] = hover.map(Math.floor);
@@ -321,12 +323,12 @@ export async function mount(ctx) {
       }
     }
     ovBR.textContent = [probe, cur ? `Zoom ${Math.round(zoom * 100)}%  ${cur.w}x${cur.h}` : ""].filter(Boolean).join("\n");
-    ctx.status(`Sezione ${idx + 1}/${S.fotogrammi.length}${wc !== null && cur?.c === 1 ? ` · F ${fmt(ww)} L ${fmt(wc)}` : ""}`);
+    ctx.status(tr("v_dicom.sezione_0_1_2", idx + 1, S.fotogrammi.length, wc !== null && cur?.c === 1 ? ` · F ${fmt(ww)} L ${fmt(wc)}` : ""));
   }
 
   async function go(i) {
     if (!S.fotogrammi.length) {
-      ovErr.hidden = false; ovErr.textContent = "Il file DICOM non contiene immagini: i dati sono nella tabella dei tag."; cur = null; render();
+      ovErr.hidden = false; ovErr.textContent = tr("v_dicom.file_dicom_non_contiene_immagini"); cur = null; render();
       if (!tagsShown) toggleTags();
       return;
     }
@@ -338,7 +340,7 @@ export async function mount(ctx) {
       cur = fr; ovErr.hidden = true;
       autoWindow(false);
     } catch (e) {
-      cur = null; ovErr.hidden = false; ovErr.textContent = "Sezione non visualizzabile: " + e.message;
+      cur = null; ovErr.hidden = false; ovErr.textContent = tr("v_dicom.sezione_non_visualizzabile") + e.message;
     }
     render();
     if (tagsShown && tagsFor !== S.sezioni[S.fotogrammi[idx].s].path) loadTags();
@@ -457,20 +459,20 @@ export async function mount(ctx) {
     const p = f ? S.sezioni[f.s].path : ctx.path;
     tagsFor = p;
     tagBox.innerHTML = "";
-    tagBox.append(el("div", { class: "fx-empty" }, "Lettura dei tag..."));
+    tagBox.append(el("div", { class: "fx-empty" }, tr("v_dicom.lettura_tag")));
     try { tagRows = (await api("fx", { op: "dicom_tags", path: p })).tag; } catch (e) { tagBox.innerHTML = ""; tagBox.append(el("p", { class: "err", style: { padding: "10px" } }, e.message)); return; }
     renderTags();
   }
   function renderTags() {
     const q = tagSearch.value.trim().toLowerCase();
-    const t = el("table", { class: "fx-table dcm-tags" }, el("thead", {}, el("tr", {}, el("th", {}, "Tag"), el("th", {}, "Nome"), el("th", {}, "VR"), el("th", {}, "Valore"))));
+    const t = el("table", { class: "fx-table dcm-tags" }, el("thead", {}, el("tr", {}, el("th", {}, tr("v_dicom.tag")), el("th", {}, tr("common.nome")), el("th", {}, "VR"), el("th", {}, tr("v_dicom.valore")))));
     const tb = el("tbody");
     let n = 0;
     for (const r of tagRows || []) {
       if (q && !`${r.tag} ${r.nome} ${r.valore}`.toLowerCase().includes(q)) continue;
       if (++n > 5000) break;
       tb.append(el("tr", { class: (r.privato ? "priv" : "") + (r.voce ? " item" : "") }, el("td", { class: "mono" }, r.tag),
-        el("td", { class: "lvl" + Math.min(4, r.livello) }, r.nome || (r.privato ? "(privato)" : "")), el("td", { class: "mono" }, r.vr), el("td", { style: { overflowWrap: "anywhere" } }, r.valore)));
+        el("td", { class: "lvl" + Math.min(4, r.livello) }, r.nome || (r.privato ? tr("v_dicom.privato") : "")), el("td", { class: "mono" }, r.vr), el("td", { style: { overflowWrap: "anywhere" } }, r.valore)));
     }
     t.append(tb);
     tagBox.innerHTML = "";
@@ -479,15 +481,14 @@ export async function mount(ctx) {
   tagSearch.addEventListener("input", renderTags);
 
   function tagsCsv() {
-    const esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    return "﻿" + ["Tag;Nome;VR;Livello;Valore", ...(tagRows || []).map(r => [r.tag, r.nome, r.vr, r.livello, r.valore].map(esc).join(";"))].join("\r\n");
+    return toCsv([tr("v_dicom.tag"), tr("common.nome"), "VR", tr("v_dicom.livello"), tr("v_dicom.valore")], (tagRows || []).map(r => [r.tag, r.nome, r.vr, r.livello, r.valore]));
   }
   async function exportTagsCsv() {
     if (!tagRows) await loadTags();
     const p = await pickSavePath(ctx.name.replace(/\.[^.]+$/, "") + "_tag.csv", ctx.path.replace(/[\\/][^\\/]*$/, ""));
     if (!p) return;
     await saveBytes(p, new TextEncoder().encode(tagsCsv()));
-    toast("Tag esportati: " + p);
+    toast(tr("v_dicom.tag_esportati") + p);
   }
 
   // ---------------------------------------------------------------- esportazione
@@ -520,14 +521,14 @@ export async function mount(ctx) {
     const base = ctx.name.replace(/\.[^.]+$/, "");
     const n = S.fotogrammi.length, digits = String(n).length;
     for (let i = 0; i < n; i++) {
-      ctx.status(`Esportazione ${i + 1}/${n}`);
+      ctx.status(tr("v_dicom.esportazione_0_1", i + 1, n));
       try {
         const fr = await frameOf(i);
         await saveBytes(`${dir}\\${base}_${String(i + 1).padStart(digits, "0")}.png`, await canvasBytes(snapshot(fr, i), "image/png"));
-      } catch (e) { toast(`Sezione ${i + 1}: ${e.message}`, true); }
+      } catch (e) { toast(tr("v_dicom.sezione_0_1_3", i + 1, e.message), true); }
     }
     render();
-    toast(`${n} sezioni salvate in ${dir}`);
+    toast(tr("v_dicom.0_sezioni_salvate_1", n, dir));
   }
 
   fillPresets();
@@ -536,12 +537,12 @@ export async function mount(ctx) {
   return {
     saveInPlace: false,
     saveFormats: ["png", "jpg", "csv"],
-    saveLabels: { png: "Sezione attuale come immagine (con misure)", jpg: "Sezione attuale come immagine (con misure)", csv: "Tag DICOM in tabella" },
-    saveNote: "Le immagini si salvano con la finestra/livello attuale. Per tutte le sezioni usa \"Esporta sezioni\".",
+    saveLabels: { png: tr("v_dicom.sezione_attuale_come_immagine_misure"), jpg: tr("v_dicom.sezione_attuale_come_immagine_misure"), csv: tr("v_dicom.tag_dicom_tabella") },
+    saveNote: tr("v_dicom.immagini_si_salvano_finestra_livello"),
     async save(target) {
       const ext = target.split(".").pop().toLowerCase();
       if (ext === "csv") { if (!tagRows) await loadTags(); await saveBytes(target, new TextEncoder().encode(tagsCsv())); return { switchTo: false }; }
-      if (!cur) throw new Error("Nessuna immagine da salvare");
+      if (!cur) throw new Error(tr("v_dicom.nessuna_immagine_salvare"));
       await saveBytes(target, await canvasBytes(snapshot(cur, idx), ext === "png" ? "image/png" : "image/jpeg"));
       render();
       return { switchTo: false };
@@ -554,5 +555,5 @@ export async function mount(ctx) {
 function fmt(v) {
   if (v === null || v === undefined || !isFinite(v)) return "-";
   const a = Math.abs(v);
-  return (a >= 100 || Number.isInteger(v) ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100).toLocaleString("it-IT");
+  return (a >= 100 || Number.isInteger(v) ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100).toLocaleString(LOCALE);
 }

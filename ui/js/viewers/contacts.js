@@ -2,6 +2,7 @@
 // dettagli; esportazione in CSV ed Excel. Lettura in ui/js/pim.js (funziona anche nella web app).
 import { el, loadCss, readBytes, toast } from "../core.js";
 import { decodeText, parseVcards, saveTable } from "../pim.js";
+import { t as tr, tn } from "../i18n.js";
 
 export async function mount(ctx) {
   loadCss("css/formati.css");
@@ -11,10 +12,10 @@ export async function mount(ctx) {
   let sel = cards[0] || null, query = "";
   const list = el("div", { class: "fx-cards", style: { padding: "14px" } });
   const main = el("div", { style: { overflow: "auto", height: "100%" } }, list);
-  const detail = el("div", { class: "fx-pane" }, el("div", { class: "head" }, "Contatto"), el("div", { class: "scroll" }));
+  const detail = el("div", { class: "fx-pane" }, el("div", { class: "head" }, tr("v_contacts.contatto")), el("div", { class: "scroll" }));
   ctx.el.append(el("div", { class: "fx-split with-right" }, main, detail));
-  const search = el("input", { type: "search", placeholder: "Cerca nome, azienda, telefono, email", style: { width: "280px" } });
-  ctx.tb.append(el("b", { style: { padding: "0 8px" } }, `${cards.length} contatt${cards.length === 1 ? "o" : "i"}`), el("span", { class: "grow" }), search);
+  const search = el("input", { type: "search", placeholder: tr("v_contacts.cerca_nome_azienda_telefono_email"), style: { width: "280px" } });
+  ctx.tb.append(el("b", { style: { padding: "0 8px" } }, tn("v_contacts.n_contatti", cards.length)), el("span", { class: "grow" }), search);
   search.addEventListener("input", () => { query = search.value.trim().toLowerCase(); renderList(); });
 
   function photo(c) {
@@ -34,8 +35,8 @@ export async function mount(ctx) {
           el("div", { class: "fx-muted fx-small" }, [c.qualifica, c.azienda].filter(Boolean).join(" · ")),
           tel ? el("div", { class: "fx-small" }, tel.valore) : null, c.email[0] ? el("div", { class: "fx-small", style: { overflowWrap: "anywhere" } }, c.email[0].valore) : null)));
     }
-    if (!shown.length) list.append(el("div", { class: "fx-empty" }, cards.length ? "Nessun contatto corrisponde alla ricerca." : "Nessun contatto nel file."));
-    ctx.status(`${shown.length} / ${cards.length} contatti`);
+    if (!shown.length) list.append(el("div", { class: "fx-empty" }, cards.length ? tr("v_contacts.nessun_contatto_corrisponde_ricerca") : tr("v_contacts.nessun_contatto_file")));
+    ctx.status(tr("v_contacts.0_di_1_contatti", shown.length, cards.length));
   }
 
   function renderDetail() {
@@ -47,20 +48,20 @@ export async function mount(ctx) {
       el("div", {}, el("div", { class: "vc-name" }, c.nome), el("div", { class: "fx-muted fx-small" }, [c.qualifica, c.ruolo].filter(Boolean).join(" · ")))));
     const dl = el("dl", { class: "kv stack", style: { padding: "0 14px 14px" } });
     const add = (k, v) => { if (v) dl.append(el("dt", {}, k), el("dd", { style: { whiteSpace: "pre-wrap" } }, v)); };
-    add("Azienda", [c.azienda, c.reparto].filter(Boolean).join(" - "));
-    for (const t of c.telefoni) add("Telefono" + (t.tipo ? ` (${t.tipo})` : ""), el("a", { href: "tel:" + t.valore.replace(/[^\d+]/g, "") }, t.valore));
-    for (const m of c.email) add("Email" + (m.tipo ? ` (${m.tipo})` : ""), el("a", { href: "mailto:" + m.valore }, m.valore));
-    for (const a of c.indirizzi) add("Indirizzo" + (a.tipo ? ` (${a.tipo})` : ""), addr(a));
-    for (const u of c.siti) add("Sito", u);
-    add("Compleanno", c.compleanno); add("Anniversario", c.anniversario); add("Soprannome", c.soprannome);
-    add("Profili", c.social.join("\n")); add("Categorie", c.categorie.join(", ")); add("Note", c.note);
-    add("Versione vCard", c.versione);
+    add(tr("v_contacts.azienda"), [c.azienda, c.reparto].filter(Boolean).join(" - "));
+    for (const t of c.telefoni) add(tr("v_contacts.telefono") + (t.tipo ? ` (${t.tipo})` : ""), el("a", { href: "tel:" + t.valore.replace(/[^\d+]/g, "") }, t.valore));
+    for (const m of c.email) add(tr("v_contacts.email") + (m.tipo ? ` (${m.tipo})` : ""), el("a", { href: "mailto:" + m.valore }, m.valore));
+    for (const a of c.indirizzi) add(tr("v_contacts.indirizzo") + (a.tipo ? ` (${a.tipo})` : ""), addr(a));
+    for (const u of c.siti) add(tr("v_contacts.sito"), u);
+    add(tr("v_contacts.compleanno"), c.compleanno); add(tr("v_contacts.anniversario"), c.anniversario); add(tr("v_contacts.soprannome"), c.soprannome);
+    add(tr("v_contacts.profili"), c.social.join("\n")); add(tr("v_contacts.categorie"), c.categorie.join(", ")); add(tr("v_contacts.note"), c.note);
+    add(tr("v_contacts.versione_vcard"), c.versione);
     box.append(dl);
   }
 
-  const COLS = ["Nome completo", "Titolo", "Nome", "Secondo nome", "Cognome", "Suffisso", "Azienda", "Reparto", "Qualifica",
-    "Email 1", "Email 2", "Email 3", "Telefono lavoro", "Cellulare", "Telefono casa", "Fax", "Altro telefono",
-    "Indirizzo", "Citta'", "Provincia", "CAP", "Paese", "Sito web", "Compleanno", "Categorie", "Note"];
+  const COLS = [tr("v_contacts.nome_completo"), tr("v_contacts.titolo"), tr("common.nome"), tr("v_contacts.secondo_nome"), tr("v_contacts.cognome"), tr("v_contacts.suffisso"), tr("v_contacts.azienda"), tr("v_contacts.reparto"), tr("v_contacts.qualifica"),
+    tr("v_contacts.email_1"), tr("v_contacts.email_2"), tr("v_contacts.email_3"), tr("v_contacts.telefono_lavoro"), tr("v_contacts.cellulare"), tr("v_contacts.telefono_casa"), tr("v_contacts.fax"), tr("v_contacts.altro_telefono"),
+    tr("v_contacts.indirizzo"), tr("v_contacts.citta"), tr("v_contacts.provincia"), "CAP", tr("v_contacts.paese"), tr("v_contacts.sito_web"), tr("v_contacts.compleanno"), tr("v_contacts.categorie"), tr("v_contacts.note")];
   function rows() {
     return cards.map(c => {
       const tel = re => (c.telefoni.find(t => re.test(t.tipo)) || {}).valore || "";
@@ -75,12 +76,12 @@ export async function mount(ctx) {
 
   renderList();
   renderDetail();
-  if (!cards.length) toast("Nessuna scheda vCard trovata nel file", true);
+  if (!cards.length) toast(tr("v_contacts.nessuna_scheda_vcard_trovata_file"), true);
   return {
     saveInPlace: false,
     saveFormats: ["csv", "xlsx"],
-    saveLabels: { csv: "Contatti in tabella (separatore ;)", xlsx: "Contatti in un foglio Excel" },
-    async save(target) { await saveTable(target, "Contatti", COLS, rows()); return { switchTo: false }; },
+    saveLabels: { csv: tr("v_contacts.contatti_tabella_separatore"), xlsx: tr("v_contacts.contatti_foglio_excel") },
+    async save(target) { await saveTable(target, tr("v_contacts.contatti"), COLS, rows()); return { switchTo: false }; },
   };
 }
 
