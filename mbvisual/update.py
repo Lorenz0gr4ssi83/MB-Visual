@@ -305,6 +305,31 @@ def _github_latest():
             "url": asset["browser_download_url"], "byte": asset.get("size", 0), "note": rel.get("body", "")}
 
 
+def _relaunch_lines(exe, log) -> list:
+    """Righe finali dello script di aggiornamento: riavvio dell'app con registro dei passi. Prima "start", poi, se dopo
+    20 s MB Visual non e' partita, un secondo tentativo tramite Esplora risorse (processo del desktop, fuori da ogni
+    gruppo di processi o job dell'app vecchia)."""
+    name = os.path.basename(str(exe))
+    return [
+        f'echo %date% %time% riavvio di "{exe}" >> "{log}"',
+        f'start "" "{exe}"',
+        r'"%SystemRoot%\System32\ping.exe" -n 21 127.0.0.1 >nul',
+        rf'"%SystemRoot%\System32\tasklist.exe" /FI "IMAGENAME eq {name}" 2>nul | "%SystemRoot%\System32\find.exe" /I "{name}" >nul '
+        rf'|| (echo %date% %time% secondo tentativo con Esplora >> "{log}" & "%SystemRoot%\explorer.exe" "{exe}")',
+    ]
+
+
+def _run_detached(cmd) -> None:
+    """Script di aggiornamento staccato dall'app (che si chiude): senza finestra, nuovo gruppo di processi e, se il
+    job dell'app lo consente, fuori dal job (altrimenti chiudendo l'app Windows chiuderebbe anche lo script)."""
+    base = 0x00000200 | 0x08000000  # CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
+    kw = dict(close_fds=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        subprocess.Popen(["cmd", "/c", str(cmd)], creationflags=base | 0x01000000, **kw)  # CREATE_BREAKAWAY_FROM_JOB
+    except OSError:
+        subprocess.Popen(["cmd", "/c", str(cmd)], creationflags=base, **kw)
+
+
 def _apply_github(rel: dict, update=None) -> dict:
     """Scarica il setup (con avanzamento) e lo esegue in silenzio quando l'app si e' chiusa, poi la riavvia."""
     import urllib.request
@@ -333,10 +358,9 @@ def _apply_github(rel: dict, update=None) -> dict:
         ":attesa",
         rf'"%SystemRoot%\System32\tasklist.exe" /FI "PID eq {pid}" 2>nul | "%SystemRoot%\System32\find.exe" "{pid}" >nul && ("%SystemRoot%\System32\ping.exe" -n 2 127.0.0.1 >nul & goto attesa)',
         f'"{setup}" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /LOG="{LOG}"',
-        f'start "" "{exe}"',
+        *_relaunch_lines(exe, str(LOG)),
     ]) + "\r\n", encoding="utf-8", newline="")
-    subprocess.Popen(["cmd", "/c", str(cmd)], creationflags=0x00000200 | 0x08000000, close_fds=True,
-                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    _run_detached(cmd)
     threading.Timer(1.0, lambda: os._exit(0)).start()
     return {"ok": True, "versione": rel["versione"]}
 
@@ -370,10 +394,9 @@ def apply(update=None) -> dict:
         rf'"%SystemRoot%\System32\tasklist.exe" /FI "PID eq {pid}" 2>nul | "%SystemRoot%\System32\find.exe" "{pid}" >nul && ("%SystemRoot%\System32\ping.exe" -n 2 127.0.0.1 >nul & goto attesa)',
         f'robocopy "{STAGING / "_internal"}" "{APP_DIR / "_internal"}" /MIR /R:5 /W:2 /NP /NFL /NDL >> "{log}"',
         f'robocopy "{STAGING}" "{APP_DIR}" MBVisual.exe LEGGIMI.txt /R:90 /W:2 /NP /NFL /NDL >> "{log}"',
-        f'start "" "{APP_DIR / "MBVisual.exe"}"',
+        *_relaunch_lines(APP_DIR / "MBVisual.exe", log),
     ]) + "\r\n", encoding="utf-8", newline="")
-    flags = 0x00000200 | 0x08000000  # CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW
-    subprocess.Popen(["cmd", "/c", str(cmd)], creationflags=flags, close_fds=True)
+    _run_detached(cmd)
     threading.Timer(1.0, lambda: os._exit(0)).start()
     return {"ok": True, "versione": r["disponibile"]}
 
