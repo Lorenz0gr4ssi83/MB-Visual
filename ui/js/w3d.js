@@ -20,6 +20,7 @@ export async function loadW3dSection(pkg, sheet, ld) {
   if (!bytes) throw new Error(tr("w3d.flusso_w3d_non_trovato_pacchetto"));
   // descrittore: unita' e trasformazione
   let units = "", T = null;
+  const descTex = [];
   const dres = res.find(r => r.role === "descriptor");
   if (dres) {
     const t = await pkg.text(dres.href);
@@ -30,6 +31,7 @@ export async function loadW3dSection(pkg, sheet, ld) {
       const g = [...d.getElementsByTagName("*")].find(e => e.localName === "GraphicResource" && /3d/i.test(e.getAttribute("role") || ""));
       const v = nums(g?.getAttribute("transform"));
       if (v.length === 16) T = v;
+      for (const e of d.getElementsByTagName("*")) if (e.localName === "ImageResource" && /texture/i.test(e.getAttribute("role") || "")) descTex.push({ title: e.getAttribute("title"), href: e.getAttribute("href"), mime: e.getAttribute("mime") });
     }
   }
   // proprieta': nodo -> { label, props }
@@ -68,6 +70,45 @@ export async function loadW3dSection(pkg, sheet, ld) {
   };
   const isLibrary = s => /^\?/.test(s.name || "");
 
+  // texture: nome nel flusso (immagine o definizione TKE_Texture) -> risorsa "texture" del pacchetto (titolo = percorso)
+  const normKey = n => String(n || "").replace(/\\/g, "/").replace(/^"|"$/g, "").toLowerCase();
+  const texRes = new Map();
+  for (const r of descTex) if (r.title && r.href) texRes.set(normKey(r.title), r);
+  const texCache = new Map();
+  const loadTexture = name => {
+    const img = hsf.textures?.get(name) ?? name;
+    const r = texRes.get(normKey(img)) || [...texRes.entries()].find(([k]) => k.endsWith("/" + normKey(img).split("/").pop()))?.[1];
+    if (!r) return null;
+    if (texCache.has(r.href)) return texCache.get(r.href);
+    const entry = { tex: null, avg: null, waiting: [] };
+    texCache.set(r.href, entry);
+    pkg.read(r.href).then(async b => {
+      if (!b) return;
+      const bmp = await createImageBitmap(new Blob([b], { type: r.mime || "image/png" }));
+      const c = document.createElement("canvas"); c.width = 8; c.height = 8;
+      const g2 = c.getContext("2d"); g2.drawImage(bmp, 0, 0, 8, 8);
+      const d = g2.getImageData(0, 0, 8, 8).data; let rr = 0, gg = 0, bb = 0;
+      for (let i = 0; i < d.length; i += 4) { rr += d[i]; gg += d[i + 1]; bb += d[i + 2]; }
+      entry.avg = [rr / 64, gg / 64, bb / 64];
+      const t = new THREE.Texture(bmp);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.flipY = false; t.needsUpdate = true;
+      entry.tex = t;
+      for (const f of entry.waiting) f(entry);
+    }).catch(() => {});
+    return entry;
+  };
+  const texMats = new Map();
+  const texturedMaterial = (name, withUv, alpha) => {
+    const e = loadTexture(name);
+    if (!e) return null;
+    const key = name + "|" + withUv + "|" + alpha;
+    if (texMats.has(key)) return texMats.get(key);
+    const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.02, side: THREE.DoubleSide, transparent: alpha < 1, opacity: alpha });
+    const apply = en => { if (withUv && en.tex) { m.map = en.tex; m.color.set(0xffffff); } else if (en.avg) m.color.setRGB(en.avg[0] / 255, en.avg[1] / 255, en.avg[2] / 255, THREE.SRGBColorSpace); m.needsUpdate = true; };
+    if (e.tex) apply(e); else e.waiting.push(apply);
+    texMats.set(key, m);
+    return m;
+  };
   const mats = new Map();
   const material = (rgb, alpha = 1) => {
     const key = rgb.join(",") + "|" + alpha;
@@ -107,7 +148,7 @@ export async function loadW3dSection(pkg, sheet, ld) {
         geo = new THREE.BufferGeometry();
         geo.setAttribute("position", new THREE.BufferAttribute(g.points, 3));
         geo.setIndex(idx.length > 65535 * 3 || np > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
-        geo = creaseNormals(geo, 35);
+        geo = creaseNormals(geo, 35, g.uvs ? { uvs: g.uvs, w: g.uvw || 3 } : null);
         triCount += idx.length / 3;
       }
     } else if (g.kind === "shell") skipped++;
@@ -145,7 +186,8 @@ export async function loadW3dSection(pkg, sheet, ld) {
         if (at.faceVis === false) continue;
         const geo = g.kind === "shell" ? shellGeometry(g) : meshGeometry(g);
         if (!geo) continue;
-        const mesh = new THREE.Mesh(geo, material(g.color || faceCol, alpha));
+        const tm = !g.color && at.faceTex ? texturedMaterial(at.faceTex, !!geo.attributes.uv, alpha) : null;
+        const mesh = new THREE.Mesh(geo, tm || material(g.color || faceCol, alpha));
         if (grp.userData.navisId !== undefined) mesh.userData.navisId = grp.userData.navisId;
         grp.add(mesh);
       } else if (g.kind === "cylinder") {
@@ -217,7 +259,7 @@ export async function loadW3dSection(pkg, sheet, ld) {
 
 function pickAttr(a) {
   const o = {};
-  for (const k of ["face", "edge", "line", "transmission", "faceVis", "edgeVis", "lineVis"]) if (a[k] !== undefined) o[k] = a[k];
+  for (const k of ["face", "faceTex", "edge", "line", "transmission", "faceVis", "edgeVis", "lineVis"]) if (a[k] !== undefined) o[k] = a[k];
   return o;
 }
 
@@ -254,7 +296,7 @@ function arcPoints(p) {
 }
 
 // normali "con spigolo": si separano i vertici dove l'angolo tra facce supera la soglia (aspetto da CAD)
-function creaseNormals(geo, deg) {
+function creaseNormals(geo, deg, uv = null) {
   const pos = geo.attributes.position.array, idx = geo.index.array;
   const nt = idx.length / 3;
   const fn = new Float32Array(nt * 3);
@@ -275,6 +317,7 @@ function creaseNormals(geo, deg) {
   for (let i = 0; i < idx.length; i++) around[fill[idx[i]]++] = (i / 3) | 0;
   const cosT = Math.cos(deg * Math.PI / 180);
   const outPos = new Float32Array(idx.length * 3), outNrm = new Float32Array(idx.length * 3);
+  const outUv = uv && uv.uvs.length >= nv * uv.w ? new Float32Array(idx.length * 2) : null;
   for (let i = 0; i < idx.length; i++) {
     const v = idx[i], t = (i / 3) | 0;
     let nx = 0, ny = 0, nz = 0;
@@ -285,10 +328,12 @@ function creaseNormals(geo, deg) {
     const L = Math.hypot(nx, ny, nz) || 1;
     outNrm[3 * i] = nx / L; outNrm[3 * i + 1] = ny / L; outNrm[3 * i + 2] = nz / L;
     outPos[3 * i] = pos[3 * v]; outPos[3 * i + 1] = pos[3 * v + 1]; outPos[3 * i + 2] = pos[3 * v + 2];
+    if (outUv) { outUv[2 * i] = uv.uvs[uv.w * v]; outUv[2 * i + 1] = uv.uvs[uv.w * v + 1]; }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.BufferAttribute(outPos, 3));
   g.setAttribute("normal", new THREE.BufferAttribute(outNrm, 3));
+  if (outUv) g.setAttribute("uv", new THREE.BufferAttribute(outUv, 2));
   g.computeBoundingBox(); g.computeBoundingSphere();
   return g;
 }

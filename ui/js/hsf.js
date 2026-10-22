@@ -19,6 +19,7 @@ export function parseHsf(bytes, opts = {}) {
   const tagged = [];
   const images = [];
   const views = [];
+  const textures = new Map(); // nome texture -> nome immagine
   let version = 0;
 
   const need = n => { if (p + n > buf.length) throw new RangeError("fine dei dati"); };
@@ -50,7 +51,9 @@ export function parseHsf(bytes, opts = {}) {
     if (mask & 0x04) seg.attr.line = rgb;
     if (!(mask & 0x07)) seg.attr.other = rgb;
   }
-  const colorChannel = () => { const len = B(); if (len === 0) return [B(), B(), B()]; const s = str(len); return namedColor(s); };
+  // canale di colore: rgb, oppure nome (colore con nome o texture definita con TKE_Texture)
+  let lastNamed = null;
+  const colorChannel = () => { const len = B(); if (len === 0) { lastNamed = null; return [B(), B(), B()]; } const s = str(len); lastNamed = s; return namedColor(s); };
 
   // ---- array di float quantizzati: campioni impacchettati in parole di 32 bit (little endian), dal bit piu' alto
   function unpackFloats(data, count, comps, bits, box) {
@@ -248,7 +251,8 @@ export function parseHsf(bytes, opts = {}) {
         const mask = geoMask();
         let ch = B(); if (ch & 0x80) ch |= B() << 8;
         let diffuse = null;
-        if (ch & 0x01) diffuse = colorChannel();
+        let diffuseName = null;
+        if (ch & 0x01) { diffuse = colorChannel(); diffuseName = lastNamed; }
         if (ch & 0x02) colorChannel();
         if (ch & 0x04) colorChannel();
         if (ch & 0x08) { const t = colorChannel(); seg.attr.transmission = t; }
@@ -258,6 +262,7 @@ export function parseHsf(bytes, opts = {}) {
         if (ch & 0x100) colorChannel();
         if (ch & 0x200) colorChannel();
         if (diffuse) setColor(mask, diffuse);
+        if (mask & 0x01) seg.attr.faceTex = diffuseName || null;
         return;
       }
       case 0x7e: { const mask = geoMask(); setColor(mask, [B(), B(), B()]); return; } // Color_RGB
@@ -320,8 +325,8 @@ export function parseHsf(bytes, opts = {}) {
       }
       case 0x7c: Fs(3); return; // Text_Path
       case 0x20: F(); return; // Text_Spacing
-      case 0x74: { // Texture
-        const n1 = B(); skip(n1); const n2 = B(); skip(n2);
+      case 0x74: { // Texture: nome, immagine e opzioni
+        const n1 = B(); const tname = str(n1); const n2 = B(); textures.set(tname, str(n2));
         const o = W();
         for (const bit of [0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080, 0x0100, 0x0200]) if (o & bit) B();
         if (o & 0x0800) { B(); B(); }
@@ -421,7 +426,7 @@ export function parseHsf(bytes, opts = {}) {
     if (opts.debug) warnings.push("byte: " + Array.from(buf.subarray(Math.max(0, p - 24), p + 64)).map(v => v.toString(16).padStart(2, "0")).join(" "));
   }
   if (trace) warnings.push("ultimi opcode: " + trace.join(" "));
-  return { root, version, stats, warnings, images, views };
+  return { root, version, stats, warnings, images, views, textures };
 }
 
 /** lettore di bit: parole di 32 bit little endian, lette dal bit piu' significativo */
