@@ -9,6 +9,7 @@ import re
 import shutil
 from pathlib import Path
 from .i18n import t
+from .paths import IS_MAC
 
 import pymupdf
 
@@ -348,6 +349,9 @@ def ocr(path: str, out: str, dpi: int = 300, update=None) -> dict:
             lines = _ocr_png(pix.tobytes("png"))
             s = 72 / dpi
             for line in lines:
+                if IS_MAC:  # Vision: riquadri piu' alti di quelli di Windows, gli spazi vanno scritti (fino alla parola dopo)
+                    line = [(t + " ", x, y, max(w, nxt[1] - x), h) if nxt[1] > x + w else (t, x, y, w, h)
+                            for (t, x, y, w, h), nxt in zip(line, list(line[1:]) + [(None, -1)])]
                 for text, x, y, w, h in line:
                     if not text.strip():
                         continue

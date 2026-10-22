@@ -95,6 +95,7 @@ jobs:
 
       - name: Prove su macOS (OCR, conversioni, stampanti, file di esempio aperti in WebKit)
         continue-on-error: true
+        timeout-minutes: 20
         run: |
           mkdir -p ~/.mbvisual/mbvocr && cp ~/.mbvisual/build-mac/stage/bin/mbvocr ~/.mbvisual/mbvocr/
           python -m playwright install webkit

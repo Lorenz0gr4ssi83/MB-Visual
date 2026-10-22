@@ -71,7 +71,8 @@ def build_bin(stage: Path) -> Path:
     import imageio_ffmpeg
     shutil.copy2(imageio_ffmpeg.get_ffmpeg_exe(), bin_dir / "ffmpeg")
     (bin_dir / "ffmpeg").chmod(0o755)
-    run(["swiftc", "-O", ROOT / "tools" / "mbvocr" / "mbvocr.swift", "-o", bin_dir / "mbvocr"])
+    # stesso minimo dell'app (LSMinimumSystemVersion 12.0), non la versione del Mac che compila
+    run(["swiftc", "-O", "-target", "arm64-apple-macos12.0", ROOT / "tools" / "mbvocr" / "mbvocr.swift", "-o", bin_dir / "mbvocr"])
     nav = Path.home() / ".mbvisual" / "nwd" / "nwd2mbv"
     if nav.is_file():
         shutil.copy2(nav, bin_dir / "nwd2mbv")

@@ -28,6 +28,14 @@ FILES = ["confronto/relazione_revA.pdf", "pianta.dxf", "confronto/capannone_revA
          "archivio_commesse.sqlite", "pagina.html"]
 
 
+RESULTS: list = []
+OUT = Path(".")
+
+
+def step(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+
 def check(results, name, fn):
     t0 = time.time()
     try:
@@ -99,24 +107,32 @@ def ui_checks(out: Path) -> list:
     if not url:
         proc.kill()
         return [{"prova": "avvio interfaccia", "ok": False, "errore": "il server non e' partito"}]
+    step("server avviato: " + url.split("?")[0])
     try:
         with sync_playwright() as pw:
-            browser = pw.webkit.launch()
+            step("avvio di WebKit")
+            browser = pw.webkit.launch(timeout=120000)
             page = browser.new_page(viewport={"width": 1400, "height": 900})
+            page.set_default_timeout(30000)
+            page.on("dialog", lambda d: d.dismiss())
             errors = []
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
-            page.goto(url)
+            step("caricamento dell'interfaccia")
+            page.goto(url, timeout=60000)
             page.wait_for_function("window.MB && typeof MB.openFile === 'function'", timeout=60000)
             page.wait_for_timeout(2000)
             page.screenshot(path=str(shots / "00_home.png"))
             res.append({"prova": "interfaccia avviata (WebKit)", "ok": not errors, "info": url.split("?")[0], "errori_console": errors[:10]})
+            RESULTS.extend(res)
+            res = RESULTS  # i risultati restano anche se il controllo del tempo chiude tutto
             for i, rel in enumerate(FILES, 1):
                 p = SAMPLES / rel
                 if not p.is_file():
                     continue
                 errors.clear()
                 t1 = time.time()
+                step(f"apertura di {rel}")
                 try:
                     page.evaluate("p => { MB.openFile(p); }", str(p))
                     page.wait_for_timeout(1500)
@@ -144,13 +160,29 @@ def ui_checks(out: Path) -> list:
 
 
 def main() -> int:
-    out = Path(sys.argv[1] if len(sys.argv) > 1 else "mac-prove").resolve()
+    global OUT
+    out = OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "mac-prove").resolve()
     out.mkdir(parents=True, exist_ok=True)
-    results = python_checks(out)
+    import threading
+
+    def timeout():  # WebKit o una pagina bloccata: si chiude scrivendo i risultati fin qui
+        RESULTS.append({"prova": "tempo massimo (12 min)", "ok": False, "errore": "prova interrotta: ultima riga del registro = punto del blocco"})
+        report(RESULTS)
+        os._exit(1)
+    threading.Timer(720, timeout).start()
+    RESULTS.extend(python_checks(out))
     try:
-        results += ui_checks(out)
+        ui = ui_checks(out)
+        if ui is not RESULTS:
+            RESULTS.extend(ui)
     except Exception as e:  # noqa: BLE001
-        results.append({"prova": "interfaccia (Playwright)", "ok": False, "errore": f"{type(e).__name__}: {e}"})
+        RESULTS.append({"prova": "interfaccia (Playwright)", "ok": False, "errore": f"{type(e).__name__}: {e}"})
+    ok = report(RESULTS)
+    os._exit(0 if ok else 1)
+
+
+def report(results) -> bool:
+    out = OUT
     (out / "esito.json").write_text(json.dumps(results, ensure_ascii=False, indent=1, default=str), encoding="utf-8")
     lines = ["| Prova | Esito | Dettaglio |", "|---|---|---|"]
     for r in results:
@@ -163,8 +195,8 @@ def main() -> int:
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
             f.write(md)
-    print(md)
-    return 0 if ok == len(results) else 1
+    print(md, flush=True)
+    return ok == len(results)
 
 
 if __name__ == "__main__":
