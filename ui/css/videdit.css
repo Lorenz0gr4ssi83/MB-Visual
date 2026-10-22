@@ -1,7 +1,8 @@
-/* Montaggio video (ui/js/videdit.js): area di lavoro scura come Premiere Pro, in entrambi i temi dell'app. */
-.ve-root { --ve-bg: #1d1d1f; --ve-panel: #232325; --ve-panel2: #2b2b2e; --ve-line: #39393d; --ve-fg: #d6d6d6; --ve-muted: #8d8d92; --ve-acc: #2d8ceb; --ve-blue: #5ea7f2;
+/* Montaggio video (ui/js/videdit.js): area di lavoro scura come Premiere Pro, in entrambi i temi dell'app.
+   Grigi allineati alla grafite di MB Visual; il blu della testina resta quello di Premiere. */
+.ve-root { --ve-bg: #121519; --ve-panel: #181c21; --ve-panel2: #1e2227; --ve-line: #2a2f35; --ve-fg: #dfe2e6; --ve-muted: #8c939b; --ve-acc: #2d8ceb; --ve-blue: #5ea7f2;
   position: absolute; inset: 0; display: grid; grid-template-columns: var(--ve-left, 42%) 5px 1fr; grid-template-rows: var(--ve-top, 50%) 5px 1fr;
-  grid-template-areas: "ul sv pr" "sh sh sh" "lo lo lo"; background: #111; color: var(--ve-fg); font: 12px var(--ui); outline: none; overflow: hidden; }
+  grid-template-areas: "ul sv pr" "sh sh sh" "lo lo lo"; background: #08090b; color: var(--ve-fg); font: 12px var(--ui); outline: none; overflow: hidden; }
 .ve-root button { color: inherit; font: inherit; }
 .ve-ul { grid-area: ul; } .ve-prog { grid-area: pr; } .ve-split-v { grid-area: sv; } .ve-split-h { grid-area: sh; } .ve-lower { grid-area: lo; }
 .ve-split-v, .ve-split-h { background: #111; }

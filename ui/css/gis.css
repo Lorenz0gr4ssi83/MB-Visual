@@ -45,7 +45,7 @@
 .gis .ol-scale-line, .gis .ol-scale-bar { left: auto; right: 8px; bottom: 30px; }
 .gis .ol-attribution { font-size: 11px; }
 .gis .ol-attribution ul { color: #333; }
-.gis-dragbox { border: 2px solid #2c6797; background: rgba(44, 103, 151, .12); }
+.gis-dragbox { border: 2px solid var(--accent); background: var(--accent-soft); }
 .gis-tip { background: rgba(27, 30, 28, .86); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px; white-space: nowrap; pointer-events: none; }
 .gis-tip span { opacity: .75; font-size: 11px; }
 .gis-tip.done { background: #e4572e; }

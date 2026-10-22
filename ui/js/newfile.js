@@ -42,7 +42,7 @@ const APP = {
 };
 function appIcon(ext) {
   const [c, t] = APP[ext] || ["#666", ext.toUpperCase()];
-  return `<svg viewBox="0 0 36 36" class="nf-app"><rect x="1" y="1" width="34" height="34" rx="7" fill="${c}"/><text x="18" y="${t.length > 2 ? 22.5 : 24.5}" text-anchor="middle" font-family="Segoe UI, Arial" font-weight="700" font-size="${t.length > 2 ? 10.5 : 17}" fill="#fff">${t.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</text></svg>`;
+  return `<svg viewBox="0 0 36 36" class="nf-app"><rect x="1" y="1" width="34" height="34" rx="7" fill="${c}"/><text x="18" y="${t.length > 2 ? 22.5 : 24.5}" text-anchor="middle" font-family="IBM Plex Sans, Segoe UI, Arial" font-weight="700" font-size="${t.length > 2 ? 10.5 : 17}" fill="#fff">${t.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</text></svg>`;
 }
 // miniatura del modello (pagina, foglio, diapositiva, disegno...)
 function thumb(kind, color) {
@@ -85,12 +85,14 @@ function thumb(kind, color) {
   return `<svg viewBox="0 0 120 110" class="nf-thumb">${page}${inner}</svg>`;
 }
 
-export async function createNew({ openFile }) {
+export async function createNew({ openFile, ext = null }) {
   const items = [];
   for (const [group, entries] of TYPES) for (const it of entries) items.push({ group, ext: it[0], name: it[1], base: it[2], make: it[3], kind: it[4], note: it[5] });
   let sel = items[0];
+  // tipo gia' scelto (scorciatoie della home): niente galleria
+  const quick = ext && items.find(i => i.ext === ext);
 
-  return new Promise(resolve => {
+  return (quick ? Promise.resolve(quick) : new Promise(resolve => {
     const back = el("div", { class: "nf-back", role: "dialog", "aria-label": tr("newfile.crea_nuovo_file") });
     const grid = el("div", { class: "nf-grid" });
     const createBtn = el("button", { class: "btn primary", onclick: () => go() }, tr("newfile.crea"));
@@ -122,7 +124,7 @@ export async function createNew({ openFile }) {
       if (mv && list.length) { e.preventDefault(); sel = list[Math.max(0, Math.min(list.length - 1, i + mv))]; renderGrid(); grid.querySelector(".nf-card.on")?.focus(); }
     };
     back.append(el("div", { class: "nf-box" },
-      el("header", { class: "nf-head" }, el("h2", {}, tr("newfile.nuovo")), el("span", { class: "nf-hint" }, tr("newfile.scegli_tipo_file_si_apre")), el("button", { class: "nf-x", title: tr("newfile.chiudi_esc"), onclick: () => close(null) }, "×")),
+      el("header", { class: "nf-head" }, el("h2", {}, tr("newfile.nuovo")), el("span", { class: "nf-hint" }, tr("newfile.scegli_tipo_file_si_apre")), el("button", { class: "nf-x", title: tr("newfile.chiudi_esc"), html: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>', onclick: () => close(null) })),
       el("div", { class: "nf-body nf-single" }, grid),
       el("footer", { class: "nf-foot" }, info, el("span", { class: "grow" }), el("button", { class: "btn", onclick: () => close(null) }, tr("common.annulla")), createBtn)));
     back.addEventListener("pointerdown", e => { if (e.target === back) close(null); });
@@ -130,7 +132,7 @@ export async function createNew({ openFile }) {
     document.addEventListener("keydown", onKey, true);
     renderGrid();
     grid.querySelector(".nf-card.on")?.focus();
-  }).then(async chosen => {
+  })).then(async chosen => {
     if (!chosen) return;
     const { ext, base, make } = chosen;
     let bytes;

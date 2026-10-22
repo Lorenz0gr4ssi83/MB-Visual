@@ -88,32 +88,44 @@ export function badgeFor(name, isDir = false) {
   const { cat, ext } = resolveCategory(name, null);
   const label = (ext || "?").slice(0, 4).toUpperCase();
   const b = el("span", { class: "badge" }, label);
-  b.style.background = `var(--t-${cat ? BADGE_COLOR[cat.id] || "bin" : "bin"})`;
+  b.style.setProperty("--c", `var(--t-${cat ? BADGE_COLOR[cat.id] || "bin" : "bin"})`); // badge tenue del colore del tipo (app.css)
   return b;
 }
 
 // ------------------------------------------------------------------ schede
+const ICON_HOME = '<svg viewBox="0 0 24 24"><path d="M4 11l8-6 8 6v9H4zM10 20v-5h4v5"/></svg>';
+const ICON_X = '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const ICON_FORMATS = '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>';
 function renderTabs() {
   const box = $("tabs");
   box.innerHTML = "";
   // la linguetta Home (pagina per trascinare e aprire i file) all'estrema sinistra, "Chiudi tutto" all'estrema destra
-  box.append(el("div", { class: "tab home-tab" + (!active && $("formats").hidden ? " active" : ""), role: "tab", title: tr("app.home_trascina_qui_i_file"), onclick: () => activate(null) },
-    el("span", { html: '<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 9v12h14V9"/></svg>' }), el("span", { class: "name" }, tr("app.home"))));
+  const fmtOpen = !$("formats").hidden;
+  const atHome = !active && !fmtOpen;
+  box.append(el("div", { class: "tab home-tab" + (atHome ? " active" : ""), role: "tab", title: tr("app.home_trascina_qui_i_file"), onclick: () => activate(null) },
+    el("span", { html: ICON_HOME }), el("span", { class: "name" }, tr("app.home"))));
   for (const t of tabs) {
-    const b = el("div", { class: "tab" + (t === active ? " active" : ""), role: "tab", title: t.path, onclick: () => activate(t) },
+    const b = el("div", { class: "tab" + (t === active && !fmtOpen ? " active" : ""), role: "tab", title: t.path, onclick: () => activate(t) },
       badgeFor(t.info?.nome || t.name),
       el("span", { class: "name" }, t.name + (t.forced ? "  ·  " + VIEWER_NAMES[t.viewer] : "")),
       t.dirty ? el("span", { class: "dot", title: tr("app.modifiche_non_salvate") }) : null,
-      el("button", { class: "x", title: tr("common.chiudi"), onclick: e => { e.stopPropagation(); closeTab(t); } }, "×"));
+      el("button", { class: "x", title: tr("common.chiudi"), html: ICON_X, onclick: e => { e.stopPropagation(); closeTab(t); } }));
     b.addEventListener("auxclick", e => { if (e.button === 1) closeTab(t); });
     box.append(b);
   }
+  // l'elenco dei formati si consulta in una scheda a parte
+  if (fmtOpen) box.append(el("div", { class: "tab active", role: "tab", title: tr("idx.elenco_completo_formati_supportati") },
+    el("span", { html: ICON_FORMATS }), el("span", { class: "name" }, tr("idx.formati")),
+    el("button", { class: "x", title: tr("common.chiudi"), html: ICON_X, onclick: e => { e.stopPropagation(); toggleFormats(); } })));
   box.append(el("button", { class: "tab-closeall", title: tr("app.chiudi_tutti_i_file_aperti"), disabled: !tabs.length || undefined, onclick: closeAll },
-    el("span", { html: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>' }), tr("app.chiudi_tutto")));
+    el("span", { html: ICON_X }))); // solo icona: piu' spazio ai nomi dei file (il testo e' nel suggerimento)
+  box.querySelector(".tab.active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
   const has = !!active;
   for (const id of ["btn-as", "btn-folder", "btn-external", "btn-info"]) $(id).disabled = !has;
-  $("home").hidden = has || !$("formats").hidden;
-  $("views").hidden = !has || !$("formats").hidden;
+  $("home").hidden = has || fmtOpen;
+  $("views").hidden = !has || fmtOpen;
+  document.body.classList.toggle("at-home", atHome);
+  $("btn-home").classList.toggle("on", atHome);
   updateStatus();
   try { window.pywebview?.api?.set_dirty?.(tabs.filter(t => t.dirty).length); } catch { /* */ } // per la domanda alla chiusura
 }
@@ -124,6 +136,18 @@ function updateStatus() {
   $("st-type").textContent = t ? VIEWER_NAMES[t.viewer] + (t.info?.sniff?.descr ? " · " + t.info.sniff.descr : "") : "";
   $("st-size").textContent = t ? fmtSize(t.info?.size) : "";
   $("st-extra").textContent = t?.extra || "";
+  // percorso del file attivo a destra nella barra comandi: due cartelle e il nome
+  const cr = $("crumb");
+  cr.innerHTML = "";
+  const fmt = !$("formats").hidden;
+  const parts = t && !fmt && !t.path.startsWith("web://") && !t.untitled ? t.path.split(/[\\/]/).filter(Boolean) : [];
+  const segs = parts.length ? parts.slice(-3) : [fmt ? tr("idx.formati") : t ? t.name : tr("app.home")];
+  if (!parts.length) segs.unshift("MB Visual");
+  segs.forEach((s, i) => {
+    if (i) cr.insertAdjacentHTML("beforeend", '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>');
+    cr.append(el(i === segs.length - 1 ? "b" : "i", {}, s));
+  });
+  cr.title = t?.path || "";
 }
 
 function activate(t) {
@@ -354,9 +378,10 @@ async function runUpdateJob(route, title, doneText, params = {}) {
 }
 
 // nuovo file vuoto (Word, Excel, PowerPoint, PDF, DXF, testo, immagini, database), aperto subito nel suo editor
-async function doNew() {
+// ext: tipo scelto da una scorciatoia della home (senza passare dalla galleria)
+async function doNew(ext) {
   const { createNew } = await import("./newfile.js");
-  await createNew({ dir: exDir || "", openFile: (p, v, x) => openFile(p, v, x) });
+  await createNew({ dir: exDir || "", openFile: (p, v, x) => openFile(p, v, x), ext: typeof ext === "string" ? ext : null });
 }
 
 // app per telefono: scansione di documenti con la fotocamera -> PDF (ui/js/scanner.js)
@@ -453,7 +478,7 @@ async function showProperties() {
 
 // ------------------------------------------------------------------ apertura
 async function openPaths(paths, fromDrop = false) {
-  if (fromDrop) $("dragover").hidden = true;
+  if (fromDrop) { $("dragover").hidden = true; document.body.classList.remove("dragging"); }
   // un visualizzatore puo' accettare i file trascinati (es. aggiungerli a un archivio)
   if (fromDrop && active && $("formats").hidden && active.api?.acceptDrop && (await active.api.acceptDrop(paths))) return;
   // due revisioni dello stesso tipo trascinate insieme: si puo' aprire subito il confronto
@@ -743,7 +768,7 @@ function renderFormats() {
   const all = new Set(REG.categories.flatMap(c => c.exts));
   const search = el("input", { class: "search", type: "search", id: "fmt-search", placeholder: tr("app.cerca_estensione_es_dwg_p7m") });
   const answer = el("div", { class: "answer", id: "fmt-answer" });
-  const list = el("div");
+  const list = el("div", { class: "fcats" });
   box.append(
     el("h1", {}, WEB ? tr("app.formati_supportati_web_app") : tr("app.formati_supportati_mb_visual")),
     ...(WEB ? [el("p", { class: "lead" }, tr("app.versione_pc_apre_piu_formati"))] : []),
@@ -791,9 +816,8 @@ function toggleFormats() {
   if (f.hidden) {
     renderFormats();
     f.hidden = false;
-    $("home").hidden = true;
-    $("views").hidden = true;
     $("btn-formats").classList.add("on");
+    renderTabs(); // scheda "Formati" accanto ai file aperti
     $("fmt-search").focus();
   } else {
     f.hidden = true;
@@ -809,7 +833,7 @@ function goBack() {
   if (window.MBV_BACK?.()) return; // schermate a tutto schermo (scanner, realta' aumentata) gestiscono da sole il tasto indietro
   if (!$("modal").hidden) return document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
   if (!$("menu-open").hidden || !$("menu-as").hidden || !$("menu-file").hidden) return closeMenus();
-  if (!$("dragover").hidden) { $("dragover").hidden = true; return; }
+  if (!$("dragover").hidden) { $("dragover").hidden = true; document.body.classList.remove("dragging"); return; }
   if (document.fullscreenElement) return document.exitFullscreen?.();
   if (!$("formats").hidden) return toggleFormats();
   if (!$("explorer").hidden) return toggleExplorer();
@@ -858,13 +882,59 @@ function showShortcuts() {
   modal(tr("app.scorciatoie_tastiera"), box);
 }
 
+// ------------------------------------------------------------------ palette dei comandi (Ctrl+K o la ricerca nella barra del titolo)
+// comandi dell'app, file aperti, recenti ed estensioni (come si apre un formato); la finestra e' in ui/js/palette.js
+function editorOwnsCtrlK(e) {
+  if (e.target.closest?.("input, textarea, [contenteditable=''], [contenteditable='true'], .monaco-editor")) return true;
+  return !!(active && $("formats").hidden && active.shortcuts?.list?.some(r => keyCombos(r.keys).some(c => /^(ctrl|control)\+k$/i.test(c.replace(/\s/g, "")))));
+}
+const ICON_I = (d) => `<svg viewBox="0 0 24 24"><path d="${d}"/></svg>`;
+function openPalette() {
+  const has = !!active;
+  const c = (icon, label, keys, run, ok = true) => ({ icon, label, keys: keys ? keysText(keys) : "", run, ok });
+  const commands = [
+    c(ICON_FILE, tr("app.apri_file"), "Ctrl+O", doOpen),
+    c(ICON_NEW, tr("app.crea_nuovo"), "Ctrl+N", doNew),
+    c(ICON_SAVE, tr("common.salva"), "Ctrl+S", () => save(false), has),
+    c(ICON_SAVEAS, tr("app.salva_nome"), "Ctrl+Shift+S", () => save(true), has),
+    c(ICON_PRINT, tr("app.stampa"), "Ctrl+P", () => doPrint(), has && !WEB),
+    c(ICON_PRINT, tr("app.stampa_lotti"), "Ctrl+Shift+P", () => doPrint(true), !WEB),
+    c(ICON_I("M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v6M12 7.5v.5"), tr("idx.proprieta"), "", showProperties, has),
+    c(ICON_I("M3 6h6l2 2h10v11H3zM3 10h18"), tr("app.cartella_progetto"), "", chooseExplorerFolder, !WEB),
+    c(ICON_I("M11 17.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM16 16l4.5 4.5"), tr("search.cerca_titolo"), "Ctrl+Shift+F", () => import("./search.js").then(m => m.toggle(true)), !WEB),
+    c(ICON_FORMATS, tr("idx.elenco_completo_formati_supportati"), "", () => { if ($("formats").hidden) toggleFormats(); }),
+    c(ICON_I("M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18"), tr("app.firma_digitale"), "", () => import("./firma.js").then(f => f.signDialog({ path: active.path, openFile })), !WEB && !!active?.path),
+    c(ICON_I("M4 4h7v16H4zM13 4h7v16h-7M8 9l-2 2 2 2M16 9l2 2-2 2"), tr("app.confronta_con"), "", compareWith, has && active.viewer !== "compare" && COMPARE_EXT.test(extOf(active.info?.nome || active.name))),
+    c(ICON_I("M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"), tr("idx.tema_chiaro_scuro"), "", () => $("btn-theme").click()),
+    c(ICON_I("M3 6h18v12H3zM6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"), tr("app.scorciatoie_tastiera"), "F1", showShortcuts),
+    c(ICON_I("M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"), tr("lang.impostazioni") + " › " + tr("lang.titolo"), "", showLanguage),
+    c(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount, !WEB || !!window.MBV_MOBILE),
+    c(ICON_UPD, tr("app.verifica_aggiornamenti"), "", () => checkUpdates(true), !WEB),
+    c(ICON_X, tr("app.chiudi_tutto"), "", closeAll, tabs.length > 0),
+  ].filter(x => x.ok);
+  const fileItem = (name, path, run) => ({ name, path, badge: () => badgeFor(name), run });
+  import("./palette.js").then(m => m.openPalette({
+    commands,
+    tabs: tabs.map(t => fileItem(t.name, t.path.startsWith("web://") ? "" : t.path, () => activate(t))),
+    recent: WEB ? [] : recentList().filter(r => !tabs.some(t => t.path === r.path)).slice(0, 8).map(r => fileItem(r.name, r.path, () => openPaths([r.path]))),
+    format(q) {
+      const e = q.trim().toLowerCase().replace(/^\*?\./, "");
+      if (!/^[a-z0-9_-]{1,12}$/.test(e)) return null;
+      const hits = EXT.get(e);
+      if (!hits && !q.trim().startsWith(".")) return null;
+      return { ext: e, names: hits ? hits.map(x => catText(x, "name")) : null, badge: () => badgeFor("x." + e),
+        run: () => { if ($("formats").hidden) toggleFormats(); const s = $("fmt-search"); s.value = e; s.dispatchEvent(new Event("input")); } };
+    },
+  }));
+}
+
 // ------------------------------------------------------------------ trascinamento
 function setupDrop() {
   // "Rilascia per aprire": acceso finche' arrivano gli eventi dragover (ogni ~50 ms mentre si trascina sopra la
   // finestra) e spento poco dopo l'ultimo. Il vecchio conteggio entra/esci si sballava passando sopra i documenti
   // aperti (iframe) o uscendo dalla finestra senza rilasciare, e l'avviso restava acceso.
   let timer = 0;
-  const show = v => ($("dragover").hidden = !v);
+  const show = v => { $("dragover").hidden = !v; document.body.classList.toggle("dragging", v); }; // nella home si illumina il riquadro del logo
   const isFiles = e => [...(e.dataTransfer?.types || [])].includes("Files");
   const keep = () => { show(true); clearTimeout(timer); timer = setTimeout(() => show(false), 250); };
   window.addEventListener("dragenter", e => { if (isFiles(e)) keep(); });
@@ -900,37 +970,25 @@ function setupTheme() {
 // ------------------------------------------------------------------ avvio
 async function boot() {
   await loadRegistry();
-  const caps = $("home-caps");
-  const CAPS = WEB ? [
-    ["doc.pdf", tr("app.documenti"), "PDF, Word, Excel, PowerPoint"],
-    ["firma.p7m", tr("app.firme_digitali"), tr("app.p7m_p7s_pdf_firmati")],
-    ["pianta.dwg", tr("app.disegni_cad_2d"), tr("app.dwg_dxf_layer_quote_misure")],
-    ["modello.step", tr("app.modelli_cad_3d"), tr("app.step_iges_brep_albero_parti")],
-    ["edificio.ifc", tr("app.bim_3d"), "IFC, STL, OBJ, GLB, FBX"],
-    ["foto.jpg", tr("app.immagini"), tr("app.jpg_png_webp_tiff_heic")],
-    ["video.mp4", tr("app.audio_video_2"), tr("app.mp4_mov_webm_mp3_altri")],
-    ["archivio.zip", tr("app.archivi_ed_email"), "ZIP, RAR, 7Z, TAR, ISO, EML"],
-    ["codice.py", tr("app.testo_codice_dati"), tr("app.editor_professionale_sqlite_esadecimale")],
-  ] : [
-    ["doc.pdf", tr("app.documenti"), "PDF, Word, Excel, PowerPoint, OpenDocument"],
-    ["firma.p7m", tr("app.firme_digitali"), tr("app.p7m_p7s_pdf_firmati")],
-    ["pianta.dwg", tr("app.disegni_cad_2d"), tr("app.dwg_dxf_layer_quote_misure")],
-    ["modello.step", tr("app.modelli_cad_3d"), tr("app.step_iges_brep_albero_parti")],
-    ["edificio.ifc", tr("app.bim_3d"), "IFC, Navisworks, STL, OBJ, GLB, FBX"],
-    ["foto.cr2", tr("app.immagini"), tr("app.jpg_png_psd_raw")],
-    ["video.mp4", tr("app.audio_video_2"), tr("app.qualsiasi_formato_taglio_conversione")],
-    ["archivio.zip", tr("app.archivi_ed_email"), "ZIP, RAR, 7Z, ISO, EML, MSG"],
-    ["codice.py", tr("app.testo_codice_dati"), tr("app.editor_professionale_sqlite_esadecimale")],
-  ];
   if (WEB) {
     document.documentElement.classList.add("web");
     $("drop").querySelector("h1").textContent = tr("app.apri_i_file_visualizzare");
     $("drop").querySelector("p").textContent = tr("app.i_file_restano_tuo_dispositivo");
   }
-  for (const [f, t, d] of CAPS) caps.append(el("div", { class: "cap" }, badgeFor(f), el("b", {}, t), el("span", { class: "d" }, d)));
+  // home: il logo al centro; i tipi di file aperti si consultano nella scheda Formati
   const total = new Set(REG.categories.flatMap(c => c.exts)).size;
-  $("home-formats").textContent = tr("app.0_estensioni_supportate_vedi_l", total);
-  $("home-formats").addEventListener("click", toggleFormats);
+  $("home-note").append(el("i"), el("button", { class: "link", onclick: toggleFormats }, tr("app.0_estensioni_supportate_vedi_l", total)));
+  const NEW = [["docx", "newfile.documento_word", "--t-doc", '<path d="M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M9 17h4"/>'],
+    ["xlsx", "newfile.cartella_lavoro_excel", "--t-xls", '<rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 10h16M4 15h16M10 4v16"/>'],
+    ["pptx", "newfile.presentazione_powerpoint", "--t-ppt", '<rect x="3" y="5" width="18" height="12" rx="1.5"/><path d="M12 17v3M8 20h8"/>'],
+    ["dxf", "newfile.disegno_cad", "--t-cad", '<path d="M4 4h16v16H4zM14 14h6M14 14v6"/>'],
+    ["mbpub", "newfile.pubblicazione", "--t-av", '<path d="M4 4h16v16H4zM4 10h16M10 10v10"/>'],
+    ["mbvid", "newfile.progetto_video", "--t-3d", '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/>']];
+  $("home-newrow").append(el("span", { class: "label" }, tr("idx.crea_nuovo")),
+    ...NEW.map(([ext, key, c, svg]) => el("button", { class: "new-chip", style: { "--c": `var(${c})` }, onclick: () => doNew(ext),
+      html: `<span class="ci"><svg viewBox="0 0 24 24">${svg}</svg></span>` }, tr(key))));
+  const keyHint = (k, text) => el("span", {}, ...keyCombos(k).map(x => el("kbd", {}, x)), text);
+  $("home-keys").append(keyHint("Ctrl+K", tr("pal.cerca_breve")), keyHint("Ctrl+Tab", tr("app.file_successivo")), keyHint("F1", tr("app.scorciatoie_tastiera")));
   setupDrop();
   setupTheme();
   setupBack();
@@ -962,10 +1020,16 @@ async function boot() {
   $("btn-folder").addEventListener("click", () => active && api("reveal", { path: active.path }));
   $("btn-external").addEventListener("click", () => active && api("open_external", { path: active.path }).catch(e => toast(e.message, true)));
   $("btn-formats").addEventListener("click", toggleFormats);
+  $("btn-home").addEventListener("click", () => activate(null));
+  $("btn-search").addEventListener("click", () => import("./search.js").then(m => m.toggle()));
+  $("btn-keys").addEventListener("click", showShortcuts);
+  $("btn-palette").addEventListener("click", openPalette);
   document.addEventListener("click", e => { if (!e.target.closest(".menu-wrap")) closeMenus(); });
   document.addEventListener("keydown", e => {
     const k = e.key.toLowerCase();
-    if (e.ctrlKey && e.shiftKey && k === "f" && !WEB) { e.preventDefault(); import("./search.js").then(m => m.toggle()); } // ricerca nel progetto
+    // palette dei comandi; Ctrl+K resta all'editor se il programma originale lo usa (Premiere, Publisher, Office) o nei testi
+    if (e.ctrlKey && !e.shiftKey && !e.altKey && k === "k" && !editorOwnsCtrlK(e)) { e.preventDefault(); openPalette(); }
+    else if (e.ctrlKey && e.shiftKey && k === "f" && !WEB) { e.preventDefault(); import("./search.js").then(m => m.toggle()); } // ricerca nel progetto
     else if (e.ctrlKey && k === "o") { e.preventDefault(); doOpen(); }
     else if (e.ctrlKey && k === "n") { e.preventDefault(); doNew(); }
     else if (e.ctrlKey && k === "s") { e.preventDefault(); save(e.shiftKey); }

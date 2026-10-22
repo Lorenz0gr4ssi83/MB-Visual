@@ -80,6 +80,20 @@ def _refresh_shell():
         print("integrazione con Esplora non aggiornata:", e)
 
 
+def _graphite_frame(window):
+    """Cornice di Windows 11 color grafite come la barra del titolo dell'app (#08090B, testo chiaro).
+    Su Windows 10 gli attributi non esistono e la cornice resta quella di sistema."""
+    try:
+        import ctypes
+        hwnd = int(str(window.native.Handle.ToInt64()))
+        dwm = ctypes.windll.dwmapi
+        for attr, value in ((20, 1), (35, 0x000B0908), (36, 0x00F1EEEC), (34, 0x00221F1C)):  # scuro, didascalia, testo, bordo (BGR)
+            v = ctypes.c_int(value)
+            dwm.DwmSetWindowAttribute(hwnd, attr, ctypes.byref(v), ctypes.sizeof(v))
+    except Exception as ex:  # noqa: BLE001
+        print("cornice grafite non applicata:", ex)
+
+
 def main():
     srv, port = start_server()
     import threading
@@ -102,7 +116,7 @@ def main():
 
     api = Api()
     window = webview.create_window("MB Visual", url, js_api=api, width=1400, height=900, min_size=(900, 600),
-                                   background_color="#1f2120", text_select=True)
+                                   background_color="#0b0d10", text_select=True)
     api._window = window
 
     def on_drop(e):
@@ -129,6 +143,7 @@ def main():
 
     window.events.loaded += on_loaded
     window.events.closing += on_closing
+    window.events.shown += lambda: _graphite_frame(window)
     icon = str(RES_DIR / "app.ico")
     webview.start(icon=icon if os.path.exists(icon) else None, private_mode=False,
                   storage_path=os.path.join(os.environ.get("LOCALAPPDATA", RES_DIR), "MBVisual", "webview"))

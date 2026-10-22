@@ -22,6 +22,7 @@ COOKIE = "mbv"
 mimetypes.add_type("application/wasm", ".wasm")
 mimetypes.add_type("text/javascript", ".mjs")
 mimetypes.add_type("application/json", ".json")
+mimetypes.add_type("font/woff2", ".woff2")  # caratteri dell'interfaccia (ui/fonts)
 NO_WINDOW = 0x08000000
 
 

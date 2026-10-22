@@ -22,6 +22,19 @@ export async function mount(ctx) {
     // puntatore sempre a freccia anche dentro il visualizzatore PDF (richiesta dell'utente)
     // con l'editor dell'app per PC i pulsanti di annotazione di pdf.js si nascondono: li comanda la barra dell'editor
     try { const s = frame.contentDocument.createElement("style"); s.textContent = "*, *::before, *::after { cursor: default !important; }" + (ed ? PDFJS_HIDE : ""); frame.contentDocument.head.append(s); } catch { /* */ }
+    // colori della barra di pdf.js presi dai token dell'app (tema chiaro/scuro scelto in MB Visual, non quello di Windows)
+    const theme = frame.contentDocument?.createElement("style");
+    const paint = () => {
+      const v = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+      if (theme) theme.textContent = `:root:root { --body-bg-color: ${v("--bg")}; --toolbar-bg-color: ${v("--panel")}; --sidebar-narrow-bg-color: ${v("--panel")};
+        --sidebar-toolbar-bg-color: ${v("--panel")}; --toolbar-border-color: ${v("--line")}; --toolbar-box-shadow: none; --separator-color: ${v("--line-strong")};
+        --main-color: ${v("--fg")}; --field-bg-color: ${v("--panel-2")}; --field-color: ${v("--fg")}; --field-border-color: ${v("--line-strong")};
+        --dropdown-btn-bg-color: ${v("--panel-2")}; --button-hover-color: ${v("--hover")}; --toggled-btn-bg-color: ${v("--accent-soft")};
+        --doorhanger-bg-color: ${v("--panel-2")}; --doorhanger-border-color: ${v("--line-strong")}; --doorhanger-hover-bg-color: ${v("--accent-soft")};
+        --progressBar-color: ${v("--accent")}; --scrollbar-color: ${v("--line-strong")}; --scrollbar-bg-color: transparent; color-scheme: ${v("color-scheme") || "normal"}; }
+        #toolbarContainer, #toolbarSidebar { box-shadow: inset 0 -1px 0 ${v("--line")} !important; }`;
+    };
+    if (theme) { paint(); frame.contentDocument.head.append(theme); addEventListener("mbv-theme", paint); }
     const a = app();
     if (!a) return;
     await a.initializedPromise;

@@ -768,3 +768,31 @@ senza LibreOffice non si apriva; .oxps resta in office-lo, non collaudato), tutt
   edgebreaker chiuse, 0 errori). Texture dei materiali (titolo della risorsa nel descrittore = nome dell'immagine nel flusso; Revit lo usa
   come colore diffuso, Inventor passa da TKE_Texture) con UV dove ci sono, altrimenti colore medio. Immagini CCITT Group 4: `ui/js/ccittg4.js`
   (T.6 + TIFF, collaudato con TIFF di Pillow). Non gestiti: macro W2D, NURBS, normali compresse (si ricalcolano).
+
+## Interfaccia premium "Grafite di precisione" (22/10/2026) - FATTO
+Direzione approvata dall'utente sul mockup https://claude.ai/artifact/Wwi8B75nmM8pTZofAqvk45 (home, CAD, PDF, BIM, palette, sistema).
+- Regole dell'utente: il logo `ui/img/logo.png` e' il PROTAGONISTA (grande al centro della home, 28 px nella barra del titolo);
+  sopra il logo una quota con "MB GROUP" nel grigio del logo (#8A8C89 = `--brand`); NIENTE diciture inventate (niente
+  "Professional", copyright, slogan): solo testi gia' presenti o dati dall'utente. Avvio (solo mockup): "Passepartout App" e "MB Group".
+  Niente caselle "Cosa apre" nella home: i formati si consultano nella scheda Formati (pseudo-scheda accanto ai file aperti).
+- Token in testa a `ui/css/app.css` (tema chiaro predefinito, scuro con data-theme o prefers-color-scheme): cornice sempre grafite
+  (`--t0`, `--chrome*`), superfici `--bg/--panel/--panel-2`, `--hover`, accento unico arancione MB `--accent` (#F07D2E in scuro,
+  #EA7426 in chiaro) con testo `--accent-fg` quasi nero sopra l'arancione e `--accent-ink` per il testo arancione leggibile,
+  ombre `--sh-1/2/3` (`--shadow` = `--sh-3`), raggi `--r-sm/md/lg/xl`, badge tenui (`.badge` con `--c` = colore del tipo `--t-*`).
+  Gli editor usano solo questi token; Premiere (blu della testina), Publisher (verde acqua) e Visio (blu) tengono il loro
+  accento come i programmi originali, con i grigi allineati.
+- Caratteri OFL inclusi in `ui/fonts` (`tools/fetch_fonts.py`, Fontsource 5.3.0, sottoinsiemi latin + latin-ext, licenze accanto):
+  IBM Plex Sans (interfaccia), Space Grotesk variabile (titoli, `--display`), IBM Plex Mono (`--mono`). server.py: tipo font/woff2.
+- Struttura (`ui/index.html`): barra del titolo (logo, schede, ricerca comandi) -> barra comandi (File, Apri, comandi del file,
+  `#ctx-tools`, percorso `#crumb`) -> `.workspace` con barra laterale `#rail` (Home, Esplora, Cloud aggiunto da cloud.js dopo
+  `#btn-explorer`, Cerca nel progetto, Formati; in basso Scorciatoie e Tema) + pannelli + `#stage` -> barra di stato.
+  Su schermi stretti la barra laterale va in basso come barra delle schede. ID invariati (cloud.js, search.js li usano).
+- Palette dei comandi `ui/js/palette.js` (Ctrl+K o la ricerca nella barra del titolo): comandi dell'app, file aperti, recenti,
+  ".ext" = come si apre un formato. Ctrl+K resta all'editor quando il programma originale lo usa (Premiere, Publisher, Office:
+  `editorOwnsCtrlK` legge `active.shortcuts`) o nei campi di testo. Chiavi `pal.*` nelle 5 lingue.
+- Home: `body.at-home`; trascinando file sulla finestra `body.dragging` illumina il riquadro del logo (fuori dalla home resta
+  il riquadro "Rilascia per aprire"). Scorciatoie "Crea nuovo" = `createNew({ ext })` (newfile.js) senza galleria.
+- pdf.js: colori della sua barra presi dai token dell'app (`viewers/pdf.js`, anche al cambio tema). Finestra di Windows 11:
+  cornice grafite con DwmSetWindowAttribute (`_graphite_frame` in app.py; su Windows 10 resta quella di sistema).
+- Prove in modalita' browser: per lavorare in un worktree serve una COPIA di ui/vendor (con un collegamento/junction il server
+  rifiuta i file fuori dalla cartella ui: pdf.js dava "Non trovato").
