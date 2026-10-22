@@ -152,7 +152,7 @@ if ("serviceWorker" in navigator) {
 MANIFEST = {
     "name": "MB Visual", "short_name": "MB Visual", "id": "./", "start_url": "./", "scope": "./", "display": "standalone",
     "background_color": "#eff0ee", "theme_color": "#1e2225", "lang": "it",
-    "description": "Visualizzatore di documenti, disegni CAD, modelli 3D e BIM, firme digitali e archivi",
+    "description": "Powered by MB Group",
     "icons": [{"src": "img/icon-192.png", "sizes": "192x192", "type": "image/png"},
               {"src": "img/icon-512.png", "sizes": "512x512", "type": "image/png"},
               {"src": "img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}],
@@ -270,6 +270,10 @@ def main() -> None:
         # app per cellulari servita dal server delle licenze: controllo della licenza e menu Account
         html = html.replace("window.MBV_WEB = true;", "window.MBV_WEB = true; window.MBV_MOBILE = true;")
         html = html.replace('<script type="module" src="js/webapi.js"></script>', '<script type="module" src="js/mlicenza.js"></script>\n<script type="module" src="js/webapi.js"></script>')
+        # dicitura chiesta dall'utente sotto il logo (marchio: non si traduce)
+        h1 = '<h1 data-i18n="idx.trascina_qui_i_file_aprire">'
+        assert h1 in html
+        html = html.replace(h1, '<p style="margin:0 0 6px;color:var(--brand);font:600 12px var(--mono);letter-spacing:.14em;text-transform:uppercase">Powered by MB Group</p>\n            ' + h1)
     (OUT / "index.html").write_text(html, encoding="utf-8")
     (OUT / "formats.json").write_text(json.dumps(web_registry(), ensure_ascii=False, indent=1), encoding="utf-8")
     (OUT / "manifest.webmanifest").write_text(json.dumps(MANIFEST, ensure_ascii=False, indent=1), encoding="utf-8")

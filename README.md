@@ -3,7 +3,7 @@
 Visualizzatore e editor di documenti, disegni CAD, modelli 3D e BIM, firme digitali, immagini, audio/video e archivi, sviluppato per MB Engineering.
 
 ## Web app (telefono, tablet, qualsiasi PC)
-Aprire **https://lorenz0gr4ssi83.github.io/MB-Visual/** con Chrome, Edge o Safari e scegliere *Installa app* / *Aggiungi a schermata Home*.
+Aprire **https://mbvisual.mb-group.workers.dev** con Chrome, Edge o Safari e scegliere *Installa app* / *Aggiungi a schermata Home*.
 I file aperti restano sul dispositivo: nessun invio a server. Sul telefono si possono anche condividere i file da altre app verso MB Visual.
 Formati disponibili nella web app: pagina *Formati* dell'app (circa 530 estensioni).
 
