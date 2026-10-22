@@ -30,8 +30,6 @@ export async function attachImage(ctx, H) {
   const M = createSession(env);
   const E = (M.engine = createEngine2d(M));
   M.doc.disp.unit = "m";
-  const d0 = await store.load();
-  if (d0) M.loadDoc(d0);
   // immagine: y verso il basso; nelle misure la y si inverte perche' le quote di livello crescano verso l'alto
   const surf = {
     page: 0, px: 1,
@@ -51,6 +49,8 @@ export async function attachImage(ctx, H) {
     E.paint(surf, g);
   }
   H.onPaint = paint;
+  const d0 = await store.load();
+  if (d0) M.loadDoc(d0);
   const pos = e => { const r = overlay.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
   overlay.addEventListener("pointerdown", e => { if (E.down(surf, ...pos(e), e)) { e.preventDefault(); try { overlay.setPointerCapture(e.pointerId); } catch { /* */ } } });
   overlay.addEventListener("pointermove", e => E.move(surf, ...pos(e), e));
