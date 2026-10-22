@@ -959,3 +959,43 @@ resta con l'errore semplice ed esadecimale). Testi: chiavi `rec.*` e `srv_recove
   i disegno_troncato* da un DWG reale sono in .gitignore) poi `python tests/test_recover.py` (97 prove: ogni copia recuperata si
   riapre con PyMuPDF/python-docx/openpyxl/python-pptx/Pillow/sqlite3/email/FFmpeg, originali invariati). Il .msg di prova e'
   scritto da un piccolo scrittore CFB nello script (nessuna libreria lo crea).
+
+## Converti in disegno: PDF e scansioni -> DXF/DWG (22/10/2026) - FATTO
+Comando "Converti in disegno" nella barra del visualizzatore PDF e delle immagini, File -> "Converti in disegno (DXF)...", palette
+dei comandi, "Salva con nome" -> DXF/DWG (apre la stessa finestra con il nome scelto) e operazione "drawing" della conversione a lotti.
+Solo app per PC. Il risultato si apre subito nell'editor CAD. DWG solo con ODA File Converter (`cadedit._to_dwg`).
+- `mbvisual/todrawing.py` = ingresso unico (info, page_png, preview, convert; API `api/drawing?op=info|page|preview|convert`),
+  formato neutro delle entita' (in testa al file: unita' della sorgente con y in alto), scrittore DXF (`Writer`: layer, colori
+  ACI/true color, spessori, tipi di linea MBV_<hash> dai tratteggi, stili TrueType, HATCH, MTEXT), scala: `scale` = 1:N,
+  `ref_mm` + `ref_len` = quota nota (distanza misurata in mm della CARTA, cosi' vale per PDF e pixel), unita' mm/cm/m.
+  Pagine affiancate nel modello (riquadro sul layer CONTORNO-PAGINA, non stampabile) o `layout: sheets` = anche un layout per
+  pagina con la carta e una VIEWPORT in scala sulla sua parte di modello.
+- `mbvisual/pdfvec.py` (PyMuPDF get_drawings + get_texttrace): Bezier -> arco se il cerchio per estremi e punto medio regge a
+  t=1/8..7/8 E le tangenti negli estremi sono perpendicolari al raggio; archi consecutivi con lo stesso centro uniti, chiusi a 360
+  = CIRCLE; polilinee di >= 5 segmenti uguali con curvatura costante -> archi (`_arcs_from_lines`); il resto spline (bezier_to_bspline).
+  Layer: OCG del PDF (campo "layer"), altrimenti "C<RRGGBB>-<mm>" per colore e spessore; testi sul layer TESTI, testi invisibili
+  (render mode 3: OCR, SHX di AutoCAD) su TESTI-NASCOSTI spento. Altezza TEXT = altezza delle maiuscole (OS/2 sCapHeight con
+  fontTools, 0,716 se manca), fattore di larghezza misurato, carattere di Windows piu' simile (`publisher._font_file`).
+  Righe allineate e con interlinea regolare -> MTEXT. Riempimenti bianchi ignorati (maschere). Insidia: le linee orizzontali/
+  verticali hanno un Rect vuoto e `Rect.intersects` da' False (prima sparivano).
+- `mbvisual/rastervec.py` (solo numpy + Pillow; NIENTE OpenCV/potrace): sfondo uniformato, Otsu, inversione automatica,
+  raddrizzamento (proiezioni dei punti neri, +-6 gradi; `Image.rotate(+ang)`), macchie e buchi tolti con le componenti connesse
+  per corse (`components`), OCR di Windows (`pdfedit._ocr_png`, max 10000 px per lato) anche ruotato di 90 gradi; una parola vale
+  se l'inchiostro estraneo nel suo riquadro (pixel veri, non riquadri delle componenti) e' sotto il 25%. "Linee d'asse" = Zhang-Suen
+  a ondate sui soli pixel di bordo + scaletta tolta con tabella, catene tra nodi, incroci uniti nel baricentro, rametti tolti;
+  "Solo contorni" = crack following (anelli densificati prima del cerchio). Poi Douglas-Peucker, archi/cerchi ai minimi quadrati
+  (scarto <= max(1,5 tol, min(1,5% r, 2,5 tol)), freccia >= 2,5 px), archi dello stesso cerchio riuniti (>= 300 gradi = cerchio:
+  pilastri attraversati dagli assi), linee quasi H/V raddrizzate, segmenti allineati riuniti attraverso gli incroci.
+- Interfaccia `ui/js/todrawing.js` + `ui/css/todrawing.css`: opzioni a sinistra, anteprima sovrapposta (Sovrapposti / Solo disegno /
+  Originale; rotella = zoom, trascina = sposta, doppio clic = adatta), scale trovate nel testo della tavola ("SCALA 1:100") come
+  pulsanti, "Indica due punti" con aggancio agli estremi, avviso fisso "Risultato approssimato" per le scansioni. Testi `todrawing.*`,
+  `srv_drawing.*` (5 lingue; anche i nomi dei layer creati). app.js: `addDrawingButton`, `toDrawing`, `canToDrawing`.
+- Collaudo: `python tests/test_todrawing.py [--keep cartella]` (61 prove: DXF noto -> PDF di ezdxf 1:100 con OCG -> DXF entro
+  0,05 mm di carta, archi con angoli, bulge, layer, spessori, quota nota, fogli con VIEWPORT 1:100; testi PyMuPDF con rotazioni,
+  MTEXT, tratteggi, HATCH; scansione sintetica con rumore, macchie, rotazione 1,5 gradi, OCR, contorni, PDF scansionato).
+  NB ezdxf arrotonda la pagina ai punti interi e scala il disegno: nel collaudo il foglio e' 25400 x 17780 mm (720 x 504 pt).
+  Campioni realistici (pianta A3 1:100 vettoriale + "scansione" TIFF storta): `python tools/make_todrawing_samples.py <cartella>`
+  (non nel repo: il TIFF pesa 15 MB). Tempi: PDF immediato, scansione A3 300 dpi ~17 s con OCR.
+- Da provare con le tavole vere dell'utente (AutoCAD/Revit, scansioni A1/A0): PDF con testi SHX (tratti + testo nascosto),
+  archi spezzati in segmenti, retini a tratteggio (restano linee), scansioni a colori/cianografie, testi inclinati (l'OCR di Windows
+  legge solo orizzontale e verticale).

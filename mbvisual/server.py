@@ -340,6 +340,23 @@ class Handler(BaseHTTPRequestHandler):
         out = self._body_json()["out"]
         self._json({"ok": True, "job": jobs.start(convert.convert, self._path(qs), out)})
 
+    def api_drawing(self, qs):
+        # "Converti in disegno": PDF vettoriali, scansioni e immagini -> DXF/DWG (mbvisual/todrawing.py)
+        from . import todrawing
+        op, path = _q(qs, "op", ""), self._path(qs)
+        if op == "info":
+            return self._json(todrawing.info(path))
+        if op == "page":
+            png, meta = todrawing.page_png(path, int(_q(qs, "page", "0") or 0), int(_q(qs, "max", "1600") or 1600))
+            return self._send(200, png, "image/png", {"X-W": str(meta["w"]), "X-H": str(meta["h"]), "X-Px": str(meta["px"]),
+                                                      "Access-Control-Expose-Headers": "*"})
+        b = self._body_json()
+        if op == "preview":
+            return self._json({"ok": True, "job": jobs.start(todrawing.preview, path, int(b.get("page", 0)), b.get("opts") or {})})
+        if op == "convert":
+            return self._json({"ok": True, "job": jobs.start(todrawing.convert, path, b["out"], b.get("opts") or {})})
+        self._json({"ok": False, "errore": "op"}, 400)
+
     def api_batch(self, qs):
         # conversione a lotti (mbvisual/batch.py): scan, start, status, cancel, list, take/client (compiti della pagina)
         from . import batch

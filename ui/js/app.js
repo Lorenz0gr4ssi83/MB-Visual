@@ -281,6 +281,7 @@ function fileMenu(anchor) {
   if (WEB && window.MBV_MOBILE) m.append(el("hr"), item(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount)); // app per cellulari con licenza
   if (!WEB) {
     // conversione a lotti (ui/js/batch.js): cartella del pannello Esplora gia' proposta
+    m.append(item(ICON_TODRAW, tr("todrawing.converti_disegno_menu"), "", () => toDrawing(), !canToDrawing(active)));
     m.append(item('<svg viewBox="0 0 24 24"><path d="M4 4h10v10H4zM10 10h10v10H10M17 6l3 3-3 3"/></svg>', tr("app.conversione_lotti"), "",
       () => import("./batch.js").then(b => b.openBatch({ paths: exDir && !$("explorer").hidden ? [exDir] : [] }))));
     m.append(el("hr"), item(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount), item(ICON_UPD, tr("app.verifica_aggiornamenti"), "", () => checkUpdates(true)));
@@ -551,6 +552,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
     const mod = await import(`./viewers/${viewer}.js`);
     tab.api = (await mod.mount(ctx)) || {};
     addOfficeButton(tab, tb);
+    addDrawingButton(tab, tb);
     if (extraCtx.untitled) { tab.untitled = true; tab.dirty = true; renderTabs(); } // file nuovo: si salva quando e dove si vuole
   } catch (e) {
     console.error(e);
@@ -667,6 +669,8 @@ async function chooseFormat(t, a) {
 }
 
 async function convertTo(t, a, target) {
+  // PDF e immagini in DXF/DWG: la finestra "Converti in disegno" (scala, layer, pulizia, anteprima) con il nome gia' scelto
+  if (/^(dxf|dwg)$/.test(extOf(target)) && canToDrawing(t)) return toDrawing(t, target);
   try {
     let src = t.path;
     // modifiche non ancora salvate: prima si salva una copia temporanea, poi si converte quella
@@ -684,6 +688,21 @@ async function convertTo(t, a, target) {
     console.error(e);
     toast(tr("app.conversione_non_riuscita") + e.message, true, 8000);
   }
+}
+
+// ------------------------------------------------------------------ PDF e immagini -> disegno DXF/DWG (ui/js/todrawing.js, mbvisual/todrawing.py)
+const ICON_TODRAW = '<svg viewBox="0 0 24 24"><path d="M4 4h9l4 4v5M13 4v4h4M4 4v16h7"/><path d="M14 17h7M14 21l7-8M17.5 21a3.5 3.5 0 0 0 0-7"/></svg>';
+const TODRAW_EXT = /^(pdf|png|jpe?g|jpe|jfif|tiff?|bmp|dib|gif|webp|avif|heic|heif|jp2|j2k|jpx|tga|pcx|ppm|pgm|pbm|pnm|qoi)$/;
+const canToDrawing = t => !!t && !WEB && !!t.path && !t.path.startsWith("web://") && !t.path.startsWith("download://") && TODRAW_EXT.test(extOf(t.info?.nome || t.path));
+function toDrawing(t = active, out = null) {
+  if (!canToDrawing(t)) return;
+  import("./todrawing.js").then(m => m.openToDrawing({ path: t.path, out, openFile }));
+}
+function addDrawingButton(t, tb) {
+  if (!canToDrawing(t) || !["pdf", "image"].includes(t.viewer)) return;
+  const b = button(tr("todrawing.converti_disegno"), ICON_TODRAW, () => toDrawing(t), { title: tr("todrawing.converti_disegno_aiuto") });
+  b.classList.add("td-btn");
+  tb.prepend(b, el("span", { class: "sep" }));
 }
 
 // ------------------------------------------------------------------ modifica nei programmi Office e ricarica automatica
@@ -928,6 +947,7 @@ function openPalette() {
     c(ICON_I("M11 17.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM16 16l4.5 4.5"), tr("search.cerca_titolo"), "Ctrl+Shift+F", () => import("./search.js").then(m => m.toggle(true)), !WEB),
     c(ICON_FORMATS, tr("idx.elenco_completo_formati_supportati"), "", () => { if ($("formats").hidden) toggleFormats(); }),
     c(ICON_I("M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18"), tr("app.firma_digitale"), "", () => import("./firma.js").then(f => f.signDialog({ path: active.path, openFile })), !WEB && !!active?.path),
+    c(ICON_TODRAW, tr("todrawing.converti_disegno_menu"), "", () => toDrawing(), canToDrawing(active)),
     c(ICON_I("M4 4h7v16H4zM13 4h7v16h-7M8 9l-2 2 2 2M16 9l2 2-2 2"), tr("app.confronta_con"), "", compareWith, has && active.viewer !== "compare" && COMPARE_EXT.test(extOf(active.info?.nome || active.name))),
     c(ICON_I("M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"), tr("idx.tema_chiaro_scuro"), "", () => $("btn-theme").click()),
     c(ICON_I("M3 6h18v12H3zM6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"), tr("app.scorciatoie_tastiera"), "F1", showShortcuts),

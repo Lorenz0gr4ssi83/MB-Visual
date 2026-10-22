@@ -57,13 +57,15 @@ TARGETS = {
                ("potx", "srv_convert.modello_powerpoint"), ("odp", "srv_convert.opendocument_presentazione"), ("pdf", "PDF"), ("xps", "XPS"),
                ("png", "srv_convert.immagini_png_diapositiva"), ("jpg", "srv_convert.immagini_jpg_diapositiva"), ("mp4", "srv_convert.video_mp4"), ("rtf", "srv_convert.struttura_rtf")],
     "pdf": [("docx", "srv_convert.word_modificabile"), ("txt", "srv_convert.testo"), ("html", "srv_convert.pagina_web"), ("svg", "srv_convert.svg_pagina_file"),
-            ("png", "srv_convert.immagini_png"), ("jpg", "srv_convert.immagini_jpg"), ("tiff", "srv_convert.tiff_multipagina"), ("xlsx", "srv_convert.excel_tabelle_pdf"), ("pdf", "srv_convert.pdf_ottimizzato")],
+            ("png", "srv_convert.immagini_png"), ("jpg", "srv_convert.immagini_jpg"), ("tiff", "srv_convert.tiff_multipagina"), ("xlsx", "srv_convert.excel_tabelle_pdf"), ("pdf", "srv_convert.pdf_ottimizzato"),
+            ("dxf", "srv_convert.disegno_dxf"), ("dwg", "srv_convert.disegno_dwg")],
     "xps": [("pdf", "PDF"), ("png", "srv_convert.immagini_png"), ("txt", "srv_convert.testo")],
     "epub": [("pdf", "PDF"), ("txt", "srv_convert.testo"), ("html", "srv_convert.pagina_web"), ("docx", "Word")],
     "svg": [("png", "PNG"), ("jpg", "JPG"), ("webp", "WEBP"), ("tiff", "TIFF"), ("pdf", "PDF")],
     "html": [("pdf", "PDF"), ("docx", "Word"), ("odt", "srv_convert.opendocument_testo"), ("rtf", "RTF"), ("txt", "srv_convert.testo"), ("mht", "srv_convert.pagina_web_file")],
     "markdown": [("html", "srv_convert.pagina_web"), ("pdf", "PDF"), ("docx", "Word"), ("odt", "srv_convert.opendocument_testo"), ("txt", "srv_convert.testo")],
-    "image": [(e, e.upper()) for e in ("png", "jpg", "webp", "tiff", "bmp", "gif", "ico", "avif", "heic", "jp2", "tga", "ppm", "pcx", "dds", "icns", "qoi")] + [("pdf", "PDF")],
+    "image": [(e, e.upper()) for e in ("png", "jpg", "webp", "tiff", "bmp", "gif", "ico", "avif", "heic", "jp2", "tga", "ppm", "pcx", "dds", "icns", "qoi")] + [("pdf", "PDF"),
+              ("dxf", "srv_convert.disegno_dxf_scansione"), ("dwg", "srv_convert.disegno_dwg_scansione")],
     "media": [(e, e.upper()) for e in ("mp4", "mkv", "webm", "mov", "avi", "wmv", "flv", "mpg", "ts", "3gp", "gif")] + [(e, "srv_convert.solo_audio|" + e.upper()) for e in ("mp3", "wav", "flac", "m4a", "ogg", "opus")],
     "audio": [(e, e.upper()) for e in ("mp3", "wav", "flac", "m4a", "aac", "ogg", "opus", "wma", "aiff", "ac3")],
     "archive": [("zip", "ZIP"), ("7z", "7-Zip"), ("tar", "TAR"), ("tgz", "TAR.GZ"), ("txz", "TAR.XZ"), ("tbz2", "TAR.BZ2"), ("wim", "WIM")],
@@ -89,16 +91,30 @@ def targets(path: str) -> dict:
     ext = Path(path).suffix.lower().lstrip(".")
     fam = FAMILY_OF.get(ext)
     lst = [{"ext": e, "label": _label(l)} for e, l in TARGETS.get(fam, []) if e != ext or fam in ("pdf",)]
+    if not _oda():  # DWG solo con ODA File Converter installato
+        lst = [x for x in lst if x["ext"] != "dwg"]
     return {"ok": True, "family": fam, "targets": lst}
 
 
-def convert(src: str, out: str, update=None) -> dict:
+def _oda() -> bool:
+    try:
+        from .cadedit import find_oda
+        return bool(find_oda())
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def convert(src: str, out: str, update=None, opts: dict | None = None) -> dict:
     update = update or (lambda **k: None)
     ext = Path(src).suffix.lower().lstrip(".")
     to = Path(out).suffix.lower().lstrip(".")
     fam = FAMILY_OF.get(ext)
     if not fam:
         raise ValueError(tr("srv_convert.nessuna_conversione_disponibile_i_file", ext))
+    if to in ("dxf", "dwg") and fam in ("pdf", "image"):
+        # PDF vettoriali, scansioni e immagini -> disegno (mbvisual/todrawing.py); opzioni predefinite: scala 1:1 della carta
+        from . import todrawing
+        return todrawing.convert(src, out, opts or {}, update=update)
     update(message=tr("srv_convert.conversione_corso"), progress=0.1)
     fn = {
         "word": _office_doc, "sheet": _office_sheet, "slides": _office_slides, "pdf": _pdf, "xps": _mupdf_doc, "epub": _mupdf_doc,

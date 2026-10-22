@@ -23,6 +23,7 @@ function applies(op, f, o, targetsOf) {
   if (op === "pdf_merge") return fam === "pdf" || (o.convert_others !== false && PDF_FAMS.has(fam));
   if (op === "pdf_compress" || op === "pdf_ocr") return fam === "pdf";
   if (op === "video") return fam === "media";
+  if (op === "drawing") return fam === "pdf" || fam === "image";
   return false;
 }
 const OP_HELP = {
@@ -33,6 +34,7 @@ const OP_HELP = {
   pdf_compress: tr("batch.ricomprime_immagini_interne_riduce_i"),
   pdf_ocr: tr("batch.aggiunge_testo_invisibile_alle_scansioni"),
   video: tr("batch.h_264_aac_mp4_qualita"),
+  drawing: tr("batch.disegno_aiuto"),
 };
 
 const KEY = "mbv-lotti";
@@ -71,7 +73,8 @@ export async function openBatch({ paths = [] } = {}) {
   const S = {
     sources: [...paths], recursive: saved.recursive ?? true, scan: null, op: saved.op || "pdf",
     opts: { ...{ layouts: "fogli", paper: "auto", orient: "auto", scale: 0, colors: "colori", lineweights: true, to: "", quality: 82, imgsize: "max", max_w: 1920, max_h: 1920, percent: 50,
-      keep_meta: false, name: tr("batch.unione"), convert_others: true, bookmarks: true, dpi: 150, cquality: 75, ocr_dpi: 300, crf: 26, vmax_h: 1080, audio_kbps: 128, mute: false, report_file: true }, ...(saved.opts || {}) },
+      keep_meta: false, name: tr("batch.unione"), convert_others: true, bookmarks: true, dpi: 150, cquality: 75, ocr_dpi: 300, crf: 26, vmax_h: 1080, audio_kbps: 128, mute: false, report_file: true,
+      d_scale: 1, d_units: "mm", d_layout: "model", d_method: "auto", d_vmode: "center", d_to: "dxf", d_ocr: true }, ...(saved.opts || {}) },
     out: { mode: "accanto", dir: "", collision: "rinomina", suffix: "", ...(saved.out || {}) },
   };
   const D = frame(tr("batch.conversione_lotti"));
@@ -196,6 +199,17 @@ export async function openBatch({ paths = [] } = {}) {
     if (S.op === "video") g.append(sel(tr("batch.qualita"), "crf", [[22, tr("batch.alta")], [26, tr("batch.media_consigliata")], [30, tr("batch.ridotta")], [34, tr("batch.minima")]], "", Number),
       sel(tr("batch.altezza_massima"), "vmax_h", [[0, tr("batch.originale")], [2160, "2160 (4K)"], [1440, "1440"], [1080, "1080 (Full HD)"], [720, "720 (HD)"], [480, "480"]], "", Number),
       sel(tr("batch.audio"), "audio_kbps", [[96, "96 kbps"], [128, "128 kbps"], [192, "192 kbps"]], "", Number), chk(tr("batch.togli_l_audio"), "mute"));
+    if (S.op === "drawing") {
+      // stesse opzioni della finestra "Converti in disegno" (ui/js/todrawing.js)
+      g.append(sel(tr("todrawing.scala"), "d_scale", [1, 2, 5, 10, 20, 25, 50, 100, 200, 500, 1000, 2000].map(n => [n, n === 1 ? tr("todrawing.scala_carta") : "1:" + n]), "", Number),
+        sel(tr("todrawing.unita"), "d_units", [["mm", "mm"], ["cm", "cm"], ["m", "m"]]),
+        sel(tr("todrawing.pagine"), "d_layout", [["model", tr("todrawing.pagine_modello")], ["sheets", tr("todrawing.pagine_fogli")]]),
+        sel(tr("todrawing.metodo"), "d_method", [["auto", tr("todrawing.metodo_auto")], ["vector", tr("todrawing.metodo_vettoriale")], ["raster", tr("todrawing.metodo_scansione")]]),
+        sel(tr("todrawing.vettorizza"), "d_vmode", [["center", tr("todrawing.linee_asse")], ["outline", tr("todrawing.solo_contorni")]]),
+        sel(tr("batch.formato"), "d_to", [["dxf", "DXF"], ["dwg", "DWG (ODA File Converter)"]]),
+        chk(tr("todrawing.ocr"), "d_ocr"));
+      notes.push(tr("todrawing.avviso_approssimato"));
+    }
     if (!g.childElementCount && !notes.length) return;
     optBox.append(el("h4", {}, tr("batch.opzioni")), g, ...notes.map(n => el("p", { class: "bt-note" }, n)));
   }
@@ -238,6 +252,8 @@ export async function openBatch({ paths = [] } = {}) {
     if (S.op === "pdf_compress") { opts.dpi = o.dpi; opts.quality = o.cquality; }
     if (S.op === "pdf_ocr") opts.dpi = o.ocr_dpi;
     if (S.op === "video") opts.max_h = o.vmax_h;
+    if (S.op === "drawing") Object.assign(opts, { scale: o.d_scale || 1, units: o.d_units || "mm", layout: o.d_layout || "model", method: o.d_method || "auto",
+      vmode: o.d_vmode || "center", ocr: o.d_ocr !== false, to: o.d_to || "dxf", dpi: 300 });
     store({ recursive: S.recursive, op: S.op, opts: S.opts, out: { ...S.out } });
     try {
       const files = S.scan.files.map(f => ({ path: f.path, rel: f.rel }));
@@ -252,7 +268,7 @@ export async function openBatch({ paths = [] } = {}) {
 }
 const OPS_FALLBACK = {
   pdf: tr("batch.converti_pdf"), format: tr("batch.converti_altro_formato"), image: tr("srv_batch.op_immagini"), pdf_merge: tr("batch.unisci_unico_pdf"),
-  pdf_compress: tr("srv_batch.op_pdf_comprimi"), pdf_ocr: tr("batch.pdf_scansionati_rendi_ricercabili_ocr"), video: tr("srv_batch.op_video"),
+  pdf_compress: tr("srv_batch.op_pdf_comprimi"), pdf_ocr: tr("batch.pdf_scansionati_rendi_ricercabili_ocr"), video: tr("srv_batch.op_video"), drawing: tr("srv_batch.op_disegno"),
 };
 
 // ---------------------------------------------------------------- avanzamento
