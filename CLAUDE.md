@@ -182,6 +182,12 @@ privato (lo fa l'utente SOLO dopo che l'app per cellulari e' online su Cloudflar
 ode-x64 e wrangler installato in
   %USERPROFILE%\.mbvisual\server (PATH="$NODE:$PATH" "$NODE/npx.cmd" wrangler deploy|d1 ...). Ripubblicare: license_setup.py
   server, build_web.py --mobile, poi deploy dalla copia di lavoro.
+- App per cellulari (web app): si ricostruisce da una copia pulita `git worktree` in %USERPROFILE%\.mbvisual\wt-web
+  (checkout di origin/main + copia di ui/vendor), `build_web.py --mobile` -> server\public, poi `wrangler deploy`. VERSION del
+  service worker = data e ora della build (i telefoni prendono i file nuovi e la pagina si ricarica). Formati web in WEB_EXTS
+  (anche dwf, calendari, contatti, hpgl, vis3d, visio vsdx, mbpub, las/pts/xyz); restano fuori quelli che vogliono il motore
+  Python (DICOM, certificati, dati scientifici, iWork, Revit, skp, montaggio video, .vsd/.pub). `build_web.py` SENZA --mobile
+  scrive docs/ = rimando di GitHub Pages al server (sw.js cancella la vecchia copia nei telefoni).
 - Setup: `tools/build_setup.py` (Inno Setup 6 in %LOCALAPPDATA%\Programs\Inno Setup 6) -> MBVisual-Setup-<ver>.exe; release
   pubblicate con gh (account Lorenz0gr4ssi83) su https://github.com/Lorenz0gr4ssi83/MB-Visual-Rilasci (v1.4.2):
   `gh release create v<ver> <setup> --repo Lorenz0gr4ssi83/MB-Visual-Rilasci`. L'app senza OneDrive si aggiorna da li'.
