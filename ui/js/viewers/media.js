@@ -1,4 +1,5 @@
 // Audio e video: riproduzione nativa o conversione automatica con FFmpeg; taglio, rotazione, estrazione audio, fotogrammi, conversione.
+import { t as tr } from "../i18n.js";
 import { api, button, dirName, el, fileUrl, fmtTime, loading, modal, pickSavePath, toast, waitJob, withExt } from "../core.js";
 import { keymap } from "../shortcuts.js";
 
@@ -6,7 +7,7 @@ const NATIVE_V = new Set(["mp4", "m4v", "webm", "ogv", "mov"]);
 const NATIVE_A = new Set(["mp3", "wav", "wave", "flac", "ogg", "oga", "opus", "m4a", "aac"]);
 
 export async function mount(ctx) {
-  const ld = loading(ctx.el, "Analisi del file multimediale");
+  const ld = loading(ctx.el, tr("v_media.analisi_file_multimediale"));
   const probe = await api("media_probe", { path: ctx.path });
   const isVideo = probe.video;
   let src = fileUrl(ctx.path);
@@ -14,9 +15,9 @@ export async function mount(ctx) {
   const media = el(isVideo ? "video" : "audio", { controls: true, preload: "metadata", style: { maxWidth: "100%", maxHeight: "100%", width: isVideo ? "100%" : "min(720px, 90%)", background: "#000", outline: "none" } });
 
   async function convert() {
-    ld.set(0, "Conversione in un formato riproducibile");
+    ld.set(0, tr("v_media.conversione_formato_riproducibile"));
     const j = await api("media_playable", { path: ctx.path });
-    const r = await waitJob(j.job, p => ld.set(p, `Conversione in corso: ${Math.round(p * 100)}%`));
+    const r = await waitJob(j.job, p => ld.set(p, tr("v_media.conversione_corso_0", Math.round(p * 100))));
     return fileUrl(r.path);
   }
   const playable = await new Promise(res => {
@@ -64,28 +65,28 @@ export async function mount(ctx) {
 
   // ---- punti di taglio
   let inP = null, outP = null;
-  const marks = el("span", { class: "note" }, "Taglio: intero file");
-  const showMarks = () => { marks.textContent = inP === null && outP === null ? "Taglio: intero file" : `Taglio: ${fmtTime(inP ?? 0)} → ${fmtTime(outP ?? media.duration)}`; repaint(); };
-  const speed = el("select", { id: "spd-" + ctx.tab.name, title: "Velocita'", onchange: e => (media.playbackRate = +e.target.value) },
+  const marks = el("span", { class: "note" }, tr("v_media.taglio_intero_file"));
+  const showMarks = () => { marks.textContent = inP === null && outP === null ? tr("v_media.taglio_intero_file") : `Taglio: ${fmtTime(inP ?? 0)} → ${fmtTime(outP ?? media.duration)}`; repaint(); };
+  const speed = el("select", { id: "spd-" + ctx.tab.name, title: tr("v_media.velocita"), onchange: e => (media.playbackRate = +e.target.value) },
     ...[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3].map(v => el("option", { value: v, selected: v === 1 }, v + "×")));
   const step = d => { media.pause(); media.currentTime = Math.max(0, media.currentTime + d); };
   ctx.tb.append(
     speed,
-    isVideo ? button("", "rotateL", () => step(-1 / 25), { iconOnly: true, title: "Fotogramma precedente" }) : null,
-    isVideo ? button("", "rotate", () => step(1 / 25), { iconOnly: true, title: "Fotogramma successivo" }) : null,
+    isVideo ? button("", "rotateL", () => step(-1 / 25), { iconOnly: true, title: tr("v_media.fotogramma_precedente") }) : null,
+    isVideo ? button("", "rotate", () => step(1 / 25), { iconOnly: true, title: tr("v_media.fotogramma_successivo") }) : null,
     el("span", { class: "sep" }),
-    button("Inizio qui", "scissors", () => { inP = media.currentTime; if (outP !== null && outP <= inP) outP = null; showMarks(); }, { title: "Imposta l'inizio del taglio alla posizione attuale (I)" }),
-    button("Fine qui", "scissors", () => { outP = media.currentTime; if (inP !== null && inP >= outP) inP = null; showMarks(); }, { title: "Imposta la fine del taglio alla posizione attuale (O)" }),
-    button("Azzera", null, () => { inP = outP = null; showMarks(); }), marks,
+    button(tr("v_media.inizio_qui"), "scissors", () => { inP = media.currentTime; if (outP !== null && outP <= inP) outP = null; showMarks(); }, { title: tr("v_media.imposta_l_inizio_taglio_posizione") }),
+    button(tr("v_media.fine_qui"), "scissors", () => { outP = media.currentTime; if (inP !== null && inP >= outP) inP = null; showMarks(); }, { title: tr("v_media.imposta_fine_taglio_posizione_attuale") }),
+    button(tr("v_media.azzera"), null, () => { inP = outP = null; showMarks(); }), marks,
     el("span", { class: "sep" }),
-    button("Esporta / converti", "download", () => exportDialog()),
-    button("Apri nel montaggio", "edit", () => openInEditor(), { title: "Crea un progetto di montaggio video (stile Premiere Pro) con questo file" }),
-    isVideo ? button("Fotogramma", "camera", async () => {
+    button(tr("v_media.esporta_converti"), "download", () => exportDialog()),
+    button(tr("v_media.apri_montaggio"), "edit", () => openInEditor(), { title: tr("v_media.crea_progetto_montaggio_video_stile") }),
+    isVideo ? button(tr("v_media.fotogramma"), "camera", async () => {
       const out = await pickSavePath(withExt(ctx.name.replace(/\.[^.]+$/, "") + "_" + Math.round(media.currentTime) + "s.x", "png"), dirName(ctx.path));
       if (!out) return;
       await api("media_frame", { path: ctx.path }, { json: { t: media.currentTime, out } });
-      toast("Fotogramma salvato");
-    }, { title: "Salva il fotogramma attuale come immagine" }) : null,
+      toast(tr("v_media.fotogramma_salvato"));
+    }, { title: tr("v_media.salva_fotogramma_attuale_come_immagine") }) : null,
     el("span", { class: "grow" }),
     el("span", { class: "note" }, (probe.flussi || []).map(s => s.tipo + ": " + s.dettagli.split(",")[0]).join(" · ")));
   [...ctx.tb.childNodes].forEach(n => { if (n.nodeType === 3 && n.textContent === "null") n.remove(); });
@@ -96,21 +97,21 @@ export async function mount(ctx) {
   const seek = d => { media.currentTime = Math.max(0, Math.min(media.duration || 0, media.currentTime + d)); };
   let shuttle = 1;
   keymap(ctx, "Premiere / VLC", [
-    { keys: "Space|K", desc: "Riproduci / pausa", run: toggle, group: "Riproduzione" },
-    { keys: "L", desc: "Avanti (premuto piu' volte: piu' veloce)", run: () => { shuttle = media.paused ? 1 : Math.min(8, shuttle * 2); media.playbackRate = shuttle; media.play(); ctx.status(`Velocita' ${shuttle}×`); }, group: "Riproduzione" },
-    { keys: "J", desc: "Indietro di 5 secondi", run: () => seek(-5), group: "Riproduzione" },
-    { keys: "ArrowLeft", desc: "Indietro di 5 secondi", run: () => seek(-5), group: "Riproduzione" },
-    { keys: "ArrowRight", desc: "Avanti di 5 secondi", run: () => seek(5), group: "Riproduzione" },
-    { keys: ",", desc: "Fotogramma precedente", run: () => step(-1 / 25), group: "Riproduzione" },
-    { keys: ".", desc: "Fotogramma successivo", run: () => step(1 / 25), group: "Riproduzione" },
-    { keys: "Home", desc: "Vai all'inizio", run: () => { media.currentTime = 0; }, group: "Riproduzione" },
-    { keys: "End", desc: "Vai alla fine", run: () => { media.currentTime = media.duration || 0; }, group: "Riproduzione" },
-    { keys: "M", desc: "Audio si'/no", run: () => { media.muted = !media.muted; }, group: "Riproduzione" },
-    ...(isVideo ? [{ keys: "F", desc: "Schermo intero", run: () => (document.fullscreenElement ? document.exitFullscreen() : media.requestFullscreen?.()), group: "Riproduzione" }] : []),
-    { keys: "I", desc: "Inizio del taglio qui (punto di attacco)", run: markIn, group: "Taglio" },
-    { keys: "O", desc: "Fine del taglio qui (punto di stacco)", run: markOut, group: "Taglio" },
-    { keys: "Ctrl+Shift+X", desc: "Azzera i punti di taglio", run: () => { inP = outP = null; showMarks(); }, group: "Taglio" },
-    { keys: "Ctrl+M", desc: "Esporta / converti", run: () => exportDialog(), group: "Taglio" },
+    { keys: "Space|K", desc: tr("v_media.riproduci_pausa"), run: toggle, group: tr("v_media.riproduzione") },
+    { keys: "L", desc: tr("v_media.avanti_premuto_piu_volte_piu"), run: () => { shuttle = media.paused ? 1 : Math.min(8, shuttle * 2); media.playbackRate = shuttle; media.play(); ctx.status(tr("v_media.velocita_0", shuttle)); }, group: tr("v_media.riproduzione") },
+    { keys: "J", desc: tr("v_media.indietro_5_secondi"), run: () => seek(-5), group: tr("v_media.riproduzione") },
+    { keys: "ArrowLeft", desc: tr("v_media.indietro_5_secondi"), run: () => seek(-5), group: tr("v_media.riproduzione") },
+    { keys: "ArrowRight", desc: tr("v_media.avanti_5_secondi"), run: () => seek(5), group: tr("v_media.riproduzione") },
+    { keys: ",", desc: tr("v_media.fotogramma_precedente"), run: () => step(-1 / 25), group: tr("v_media.riproduzione") },
+    { keys: ".", desc: tr("v_media.fotogramma_successivo"), run: () => step(1 / 25), group: tr("v_media.riproduzione") },
+    { keys: "Home", desc: tr("v_media.vai_all_inizio"), run: () => { media.currentTime = 0; }, group: tr("v_media.riproduzione") },
+    { keys: "End", desc: tr("v_media.vai_fine"), run: () => { media.currentTime = media.duration || 0; }, group: tr("v_media.riproduzione") },
+    { keys: "M", desc: tr("v_media.audio_si_no"), run: () => { media.muted = !media.muted; }, group: tr("v_media.riproduzione") },
+    ...(isVideo ? [{ keys: "F", desc: tr("v_media.schermo_intero"), run: () => (document.fullscreenElement ? document.exitFullscreen() : media.requestFullscreen?.()), group: tr("v_media.riproduzione") }] : []),
+    { keys: "I", desc: tr("v_media.inizio_taglio_qui_punto_attacco"), run: markIn, group: tr("v_media.taglio") },
+    { keys: "O", desc: tr("v_media.fine_taglio_qui_punto_stacco"), run: markOut, group: tr("v_media.taglio") },
+    { keys: "Ctrl+Shift+X", desc: tr("v_media.azzera_i_punti_taglio"), run: () => { inP = outP = null; showMarks(); }, group: tr("v_media.taglio") },
+    { keys: "Ctrl+M", desc: tr("v_media.esporta_converti"), run: () => exportDialog(), group: tr("v_media.taglio") },
   ]);
 
   // nuovo progetto di montaggio (.mbvid) con questo file gia' in timeline, adattato alle sue dimensioni
@@ -131,21 +132,21 @@ export async function mount(ctx) {
 
   async function exportDialog(defaultExt) {
     const fmtSel = el("select", { id: "exp-fmt-" + ctx.tab.name, class: "field" },
-      ...(isVideo ? ["mp4", "webm", "mkv", "mov", "avi", "gif"] : []).map(f => el("option", { value: f }, "Video " + f.toUpperCase())),
-      ...["mp3", "wav", "flac", "ogg", "m4a", "opus"].map(f => el("option", { value: f }, "Solo audio " + f.toUpperCase())));
+      ...(isVideo ? ["mp4", "webm", "mkv", "mov", "avi", "gif"] : []).map(f => el("option", { value: f }, tr("v_media.video") + f.toUpperCase())),
+      ...["mp3", "wav", "flac", "ogg", "m4a", "opus"].map(f => el("option", { value: f }, tr("v_media.solo_audio") + f.toUpperCase())));
     if (defaultExt) fmtSel.value = defaultExt;
-    const rot = el("select", { id: "exp-rot-" + ctx.tab.name, class: "field" }, el("option", { value: 0 }, "Nessuna rotazione"), el("option", { value: 90 }, "Ruota 90° orario"), el("option", { value: 180 }, "Ruota 180°"), el("option", { value: 270 }, "Ruota 90° antiorario"));
+    const rot = el("select", { id: "exp-rot-" + ctx.tab.name, class: "field" }, el("option", { value: 0 }, tr("v_media.nessuna_rotazione")), el("option", { value: 90 }, tr("v_media.ruota_90_orario")), el("option", { value: 180 }, tr("v_media.ruota_180")), el("option", { value: 270 }, tr("v_media.ruota_90_antiorario")));
     const mute = el("input", { type: "checkbox", id: "exp-mute-" + ctx.tab.name });
     const vol = el("input", { type: "range", min: 0, max: 300, value: 100, id: "exp-vol-" + ctx.tab.name });
     const volL = el("span", {}, "100%");
     vol.addEventListener("input", () => (volL.textContent = vol.value + "%"));
     const body = el("div", { style: { display: "grid", gap: "10px" } },
-      el("label", { style: { display: "grid", gap: "4px" } }, "Formato di uscita", fmtSel),
+      el("label", { style: { display: "grid", gap: "4px" } }, tr("v_media.formato_uscita"), fmtSel),
       el("div", {}, marks.textContent),
-      isVideo ? el("label", { style: { display: "grid", gap: "4px" } }, "Rotazione", rot) : null,
-      isVideo ? el("label", { style: { display: "flex", gap: "8px" } }, mute, "Rimuovi l'audio") : null,
-      el("label", { style: { display: "flex", gap: "8px", alignItems: "center" } }, "Volume", vol, volL));
-    const ok = await modal("Esporta / converti", body, [{ label: "Annulla", value: false }, { label: "Scegli dove salvare", value: true, primary: true }]);
+      isVideo ? el("label", { style: { display: "grid", gap: "4px" } }, tr("v_media.rotazione"), rot) : null,
+      isVideo ? el("label", { style: { display: "flex", gap: "8px" } }, mute, tr("v_media.rimuovi_l_audio")) : null,
+      el("label", { style: { display: "flex", gap: "8px", alignItems: "center" } }, tr("v_media.volume"), vol, volL));
+    const ok = await modal(tr("v_media.esporta_converti"), body, [{ label: tr("common.annulla"), value: false }, { label: tr("v_media.scegli_dove_salvare"), value: true, primary: true }]);
     if (!ok) return;
     const ext = fmtSel.value;
     const out = await pickSavePath(withExt(ctx.name.replace(/(\.[^.]+)$/, "_modificato$1"), ext), dirName(ctx.path));
@@ -156,15 +157,15 @@ export async function mount(ctx) {
   async function exportTo(out, o = {}) {
     const ext = out.split(".").pop().toLowerCase();
     const j = await api("media_edit", { path: ctx.path }, { json: { out, start: inP, end: outP, rotate: o.rotate || 0, mute: !!o.mute, audio_only: !["mp4", "webm", "mkv", "mov", "avi", "gif", "m4v", "wmv", "flv", "mpg", "ts"].includes(ext), volume: o.volume ?? 1 } });
-    toast("Esportazione avviata...");
+    toast(tr("v_media.esportazione_avviata"));
     try {
-      await waitJob(j.job, p => ctx.status(`Esportazione ${Math.round(p * 100)}%`));
-      ctx.status("Esportazione completata");
-      toast("Esportato: " + out);
-    } catch (e) { toast("Esportazione non riuscita: " + e.message, true, 7000); }
+      await waitJob(j.job, p => ctx.status(tr("v_media.esportazione_0", Math.round(p * 100))));
+      ctx.status(tr("v_media.esportazione_completata"));
+      toast(tr("v_media.esportato") + out);
+    } catch (e) { toast(tr("v_media.esportazione_non_riuscita") + e.message, true, 7000); }
   }
 
-  media.addEventListener("loadedmetadata", () => ctx.status(`Durata ${fmtTime(media.duration)}` + (isVideo ? ` · ${media.videoWidth}×${media.videoHeight}` : "") + (playable ? "" : " · convertito per la riproduzione")));
+  media.addEventListener("loadedmetadata", () => ctx.status(tr("v_media.durata_0", fmtTime(media.duration)) + (isVideo ? ` · ${media.videoWidth}×${media.videoHeight}` : "") + (playable ? "" : tr("v_media.convertito_riproduzione"))));
   return {
     saveInPlace: false,
     saveAsName: () => ctx.name.replace(/(\.[^.]+)$/, "_modificato$1"),

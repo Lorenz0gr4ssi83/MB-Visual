@@ -2,7 +2,7 @@
 // I file aperti restano nella memoria del dispositivo (nessun invio a server); il salvataggio avviene scaricando il file.
 // Espone window.MBV_API, usato da core.js quando window.MBV_WEB e' attivo.
 import { loadScript } from "./core.js";
-import { LOCALE } from "./i18n.js";
+import { t as tr, LOCALE } from "./i18n.js";
 
 const V = p => window.MBV_ROOT + "vendor/" + p;
 const files = new Map(); // id -> { name, blob, mtime }
@@ -18,7 +18,7 @@ function register(blob, name) {
 function entry(path) {
   const m = /^web:\/\/([^/]+)\//.exec(path || "");
   const f = m && files.get(m[1]);
-  if (!f) throw new Error("File non disponibile: riaprilo");
+  if (!f) throw new Error(tr("webapi.file_non_disponibile_riaprilo"));
   return [m[1], f];
 }
 function replace(path, blob) {
@@ -72,28 +72,28 @@ function sniff(h) {
   const s = new TextDecoder("latin1").decode(h.subarray(0, 64));
   const at = (o, str) => new TextDecoder("latin1").decode(h.subarray(o, o + str.length)) === str;
   const T = [
-    [s.startsWith("%PDF"), "pdf", "Documento PDF"], [s.startsWith("PK\x03\x04"), "zip", "Archivio ZIP (o documento Office)"],
-    [s.startsWith("7z\xbc\xaf"), "archive", "Archivio 7-Zip"], [s.startsWith("Rar!"), "archive", "Archivio RAR"], [h[0] === 0x1f && h[1] === 0x8b, "archive", "Archivio GZIP"],
-    [s.startsWith("\x89PNG"), "image", "Immagine PNG"], [h[0] === 0xff && h[1] === 0xd8, "image", "Immagine JPEG"], [s.startsWith("GIF8"), "image", "Immagine GIF"],
-    [s.startsWith("II*\0") || s.startsWith("MM\0*"), "image", "Immagine TIFF"], [s.startsWith("RIFF") && at(8, "WEBP"), "image", "Immagine WEBP"],
-    [/^ftyp(heic|heix|mif1|msf1)/.test(s.slice(4)), "image", "Immagine HEIC"], [s.startsWith("RIFF") && at(8, "WAVE"), "media", "Audio WAV"],
-    [s.slice(4, 8) === "ftyp", "media", "Video/Audio MP4"], [h[0] === 0x1a && h[1] === 0x45, "media", "Video MKV/WEBM"], [s.startsWith("OggS"), "media", "Audio/Video OGG"],
-    [s.startsWith("fLaC"), "media", "Audio FLAC"], [s.startsWith("ID3"), "media", "Audio MP3"], [s.startsWith("\xd0\xcf\x11\xe0"), "ole", "Documento Office 97-2003 / MSG"],
-    [s.startsWith("SQLite format 3"), "sqlite", "Database SQLite"], [s.startsWith("AC10"), "cad2d", "Disegno AutoCAD DWG"], [s.startsWith("glTF"), "mesh3d", "Modello glTF"],
-    [s.includes("ISO-10303-21") && new TextDecoder("latin1").decode(h.subarray(0, 4000)).toUpperCase().includes("IFC"), "ifc", "Modello BIM IFC"],
-    [s.includes("ISO-10303-21"), "cad3d", "Modello CAD STEP"], [s.startsWith("MZ"), "exe", "Programma Windows"],
-    [h[0] === 0x30 && hasSigned(h), "signed", "Busta firmata PKCS#7/CAdES"],
+    [s.startsWith("%PDF"), "pdf", tr("webapi.documento_pdf")], [s.startsWith("PK\x03\x04"), "zip", tr("webapi.archivio_zip_documento_office")],
+    [s.startsWith("7z\xbc\xaf"), "archive", tr("webapi.archivio_7_zip")], [s.startsWith("Rar!"), "archive", tr("webapi.archivio_rar")], [h[0] === 0x1f && h[1] === 0x8b, "archive", tr("webapi.archivio_gzip")],
+    [s.startsWith("\x89PNG"), "image", tr("webapi.immagine_png")], [h[0] === 0xff && h[1] === 0xd8, "image", tr("webapi.immagine_jpeg")], [s.startsWith("GIF8"), "image", tr("webapi.immagine_gif")],
+    [s.startsWith("II*\0") || s.startsWith("MM\0*"), "image", tr("webapi.immagine_tiff")], [s.startsWith("RIFF") && at(8, "WEBP"), "image", tr("webapi.immagine_webp")],
+    [/^ftyp(heic|heix|mif1|msf1)/.test(s.slice(4)), "image", tr("webapi.immagine_heic")], [s.startsWith("RIFF") && at(8, "WAVE"), "media", tr("webapi.audio_wav")],
+    [s.slice(4, 8) === "ftyp", "media", "Video/Audio MP4"], [h[0] === 0x1a && h[1] === 0x45, "media", tr("webapi.video_mkv_webm")], [s.startsWith("OggS"), "media", "Audio/Video OGG"],
+    [s.startsWith("fLaC"), "media", tr("webapi.audio_flac")], [s.startsWith("ID3"), "media", tr("webapi.audio_mp3")], [s.startsWith("\xd0\xcf\x11\xe0"), "ole", tr("webapi.documento_office_97_2003_msg")],
+    [s.startsWith("SQLite format 3"), "sqlite", tr("webapi.database_sqlite")], [s.startsWith("AC10"), "cad2d", tr("webapi.disegno_autocad_dwg")], [s.startsWith("glTF"), "mesh3d", tr("webapi.modello_gltf")],
+    [s.includes("ISO-10303-21") && new TextDecoder("latin1").decode(h.subarray(0, 4000)).toUpperCase().includes("IFC"), "ifc", tr("webapi.modello_bim_ifc")],
+    [s.includes("ISO-10303-21"), "cad3d", tr("webapi.modello_cad_step")], [s.startsWith("MZ"), "exe", tr("webapi.programma_windows")],
+    [h[0] === 0x30 && hasSigned(h), "signed", tr("webapi.busta_firmata_pkcs_7_cades")],
   ];
   for (const [c, kind, descr] of T) if (c) return { kind, descr };
   const sample = h.subarray(0, 8192);
   if (sample.length && !sample.includes(0)) {
     try { new TextDecoder("utf-8", { fatal: true }).decode(sample); } catch { /* testo non UTF-8 */ }
     const t = new TextDecoder("latin1").decode(sample).trimStart().toLowerCase();
-    if (t.startsWith("<svg") || (t.startsWith("<?xml") && t.includes("<svg"))) return { kind: "svg", descr: "Grafica SVG" };
-    if (t.startsWith("<!doctype html") || t.startsWith("<html")) return { kind: "html", descr: "Pagina web HTML" };
-    return { kind: "text", descr: "File di testo" };
+    if (t.startsWith("<svg") || (t.startsWith("<?xml") && t.includes("<svg"))) return { kind: "svg", descr: tr("webapi.grafica_svg") };
+    if (t.startsWith("<!doctype html") || t.startsWith("<html")) return { kind: "html", descr: tr("webapi.pagina_web_html") };
+    return { kind: "text", descr: tr("webapi.file_testo") };
   }
-  return { kind: null, descr: "Dati binari non riconosciuti" };
+  return { kind: null, descr: tr("webapi.dati_binari_non_riconosciuti") };
 }
 function hasSigned(h) {
   const pat = [0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x07, 0x02];
@@ -142,7 +142,7 @@ async function imageToPng(path) {
     const out = await window.heic2any({ blob: new Blob([b]), toType: "image/png" });
     blob = Array.isArray(out) ? out[0] : out;
     info = { formato: "HEIC" };
-  } else throw new Error("Questo formato immagine si apre con MB Visual su PC");
+  } else throw new Error(tr("webapi.questo_formato_immagine_si_apre"));
   return { ok: true, path: register(blob, name.replace(/\.[^.]+$/, ".png")), info };
 }
 async function saveImage(path, png) {
@@ -160,7 +160,7 @@ async function saveImage(path, png) {
     return writeOut(path, new Uint8Array(window.UTIF.encodeImage(data.buffer, c.width, c.height)));
   }
   const type = { jpg: "image/jpeg", jpeg: "image/jpeg", jpe: "image/jpeg", jfif: "image/jpeg", webp: "image/webp" }[ext];
-  if (!type) throw new Error(`Nella web app si salva in PNG, JPG, WEBP o TIFF (non .${ext})`);
+  if (!type) throw new Error(tr("webapi.web_app_si_salva_png", ext));
   return writeOut(path, await new Promise(r => c.toBlob(r, type, 0.93)));
 }
 
@@ -193,7 +193,7 @@ function frame(path, t, out) {
       c.getContext("2d").drawImage(v, 0, 0);
       c.toBlob(b => { writeOut(out, b); resolve({ ok: true, path: out }); }, "image/png");
     };
-    v.onerror = () => reject(new Error("Fotogramma non disponibile"));
+    v.onerror = () => reject(new Error(tr("webapi.fotogramma_non_disponibile")));
   });
 }
 
@@ -247,7 +247,7 @@ async function zipEdit(path, fn) {
 // ---------------------------------------------------------------- email
 async function readEmail(path) {
   const name = nameOf(path).toLowerCase();
-  if (name.endsWith(".msg")) throw new Error("I messaggi .msg di Outlook si aprono con MB Visual su PC");
+  if (name.endsWith(".msg")) throw new Error(tr("webapi.i_messaggi_msg_outlook_si"));
   const { default: PostalMime } = await import(V("postal-mime/src/postal-mime.js"));
   const b = await bytesOf(path);
   const chunks = [];
@@ -318,7 +318,7 @@ function parsePages(spec, n) {
     else out.push(+part);
   }
   const pages = out.filter(p => p >= 1 && p <= n).map(p => p - 1);
-  if (!pages.length) throw new Error(`Nessuna pagina valida (il documento ha ${n} pagine)`);
+  if (!pages.length) throw new Error(tr("webapi.nessuna_pagina_valida_documento_ha", n));
   return pages;
 }
 async function pdfTool(path, op, b) {
@@ -338,7 +338,7 @@ async function pdfTool(path, op, b) {
   if (op === "extract" || op === "delete") {
     const sel = parsePages(b.pages, n);
     const keep = op === "extract" ? sel : src.getPageIndices().filter(i => !sel.includes(i));
-    if (!keep.length) throw new Error("Non si possono eliminare tutte le pagine");
+    if (!keep.length) throw new Error(tr("webapi.non_si_possono_eliminare_tutte"));
     const doc = await PDFDocument.create();
     (await doc.copyPages(src, keep)).forEach(pg => doc.addPage(pg));
     return finish(doc);
@@ -382,11 +382,11 @@ async function pdfTool(path, op, b) {
     });
     return finish(src);
   }
-  throw new Error("Operazione non disponibile");
+  throw new Error(tr("webapi.operazione_non_disponibile"));
 }
 
 // ---------------------------------------------------------------- smistamento delle richieste
-const NOT_HERE = what => ({ ok: false, errore: `${what} e' disponibile con MB Visual su PC, non nella web app.` });
+const NOT_HERE = what => ({ ok: false, errore: tr("webapi.0_disponibile_mb_visual_pc", what) });
 
 async function handle(route, p = {}, opts = {}) {
   const body = opts.json !== undefined ? opts.json : opts.body;
@@ -424,8 +424,8 @@ async function handle(route, p = {}, opts = {}) {
     case "media_probe": return mediaProbe(path);
     case "media_waveform": return waveform(path);
     case "media_frame": return frame(path, +body.t, body.out);
-    case "media_playable": return NOT_HERE("La conversione dei formati audio/video non supportati dal browser");
-    case "media_edit": return NOT_HERE("Il taglio e la conversione di audio e video");
+    case "media_playable": return NOT_HERE(tr("webapi.conversione_formati_audio_video_non"));
+    case "media_edit": return NOT_HERE(tr("webapi.taglio_conversione_audio_video"));
     case "signed": {
       const { openSigned } = await import("./cms.js");
       const r = await openSigned(await bytesOf(path), nameOf(path));
@@ -438,7 +438,7 @@ async function handle(route, p = {}, opts = {}) {
     case "archive_list": return archiveList(path, p.password);
     case "archive_extract": return archiveExtract(path, body.entry, body.dest);
     case "archive_add":
-      if (!ZIP_EDIT.test(nameOf(path))) return { ok: false, errore: "Nella web app si possono modificare solo gli archivi ZIP" };
+      if (!ZIP_EDIT.test(nameOf(path))) return { ok: false, errore: tr("webapi.web_app_si_possono_modificare") };
       return zipEdit(path, async z => { for (const f of body.files) z.file((body.folder ? body.folder + "/" : "") + nameOf(f), await bytesOf(f)); });
     case "archive_delete": return zipEdit(path, async z => { for (const e of body.entries) { z.remove(e); } });
     case "archive_rename": return zipEdit(path, async z => { const f = z.file(body.old); if (f) { z.file(body.new, await f.async("uint8array")); z.remove(body.old); } });
@@ -458,11 +458,11 @@ async function handle(route, p = {}, opts = {}) {
     case "email": return readEmail(path);
     case "sqlite_schema": return sqliteSchema(path);
     case "sqlite_query": return sqliteQuery(path, body);
-    case "office_convert": return NOT_HERE("La conversione dei formati Office con LibreOffice");
-    case "list_dir": return NOT_HERE("L'esplorazione delle cartelle");
-    case "reveal": case "open_external": return NOT_HERE("L'apertura con altri programmi");
-    case "job": return { ok: false, errore: "Nessun lavoro in corso" };
-    default: return { ok: false, errore: "Funzione non disponibile nella web app: " + route };
+    case "office_convert": return NOT_HERE(tr("webapi.conversione_formati_office_libreoffice"));
+    case "list_dir": return NOT_HERE(tr("webapi.l_esplorazione_cartelle"));
+    case "reveal": case "open_external": return NOT_HERE(tr("webapi.l_apertura_altri_programmi"));
+    case "job": return { ok: false, errore: tr("webapi.nessun_lavoro_corso") };
+    default: return { ok: false, errore: tr("webapi.funzione_non_disponibile_web_app") + route };
   }
 }
 
