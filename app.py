@@ -15,7 +15,7 @@ if sys.stdout is None or sys.stderr is None:
     sys.stdout = sys.stdout or _log
     sys.stderr = sys.stderr or _log
 
-VERSION = "1.5.5"
+VERSION = "1.5.6"
 
 # integrazione con Esplora risorse (mbvisual/shellint.py, mbvisual/miniature.py): nessuna finestra, prima degli import pesanti
 if __name__ == "__main__" and "--miniatura" in sys.argv:
@@ -94,6 +94,53 @@ def _graphite_frame(window):
         print("cornice grafite non applicata:", ex)
 
 
+def _unblock_files():
+    """Toglie il segno "scaricato da Internet" (Zone.Identifier) dai file dell'app: con quel segno .NET rifiuta
+    pythonnet/runtime/Python.Runtime.dll e la finestra non parte ("Failed to resolve Python.Runtime.Loader.Initialize").
+    Si fa una volta per versione (file segnaposto in _internal)."""
+    if not getattr(sys, "frozen", False):
+        return
+    mark = os.path.join(RES_DIR, ".sbloccato")
+    if os.path.exists(mark):
+        return
+    for root, _dirs, names in os.walk(RES_DIR):
+        for n in names:
+            if n.lower().endswith((".dll", ".pyd", ".exe", ".config")):
+                try:
+                    os.remove(os.path.join(root, n) + ":Zone.Identifier")
+                except OSError:
+                    pass
+    exe = sys.executable
+    try:
+        os.remove(exe + ":Zone.Identifier")
+    except OSError:
+        pass
+    try:
+        with open(mark, "w") as f:
+            f.write("ok")
+    except OSError:
+        pass
+
+
+def _edge_app(url: str) -> bool:
+    """Ripiego quando la finestra nativa non parte (pythonnet bloccato da criteri aziendali o antivirus):
+    MB Visual in una finestra di Microsoft Edge in modalita' app, con un profilo tutto suo. True se Edge si e' aperto."""
+    import subprocess
+    cands = [os.path.join(os.environ.get(v, ""), "Microsoft", "Edge", "Application", "msedge.exe")
+             for v in ("ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA")]
+    edge = next((c for c in cands if os.path.isfile(c)), None)
+    if not edge:
+        return False
+    prof = os.path.join(os.environ.get("LOCALAPPDATA", tempfile.gettempdir()), "MBVisual", "edge-app")
+    try:
+        proc = subprocess.Popen([edge, f"--app={url}", f"--user-data-dir={prof}", "--no-first-run",
+                                 "--no-default-browser-check", "--window-size=1400,900"])
+    except OSError:
+        return False
+    proc.wait()
+    return True
+
+
 def main():
     srv, port = start_server()
     import threading
@@ -111,8 +158,15 @@ def main():
             pass
         return
 
-    import webview
-    from webview.dom import DOMEventHandler
+    _unblock_files()
+    try:
+        import webview
+        from webview.dom import DOMEventHandler
+        from webview import guilib
+        guilib.initialize("edgechromium")  # carica subito pythonnet/WebView2: se fallisce si passa al ripiego
+    except Exception as ex:  # noqa: BLE001
+        _fallback(srv, url, ex)
+        return
 
     api = Api()
     window = webview.create_window("MB Visual", url, js_api=api, width=1400, height=900, min_size=(900, 600),
@@ -145,8 +199,29 @@ def main():
     window.events.closing += on_closing
     window.events.shown += lambda: _graphite_frame(window)
     icon = str(RES_DIR / "app.ico")
-    webview.start(icon=icon if os.path.exists(icon) else None, private_mode=False,
-                  storage_path=os.path.join(os.environ.get("LOCALAPPDATA", RES_DIR), "MBVisual", "webview"))
+    try:
+        webview.start(icon=icon if os.path.exists(icon) else None, private_mode=False,
+                      storage_path=os.path.join(os.environ.get("LOCALAPPDATA", RES_DIR), "MBVisual", "webview"))
+    except Exception as ex:  # noqa: BLE001
+        _fallback(srv, url, ex)
+
+
+def _fallback(srv, url, ex):
+    """Finestra nativa non disponibile: Edge in modalita' app (niente errori a schermo, il motivo va nel registro)."""
+    import threading
+    import traceback
+    try:
+        log = os.path.join(os.environ.get("LOCALAPPDATA", tempfile.gettempdir()), "MBVisual", "avvio.log")
+        os.makedirs(os.path.dirname(log), exist_ok=True)
+        with open(log, "a", encoding="utf-8") as f:
+            f.write("finestra nativa non disponibile, uso Edge:\n" + "".join(traceback.format_exception(ex)) + "\n")
+    except OSError:
+        pass
+    # il server gira gia' nel suo thread (start_server)
+    if not _edge_app(url):
+        webbrowser.open(url)
+        threading.Event().wait()
+    os._exit(0)
 
 
 if __name__ == "__main__":
