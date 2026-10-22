@@ -6,7 +6,7 @@
 
 // quantita' principali: nomi preferiti, in ordine (la prima trovata vale per l'elemento)
 export const MAIN = {
-  length: ["Length", "NetLength", "GrossLength", "Perimeter", "Height", "Depth"],
+  length: ["Length", "NetLength", "GrossLength"], // spessori, altezze e perimetri sommati non sarebbero una lunghezza
   area: ["NetSideArea", "GrossSideArea", "NetArea", "GrossArea", "NetFootprintArea", "GrossFootprintArea", "OuterSurfaceArea", "NetSurfaceArea", "GrossSurfaceArea", "Area", "CrossSectionArea"],
   volume: ["NetVolume", "GrossVolume", "Volume"],
   weight: ["NetWeight", "GrossWeight", "Weight", "Mass"],
@@ -138,7 +138,7 @@ export function mainQuantity(qs, kind) {
       if (q) return q;
     }
   }
-  return list.find(x => x.qto) || null;
+  return kind === "length" ? null : list.find(x => x.qto) || null; // aree, volumi e pesi con altri nomi: il primo della Qto
 }
 
 // computo di uno o piu' modelli: elementi con classe, tipo, livello e quantita'

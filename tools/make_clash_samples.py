@@ -166,7 +166,25 @@ def impianti(path: Path):
     f.write(path)
 
 
+def grande(path: Path, n: int):
+    """prova di carico (non nel repository): griglia n x n di pilastri e travi + tubi che attraversano le travi"""
+    f = Ifc("grande")
+    for i in range(n):
+        for j in range(n):
+            x, y = i * 5.0, j * 5.0
+            f.element("IFCCOLUMN", f"C{i}_{j}", f"Pilastro {i}-{j}", "PT", f.box(x, y, 0, x + 0.4, y + 0.4, 3.0), ".COLUMN.")
+            f.element("IFCBEAM", f"B{i}_{j}", f"Trave {i}-{j}", "PT", f.box(x + 0.4, y, 2.4, x + 5.0, y + 0.4, 3.0), ".BEAM.")
+    for k in range(n):
+        f.element("IFCPIPESEGMENT", f"P{k}", f"Tubo {k}", "PT", f.sweep(k * 2.5 + 0.3 + 1.0, -1.0, 2.7, "y", n * 5.0 + 2, ("C", 0.08)), ".RIGIDSEGMENT.")
+    f.write(path)
+
+
 def main():
+    import sys
+    if len(sys.argv) > 2 and sys.argv[1] == "--grande":
+        grande(Path(sys.argv[2]), int(sys.argv[3]) if len(sys.argv) > 3 else 60)
+        print(sys.argv[2], Path(sys.argv[2]).stat().st_size)
+        return
     OUT.mkdir(parents=True, exist_ok=True)
     struttura(OUT / "struttura.ifc")
     impianti(OUT / "impianti.ifc")

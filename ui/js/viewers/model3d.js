@@ -814,8 +814,7 @@ export async function mount(ctx) {
   window.addEventListener("blur", onBlur);
 
   // ---- modello federato: aggiunta di altri file nella stessa scena (stesse coordinate per i file IFC)
-  const addBtn = button(tr("v_model3d.aggiungi_modello"), "plus", async () => {
-    const ps = await pickFiles();
+  async function addModels(ps) {
     for (const p of ps || []) {
       const name = p.split(/[\\/]/).pop();
       toast(tr("v_model3d.caricamento") + name + "...");
@@ -823,13 +822,17 @@ export async function mount(ctx) {
         const part = await loadAny({ path: p, name, ext: name.split(".").pop().toLowerCase() }, { set() {} }, info);
         model.add(part.root);
         model.updateMatrixWorld(true);
+        parts.push({ name, loaded: part });
+        sharedBr?.reset();
+        navUi?.modelsChanged();
         addToTree([{ name, obj: part.root, children: part.tree }]);
         cloudUi();
         fit();
         ctx.status(tr("v_model3d.modello_federato_aggiunto_0", name));
       } catch (e) { toast(`${name}: ${e.message}`, true, 6000); }
     }
-  }, { title: tr("v_model3d.carica_altro_modello_ifc_step") });
+  }
+  const addBtn = button(tr("v_model3d.aggiungi_modello"), "plus", async () => addModels(await pickFiles()), { title: tr("v_model3d.carica_altro_modello_ifc_step") });
 
   // controlli delle nuvole di punti (colori, dimensione, dettaglio) quando nella scena ce n'e' almeno una
   const cloudBox = el("span", { style: { display: "contents" } });
@@ -848,12 +851,38 @@ export async function mount(ctx) {
 
   // ---- segnalazioni BCF (ui/js/bcfpanel.js + bcfview.js): pannello sopra la vista, punti di vista salvati e ripristinati
   const bcfHost = { THREE, ctx, info, model, scene, camera, controls, renderer, box: host, select, isolate, showAll, visibilityChanged, zoomTo, isVisibleChain, setClip,
-    get selection() { return selection; }, render: () => renderer.render(scene, camera), partNames: () => parts.map(p => p.name) };
+    get selection() { return selection; }, render: () => renderer.render(scene, camera), partNames: () => parts.map(p => p.name), unitOf, bcf: () => bcfGet(), addModels };
+  // ponte BCF unico (punti di vista, colori): lo usano le segnalazioni e le viste salvate
+  let sharedBr = null;
+  const getBridge = async () => (sharedBr ??= (await import("../bcfview.js")).bridge(bcfHost));
   let bcfUi = null;
-  const bcfGet = async () => (bcfUi ??= (await import("../bcfpanel.js")).attach3d(bcfHost, v => bcfBtn.classList.toggle("on", v)));
+  const bcfGet = async () => (bcfUi ??= (await import("../bcfpanel.js")).attach3d(bcfHost, v => { bcfBtn.classList.toggle("on", v); if (v) navUi?.close(); }, await getBridge()));
   const bcfBtn = button(tr("v_model3d.segnalazioni"), '<svg viewBox="0 0 16 16" width="16" height="16"><path d="M3.5 14V2.5h8l-1.6 3 1.6 3h-8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
     async () => (await bcfGet()).toggle(), { title: tr("v_model3d.segnalazioni_titolo") });
   exp.after(bcfBtn);
+
+  // ---- funzioni di Navisworks Manage (ui/js/navmanage.js): Clash Detective, viste salvate, computo; dati nel file .mbvnav
+  let navUi = null, navP = null;
+  // promessa memorizzata: due clic ravvicinati non creano due pannelli
+  const navGet = () => (navP ??= import("../navmanage.js").then(m => (navUi = m.attachNav(bcfHost, getBridge, tab => {
+    for (const [k, b] of Object.entries(navBtns)) b.classList.toggle("on", k === tab);
+    if (tab && bcfUi && !bcfUi.panel.el.hidden) bcfUi.toggle(false);
+  }))));
+  const navIcon = k => ({ clash: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="5" width="8" height="8" rx="1"/><circle cx="10.5" cy="6" r="4"/></svg>',
+    views: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M1.5 4.5h3l1-1.5h5l1 1.5h3v8.5h-13z"/><circle cx="8" cy="8.5" r="2.5"/></svg>',
+    qto: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="1.5" width="12" height="13" rx="1"/><path d="M4.5 4.5h7M4.5 7.5h2M8 7.5h3.5M4.5 10.5h2M8 10.5h3.5"/></svg>' })[k];
+  const navBtns = {
+    clash: button(tr("v_model3d.interferenze"), navIcon("clash"), async () => (await navGet()).toggle("clash"), { title: tr("v_model3d.interferenze_titolo") }),
+    views: button(tr("v_model3d.viste"), navIcon("views"), async () => (await navGet()).toggle("views"), { title: tr("v_model3d.viste_titolo") }),
+    qto: button(tr("v_model3d.computo"), navIcon("qto"), async () => (await navGet()).toggle("qto"), { title: tr("v_model3d.computo_titolo") }),
+  };
+  bcfBtn.after(navBtns.clash, navBtns.views, navBtns.qto);
+  // viste e test gia' salvati accanto al modello: si segnala sui pulsanti
+  if (!WEB && ctx.path) api("stat", { path: ctx.path.replace(/\.[^.\\/]+$/, "") + ".mbvnav" }, { allowFail: true }).then(r => {
+    if (!r?.ok) return;
+    for (const b of [navBtns.clash, navBtns.views]) { b.style.boxShadow = "inset 0 -2px 0 var(--accent)"; b.title += " · " + tr("v_model3d.mbvnav_presente"); }
+    navGet().then(ui => ui.offerModels()); // modelli federati salvati nel .mbvnav (come un NWF)
+  }).catch(() => {});
 
   async function doExport(kind) {
     const base = dirName(ctx.path);
@@ -883,7 +912,7 @@ export async function mount(ctx) {
   model.traverse(m => { if (m.isMesh && m.geometry && !m.userData.merged) tri += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; });
   ctx.status((info.status ? info.status + (tri || !info.clouds ? " · " : "") : "") + (tri || !info.clouds ? tr("v_model3d.0_triangoli", Math.round(tri).toLocaleString(LOCALE)) : ""));
   if (info.inventor) import("../inventor3d.js").then(({ inventorWarnings }) => { const w = inventorWarnings(info.inventor); if (w.length) toast(w.join(" · "), true, 12000); });
-  const disposeAll = () => { bcfUi?.dispose(); running = false; window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onKey); window.removeEventListener("blur", onBlur); (info.clouds || []).forEach(c => c.dispose()); renderer.dispose(); (info.modelIDs || []).forEach(m => info.ifc?.CloseModel?.(m)); };
+  const disposeAll = () => { bcfUi?.dispose(); navUi?.dispose(); running = false; window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onKey); window.removeEventListener("blur", onBlur); (info.clouds || []).forEach(c => c.dispose()); renderer.dispose(); (info.modelIDs || []).forEach(m => info.ifc?.CloseModel?.(m)); };
   // nuvola di punti aperta come documento: Salva con nome nei formati delle nuvole (tutti i punti, non solo quelli mostrati)
   const firstCloud = first.cloud;
   if (firstCloud && !WEB) {
@@ -912,6 +941,7 @@ export async function mount(ctx) {
   return {
     onShow() { resize(); },
     _bcf: { get: bcfGet, async load(store, path) { (await bcfGet()).load(store, path); } }, // usato da ui/js/viewers/bcf.js
+    _nav: { get: navGet }, // funzioni di Navisworks Manage (collaudo dalla console: (await api._nav.get()).nav)
     // ricerca nel progetto (ui/js/search.js): seleziona e inquadra l'elemento IFC trovato
     selectExpressId(id) {
       let o = null;

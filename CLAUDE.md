@@ -127,8 +127,8 @@ l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.m
   aperto da pdf.js). apply_ops lavora in `_apply_ops` + gc + nuovi tentativi: i campi di PyMuPDF tengono aperto il file.
   `_page_draws` esclude dai disegni l'aspetto di campi e annotazioni (get_drawings li riporta).
 - Inventor: vedi sezione "Autodesk Inventor senza Inventor" (22/10/2026). Creo: nessun lettore realistico.
-- Migliorie rimandate dall'utente (21/10/2026): pulsanti "Modifica in AutoCAD/BricsCAD/Inventor"; funzioni Navisworks Manage
-  (interferenze, viste salvate, annotazioni, computo); motore ODA (a pagamento).
+- Migliorie rimandate dall'utente (21/10/2026): pulsanti "Modifica in AutoCAD/BricsCAD/Inventor"; motore ODA (a pagamento).
+  Funzioni Navisworks Manage: FATTE il 22/10/2026 (sezione "Funzioni di Navisworks Manage nel 3D").
 - Editor CAD professionale (21/10/2026) - FATTO. `ui/js/cadgeom.js` = geometria condivisa (matrici, impaginazione esatta dei
   testi usata sia per disegnare sia per selezionare, curve analitiche/intersezioni, osnap, retini, quote nuove).
   Causa del "riquadro fuori dall'oggetto": riquadri dei testi senza allineamento/rotazione/trasformazione del blocco; inoltre
@@ -769,3 +769,49 @@ Direzione approvata dall'utente sul mockup https://claude.ai/artifact/Wwi8B75nmM
   cornice grafite con DwmSetWindowAttribute (`_graphite_frame` in app.py; su Windows 10 resta quella di sistema).
 - Prove in modalita' browser: per lavorare in un worktree serve una COPIA di ui/vendor (con un collegamento/junction il server
   rifiuta i file fuori dalla cartella ui: pdf.js dava "Non trovato").
+
+## Funzioni di Navisworks Manage nel 3D (22/10/2026) - FATTO (da provare sui modelli veri dell'utente)
+Tre pulsanti nella barra del visualizzatore 3D dopo "Segnalazioni": Interferenze, Viste, Computo = un pannello a schede a destra
+(`ui/js/navmanage.js`, larghezza trascinabile; chiude il pannello BCF e viceversa). Stili `ui/css/navis.css` (token esistenti).
+- Clash Detective (`ui/js/clashpanel.js`): test con schede Regole / Selezione / Risultati / Rapporto. Insiemi A e B per modello
+  federato, classe (nome del gruppo IFC, classe Navisworks o layer Rhino), livello (piano IFC, `qtocore.levelMap`) o selezione
+  salvata (chiavi degli elementi). Tipi: compenetrazione con tolleranza, distanza minima, duplicati; "ignora coppie dello stesso
+  modello"; raggruppamento delle interferenze vicine (raggio). Stati come Navisworks: nuovo -> attivo alla riesecuzione,
+  rivisto/approvato restano, scomparse -> risolto (`mergeRun`), "Compatta" toglie le risolte. Clic = elemento 1 rosso, 2 verde,
+  resto trasparente/nascosto/normale, zoom sulla zona (intersezione degli ingombri) spostato nella parte non coperta dal pannello;
+  frecce su/giu' nell'elenco; nota e assegnatario per interferenza. Massimo 20.000 risultati per test.
+- Motore (`ui/js/clashcore.js`, puro, nessuna libreria: BVH di triangoli scritto qui) in un Web Worker modulo
+  (`ui/js/clashworker.js`); la geometria si manda a blocchi (Float32 in coordinate della scena; dei modelli uniti per colore si
+  copiano solo i vertici usati dalle copie di selezione). Fase larga = ordinamento e scorrimento degli ingombri. Compenetrazione =
+  spigoli che attraversano l'altro elemento (gli estremi e le facce complanari non contano: elementi appoggiati non sono
+  interferenze); profondita' = massima distanza dalla superficie dell'altro dei punti che gli stanno dentro (centri dei tratti di
+  spigolo tra due attraversamenti, vertici), dentro/fuori con 3 raggi a maggioranza; anche "tutto dentro l'altro". Distanza minima
+  = BVH contro BVH con distanze triangolo-triangolo (Ericson). Interrompi = il worker si chiude.
+- Rapporto (`ui/js/clashreport.js`): HTML unico con immagini incluse, PDF (scrittore di `bcfreport.js`, ora esporta PdfDoc,
+  toJpeg, wrap, ellipsis, textW), CSV (;), BCF: file .bcfzip o "Aggiungi alle segnalazioni" nel pannello BCF del modello
+  (tipo Clash, punto di vista con selezione e colori A/B, istantanea; `clash.bcf` = GUID della segnalazione: riesportando si
+  aggiorna). Stati -> BCF: nuovo/attivo Open, rivisto In Progress, approvato Closed, risolto Resolved.
+- Viste salvate (in navmanage.js): punto di vista BCF del ponte (`bcfview.js`, coordinate del progetto: camera, sezioni,
+  visibilita', colori) + distanza dal punto di mira + miniatura. "Colora" = colore di sostituzione (`bridge.colorize`, nuovo),
+  "Ripristina" = colori, sezioni e visibilita' originali. Il ponte BCF ora e' unico per segnalazioni e viste (`getBridge` in
+  model3d.js, terzo argomento di `attach3d`).
+- File `.mbvnav` (`ui/js/navdoc.js`, JSON) accanto al modello (stesso nome), salvato da solo ~1 s dopo ogni modifica (nella web
+  app solo "Salva con nome" = download); contiene viste, test con risultati (punti in coordinate del progetto, distanze in metri),
+  elenco dei modelli federati: riaprendo il primo modello l'app propone di ricaricare gli altri della stessa cartella (come un NWF).
+  Tolleranze salvate in metri e mostrate in m (IFC, Navisworks, glTF, SketchUp) o mm (CAD e mesh).
+- Computo (`ui/js/qtopanel.js` + `ui/js/qtocore.js` puro): per elemento IFC classe, tipo (IfcRelDefinesByType), livello,
+  quantita' delle IfcElementQuantity e misure dei Pset (IfcLength/Area/Volume/MassMeasure), convertite in SI con le unita' del
+  progetto. Quantita' principali per nomi preferiti (`MAIN`; lunghezze solo Length/NetLength/GrossLength). Raggruppamento
+  Classe/Tipo/Livello (5 ordini), tutto / solo visibili / solo selezione, clic = selezione nel 3D, doppio clic = inquadra; Excel con
+  foglio Riepilogo e foglio Elementi (tutte le quantita', una colonna per "set · nome"). Solo modelli IFC.
+- model3d.js: aggiunte puntuali (bcfHost con `unitOf`, `bcf`, `addModels`; `addModels` estratta da "Aggiungi modello" che ora
+  aggiorna anche `parts`; pulsanti; `api._nav`; controllo del .mbvnav all'apertura). Testi `nav.*`, `clash.*`, `clashrep.*`,
+  `qto.*`, `v_model3d.interferenze|viste|computo*` in 5 lingue.
+- Collaudo: `node tests/test_clash.mjs` (34 prove, senza browser: web-ifc in Node con fetch del .wasm dal disco) su
+  `tests/samples/interferenze` (`python tools/make_clash_samples.py`: struttura.ifc con trave nei muri e pilastro duplicato,
+  impianti.ifc con tubo nei muri, canale nelle travi, tubo a 3 cm da una trave) + solidi sintetici + 20.200 elementi (~3 s).
+  Prova di carico nell'app: `python tools/make_clash_samples.py --grande <file.ifc> 112` (16 MB, 25.200 elementi, modello unito
+  per colore): 12.544 interferenze in 2 s, interfaccia viva, Interrompi provato. Provati nell'app (server avviato senza app.py
+  per non toccare l'integrazione con Esplora): federazione, stati, gruppi, rapporti HTML/PDF/CSV/BCF, viste, Excel, modello OBJ.
+- Da provare con i file veri: modelli Revit/Archicad con aperture (IfcOpeningElement escluso dalla lettura) e elementi non chiusi
+  (dentro/fuori a maggioranza), Navisworks NWD grandi, prestazioni oltre 100.000 elementi, unita' imperiali nel computo.

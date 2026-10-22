@@ -47,11 +47,11 @@ function winAnsi(s) {
   return out;
 }
 const measureCtx = document.createElement("canvas").getContext("2d");
-function textW(s, size, bold) {
+export function textW(s, size, bold) {
   measureCtx.font = `${bold ? "bold " : ""}100px Helvetica, Arial, sans-serif`; // Arial ha le stesse larghezze di Helvetica
   return (measureCtx.measureText(s).width / 100) * size;
 }
-function wrap(text, size, bold, width) {
+export function wrap(text, size, bold, width) {
   const lines = [];
   for (const para of String(text ?? "").replace(/\r/g, "").split("\n")) {
     let cur = "";
@@ -68,7 +68,7 @@ function wrap(text, size, bold, width) {
   }
   return lines;
 }
-function ellipsis(s, size, bold, width) {
+export function ellipsis(s, size, bold, width) {
   s = String(s ?? "");
   if (textW(s, size, bold) <= width) return s;
   while (s.length > 1 && textW(s + "…", size, bold) > width) s = s.slice(0, -1);
@@ -77,7 +77,7 @@ function ellipsis(s, size, bold, width) {
 const rgb = hex => { const n = parseInt(hex.slice(1), 16); return [(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255].map(v => v.toFixed(3)).join(" "); };
 const TONE = { ok: "#2d7a46", warn: "#946400", bad: "#b2332b" };
 
-async function toJpeg(blob, maxW = 1400) {
+export async function toJpeg(blob, maxW = 1400) {
   const bmp = await createImageBitmap(blob);
   const k = Math.min(1, maxW / bmp.width);
   const cv = document.createElement("canvas");
@@ -91,7 +91,8 @@ async function toJpeg(blob, maxW = 1400) {
   return { bytes: new Uint8Array(await jb.arrayBuffer()), w: cv.width, h: cv.height };
 }
 
-class PdfDoc {
+// usati anche dal rapporto delle interferenze (ui/js/clashreport.js)
+export class PdfDoc {
   constructor() { this.pages = []; this.images = []; this.W = 595.28; this.H = 841.89; this.M = 40; }
   addPage() { this.page = { ops: [] }; this.pages.push(this.page); return this.page; }
   op(s) { this.page.ops.push(s); }

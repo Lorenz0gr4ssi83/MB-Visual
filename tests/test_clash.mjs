@@ -149,6 +149,8 @@ const STR = e => e.model === 0, IMP = e => e.model === 1, ALL = () => true;
   check("computo: 4 muri, volume 46,56 m³", walls.length === 4 && near(vol, 46.56, 1e-6), `${walls.length} muri, ${vol}`);
   check("computo: area laterale dei muri dalla Qto", near(walls.reduce((s, r) => s + r.area, 0), (12 + 12 + 7.4 + 7.4) * 4, 1e-6));
   check("computo: tipi e livelli", walls.every(r => r.type === "Muro c.a. 30 cm" && r.level === "Piano terra") && rows.find(r => r.tag === "S1")?.level === "Piano primo");
+  const slab = rows.find(r => r.tag === "S1");
+  check("solaio: area e volume dalla Qto, nessuna lunghezza (lo spessore non si somma)", slab.length === null && near(slab.area, 96, 1e-9) && near(slab.volume, 24, 1e-9));
   const tree = Q.groupRows(rows, ["level", "cls", "type"]);
   check("raggruppamento per livello (ordinato per quota)", tree.children.map(c => c.label).join() === "Piano terra,Piano primo", tree.children.map(c => c.label).join());
   const pipes = rows.filter(r => r.cls.toUpperCase() === "IFCPIPESEGMENT");

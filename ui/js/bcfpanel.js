@@ -410,9 +410,10 @@ export function createPanel(opt) {
 }
 
 // ---------------------------------------------------------------- pannello nel visualizzatore 3D
-// h = scena e funzioni del visualizzatore (model3d.js); onToggle(aperto) aggiorna il pulsante della barra
-export function attach3d(h, onToggle) {
-  const br = bridge(h);
+// h = scena e funzioni del visualizzatore (model3d.js); onToggle(aperto) aggiorna il pulsante della barra;
+// shared = ponte gia' creato dal visualizzatore (lo usano anche le viste salvate di ui/js/navmanage.js)
+export function attach3d(h, onToggle, shared) {
+  const br = shared || bridge(h);
   const key = "modello:" + h.ctx.path;
   const panel = createPanel({ bridge: br, overlay: true, recoveryKey: key, baseName: h.ctx.name, dir: dirName(h.ctx.path), modelName: h.ctx.name, onClose: () => toggle(false) });
   panel.el.hidden = true;

@@ -298,5 +298,17 @@ export function bridge(h) {
     return files;
   }
 
-  return { capture, apply, snapshot, clearOverlay, modelFiles, objsFor, compsFor, isIfc, reset() { cache = null; } };
+  // colore di sostituzione dato a mano (viste salvate, ui/js/navmanage.js): finisce nel punto di vista come i colori BCF
+  function colorize(objs, hex) {
+    const { c, a } = hexColor(hex);
+    colored.groups.set(hex, [...new Set([...(colored.groups.get(hex) || []), ...objs])]);
+    for (const o of objs) o.traverse(m => {
+      if (!m.isMesh || m.userData.proxy) return;
+      if (!colored.mats.has(m)) colored.mats.set(m, m.material);
+      const mk = () => new THREE.MeshStandardMaterial({ color: c, opacity: a, transparent: a < 0.999, metalness: 0.05, roughness: 0.6, side: THREE.DoubleSide });
+      m.material = Array.isArray(m.material) ? m.material.map(mk) : mk();
+    });
+  }
+
+  return { capture, apply, snapshot, clearOverlay, colorize, modelFiles, objsFor, compsFor, isIfc, w2s, reset() { cache = null; } };
 }
