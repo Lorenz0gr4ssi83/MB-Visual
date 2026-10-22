@@ -171,3 +171,12 @@
 .pb-galside .pb-dlgrow { grid-template-columns: 1fr; gap: 3px; font-size: 12px; }
 .pb-galname { font-weight: 600; text-align: center; }
 .pb-galbtns { display: flex; justify-content: flex-end; gap: 8px; margin-top: auto; }
+/* telefono: colonna delle pagine stretta (solo miniature) per lasciare spazio alla pagina */
+@media (max-width: 760px) {
+  .pb-main { grid-template-columns: 64px minmax(0, 1fr); }
+  .pb-main.nopages { grid-template-columns: minmax(0, 1fr); }
+  .pb-pages-head { padding: 6px 4px; text-align: center; }
+  .pb-pages-list { padding: 6px 2px; }
+  .pb-thumb { padding: 2px; }
+  .pb-thumb canvas { width: 50px !important; height: auto !important; }
+}

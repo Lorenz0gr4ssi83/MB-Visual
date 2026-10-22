@@ -34,6 +34,9 @@ const TYPES = [
   ]],
 ];
 
+// nella web app (telefono) il montaggio video non c'e' (serve il motore dell'app per PC): niente modello che poi non si apre
+const WEB_SKIP = new Set(["mbvid"]);
+
 // icona del programma (colori e iniziale come le app originali, senza marchi)
 const APP = {
   docx: ["#185abd", "W"], xlsx: ["#107c41", "X"], csv: ["#107c41", "a,b"], pptx: ["#c43e1c", "P"], mbpub: ["#077568", "P"], vsdx: ["#3955a3", "V"], mbvid: ["#3b2d8f", "VID"], pdf: ["#d93025", "PDF"], dxf: ["#c0392b", "DXF"],
@@ -87,7 +90,7 @@ function thumb(kind, color) {
 
 export async function createNew({ openFile, ext = null }) {
   const items = [];
-  for (const [group, entries] of TYPES) for (const it of entries) items.push({ group, ext: it[0], name: it[1], base: it[2], make: it[3], kind: it[4], note: it[5] });
+  for (const [group, entries] of TYPES) for (const it of entries) if (!(WEB && WEB_SKIP.has(it[0]))) items.push({ group, ext: it[0], name: it[1], base: it[2], make: it[3], kind: it[4], note: it[5] });
   let sel = items[0];
   // tipo gia' scelto (scorciatoie della home): niente galleria
   const quick = ext && items.find(i => i.ext === ext);

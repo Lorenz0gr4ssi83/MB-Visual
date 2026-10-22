@@ -82,3 +82,10 @@
 .gis-form-grid label { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 8px; }
 .gis-check { display: flex; align-items: center; gap: 8px; }
 .gis-dialog .note { color: var(--muted); font-size: 12px; margin: 0; line-height: 1.45; }
+/* telefono: livelli sopra la mappa (al massimo un quarto dello schermo) invece di una colonna che la schiaccia */
+@media (max-width: 760px) {
+  .gis { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .gis-left { max-height: 26vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  .gis-ttools input[type="search"] { width: 100%; }
+  .gis-form, .gis-form-grid label { grid-template-columns: 1fr; gap: 4px; }
+}
