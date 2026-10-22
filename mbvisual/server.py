@@ -187,6 +187,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, data, "text/html; charset=utf-8", extra)
         self._serve_file(p)
 
+    # ------------------------------------------------------------ API: finestre Apri/Salva/Cartella di Windows (mbvisual/windialog.py)
+    # per quando l'app gira nel ripiego in Edge, senza la finestra nativa di pywebview
+    def api_dialog(self, qs):
+        from . import windialog
+        kind = _q(qs, "kind", "open")
+        if kind == "save":
+            res = windialog.save_as(_q(qs, "suggested", ""), _q(qs, "dir", ""))
+        elif kind == "folder":
+            res = windialog.choose_folder()
+        else:
+            res = windialog.open_files(_q(qs, "multiple", "1") != "0")
+        self._json({"ok": True, "result": res})
+
     # ------------------------------------------------------------ API: lingua (ui/js/i18n.js)
     def api_lang(self, qs):
         self._json({"ok": True, "windows": i18n.windows_language(), "lingua": i18n.language()})

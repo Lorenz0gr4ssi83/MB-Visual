@@ -182,6 +182,8 @@ export async function confirmBox(title, text, okLabel = tr("core.conferma"), dan
 export async function pickFiles() {
   if (isDesktop()) return await window.pywebview.api.open_files(true);
   if (WEB) return W().pickFiles();
+  // app per PC nel ripiego in Edge (finestra nativa bloccata): finestre di Windows aperte dal motore
+  try { return (await api("dialog", { kind: "open" })).result || []; } catch { /* sotto */ }
   const p = await askText(tr("core.apri_file"), tr("core.percorso_completo_file"), "");
   return p ? [p] : [];
 }
@@ -193,12 +195,14 @@ export async function pickSavePath(suggested, dir = "") {
     const n = await askText(tr("core.salva_nome"), tr("core.nome_file_scaricare"), suggested);
     return n ? "download://" + n : null;
   }
+  try { return (await api("dialog", { kind: "save", suggested, dir })).result || null; } catch { /* sotto */ }
   return await askText(tr("core.salva_nome"), tr("core.percorso_completo_nuovo_file"), (dir ? dir + "\\" : "") + suggested);
 }
 
 export async function pickFolder() {
   if (isDesktop()) return await window.pywebview.api.choose_folder();
   if (WEB) return "download://";
+  try { return (await api("dialog", { kind: "folder" })).result || null; } catch { /* sotto */ }
   return await askText(tr("core.scegli_cartella"), tr("core.percorso_cartella"), "");
 }
 

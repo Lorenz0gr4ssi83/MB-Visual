@@ -15,7 +15,7 @@ if sys.stdout is None or sys.stderr is None:
     sys.stdout = sys.stdout or _log
     sys.stderr = sys.stderr or _log
 
-VERSION = "1.5.7"
+VERSION = "1.5.8"
 
 # integrazione con Esplora risorse (mbvisual/shellint.py, mbvisual/miniature.py): nessuna finestra, prima degli import pesanti
 if __name__ == "__main__" and "--miniatura" in sys.argv:
