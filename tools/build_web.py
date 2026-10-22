@@ -65,6 +65,11 @@ WEB_EXTS = {
                 "cab", "lzh", "lha", "cpio", "rpm", "deb", "ar", "a", "iso", "xar", "pkg", "xip", "jar", "war", "ear", "apk", "aab", "xapk", "ipa",
                 "appx", "msix", "appxbundle", "nupkg", "vsix", "xpi", "whl", "egg", "cbz", "cbr", "cb7"],
     "email": ["eml", "mbox", "mbx"], "ebook": "*", "font": ["ttf", "otf", "woff", "woff2"], "database": "*", "gis": "*",
+    # visualizzatori che funzionano anche senza il motore Python (22/10/2026)
+    "dwf": "*", "calendar": "*", "contacts": "*", "hpgl": "*", "vis3d": "*",
+    "visio": ["vsdx", "vsdm", "vstx", "vstm"],          # i .vsd binari richiedono il motore
+    "publisher": ["mbpub"],                              # i .pub di Publisher richiedono il motore
+    "pointcloud": ["las", "pts", "xyz"],                 # LAZ/E57/PTX richiedono il motore
 }
 WEB_NOTES = {
     "media": "Riproduzione dei formati supportati dal browser del dispositivo (la conversione di altri formati e' nella versione per PC)",
