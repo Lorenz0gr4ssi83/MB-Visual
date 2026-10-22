@@ -15,7 +15,7 @@ if sys.stdout is None or sys.stderr is None:
     sys.stdout = sys.stdout or _log
     sys.stderr = sys.stderr or _log
 
-VERSION = "1.5.6"
+VERSION = "1.5.7"
 
 # integrazione con Esplora risorse (mbvisual/shellint.py, mbvisual/miniature.py): nessuna finestra, prima degli import pesanti
 if __name__ == "__main__" and "--miniatura" in sys.argv:
@@ -137,7 +137,24 @@ def _edge_app(url: str) -> bool:
                                  "--no-default-browser-check", "--window-size=1400,900"])
     except OSError:
         return False
-    proc.wait()
+    # msedge.exe passa quasi sempre la finestra a un altro processo di Edge ed esce subito: non si aspetta il processo
+    # ma il "lockfile" del profilo dedicato, che Edge tiene aperto (e non cancellabile) finche' la finestra e' aperta.
+    import threading
+    import time
+    del proc
+    lock = os.path.join(prof, "lockfile")
+    t0 = time.time()
+    while not os.path.exists(lock) and time.time() - t0 < 60:
+        time.sleep(1)
+    if not os.path.exists(lock):
+        threading.Event().wait()  # non si sa quando si chiude: il server resta acceso
+    time.sleep(5)
+    while os.path.exists(lock):
+        try:
+            os.remove(lock)  # riuscito = Edge ha chiuso il profilo
+            break
+        except OSError:
+            time.sleep(3)  # bloccato = finestra ancora aperta
     return True
 
 
