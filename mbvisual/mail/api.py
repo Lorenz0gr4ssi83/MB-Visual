@@ -279,6 +279,7 @@ def message(b) -> dict:
         except Exception:  # noqa: BLE001
             pass
     out["inviti"] = inv
+    out["mdn_inviata"] = bool(out["h"].get("notify")) and out["h"].get("msgid") in (engine.db().setting("mdn_inviati", []) or [])
     return out
 
 
@@ -645,6 +646,8 @@ def handle(op: str, q: dict, b: dict):
         st["promemoria"] = due
         from . import calapi
         st["eventi"] = calapi.upcoming()
+        st["nonletti"] = engine.db().one("SELECT COUNT(*) n FROM messages WHERE seen=0 AND pec NOT IN (%s) AND folder_id IN (SELECT id FROM folders WHERE role='inbox')"
+                                         % ",".join("?" * len(engine.RECEIPTS)), engine.RECEIPTS)["n"]
         return {"ok": True, **st}
     if op == "folders":
         return folders()
@@ -799,12 +802,46 @@ def handle(op: str, q: dict, b: dict):
     if op == "guide_path":
         from ..paths import UI_DIR
         return {"ok": True, "path": str(UI_DIR / "guide" / "posta.md")}
+    if op == "mdn":
+        return send_mdn(b)
     if op == "import_eml":
         return import_eml(b)
     if op in ("cal", "cal_events", "cal_event", "cal_save", "cal_delete", "cal_reply", "contacts", "contact_save", "contact_delete", "dav_discover"):
         from . import calapi
         return calapi.handle(op, q, b)
     raise MailError(t("srv_mail.operazione_sconosciuta"))
+
+
+def send_mdn(b) -> dict:
+    """Conferma di lettura (RFC 8098, multipart/report disposition-notification) chiesta con Disposition-Notification-To."""
+    from email.mime.base import MIMEBase
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.utils import formataddr, formatdate, make_msgid
+    mid = int(b["id"])
+    row = engine.db().one("SELECT account FROM messages WHERE id=?", (mid,))
+    acc = accounts.get(row["account"])
+    r = parse.render(engine.raw_of(mid))
+    h = r["h"]
+    to = parse.addrs(h["notify"])
+    if not to:
+        raise MailError(t("srv_mail.nessun_destinatario"))
+    m = MIMEMultipart("report", report_type="disposition-notification")
+    m["From"] = formataddr((acc.get("nome") or "", acc["email"]))
+    m["To"] = formataddr((to[0]["n"], to[0]["a"]))
+    m["Subject"] = t("mail.letto_oggetto", h["subject"])
+    m["Date"] = formatdate(localtime=True)
+    m["Message-ID"] = make_msgid(domain=acc["email"].split("@")[-1])
+    m.attach(MIMEText(t("mail.letto_testo", h["subject"], datetime.now().strftime("%d/%m/%Y %H:%M")), "plain", "utf-8"))
+    rep = MIMEBase("message", "disposition-notification")
+    crlf = "\r\n"
+    rep.set_payload(crlf.join([f"Reporting-UA: MB Visual", f"Original-Recipient: rfc822;{acc['email']}", f"Final-Recipient: rfc822;{acc['email']}",
+                               f"Original-Message-ID: {h['msgid']}", "Disposition: manual-action/MDN-sent-manually; displayed"]) + crlf)
+    m.attach(rep)
+    engine.queue_send(acc["id"], m.as_bytes(), {"msgid": m["Message-ID"], "rcpt": [to[0]["a"]], "from": acc["email"]})
+    sent = engine.db().setting("mdn_inviati", [])
+    engine.db().set_setting("mdn_inviati", (sent + [h["msgid"]])[-2000:])
+    return {"ok": True}
 
 
 def import_eml(b) -> dict:

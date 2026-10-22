@@ -1089,6 +1089,7 @@ async function boot() {
   setupBack();
   initTouch();
   if (!WEB) import("./cloud.js").then(m => m.setupCloud()).catch(e => console.error(e)); // archivi cloud (SharePoint, Drive, Dropbox, Autodesk)
+  if (!WEB) import("./mail/mailbadge.js").then(m => m.setupMailBadge()).catch(e => console.error(e)); // posta in background: messaggi da leggere, avvisi
   if (!WEB) licenseGate(); // licenza dell'app per PC: senza attivazione copre l'app con la schermata della chiave
   if (!WEB) setupMobileQr(); // QR nella home per installare l'app sul cellulare (posti liberi della licenza)
   if (!WEB) setTimeout(() => checkUpdates(false), 3000);

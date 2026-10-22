@@ -320,3 +320,8 @@
   .ml-dlgbody { grid-template-columns: 1fr; }
   .ml-dlgnav { display: flex; overflow-x: auto; }
 }
+
+/* contatore dei messaggi da leggere sul pulsante Posta della barra laterale (mailbadge.js) */
+.rail button .mbadge { position: absolute; top: 3px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-fg); font: 600 9.5px/1 var(--mono); box-shadow: 0 0 0 2px var(--chrome); pointer-events: none; }
+.rail button .mbadge[hidden] { display: none; }

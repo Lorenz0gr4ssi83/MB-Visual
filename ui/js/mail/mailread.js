@@ -65,7 +65,12 @@ export async function showMessage(box, id, { app }) {
       ap(wrap, bar);
     }
   }
-  if (h.notify && m.folder_role !== "sent") wrap.append(el("div", { class: "ml-bar" }, icon("ricevuta"), el("span", { class: "fx" }, tr("mail.richiesta_conferma_lettura"))));
+  if (h.notify && m.folder_role !== "sent" && !d.mdn_inviata) {
+    const bar = el("div", { class: "ml-bar" }, icon("ricevuta"), el("span", { class: "fx" }, tr("mail.richiesta_conferma_lettura")),
+      el("button", { class: "btn", onclick: async () => { try { await call("mdn", { id }); toast(tr("mail.conferma_inviata")); bar.remove(); } catch (e) { toast(e.message, true); } } }, tr("mail.invia_conferma")),
+      el("button", { class: "btn", onclick: () => bar.remove() }, tr("mail.ignora")));
+    wrap.append(bar);
+  }
   for (const inv of d.inviti || []) wrap.append(await inviteCard(inv, id, app));
 
   // ---------------------------------------------------------- allegati

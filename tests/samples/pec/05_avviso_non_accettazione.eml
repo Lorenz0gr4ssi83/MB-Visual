@@ -1,0 +1,103 @@
+Date: Thu, 22 Oct 2026 22:25:17 +0200
+Message-ID: <179270071702.64476.11656403712314974960@pec.prova.it>
+Subject: AVVISO DI NON ACCETTAZIONE: Trasmissione integrazioni pratica SCIA 2026/123
+From: "posta-certificata@pec.prova.it" <posta-certificata@pec.prova.it>
+To: studio@pec.prova.it
+X-Ricevuta: non-accettazione
+X-Riferimento-Message-ID: <179270071696.64476.10595684988679001989@pec.prova.it>
+MIME-Version: 1.0
+Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="===============8729624747825251334=="
+
+This is an S/MIME signed message
+
+--===============8729624747825251334==
+Content-Type: multipart/mixed; boundary="===============7547652282287170356=="
+
+--===============7547652282287170356==
+Content-Type: multipart/alternative;
+ boundary="===============2805205840098866735=="
+
+--===============2805205840098866735==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+Il giorno 22/10/2026 alle ore 22:25:17 nel messaggio "Trasmissione integrazio=
+ni pratica SCIA 2026/123" proveniente da "studio@pec.prova.it" e' stato rilev=
+ato un problema che ne impedisce l'accettazione a causa di Messaggio non conf=
+orme.
+
+--===============2805205840098866735==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<p>Il giorno 22/10/2026 alle ore 22:25:17 nel messaggio "Trasmissione integra=
+zioni pratica SCIA 2026/123" proveniente da "studio@pec.prova.it" e' stato ri=
+levato un problema che ne impedisce l'accettazione a causa di Messaggio non c=
+onforme.</p>
+
+--===============2805205840098866735==--
+
+--===============7547652282287170356==
+Content-Type: application/xml
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="daticert.xml"
+MIME-Version: 1.0
+
+PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHBvc3RhY2VydCB0aXBvPSJu
+b24tYWNjZXR0YXppb25lIiBlcnJvcmU9ImFsdHJvIj48aW50ZXN0YXppb25lPjxtaXR0ZW50ZT5z
+dHVkaW9AcGVjLnByb3ZhLml0PC9taXR0ZW50ZT48ZGVzdGluYXRhcmkgdGlwbz0iY2VydGlmaWNh
+dG8iPnByb3RvY29sbG9AcGVjLnByb3ZhLml0PC9kZXN0aW5hdGFyaT48ZGVzdGluYXRhcmkgdGlw
+bz0iY2VydGlmaWNhdG8iPnVmZmljaW8udGVjbmljb0BwZWMucHJvdmEuaXQ8L2Rlc3RpbmF0YXJp
+PjxkZXN0aW5hdGFyaSB0aXBvPSJlc3Rlcm5vIj5nZW9tZXRyYUBlc3Rlcm5vLml0PC9kZXN0aW5h
+dGFyaT48cmlzcG9zdGU+c3R1ZGlvQHBlYy5wcm92YS5pdDwvcmlzcG9zdGU+PG9nZ2V0dG8+VHJh
+c21pc3Npb25lIGludGVncmF6aW9uaSBwcmF0aWNhIFNDSUEgMjAyNi8xMjM8L29nZ2V0dG8+PC9p
+bnRlc3RhemlvbmU+PGRhdGk+PGdlc3RvcmUtZW1pdHRlbnRlPkdlc3RvcmUgUEVDIGRpIFByb3Zh
+IFMucC5BLjwvZ2VzdG9yZS1lbWl0dGVudGU+PGRhdGEgem9uYT0iKzAyMDAiPjxnaW9ybm8+MjIv
+MTAvMjAyNjwvZ2lvcm5vPjxvcmE+MjI6MjU6MTc8L29yYT48L2RhdGE+PGlkZW50aWZpY2F0aXZv
+Pm9wZWM5MWQ0MTJjMmU2ZjU0MDU2Yjc1MUBwZWMucHJvdmEuaXQ8L2lkZW50aWZpY2F0aXZvPjxt
+c2dpZD4mbHQ7MTc5MjcwMDcxNjk2LjY0NDc2LjEwNTk1Njg0OTg4Njc5MDAxOTg5QHBlYy5wcm92
+YS5pdCZndDs8L21zZ2lkPjxlcnJvcmUtZXN0ZXNvPk1lc3NhZ2dpbyBub24gY29uZm9ybWU8L2Vy
+cm9yZS1lc3Rlc28+PC9kYXRpPjwvcG9zdGFjZXJ0Pg==
+
+--===============7547652282287170356==--
+
+--===============8729624747825251334==
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="smime.p7s"
+
+MIIF9gYJKoZIhvcNAQcCoIIF5zCCBeMCAQExDzANBglghkgBZQMEAgEFADALBgkq
+hkiG9w0BBwGgggN3MIIDczCCAlugAwIBAgIUDRRvBvr41+xfo5Cha3+vi48ETEcw
+DQYJKoZIhvcNAQELBQAwXDELMAkGA1UEBhMCSVQxJDAiBgNVBAoMG0dlc3RvcmUg
+UEVDIGRpIFByb3ZhIFMucC5BLjEnMCUGA1UEAwwecG9zdGEtY2VydGlmaWNhdGFA
+cGVjLnByb3ZhLml0MB4XDTI2MTAyMTIwMjUxNloXDTI3MTAyMjIwMjUxNlowXDEL
+MAkGA1UEBhMCSVQxJDAiBgNVBAoMG0dlc3RvcmUgUEVDIGRpIFByb3ZhIFMucC5B
+LjEnMCUGA1UEAwwecG9zdGEtY2VydGlmaWNhdGFAcGVjLnByb3ZhLml0MIIBIjAN
+BgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAn+Azca4zahnJVGz4anGdboiM7eAz
+iqzoX5Ri48X57Wdt5+um/mQzMFiYeSR0wpvR0mi6DkAXG5MElj7LGxuri/hAxQ0l
+VyqvDlXAdKuSE0s3E3yPE0SsAekAtjMcidFOZBWFMQtHaJnnShSg0CCAZW6iGTuU
+xicr8cIsJyLvotMJyr75203s+YZQ5jU84Pj3hV09n+2CUM1YOPClC3K7sU65Jy8v
+LMnyKJbSWQZQy4knLarIr5D56WobDpTaLBi5KvGOq9adRDwWUUSaHX2t6xjTNCdZ
+X/QRJvixaBOPSnFMbV6uxCecVKaOhdsr3DMcYiYTxg8+9vYuCTOp7iXmaQIDAQAB
+oy0wKzApBgNVHREEIjAggR5wb3N0YS1jZXJ0aWZpY2F0YUBwZWMucHJvdmEuaXQw
+DQYJKoZIhvcNAQELBQADggEBAIFEepXb8UyAhw1zgslC4pJT3Jj+0r7Jfa/3JoXf
+iXPx4HGsWi1XPbEinaK7kxq2+8J0OQ4dqnV1yH0I62XKoKa7kV7MOEp2h3o23tJp
+Dl5ebm/gNyk5ejFr39aK7UHiibdy2c+DTS1Z9E55bRDlPJodZ749FrH+KRqrrAXB
+XGbFYYOKs8o2L8vRP/9Ftcu5s6UEtDKvOFqd2aMBeeTPwchun2EoMON7hlMgfyzW
+w748GjI3y9JjlHmtghqvvubVKzruUHpUcGeNp58wzoxxFZMtBg1dYbhHaUDhMgC/
+s5cg7bdNuTVfVQ7zl3dYJfPseArlmv+C8TqtWu43iC9YBV4xggJDMIICPwIBATB0
+MFwxCzAJBgNVBAYTAklUMSQwIgYDVQQKDBtHZXN0b3JlIFBFQyBkaSBQcm92YSBT
+LnAuQS4xJzAlBgNVBAMMHnBvc3RhLWNlcnRpZmljYXRhQHBlYy5wcm92YS5pdAIU
+DRRvBvr41+xfo5Cha3+vi48ETEcwDQYJYIZIAWUDBAIBBQCggaEwGAYJKoZIhvcN
+AQkDMQsGCSqGSIb3DQEHATAcBgkqhkiG9w0BCQUxDxcNMjYxMDIyMjAyNTE3WjAv
+BgkqhkiG9w0BCQQxIgQgGrAIQ2MhiUpXTEbfNke0tHcwpB3DoBXT945O7QwZByQw
+NgYJKoZIhvcNAQkPMSkwJzALBglghkgBZQMEASowCwYJYIZIAWUDBAEWMAsGCWCG
+SAFlAwQBAjANBgkqhkiG9w0BAQEFAASCAQCBsdGhGMcADu6yFmm3mdzkOxccr0YI
+ZojJg9VzYa+J4WhG5N3Wxz315THww3N0Ba6SrGPH9dN8M9GDw+stsfYtqvSiHVqz
+0VQO295LLSp7d5D5318SSnUn+0VXhjvioKty+T78Yebss/X/vhrdUk/KzPLrnyGY
+TxPmlrI7ncKesPh7SuaBQa3kEzmiGLxRibJN10kNWKkfyBSVufxlS1CVe3qGhF1T
+qjf5GsR2RuGhX3T70ZQ9IrCOy3QlynvmK9QdM4G5OsocJ1pJR53j+4/u58+R33oI
+Qef8LaFFTzyBjZi5K3Pjt0zCmtcrDKOqjyUHDsA56xisISXKsQZ1xeR1
+
+--===============8729624747825251334==--

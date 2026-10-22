@@ -53,6 +53,13 @@ dell'applicazione (da fare una volta sola per tutto lo studio).
   all'ora dell'invio.
 - **Firme e risposte rapide**: ⚙ → Firme (HTML con logo e collegamenti, per account) e Risposte rapide.
 
+- **Avvisi e contatore**: la posta si aggiorna anche con la scheda Posta chiusa; il numero sulla busta della barra laterale
+  indica i messaggi da leggere e arrivano gli avvisi dei messaggi nuovi, dei promemoria e degli appuntamenti.
+- **Conferme di lettura**: se il mittente le chiede compare la barra "Invia conferma"; per chiederla tu, pulsante con la
+  ricevuta nel messaggio.
+- **File .eml**: una PEC salvata su disco (es. nella cartella di una commessa) si apre con i dati del gestore e il messaggio
+  originale; trascinando dei .eml su una cartella della posta si importano.
+
 ### Tasti (come Outlook)
 | Tasto | Azione |
 |---|---|
@@ -140,7 +147,17 @@ più per posta, calendario e contatti.
 In alternativa senza registrazione: Gmail con **password per le app** come casella IMAP (serve la verifica in due
 passaggi attiva sull'account Google).
 
-## 7. Privacy e sicurezza
+## 7. Calendario e contatti
+- **Calendario** (Ctrl+2): giorno, settimana lavorativa, settimana, mese, agenda. Doppio clic su un orario = nuovo evento.
+  Con dei partecipanti l'evento parte come invito (accettabile da Outlook, Gmail, telefono); eliminandolo arriva
+  l'annullamento. Gli inviti ricevuti si accettano dalla lettura del messaggio.
+- **Contatti** (Ctrl+3): rubriche degli account, scheda con telefoni, indirizzi e messaggi recenti, pulsante Scrivi. Gli
+  indirizzi della rubrica vengono proposti mentre scrivi i destinatari.
+- Origine dei dati: Microsoft 365 (automatico), Google (automatico con l'accesso Google), altri gestori con **CalDAV/CardDAV**
+  (Impostazioni dell'account → Impostazioni avanzate: indirizzo del server, es. Nextcloud, iCloud, Fastmail, Aruba
+  Calendario; utente e password se diversi da quelli della posta). Senza server: calendario e rubrica restano su questo PC.
+
+## 8. Privacy e sicurezza
 - Archivio in `%LOCALAPPDATA%\MBVisual\posta`: indice e messaggi cifrati AES-256 con chiave protetta da Windows
   (DPAPI). Password e token degli account cifrati allo stesso modo.
 - Le immagini remote dei messaggi sono bloccate finché non scegli "Mostra immagini" (evita i pixel di tracciamento);

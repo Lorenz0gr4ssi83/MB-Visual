@@ -999,7 +999,7 @@ Solo app per PC. Il risultato si apre subito nell'editor CAD. DWG solo con ODA F
 - Da provare con le tavole vere dell'utente (AutoCAD/Revit, scansioni A1/A0): PDF con testi SHX (tratti + testo nascosto),
   archi spezzati in segmenti, retini a tratteggio (restano linee), scansioni a colori/cianografie, testi inclinati (l'OCR di Windows
   legge solo orizzontale e verticale).
-## Posta elettronica in stile Outlook (22/10/2026) - IN CORSO (tappe 1-3 fatte: IMAP/SMTP, PEC, interfaccia, commesse, Microsoft 365 e Gmail, calendario e contatti)
+## Posta elettronica in stile Outlook (22/10/2026) - FATTO (tappe 1-4; account veri da provare con l'utente)
 Scheda "Posta" (pulsante busta nella barra laterale, `MB.openMail()`; percorso virtuale `mail://posta`, i messaggi nuovi
 `mail://scrivi/<n>` con il visualizzatore `mailcompose`). Solo app per PC. Guida utente: `ui/guide/posta.md`.
 - Motore `mbvisual/mail/` (API unica `api/mail?op=...` -> `mail/api.py handle`; errori MailError/ValueError = `{ok:false}`):
@@ -1054,7 +1054,14 @@ Scheda "Posta" (pulsante busta nella barra laterale, `MB.openMail()`; percorso v
   core.js `el`: le chiavi di style che iniziano con "--" ora usano setProperty (prima le variabili CSS si perdevano).
   Collaudo `python tests/test_mail_cal.py` (22 prove, server `tests/davserver.py`) + calendario/contatti Graph in
   test_mail_oauth.py (30 prove).
-- DA FARE: conferme di lettura in uscita (MDN). Account veri: li prova l'utente (registrazioni in ui/guide/posta.md cap. 6).
+- Rifiniture (tappa 4): `ui/js/mail/mailbadge.js` avviato da app.js all'avvio (solo PC): il motore della posta parte subito,
+  contatore dei da leggere sul pulsante Posta, avvisi di messaggi nuovi/promemoria/eventi quando la scheda Posta non e' aperta
+  (la scheda aperta consuma lei i "nuovi"). Conferme di lettura: barra "Invia conferma" (op `mdn`, multipart/report RFC 8098,
+  msgid ricordati in settings "mdn_inviati"). File .eml PEC aperti dal disco (viewers/email.js + misc.read_email): si
+  mostra postacert.eml con i dati del gestore o l'esito della ricevuta. Campioni `python tools/make_pec_samples.py` ->
+  tests/samples/pec. Collaudo `python tests/test_mail_bigfile.py` (8 prove: link OneDrive anonimo/organizzazione, Dropbox, MDN).
+- Da provare con l'utente: account veri (registrazioni in ui/guide/posta.md cap. 6), firma degli allegati con il suo
+  dispositivo, invii come link con il suo OneDrive/Dropbox (per Dropbox rifare l'accesso: nuovo ambito sharing.write).
 
 ## Tablet e iPad (22/10/2026) - FATTO (prova su iPad/Android veri: la fa l'utente)
 Web app (app per cellulari sul server delle licenze) finalizzata per tablet 768-1366 px, verticale e orizzontale.
