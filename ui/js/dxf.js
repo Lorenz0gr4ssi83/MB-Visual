@@ -116,6 +116,7 @@ function toEntity(type, g) {
   const e = { type, layer: val(g, 8) || "0", colorIndex: val(g, 62) !== undefined ? num(g, 62) : 256 };
   if (val(g, 5) !== undefined) e.handle = String(val(g, 5)).trim(); // identificativo: serve all'editor per modificare il file originale
   if (val(g, 420) !== undefined) { e.color = parseInt(val(g, 420), 10); e.colorIndex = undefined; }
+  { const tr = val(g, 440); if (tr !== undefined && (parseInt(tr, 10) & 0x02000000)) e.alpha = (parseInt(tr, 10) & 255) / 255; } // trasparenza
   if (num(g, 67) === 1) e.isInPaperSpace = true;
   if (num(g, 60) === 1) e.isVisible = false;
   if (val(g, 6) !== undefined) e.lineType = val(g, 6);
@@ -137,11 +138,17 @@ function toEntity(type, g) {
         if (c === 10) { cur = { x: parseFloat(v), y: 0, bulge: 0 }; e.vertices.push(cur); }
         else if (c === 20 && cur) cur.y = parseFloat(v);
         else if (c === 42 && cur) cur.bulge = parseFloat(v);
+        else if (c === 40 && cur) cur.startWidth = parseFloat(v);
+        else if (c === 41 && cur) cur.endWidth = parseFloat(v);
+        else if (c === 43) e.constantWidth = parseFloat(v);
       }
       break;
     }
-    case "POLYLINE": e.flag = num(g, 70); break;
-    case "VERTEX": e.point = pt(g, 10); e.x = e.point.x; e.y = e.point.y; e.z = e.point.z; e.bulge = num(g, 42); e.flag = num(g, 70); break;
+    case "POLYLINE": e.flag = num(g, 70); if (num(g, 40) > 0 && num(g, 40) === num(g, 41)) e.constantWidth = num(g, 40); break;
+    case "VERTEX": e.point = pt(g, 10); e.x = e.point.x; e.y = e.point.y; e.z = e.point.z; e.bulge = num(g, 42); e.flag = num(g, 70);
+      if (val(g, 40) !== undefined) e.startWidth = num(g, 40);
+      if (val(g, 41) !== undefined) e.endWidth = num(g, 41);
+      break;
     case "TEXT": case "ATTRIB": case "ATTDEF":
       e.text = val(g, 1) || ""; e.startPoint = pt(g, 10); e.endPoint = pt(g, 11); e.textHeight = num(g, 40, 1);
       e.rotation = num(g, 50) * D2R; e.halign = num(g, 72); e.valign = num(g, type === "TEXT" ? 73 : 74); e.xScale = num(g, 41, 1);

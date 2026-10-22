@@ -134,13 +134,42 @@ def patch_js(text: str) -> str:
     return text
 
 
-HEAD = """<meta name="theme-color" content="#1e2225">
+# iPad e iPhone (Safari > Condividi > Aggiungi alla schermata Home): icone senza trasparenza e schermate di avvio per ogni
+# misura di schermo (punti CSS x densita'), verticali e orizzontali. STESSO elenco in server/src/index.js (SPLASH): le pagine
+# di attivazione, da cui spesso si installa l'app, devono dichiarare le stesse immagini.
+SPLASH = [
+    (1032, 1376, 2), (1024, 1366, 2), (834, 1210, 2), (834, 1194, 2), (820, 1180, 2), (834, 1112, 2), (810, 1080, 2),
+    (768, 1024, 2), (744, 1133, 2),                                                   # iPad (13", 12,9", 11", 10,9", 10,5", 10,2", 9,7", mini)
+    (440, 956, 3), (430, 932, 3), (402, 874, 3), (393, 852, 3), (390, 844, 3), (428, 926, 3), (414, 896, 2), (375, 812, 3), (375, 667, 2),  # iPhone
+]
+
+
+def splash_name(w: int, h: int, r: int, land: bool) -> str:
+    return f"img/splash-{h * r}x{w * r}.png" if land else f"img/splash-{w * r}x{h * r}.png"
+
+
+def splash_tags() -> str:
+    out = []
+    for w, h, r in SPLASH:
+        for land in (False, True):
+            o = "landscape" if land else "portrait"
+            out.append(f'<link rel="apple-touch-startup-image" media="(device-width: {w}px) and (device-height: {h}px) and '
+                       f'(-webkit-device-pixel-ratio: {r}) and (orientation: {o})" href="{splash_name(w, h, r, land)}">')
+    return "\n".join(out) + "\n"
+
+
+HEAD = """<meta name="theme-color" content="#0f1114">
 <meta name="description" content="MB Visual - visualizzatore di documenti, disegni CAD, modelli 3D e BIM di MB Engineering">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="img/icon-192.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon-180.png">
+<link rel="apple-touch-icon" sizes="152x152" href="img/apple-touch-icon-152.png">
+<link rel="apple-touch-icon" sizes="167x167" href="img/apple-touch-icon-167.png">
+<link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MB Visual">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<script>window.MBV_WEB = true; window.MBV_ROOT = new URL(".", location.href).href;
+__SPLASH__<script>window.MBV_WEB = true; window.MBV_ROOT = new URL(".", location.href).href;
 if ("serviceWorker" in navigator) {
   addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
   // versione nuova appena installata: si ricarica una volta per usare i file nuovi (non alla prima installazione)
@@ -151,11 +180,12 @@ if ("serviceWorker" in navigator) {
 
 MANIFEST = {
     "name": "MB Visual", "short_name": "MB Visual", "id": "./", "start_url": "./", "scope": "./", "display": "standalone",
-    "background_color": "#eff0ee", "theme_color": "#1e2225", "lang": "it",
+    "orientation": "any", "background_color": "#0f1114", "theme_color": "#0f1114", "lang": "it",
     "description": "Powered by MB Group",
     "icons": [{"src": "img/icon-192.png", "sizes": "192x192", "type": "image/png"},
               {"src": "img/icon-512.png", "sizes": "512x512", "type": "image/png"},
-              {"src": "img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}],
+              {"src": "img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+              {"src": "img/apple-touch-icon-180.png", "sizes": "180x180", "type": "image/png"}],
     "share_target": {"action": "./condividi", "method": "POST", "enctype": "multipart/form-data",
                      "params": {"files": [{"name": "file", "accept": ["*/*"]}]}},
 }
@@ -203,6 +233,20 @@ def icons(img_dir: Path) -> None:
     small = logo.resize((380, 380), Image.LANCZOS)
     bg.alpha_composite(small, (66, 66))
     bg.save(img_dir / "icon-maskable-512.png")
+    # iPad/iPhone: icona quadrata piena (iOS arrotonda da se' gli angoli; le parti trasparenti diventerebbero nere)
+    full = Image.new("RGBA", (512, 512), (138, 140, 137, 255))
+    full.alpha_composite(logo)
+    for s in (152, 167, 180):
+        full.convert("RGB").resize((s, s), Image.LANCZOS).save(img_dir / f"apple-touch-icon-{s}.png", optimize=True)
+    # schermate di avvio: fondo grafite della cornice dell'app e logo al centro
+    for w, h, r in SPLASH:
+        for land in (False, True):
+            W, H = (h * r, w * r) if land else (w * r, h * r)
+            im = Image.new("RGB", (W, H), (15, 17, 20))
+            side = int(min(W, H) * 0.26)
+            lg = logo.resize((side, side), Image.LANCZOS)
+            im.paste(lg, ((W - side) // 2, (H - side) // 2), lg)
+            im.save(img_dir / splash_name(w, h, r, land).split("/")[1], optimize=True)
 
 
 REDIRECT_HTML = """<!doctype html><html lang="it"><head><meta charset="utf-8">
@@ -262,7 +306,7 @@ def main() -> None:
     for js in (OUT / "js").rglob("*.js"):
         js.write_text(patch_js(js.read_text(encoding="utf-8")), encoding="utf-8")
     html = (OUT / "index.html").read_text(encoding="utf-8")
-    html = html.replace('<link rel="icon" href="img/logo.png">', '<link rel="icon" href="img/logo.png">\n' + HEAD)
+    html = html.replace('<link rel="icon" href="img/logo.png">', '<link rel="icon" href="img/logo.png">\n' + HEAD.replace("__SPLASH__", splash_tags()))
     html = html.replace('"/vendor/', '"./vendor/')
     html = html.replace('<script type="module" src="js/app.js"></script>', '<script type="module" src="js/webapi.js"></script>\n<script type="module" src="js/app.js"></script>')
     html = html.replace('<html lang="it">', '<html lang="it" class="web">')

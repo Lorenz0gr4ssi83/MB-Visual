@@ -7,7 +7,9 @@
 // cosi' la cronologia (annulla multiplo, pannello Cronologia) conserva solo riferimenti. Le maschere usano l'alfa
 // (opaco = visibile). La selezione e' un canvas alfa grande quanto il documento con il suo contorno (formiche).
 import { t as tr, tn } from "./i18n.js";
-import { api, el, toast, modal, pickFiles, fileUrl, extOf, withExt, WEB } from "./core.js";
+import { api, button, el, toast, modal, pickFiles, fileUrl, extOf, withExt, WEB } from "./core.js";
+import { INK_ICON, paint as paintInk } from "./ink.js";
+import { pinchPan } from "./touch.js";
 import { keymap, describeKeys } from "./shortcuts.js";
 import { psIcon } from "./psicons.js";
 import { ADJ, FILTERS, makeAdjust, autoAdjust, histogram, adjustControls, filterControls, blurCanvas, mkCanvas, hexToRgb, rgbToHex, lum } from "./imgadjust.js";
@@ -192,7 +194,8 @@ export function createEditor(ctx, init) {
     schedule(); status(); placeText();
   }
   const zoomStep = (dir, cx, cy) => setZoom(dir > 0 ? ZOOMS.find(z => z > zoom * 1.001) || 64 : [...ZOOMS].reverse().find(z => z < zoom / 1.001) || 0.01, cx, cy);
-  const docPt = e => { const r = view.getBoundingClientRect(); return { x: (e.clientX - r.left - panX) / zoom, y: (e.clientY - r.top - panY) / zoom, sx: e.clientX - r.left, sy: e.clientY - r.top }; };
+  // pr = pressione della penna (Apple Pencil, S Pen): il pennello si assottiglia premendo meno, come in Photoshop
+  const docPt = e => { const r = view.getBoundingClientRect(); return { x: (e.clientX - r.left - panX) / zoom, y: (e.clientY - r.top - panY) / zoom, sx: e.clientX - r.left, sy: e.clientY - r.top, pr: e.pointerType === "pen" && e.pressure > 0 ? e.pressure : undefined }; };
   function status() {
     const L = layers[act];
     ctx.status(`${Math.round(zoom * 1000) / 10}% · ${W} × ${H} px` + (L ? ` · ${L.name}${target === "mask" && L.mask ? " (maschera)" : ""}` : "") + (init.meta?.formato ? " · " + init.meta.formato : ""));
@@ -659,8 +662,8 @@ export function createEditor(ctx, init) {
     S.dirty = true; schedule();
     return S;
   }
-  function dab(S, x, y) {
-    const t = S.tip, r = t.width / 2, ix = x - r, iy = y - r, g = g2(S.buf);
+  function dab(S, x, y, k = 1) {
+    const t = S.tip, r = t.width / 2 * k, ix = x - r, iy = y - r, g = g2(S.buf);
     g.globalAlpha = S.o.flow / 100;
     if (S.kind === "stamp") {
       const d = g2(S.dab);
@@ -668,21 +671,23 @@ export function createEditor(ctx, init) {
       d.globalCompositeOperation = "source-in";
       d.drawImage(S.src.img, S.src.x - (ix + S.base.x + cloneOff[0]), S.src.y - (iy + S.base.y + cloneOff[1]));
       g.drawImage(S.dab, ix, iy);
-    } else g.drawImage(t, ix, iy);
+    } else if (k !== 1) g.drawImage(t, ix, iy, t.width * k, t.height * k);
+    else g.drawImage(t, ix, iy);
     g.globalAlpha = 1;
     if (sel) {
       g.save(); g.beginPath(); g.rect(Math.floor(ix), Math.floor(iy), t.width + 1, t.height + 1); g.clip();
       g.globalCompositeOperation = "destination-in"; g.drawImage(sel.c, -S.base.x, -S.base.y); g.restore();
     }
   }
+  const prK = pr => (pr === undefined ? 1 : Math.min(1, 0.15 + pr * 1.1));
   function strokeTo(S, p) {
-    const x = p.x - S.base.x, y = p.y - S.base.y;
-    if (!S.last) { dab(S, x, y); S.last = [x, y]; return; }
-    const [lx, ly] = S.last, dx = x - lx, dy = y - ly, dist = Math.hypot(dx, dy), sp = Math.max(1, S.o.size * (S.kind === "pencil" ? 0.08 : 0.12));
+    const x = p.x - S.base.x, y = p.y - S.base.y, k = S.kind === "stamp" ? 1 : prK(p.pr);
+    if (!S.last) { dab(S, x, y, k); S.last = [x, y]; S.k = k; return; }
+    const [lx, ly] = S.last, k0 = S.k ?? k, dx = x - lx, dy = y - ly, dist = Math.hypot(dx, dy), sp = Math.max(1, S.o.size * Math.min(k0, k) * (S.kind === "pencil" ? 0.08 : 0.12));
     let d = sp - S.since;
     if (d > dist) { S.since += dist; S.last = [x, y]; return; }
-    for (; d <= dist; d += sp) dab(S, lx + dx * d / dist, ly + dy * d / dist);
-    S.since = dist - (d - sp); S.last = [x, y];
+    for (; d <= dist; d += sp) dab(S, lx + dx * d / dist, ly + dy * d / dist, k0 + (k - k0) * d / dist);
+    S.since = dist - (d - sp); S.last = [x, y]; S.k = k;
   }
   function strokePreview(S) {
     const g = g2(S.pv), a = S.o.opacity / 100;
@@ -991,7 +996,13 @@ export function createEditor(ctx, init) {
     return -1;
   }
   const capture = e => { try { view.setPointerCapture(e.pointerId); } catch { /* eventi simulati */ } };
+  let penSeen = false;
   function down(e) {
+    if (e.pointerType === "pen") penSeen = true;
+    // rifiuto del palmo: dopo aver usato la penna il dito non dipinge, sposta la vista (pizzico = zoom)
+    if (e.pointerType === "touch" && (penSeen || (e.width > 40 && e.height > 40))) {
+      panDrag = { x: e.clientX, y: e.clientY, px: panX, py: panY }; capture(e); e.preventDefault(); return;
+    }
     if (e.button === 1 || (e.button === 0 && curTool() === "hand")) {
       panDrag = { x: e.clientX, y: e.clientY, px: panX, py: panY }; capture(e); e.preventDefault(); return;
     }
@@ -1201,6 +1212,12 @@ export function createEditor(ctx, init) {
     if (d?.up) d.up(docPt(e), e);
     schedule();
   }
+  // tablet: pizzico = zoom, due dita = sposta; il secondo dito annulla il tratto iniziato dal primo
+  pinchPan(view, {
+    onStart: () => { if (stroke) { stroke = null; preview = null; needComp = true; } drag = null; panDrag = null; schedule(); },
+    onPan: (dx, dy) => { autoFit = false; panX += dx; panY += dy; placeText(); schedule(); },
+    onZoom: (f, cx, cy) => setZoom(zoom * f, cx, cy),
+  });
   view.addEventListener("pointerdown", down);
   view.addEventListener("pointermove", move);
   view.addEventListener("pointerup", up);
@@ -1912,6 +1929,31 @@ export function createEditor(ctx, init) {
     b.addEventListener("pointerenter", () => { if (menuEl && menuEl.dataset.m && menuEl.dataset.m !== name) { openMenu(b, MENUS[name]()); menuEl.dataset.m = name; } });
     ctx.tb.append(b);
   }
+  // annotazione a mano libera (penna, evidenziatore, gomma: ui/js/ink.js); "Fine" mette i tratti in un livello "Annotazioni"
+  let ink = null;
+  const inkBtn = button(tr("ink.penna"), INK_ICON, async () => {
+    if (!ink) {
+      const { createInk } = await import("./ink.js");
+      ink = createInk({
+        host: stage, nativeTouch: false,
+        surfaces: () => [{ key: 0, el: stage, toDoc: (x, y) => [(x - panX) / zoom, (y - panY) / zoom], toLocal: (x, y) => [x * zoom + panX, y * zoom + panY] }],
+        pan: (dx, dy) => { autoFit = false; panX += dx; panY += dy; placeText(); schedule(); },
+        zoom: (f, cx, cy) => setZoom(zoom * f, cx, cy),
+        onToggle: on => { inkBtn.classList.toggle("on", on); if (!on) inkToLayer(); },
+      });
+    }
+    ink.toggle();
+  }, { class: "ink-toggle ps-mbtn", title: tr("ink.annota_img") });
+  ctx.tb.append(inkBtn);
+  function inkToLayer() {
+    if (!ink?.hasStrokes()) return;
+    const c = mkCanvas(W, H), g = g2(c);
+    for (const st of ink.strokes) paintInk(g, st, (x, y) => [x, y], 1);
+    const L = mkLayer({ name: nameNew(tr("ink.livello_annotazioni")), c, x: 0, y: 0 });
+    layers.splice(layers.length, 0, L); act = layers.length - 1; target = "pixels";
+    ink.reset();
+    invalidate(); commit(tr("ink.livello_annotazioni"));
+  }
 
   // ------------------------------------------------------------ scorciatoie da tastiera di Photoshop
   const free = () => !dlgOpen && !textEd;
@@ -2024,6 +2066,7 @@ export function createEditor(ctx, init) {
     saveLabels: { psd: tr("imgedit.photoshop_livelli"), ora: tr("imgedit.openraster_livelli_gimp_krita"), png: "PNG", jpg: "JPEG", webp: "WebP", tif: "TIFF", bmp: tr("imgedit.bitmap"), gif: "GIF" },
     saveNote: tr("imgedit.psd_ora_conservano_livelli_maschere"),
     async save(path) {
+      if (ink?.active) ink.toggle(false); // i tratti ancora aperti diventano il livello "Annotazioni"
       endText(true);
       if (tf) commitTransform();
       const ext = extOf(path);

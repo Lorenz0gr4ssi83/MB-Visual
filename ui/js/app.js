@@ -5,6 +5,7 @@ import {
 } from "./core.js";
 import { licenseGate, showAccount } from "./license.js";
 import { setupMobileQr } from "./mobileqr.js";
+import { initTouch, afterMount } from "./touch.js";
 import { t as tr, tn, has as trHas, LANG, LANGS, LOCALE, MANUAL, keyName, setLanguage } from "./i18n.js";
 
 const $ = id => document.getElementById(id);
@@ -560,6 +561,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
     tab.api = (await mod.mount(ctx)) || {};
     addOfficeButton(tab, tb);
     addDrawingButton(tab, tb);
+    afterMount(ctx); // tablet: pannello laterale a scomparsa
     if (extraCtx.untitled) { tab.untitled = true; tab.dirty = true; renderTabs(); } // file nuovo: si salva quando e dove si vuole
   } catch (e) {
     console.error(e);
@@ -1085,6 +1087,7 @@ async function boot() {
   setupDrop();
   setupTheme();
   setupBack();
+  initTouch();
   if (!WEB) import("./cloud.js").then(m => m.setupCloud()).catch(e => console.error(e)); // archivi cloud (SharePoint, Drive, Dropbox, Autodesk)
   if (!WEB) licenseGate(); // licenza dell'app per PC: senza attivazione copre l'app con la schermata della chiave
   if (!WEB) setupMobileQr(); // QR nella home per installare l'app sul cellulare (posti liberi della licenza)

@@ -6,6 +6,7 @@ import { button, el, extOf, toast } from "../core.js";
 import { ACI, buildModel, readDrawing } from "../viewers/cad2d.js";
 import { COL, KIND_IT, canvasJpeg, chipBox, csvBlob, diffList, footerNumbers, legend, pdfDoc, reportHeader, reportTable, saveXlsx } from "./common.js";
 import { t as tr, LOCALE } from "../i18n.js";
+import { pinchPan } from "../touch.js";
 
 const TYPE_IT = { LINE: tr("cadcmp.linea"), CIRCLE: tr("cadcmp.cerchio"), ARC: tr("cadcmp.arco"), LWPOLYLINE: tr("cadcmp.polilinea"), POLYLINE2D: tr("cadcmp.polilinea"), POLYLINE3D: tr("cadcmp.polilinea_3d"), TEXT: tr("cadcmp.testo"), MTEXT: tr("cadcmp.testo_multilinea"),
   INSERT: tr("cadcmp.blocco"), DIMENSION: tr("cadcmp.quota"), HATCH: tr("cadcmp.retino"), SPLINE: tr("cadcmp.spline"), ELLIPSE: tr("cadcmp.ellisse"), POINT: tr("cadcmp.punto"), SOLID: tr("cadcmp.solido"), TRACE: tr("cadcmp.traccia"), LEADER: tr("cadcmp.direttrice"),
@@ -356,6 +357,12 @@ export async function mountCompare(env) {
       tip.style.left = px / dpr() + 14 + "px"; tip.style.top = py / dpr() + 14 + "px";
     } else tip.hidden = true;
     ctx.status(`X ${wx.toLocaleString(LOCALE, { maximumFractionDigits: 3 })}  Y ${wy.toLocaleString(LOCALE, { maximumFractionDigits: 3 })}`);
+  });
+  // tablet: pizzico = zoom, due dita = sposta
+  pinchPan(canvas, {
+    onStart: () => { drag = null; tip.hidden = true; },
+    onPan: (dx, dy) => { view.tx += dx * dpr(); view.ty += dy * dpr(); draw(); },
+    onZoom: (f, cx, cy) => zoomAt(f, cx * dpr(), cy * dpr()),
   });
   canvas.addEventListener("pointerup", e => {
     const d = drag;

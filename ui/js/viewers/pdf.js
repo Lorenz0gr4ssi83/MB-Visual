@@ -6,6 +6,7 @@ import { api, baseName, button, dirName, el, fileUrl, loadCss, modal, pickFiles,
 import { createPdfEditor, PDFJS_CHROME, PDFJS_HIDE } from "../pdfeditor.js";
 import { describeKeys } from "../shortcuts.js";
 import { renderSigner } from "./signed.js";
+import { INK_ICON } from "../ink.js";
 import { t, LOCALE } from "../i18n.js";
 
 export async function mount(ctx) {
@@ -19,6 +20,44 @@ export async function mount(ctx) {
   ctx.el.append(area);
   const app = () => frame.contentWindow?.PDFViewerApplication;
   const ed = WEB ? null : createPdfEditor(ctx, frame, busy => stage.classList.toggle("pe-busy", busy));
+  // web app (tablet, telefono): penna, evidenziatore e gomma sulle pagine -> annotazioni Ink nel file (ui/js/ink.js, inkpdf.js)
+  let ink = null;
+  const inkBtn = WEB ? button(t("ink.penna"), INK_ICON, () => ink?.toggle(), { class: "ink-toggle", title: t("ink.annota_pdf") }) : null;
+  async function setupInk(a) {
+    if (ink) return ink.refresh();
+    const { createInk } = await import("../ink.js");
+    const cont = frame.contentDocument.getElementById("viewerContainer");
+    let raf = 0;
+    const later = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; ink.refresh(); }); };
+    // dita: un dito scorre, due dita scorrono e ingrandiscono (zoom di pdf.js attorno al punto del pizzico)
+    let zf = 1, zo = null, zraf = 0;
+    ink = createInk({
+      host: stage, nativeTouch: false,
+      pan: (dx, dy) => { cont.scrollLeft -= dx; cont.scrollTop -= dy; },
+      zoom: (f, lx, ly, cx, cy) => {
+        zf *= f; zo = [cx, cy];
+        // pdf.js arrotonda la scala al centesimo: i passi piccoli si accumulano; il disegno vero arriva a gesto fermo
+        if (!zraf) zraf = requestAnimationFrame(() => { zraf = 0; if (Math.abs(zf - 1) < 0.02) return; const k = zf; zf = 1; a.pdfViewer.updateScale({ scaleFactor: k, origin: zo, drawingDelay: 350 }); });
+      },
+      // solo le pagine vicine a quelle visibili hanno il livello della penna
+      surfaces: () => {
+        const out = [], vr = cont.getBoundingClientRect();
+        for (let i = 0; i < a.pagesCount; i++) {
+          const pv = a.pdfViewer.getPageView(i);
+          if (!pv?.div) continue;
+          const r = pv.div.getBoundingClientRect();
+          if (r.bottom < vr.top - vr.height || r.top > vr.bottom + vr.height) continue;
+          const vp = pv.viewport;
+          out.push({ key: i, el: pv.div, toDoc: (x, y) => vp.convertToPdfPoint(x, y), toLocal: (x, y) => vp.convertToViewportPoint(x, y) });
+        }
+        return out;
+      },
+      onChange: () => ctx.setDirty(true),
+      onToggle: on => inkBtn.classList.toggle("on", on),
+    });
+    for (const ev of ["pagerendered", "scalechanging", "rotationchanging", "pagesloaded", "updateviewarea"]) a.eventBus.on(ev, later);
+    cont.addEventListener("scroll", later, { passive: true });
+  }
 
   frame.addEventListener("load", async () => {
     // puntatore sempre a freccia anche dentro il visualizzatore PDF (richiesta dell'utente)
@@ -53,6 +92,7 @@ export async function mount(ctx) {
       store.onResetModified = () => ctx.setDirty(false);
       ctx.status(t("pdfed.n_pagine", a.pagesCount));
       ed?.changed();
+      if (WEB) setupInk(a);
     });
     a.eventBus.on("pagechanging", e => ctx.status(t("v_pdf.pagina_0_1", e.pageNumber, a.pagesCount)));
   });
@@ -130,6 +170,7 @@ export async function mount(ctx) {
         if (await ask(t("v_pdf.timbro_alto_destra"), [el("label", { style: { display: "grid", gap: "4px" } }, t("v_pdf.testo_timbro_riga_riga"), f), p.row])) run("stamp", { text: f.value, mode: "timbro", pages: p.input.value }, stem + "_timbrato.pdf");
       }, t("v_pdf.riquadro_testo_alto_destra_approvazione")],
     ];
+    ctx.tb.append(inkBtn, el("span", { class: "sep" }));
     for (const [label, icon, fn, title] of tools) ctx.tb.append(button(label, icon, fn, { title }));
     ctx.tb.append(el("span", { class: "grow" }), el("span", { class: "note" }, t("v_pdf.annotazioni_testo_disegno_evidenziatore_immagini")));
   }
@@ -167,6 +208,7 @@ export async function mount(ctx) {
 
   return {
     _pe: ed, // collaudi dalla console: MB.active.api._pe (stato, comandi, ops)
+    get _ink() { return ink; }, // collaudi della penna: MB.active.api._ink (strokes, toggle)
     onBack() { return backHandler ? backHandler() : false; },
     // finestra Stampa: il documento come appare ora (modifiche e annotazioni non ancora salvate comprese)
     async printSource() {
@@ -180,9 +222,20 @@ export async function mount(ctx) {
     },
     async save(target) {
       const a = app();
-      const data = await a.pdfDocument.saveDocument();
+      let data = await a.pdfDocument.saveDocument();
+      const inked = ink?.hasStrokes();
+      if (inked) data = await (await import("../inkpdf.js")).addInkAnnots(data, ink.strokes);
       await api("save", { path: target }, { body: data });
       a.pdfDocument.annotationStorage.resetModified?.();
+      if (inked && target === ctx.path) {
+        // i tratti ora sono annotazioni del file: si ricarica il documento salvato (stessa pagina) e la penna riparte vuota
+        const page = a.page, on = ink.active;
+        ink.reset();
+        await a.open({ url: fileUrl(ctx.path) });
+        a.eventBus.on("pagesloaded", () => { a.page = page; if (on && !ink.active) ink.toggle(true); }, { once: true });
+        ctx.setDirty(false);
+      } else if (inked) ctx.setDirty(false);
     },
+    dispose() { ink?.dispose(); },
   };
 }

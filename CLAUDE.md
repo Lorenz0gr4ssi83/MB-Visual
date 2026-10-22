@@ -1042,3 +1042,45 @@ Scheda "Posta" (pulsante busta nella barra laterale, `MB.openMail()`; percorso v
   Collaudo `python tests/test_mail_oauth.py` (25 prove: finto OAuth, finto Graph per la posta, server di prova con XOAUTH2).
 - DA FARE (tappe successive): calendario e contatti (CalDAV/CardDAV, Graph; `CAL_READY` in mailapp.js), conferme di
   lettura in uscita. Account veri: li prova l'utente (registrazioni in ui/guide/posta.md cap. 6).
+- DA FARE (tappe successive): Microsoft 365 via Graph e Gmail con OAuth (riuso degli ID di cloud.py; nell'interfaccia
+  `OAUTH_READY` in mailsettings.js), calendario e contatti (CalDAV/CardDAV, Graph; `CAL_READY` in mailapp.js),
+  conferme di lettura in uscita. Account veri: li prova l'utente.
+## Tablet e iPad (22/10/2026) - FATTO (prova su iPad/Android veri: la fa l'utente)
+Web app (app per cellulari sul server delle licenze) finalizzata per tablet 768-1366 px, verticale e orizzontale.
+- `ui/js/touch.js` (avviato da app.js `initTouch`, `afterMount` dopo ogni visualizzatore) + `ui/css/touch.css` (caricato solo con
+  schermo tattile). Classi su <html>: `touch` (dito = puntatore principale; un portatile touch con mouse NON la prende), `ipad`
+  (iPadOS si presenta come Mac: si riconosce da maxTouchPoints), `standalone` (app installata: aree sicure), `kb-open`.
+  Bersagli di almeno 40 px (cmd, schede, barra laterale, menu 46 px, editor Photoshop/GIS/confronto); scorciatoie nascoste
+  senza tastiera; body `touch-action: pan-x pan-y` (niente zoom della pagina: il pizzico lo gestiscono i documenti).
+  Pannelli a scomparsa: `.side`, `.gis`, `.cmp-root` diventano `.drawer` (pulsante `.drawer-btn` nella barra): in verticale o
+  sotto 1100 px il pannello scorre sopra il documento (chiuso all'avvio), in orizzontale resta affiancato e si chiude.
+  NB: il pannello in assoluto esce dalla griglia, quindi la griglia passa a una colonna sola. Telefono (lato corto < 600 px):
+  nessun cassetto, resta la disposizione di app.css. Tastiera virtuale: `--app-h`/`--kb` da visualViewport + viewport
+  `interactive-widget=resizes-content`. Tocco lungo = `contextmenu` sintetico (Safari non lo manda; con quello nativo di
+  Android non si duplica). `pinchPan(el, {onStart,onPan,onZoom})`: pizzico e due dita sui canvas (cad2d, imgedit, cadcmp, pdfcmp);
+  il secondo dito annulla l'operazione del primo. Three.js (OrbitControls) e OpenLayers gestiscono il tocco da soli.
+- Penna `ui/js/ink.js` + `ui/css/ink.css` (barra in basso al centro): penna con pressione, evidenziatore, gomma a tratti,
+  colori, 3 spessori, annulla/ripeti, "dito disegna" (si spegne da solo al primo uso della penna = rifiuto del palmo, ricordato
+  in localStorage `mbv-ink-penna`), contatti larghi ignorati, tasto laterale S Pen / coda gomma = gomma, doppio tocco della punta =
+  strumento precedente (il doppio tocco sul corpo dell'Apple Pencil NON arriva alle web app). Le dita le gestisce sempre l'app
+  (`nativeTouch: false`): con lo scorrimento nativo Chrome annulla i tratti della penna (pointercancel).
+  * PDF (solo web app, pulsante Penna): livello per pagina dentro i `.page` di pdf.js; Salva -> `ui/js/inkpdf.js` aggiunge
+    annotazioni /Ink con /InkList e aspetto /AP (spessore variabile, evidenziatore in Multiply) con pdf-lib, poi il PDF si
+    ricarica. I byte di pdf.js vengono dall'iframe: per pdf-lib vanno copiati in un Uint8Array del documento principale.
+  * DWG/DXF (pulsante Penna dove non c'e' l'editor CAD, cioe' nella web app): `ui/js/inkdxf.js` aggiunge in fondo a ENTITIES
+    LWPOLYLINE con larghezza per vertice su layer MARKUP e MARKUP-EVID (trasparenza 440, colore vero 420 + ACI), layer nella
+    tabella, maniglie da $HANDSEED; R12 -> POLYLINE/VERTEX; il resto del file resta identico (righe dei codici comprese).
+    DWG: "Salva con nome" DXF = file a parte con le sole revisioni nelle stesse coordinate. PNG/PDF/SVG includono i tratti.
+    cad2d.js ora disegna le larghezze delle polilinee (40/41/43) e la trasparenza (440); dxf.js le legge.
+  * Immagini (imgedit, anche sul PC): "Fine" mette i tratti in un livello "Annotazioni N"; il pennello usa la pressione
+    della penna; con la penna in uso il dito sposta la vista.
+- Installazione iPad/iPhone: build_web.py genera apple-touch-icon 152/167/180 (quadrate piene) e le schermate di avvio
+  `img/splash-WxH.png` per 9 iPad e 9 iPhone (verticale e orizzontale); stesso elenco `SPLASH` in server/src/index.js, perche'
+  l'app si installa spesso dalle pagine di attivazione (`APPLE_HEAD` in LINK_PAGE e ACTIVATION_PAGE; immagini in PUBLIC).
+  Pagine di attivazione: iPad riconosciuto (istruzioni con il Condividi in alto a destra, nome dispositivo "iPad"/"Tablet Android").
+  L'app installata su iPad ha cookie separati da Safari come su iPhone: chiede la chiave o il codice di 6 cifre.
+- Prove (Edge senza finestra + DevTools: emulazione tocco/UA, penna con `Input.dispatchMouseEvent pointerType:"pen" force`,
+  dita con `Input.dispatchTouchEvent`), iPad Pro 12,9" 1024x1366, iPad 10,9" 820x1180, Android 1280x800 nei due versi:
+  nessun elemento fuori schermo; bersagli sotto 40 px solo i colori sovrapposti di Photoshop e l'attribuzione OSM.
+  DXF salvati validati con ezdxf (audit 0 errori), PDF con PyMuPDF (annotazioni Ink lette e disegnate). Testi: chiavi
+  `ink.*`, `touch.*` nelle 5 lingue. Collaudi dalla console: `MB.active.api._ink` (PDF).
