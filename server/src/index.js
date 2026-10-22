@@ -222,7 +222,7 @@ async function admin(env, req, url) {
 // licenza senza scrivere la chiave. Dopo ogni attivazione via link la licenza resta bloccata LOCK_MIN minuti: niente link
 // nuovi e niente altre attivazioni via link (blocco con UPDATE condizionato: atomico anche con richieste contemporanee).
 // iPhone: l'app installata dalla Home non vede i cookie di Safari -> codice di 6 cifre da inserire nell'app (stesso posto).
-const LINK_MIN = 10, LOCK_MIN = 5, PAIR_MIN = 30;
+const LINK_MIN = 10, LOCK_MIN = 1, PAIR_MIN = 30;  // blocco tra due cellulari: 1 minuto (richiesta dell utente)
 const minutesAgo = m => new Date(Date.now() - m * 60000).toISOString().replace("T", " ").slice(0, 19);
 const minutesAhead = m => new Date(Date.now() + m * 60000).toISOString().replace("T", " ").slice(0, 19);
 const activeMobiles = async (env, key) => (await env.DB.prepare("SELECT COUNT(*) AS n FROM devices WHERE license_key = ? AND kind = 'mobile' AND status = 'active'").bind(key).first()).n;

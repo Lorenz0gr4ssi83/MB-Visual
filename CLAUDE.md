@@ -194,7 +194,7 @@ ode-x64 e wrangler installato in
   clic = QR grande; QR disegnato in locale con qrcode-generator 2.0.4 MIT in ui/vendor) + `license.mobile_link` (API
   license/mobile, ogni 6 s mentre la home e' visibile). Server: POST /v1/mlink (link monouso 10 min, posti liberi, blocco),
   GET /l/<link> (pagina del telefono), /v1/mlink/claim (attiva il cellulare: UPDATE condizionati -> un solo telefono per link e
-  blocco della licenza 5 min con `licenses.mobile_lock`, rilasciato se l'attivazione fallisce), /v1/mlink/pair (codice di 6 cifre
+  blocco della licenza 1 min con `licenses.mobile_lock`, rilasciato se l'attivazione fallisce), /v1/mlink/pair (codice di 6 cifre
   per l'app installata su iPhone, che non vede i cookie di Safari: prende lo stesso posto). Tabelle mobile_links e pair_codes
   (migrazione `server/migrations/001_qr_cellulari.sql`; online `d1 execute --file` da' errore di autenticazione: usare --command).
   Testi chiavi `mqr.*` (5 lingue). Le icone dei pulsanti hanno un contorno: sul QR va tolto (stroke: none) o copre i moduli.

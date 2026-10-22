@@ -192,7 +192,7 @@ if (process.argv[2] === "serve") {
   const claimed = okOne[0];
   ok(/^\d{6}$/.test(claimed.d.codice) && /mbv_m=[^;]+/.test(claimed.r.headers.get("set-cookie") || ""), "QR: telefono attivato (cookie) + codice di 6 cifre");
   ml = (await post("/v1/mlink", { token: qpc })).d;
-  ok(ml.liberi === 1 && !ml.url && ml.attesa_fino > Date.now() + 4 * 60000, "QR: dopo l'attivazione 1 libero e blocco di 5 minuti senza link");
+  ok(ml.liberi === 1 && !ml.url && ml.attesa_fino > Date.now() + 30000, "QR: dopo l'attivazione 1 libero e blocco di 1 minuto senza link");
   env._db.prepare("INSERT INTO mobile_links (token, license_key, expires) VALUES ('altro-link-di-prova-123456789', ?, datetime('now','+10 minutes'))").run(qk);
   ok((await post("/v1/mlink/claim", { link: "altro-link-di-prova-123456789", device: "tel-c" })).r.status === 429, "QR: durante il blocco il server rifiuta altre attivazioni via link");
   ok((await post("/v1/mlink/claim", { link: linkTok, device: "tel-z" })).r.status === 410, "QR: link gia' usato rifiutato");

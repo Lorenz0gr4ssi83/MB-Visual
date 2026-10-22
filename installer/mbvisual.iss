@@ -23,6 +23,9 @@ AppComments=Visualizzatore e editor di documenti, disegni CAD, modelli 3D e BIM
 DefaultDirName={localappdata}\Programs\MB Visual
 DisableDirPage=yes
 DisableProgramGroupPage=yes
+; niente pagine con percorsi o nomi utente: si vede solo cosa sta accadendo (richiesta dell'utente)
+DisableReadyPage=yes
+DisableWelcomePage=yes
 DefaultGroupName=MB Visual
 PrivilegesRequired=lowest
 OutputDir={#OutDir}
