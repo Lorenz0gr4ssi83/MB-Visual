@@ -12,17 +12,17 @@ import {
   AUDIO_TRANSITIONS, BLENDS, EFFECTS, FONTS, PRESETS, RATES, TRANSITIONS, clamp, dbToLin, defaultTitle, layout,
   parseTc, propAt, renderTitle, tc, uid, validateTransitions,
 } from "./vidmodel.js";
-import { LOCALE } from "./i18n.js";
+import { t as _t, LOCALE } from "./i18n.js";
 
 const RULER = 26;
 const HEAD_W = 172;
 const KIND_COLOR = { video: "#7d73c4", audio: "#4f9b5c", image: "#a86bb8", title: "#c46a8f", color: "#7f8a92" };
 const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "jfif", "gif", "webp", "bmp", "tif", "tiff", "avif", "heic", "heif", "psd", "ico", "svg"]);
 const TOOLS = [
-  ["select", "Strumento Selezione", "V"], ["trackfwd", "Strumento Selezione traccia in avanti", "A"], ["ripple", "Strumento Modifica con ripple", "B"],
-  ["rolling", "Strumento Modifica con rullo", "N"], ["rate", "Strumento Allungamento velocita'", "R"], ["razor", "Strumento Lama di rasoio", "C"],
-  ["slip", "Strumento Slittamento", "Y"], ["slide", "Strumento Scorrimento", "U"], ["pen", "Strumento Penna (fotogrammi chiave)", "P"],
-  ["hand", "Strumento Mano", "H"], ["zoom", "Strumento Zoom", "Z"], ["type", "Strumento Testo", "T"],
+  ["select", _t("videdit.strumento_selezione"), "V"], ["trackfwd", _t("videdit.strumento_selezione_traccia_avanti"), "A"], ["ripple", _t("videdit.strumento_modifica_ripple"), "B"],
+  ["rolling", _t("videdit.strumento_modifica_rullo"), "N"], ["rate", _t("videdit.strumento_allungamento_velocita"), "R"], ["razor", _t("videdit.strumento_lama_rasoio"), "C"],
+  ["slip", _t("videdit.strumento_slittamento"), "Y"], ["slide", _t("videdit.strumento_scorrimento"), "U"], ["pen", _t("videdit.strumento_penna_fotogrammi_chiave"), "P"],
+  ["hand", _t("videdit.strumento_mano"), "H"], ["zoom", _t("videdit.strumento_zoom"), "Z"], ["type", _t("videdit.strumento_testo"), "T"],
 ];
 const EPS = 1e-6;
 
@@ -49,9 +49,9 @@ export function createVideoEditor(ctx, P, opts = {}) {
   ctx.el.append(root);
   const tabsUL = el("div", { class: "ve-ptabs" }), bodyUL = el("div", { class: "ve-pbody" });
   const panelUL = el("section", { class: "ve-panel ve-ul" }, tabsUL, bodyUL);
-  const splitV = el("div", { class: "ve-split-v", title: "Trascina per ridimensionare" });
+  const splitV = el("div", { class: "ve-split-v", title: _t("videdit.trascina_ridimensionare") });
   const prog = el("section", { class: "ve-panel ve-prog" });
-  const splitH = el("div", { class: "ve-split-h", title: "Trascina per ridimensionare" });
+  const splitH = el("div", { class: "ve-split-h", title: _t("videdit.trascina_ridimensionare") });
   const lower = el("div", { class: "ve-lower" });
   root.append(panelUL, splitV, prog, splitH, lower);
   const tabsLL = el("div", { class: "ve-ptabs" }), bodyLL = el("div", { class: "ve-pbody" });
@@ -83,8 +83,8 @@ export function createVideoEditor(ctx, P, opts = {}) {
     g.body = id => defs.find(d => d.id === id).body;
     return g;
   }
-  const UL = tabGroup(tabsUL, bodyUL, [{ id: "source", name: "Sorgente", cls: "ve-src" }, { id: "ec", name: "Controlli effetti", cls: "ve-ec", onShow: () => renderEC() }, { id: "mixer", name: "Mixer tracce audio", cls: "ve-mixer", onShow: () => renderMixer() }]);
-  const LL = tabGroup(tabsLL, bodyLL, [{ id: "project", name: "Progetto", cls: "ve-proj" }, { id: "effects", name: "Effetti", cls: "ve-fxlib" }]);
+  const UL = tabGroup(tabsUL, bodyUL, [{ id: "source", name: _t("videdit.sorgente"), cls: "ve-src" }, { id: "ec", name: _t("videdit.controlli_effetti"), cls: "ve-ec", onShow: () => renderEC() }, { id: "mixer", name: _t("videdit.mixer_tracce_audio"), cls: "ve-mixer", onShow: () => renderMixer() }]);
+  const LL = tabGroup(tabsLL, bodyLL, [{ id: "project", name: _t("videdit.progetto"), cls: "ve-proj" }, { id: "effects", name: _t("videdit.effetti"), cls: "ve-fxlib" }]);
 
   // ------------------------------------------------------------------ cronologia
   const snapState = () => JSON.stringify({ settings: P.settings, media: P.media, tracks: P.tracks, clips: P.clips, transitions: P.transitions, markers: P.markers, inPoint: P.inPoint, outPoint: P.outPoint, srcV: P.srcV, srcA: P.srcA });
@@ -106,8 +106,8 @@ export function createVideoEditor(ctx, P, opts = {}) {
     ctx.setDirty(true);
     refresh();
   }
-  const undo = () => { if (hi > 0) { const l = history[hi].label; hi--; restore(history[hi].s); ctx.status("Annullato: " + l); } };
-  const redo = () => { if (hi < history.length - 1) { hi++; restore(history[hi].s); ctx.status("Ripetuto: " + history[hi].label); } };
+  const undo = () => { if (hi > 0) { const l = history[hi].label; hi--; restore(history[hi].s); ctx.status(_t("videdit.annullato") + l); } };
+  const redo = () => { if (hi < history.length - 1) { hi++; restore(history[hi].s); ctx.status(_t("videdit.ripetuto") + history[hi].label); } };
 
   // ------------------------------------------------------------------ utilita' del modello
   const byId = id => P.clips.find(c => c.id === id);
@@ -187,13 +187,13 @@ export function createVideoEditor(ctx, P, opts = {}) {
       const i = await probe(path);
       const ext = extOf(path);
       const kind = i.still || (IMAGE_EXT.has(ext) && !i.dur) ? "image" : i.video ? "video" : i.audio ? "audio" : null;
-      if (!kind) { toast(`"${baseName(path)}" non contiene audio o video utilizzabili`, true); continue; }
+      if (!kind) { toast(_t("videdit.0_non_contiene_audio_video", baseName(path)), true); continue; }
       const m = { id: uid("m"), path, name: baseName(path), kind, dur: kind === "image" ? null : i.dur, w: i.w, h: i.h, fps: i.fps, audio: kind !== "image" && !!i.audio };
       P.media.push(m);
       added.push(m);
       loadMeta(m);
     }
-    if (added.length && !silent) commit("Importa");
+    if (added.length && !silent) commit(_t("videdit.importa"));
     renderProject();
     return added;
   }
@@ -218,25 +218,25 @@ export function createVideoEditor(ctx, P, opts = {}) {
   const progCanvas = el("canvas", { class: "ve-canvas" });
   const progOverlay = el("div", { class: "ve-overlay" });
   const progStage = el("div", { class: "ve-stage" }, progCanvas, progOverlay);
-  const progTc = el("span", { class: "ve-tc ve-tc-main", title: "Posizione della testina (clic per digitare un timecode)" });
-  const progDur = el("span", { class: "ve-tc ve-tc-dur", title: "Durata della sequenza (o da attacco a stacco)" });
-  const resSel = el("select", { class: "ve-sel", id: "ve-res-" + ctx.tab.name, title: "Risoluzione di riproduzione", onchange: () => { player.q = +resSel.value; player.dirty = true; player.idle(); } },
-    ...[[1, "Intera"], [0.5, "1/2"], [0.25, "1/4"]].map(([v, n]) => el("option", { value: v }, n)));
-  const zoomSel = el("select", { class: "ve-sel", id: "ve-zoom-" + ctx.tab.name, title: "Zoom del monitor", onchange: () => fitMonitor() },
-    ...[["fit", "Adatta"], [0.25, "25%"], [0.5, "50%"], [1, "100%"]].map(([v, n]) => el("option", { value: v }, n)));
+  const progTc = el("span", { class: "ve-tc ve-tc-main", title: _t("videdit.posizione_testina_clic_digitare_timecode") });
+  const progDur = el("span", { class: "ve-tc ve-tc-dur", title: _t("videdit.durata_sequenza_attacco_stacco") });
+  const resSel = el("select", { class: "ve-sel", id: "ve-res-" + ctx.tab.name, title: _t("videdit.risoluzione_riproduzione"), onchange: () => { player.q = +resSel.value; player.dirty = true; player.idle(); } },
+    ...[[1, _t("videdit.intera")], [0.5, "1/2"], [0.25, "1/4"]].map(([v, n]) => el("option", { value: v }, n)));
+  const zoomSel = el("select", { class: "ve-sel", id: "ve-zoom-" + ctx.tab.name, title: _t("videdit.zoom_monitor"), onchange: () => fitMonitor() },
+    ...[["fit", _t("videdit.adatta")], [0.25, "25%"], [0.5, "50%"], [1, "100%"]].map(([v, n]) => el("option", { value: v }, n)));
   const tbtn = (icon, title, fn, cls = "") => { const b = el("button", { class: "ve-tbtn " + cls, type: "button", title, onclick: fn }); b.innerHTML = vIcon(icon); return b; };
   const playBtn = tbtn("play", "Riproduci/Interrompi (Spazio)", () => { focus = "program"; togglePlay(); }, "ve-play");
   prog.append(el("div", { class: "ve-ptabs" }, el("span", { class: "ve-ptab on" }, "Programma: sequenza")), progStage,
     el("div", { class: "ve-mbar" }, progTc, el("span", { class: "grow" }), zoomSel, resSel, el("span", { class: "grow" }), progDur),
     el("div", { class: "ve-transport" },
-      tbtn("marker", "Aggiungi marcatore (M)", () => addMarker()), tbtn("markIn", "Contrassegna attacco (I)", () => markIn()), tbtn("markOut", "Contrassegna stacco (O)", () => markOut()),
+      tbtn("marker", _t("videdit.aggiungi_marcatore_m"), () => addMarker()), tbtn("markIn", _t("videdit.contrassegna_attacco_i"), () => markIn()), tbtn("markOut", _t("videdit.contrassegna_stacco"), () => markOut()),
       el("span", { class: "ve-tsep" }),
-      tbtn("goIn", "Vai ad attacco (Maiusc+I)", () => goto(P.inPoint ?? 0)), tbtn("stepBack", "Indietro di un fotogramma (Freccia sinistra)", () => step(-1)), playBtn,
-      tbtn("stepFwd", "Avanti di un fotogramma (Freccia destra)", () => step(1)), tbtn("goOut", "Vai a stacco (Maiusc+O)", () => goto(P.outPoint ?? total())),
+      tbtn("goIn", _t("videdit.vai_ad_attacco_maiusc_i"), () => goto(P.inPoint ?? 0)), tbtn("stepBack", _t("videdit.indietro_fotogramma_freccia_sinistra"), () => step(-1)), playBtn,
+      tbtn("stepFwd", _t("videdit.avanti_fotogramma_freccia_destra"), () => step(1)), tbtn("goOut", _t("videdit.vai_stacco_maiusc"), () => goto(P.outPoint ?? total())),
       el("span", { class: "ve-tsep" }),
-      tbtn("lift", "Solleva (;)", () => liftInOut()), tbtn("extract", "Estrai (')", () => extractInOut()), tbtn("camera", "Esporta fotogramma (Ctrl+Maiusc+E)", () => exportFrame())));
+      tbtn("lift", "Solleva (;)", () => liftInOut()), tbtn("extract", _t("videdit.estrai"), () => extractInOut()), tbtn("camera", _t("videdit.esporta_fotogramma_ctrl_maiusc"), () => exportFrame())));
   progStage.addEventListener("pointerdown", () => { focus = "program"; });
-  progTc.addEventListener("click", async () => { const v = await askText("Vai al timecode", "Timecode (hh:mm:ss:ff)", tc(player.t, fps)); const t = v && parseTc(v, fps); if (t !== null && t !== undefined && !isNaN(t)) goto(t); });
+  progTc.addEventListener("click", async () => { const v = await askText(_t("videdit.vai_timecode"), "Timecode (hh:mm:ss:ff)", tc(player.t, fps)); const t = v && parseTc(v, fps); if (t !== null && t !== undefined && !isNaN(t)) goto(t); });
 
   let player;
   try {
@@ -244,8 +244,8 @@ export function createVideoEditor(ctx, P, opts = {}) {
       onTime: (t, stopped) => { P.playhead = t; showTime(); followPlayhead(); if (stopped) { playBtn.innerHTML = vIcon("play"); drawOverlay(); } },
       onMeter: v => drawMeters(v),
       end: () => (P.outPoint !== null && P.outPoint !== undefined && player.t < P.outPoint ? P.outPoint : total()),
-      onBusy: m => ctx.status(`Conformazione di ${m.name} per l'anteprima...`),
-      onProgress: (m, p) => ctx.status(`Conformazione di ${m.name}: ${Math.round(p * 100)}%`),
+      onBusy: m => ctx.status(_t("videdit.conformazione_0_l_anteprima", m.name)),
+      onProgress: (m, p) => ctx.status(_t("videdit.conformazione_0_1", m.name, Math.round(p * 100))),
       onReady: () => { status(); drawTL(); },
       onError: (m, e) => toast(`${m.name}: ${e.message}`, true, 6000),
     });
@@ -295,7 +295,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
     shuttle = Math.sign(shuttle) === dir ? clamp(shuttle * 2, -8, 8) : dir;
     player.play(shuttle);
     playBtn.innerHTML = vIcon("pause");
-    ctx.status(`Riproduzione ${shuttle > 0 ? "avanti" : "indietro"} ${Math.abs(shuttle)}×`);
+    ctx.status(_t("videdit.riproduzione_0_1", shuttle > 0 ? "avanti" : "indietro", Math.abs(shuttle)));
   }
 
   // riquadro di trasformazione sul monitor (doppio clic su una clip in Premiere: qui basta selezionarla)
@@ -364,7 +364,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
       else { let dx = qx - st.px, dy = qy - st.py; if (ev.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; } setProp(c, "x", Math.round(st.x + dx)); setProp(c, "y", Math.round(st.y + dy)); }
       player.dirty = true; player.idle(); drawMonitorOverlay(); updateECValues();
     };
-    const up = () => { progStage.removeEventListener("pointermove", mv); progStage.removeEventListener("pointerup", up); commit(h === "rot" ? "Rotazione" : h ? "Scala" : "Posizione"); };
+    const up = () => { progStage.removeEventListener("pointermove", mv); progStage.removeEventListener("pointerup", up); commit(h === "rot" ? _t("videdit.rotazione") : h ? _t("videdit.scala") : _t("videdit.posizione")); };
     progStage.addEventListener("pointermove", mv); progStage.addEventListener("pointerup", up);
   });
 
@@ -384,23 +384,23 @@ export function createVideoEditor(ctx, P, opts = {}) {
   const srcVideo = el("video", { class: "ve-srcmedia", preload: "auto", playsinline: true, hidden: true });
   const srcImg = el("img", { class: "ve-srcmedia", hidden: true });
   const srcWave = el("canvas", { class: "ve-srcwave", hidden: true });
-  const srcEmpty = el("div", { class: "ve-empty" }, "Fai doppio clic su un elemento del pannello Progetto per aprirlo nel monitor Sorgente");
+  const srcEmpty = el("div", { class: "ve-empty" }, _t("videdit.fai_doppio_clic_elemento_pannello"));
   const srcStage = el("div", { class: "ve-stage" }, srcVideo, srcImg, srcWave, srcEmpty);
-  const srcBar = el("canvas", { class: "ve-srcbar", title: "Clic o trascina per scorrere; I e O impostano attacco e stacco" });
+  const srcBar = el("canvas", { class: "ve-srcbar", title: _t("videdit.clic_trascina_scorrere_i_impostano") });
   const srcTc = el("span", { class: "ve-tc ve-tc-main" }), srcDur = el("span", { class: "ve-tc ve-tc-dur" });
   const srcName = el("span", { class: "ve-srcname" });
   const srcPlay = tbtn("play", "Riproduci/Interrompi (Spazio)", () => { focus = "source"; toggleSource(); }, "ve-play");
-  const dragBtn = el("button", { class: "ve-tbtn ve-dragsrc", type: "button", title: "Trascina nella timeline (video e audio)" });
+  const dragBtn = el("button", { class: "ve-tbtn ve-dragsrc", type: "button", title: _t("videdit.trascina_timeline_video_audio") });
   dragBtn.innerHTML = vIcon("film") + vIcon("audio");
   UL.body("source").append(el("div", { class: "ve-srchead" }, srcName), srcStage, srcBar,
     el("div", { class: "ve-mbar" }, srcTc, el("span", { class: "grow" }), dragBtn, el("span", { class: "grow" }), srcDur),
     el("div", { class: "ve-transport" },
-      tbtn("markIn", "Contrassegna attacco (I)", () => { focus = "source"; srcMark("in"); }), tbtn("markOut", "Contrassegna stacco (O)", () => { focus = "source"; srcMark("out"); }),
+      tbtn("markIn", _t("videdit.contrassegna_attacco_i"), () => { focus = "source"; srcMark("in"); }), tbtn("markOut", _t("videdit.contrassegna_stacco"), () => { focus = "source"; srcMark("out"); }),
       el("span", { class: "ve-tsep" }),
-      tbtn("goIn", "Vai ad attacco (Maiusc+I)", () => srcSeek(src.in ?? 0)), tbtn("stepBack", "Indietro di un fotogramma", () => srcSeek(srcVideo.currentTime - fr())), srcPlay,
-      tbtn("stepFwd", "Avanti di un fotogramma", () => srcSeek(srcVideo.currentTime + fr())), tbtn("goOut", "Vai a stacco (Maiusc+O)", () => srcSeek(src.out ?? srcLen())),
+      tbtn("goIn", _t("videdit.vai_ad_attacco_maiusc_i"), () => srcSeek(src.in ?? 0)), tbtn("stepBack", _t("videdit.indietro_fotogramma"), () => srcSeek(srcVideo.currentTime - fr())), srcPlay,
+      tbtn("stepFwd", _t("videdit.avanti_fotogramma"), () => srcSeek(srcVideo.currentTime + fr())), tbtn("goOut", _t("videdit.vai_stacco_maiusc"), () => srcSeek(src.out ?? srcLen())),
       el("span", { class: "ve-tsep" }),
-      tbtn("insert", "Inserisci (,)", () => fromSource(true)), tbtn("overwrite", "Sovrascrivi (.)", () => fromSource(false))));
+      tbtn("insert", _t("videdit.inserisci"), () => fromSource(true)), tbtn("overwrite", _t("videdit.sovrascrivi"), () => fromSource(false))));
   UL.body("source").addEventListener("pointerdown", () => { focus = "source"; });
   const srcLen = () => (src.m?.kind === "image" ? 5 : src.m?.dur || srcVideo.duration || 0);
   async function openSource(m) {
@@ -485,7 +485,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
   srcWave.addEventListener("pointerdown", e => { const r = srcWave.getBoundingClientRect(); srcSeek((e.clientX - r.left) / r.width * srcLen()); });
   // inserisci / sovrascrivi alla testina sulle tracce di destinazione (V1/A1 evidenziate nelle intestazioni)
   function fromSource(insert) {
-    if (!src.m) return toast("Apri prima un elemento nel monitor Sorgente", true);
+    if (!src.m) return toast(_t("videdit.apri_prima_elemento_monitor_sorgente"), true);
     const a = src.in ?? 0, b = src.out ?? srcLen();
     placeMedia(src.m, player.t, P.srcV, P.srcA, insert, { in: a, dur: b - a });
     goto(player.t + (b - a));
@@ -496,12 +496,12 @@ export function createVideoEditor(ctx, P, opts = {}) {
   let projView = "icons";
   const projList = el("div", { class: "ve-projlist" });
   const projBar = el("div", { class: "ve-pfoot" },
-    tbtn("list", "Vista elenco", () => { projView = "list"; renderProject(); }), tbtn("icons", "Vista icone", () => { projView = "icons"; renderProject(); }),
+    tbtn("list", _t("videdit.vista_elenco"), () => { projView = "list"; renderProject(); }), tbtn("icons", _t("videdit.vista_icone"), () => { projView = "icons"; renderProject(); }),
     el("span", { class: "grow" }),
-    tbtn("import", "Importa... (Ctrl+I)", doImport), tbtn("newItem", "Nuovo elemento: titolo o colore", e => openMenuAt(e.currentTarget, [
-      { label: "Titolo", keys: "Ctrl+T", run: () => newTitle() }, { label: "Colore a tinta unita...", run: () => newColor() }], "up")),
-    tbtn("trash", "Elimina gli elementi selezionati (Canc)", () => deleteMedia()));
-  const projSearch = el("input", { type: "search", class: "ve-search", id: "ve-psearch-" + ctx.tab.name, placeholder: "Cerca nel progetto", oninput: () => renderProject() });
+    tbtn("import", _t("videdit.importa_ctrl_i"), doImport), tbtn("newItem", _t("videdit.nuovo_elemento_titolo_colore"), e => openMenuAt(e.currentTarget, [
+      { label: _t("videdit.titolo"), keys: "Ctrl+T", run: () => newTitle() }, { label: _t("videdit.colore_tinta_unita"), run: () => newColor() }], "up")),
+    tbtn("trash", _t("videdit.elimina_elementi_selezionati_canc"), () => deleteMedia()));
+  const projSearch = el("input", { type: "search", class: "ve-search", id: "ve-psearch-" + ctx.tab.name, placeholder: _t("videdit.cerca_progetto"), oninput: () => renderProject() });
   LL.body("project").append(el("div", { class: "ve-phead" }, el("span", { class: "ve-projname" }, ctx.name), projSearch), projList, projBar);
   let projSel = new Set();
   function renderProject() {
@@ -509,7 +509,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
     projList.className = "ve-projlist " + (projView === "list" ? "list" : "icons");
     const q = projSearch.value.trim().toLowerCase();
     const items = P.media.filter(m => !q || m.name.toLowerCase().includes(q));
-    if (!items.length) projList.append(el("div", { class: "ve-empty" }, q ? "Nessun elemento corrisponde" : "Importa file multimediali: Ctrl+I, pulsante Importa o trascinali qui da Esplora risorse"));
+    if (!items.length) projList.append(el("div", { class: "ve-empty" }, q ? _t("videdit.nessun_elemento_corrisponde") : _t("videdit.importa_file_multimediali_ctrl_i")));
     for (const m of items) {
       const th = thumbs.get(m.id);
       const pic = el("div", { class: "ve-ppic" });
@@ -520,9 +520,9 @@ export function createVideoEditor(ctx, P, opts = {}) {
       } else if (m.kind === "image" && !m.offline) pic.append(el("img", { src: fileUrl(m.path), loading: "lazy" }));
       else pic.innerHTML = vIcon(m.kind === "audio" ? "audio" : m.kind === "image" ? "image" : "film", 30);
       const used = P.clips.filter(c => c.media === m.id).length;
-      const row = el("div", { class: "ve-pitem" + (projSel.has(m.id) ? " on" : "") + (m.offline ? " offline" : ""), title: m.path + (m.offline ? "\nSupporto non in linea: clic destro > Collega supporto" : "") },
+      const row = el("div", { class: "ve-pitem" + (projSel.has(m.id) ? " on" : "") + (m.offline ? " offline" : ""), title: m.path + (m.offline ? _t("videdit.supporto_non_linea_clic_destro") : "") },
         pic, el("span", { class: "ve-pname" }, m.name),
-        el("span", { class: "ve-pmeta" }, (m.kind === "image" ? "Immagine" : tc(m.dur || 0, fps)) + (m.w ? ` · ${m.w}×${m.h}` : "") + (m.fps && m.kind === "video" ? ` · ${m.fps} fps` : "") + (used ? ` · usato ${used}×` : "")));
+        el("span", { class: "ve-pmeta" }, (m.kind === "image" ? _t("videdit.immagine") : tc(m.dur || 0, fps)) + (m.w ? ` · ${m.w}×${m.h}` : "") + (m.fps && m.kind === "video" ? ` · ${m.fps} fps` : "") + (used ? _t("videdit.usato_0", used) : "")));
       row.addEventListener("pointerdown", e => {
         if (e.button === 2) return;
         if (e.ctrlKey) { projSel.has(m.id) ? projSel.delete(m.id) : projSel.add(m.id); } else if (!projSel.has(m.id)) projSel = new Set([m.id]);
@@ -531,9 +531,9 @@ export function createVideoEditor(ctx, P, opts = {}) {
       });
       row.addEventListener("dblclick", () => openSource(m));
       row.addEventListener("contextmenu", e => { e.preventDefault(); projSel = new Set([m.id]); renderProject(); openMenuAt({ x: e.clientX, y: e.clientY }, [
-        { label: "Apri nel monitor Sorgente", run: () => openSource(m) }, { label: "Aggiungi alla timeline (alla testina)", run: () => placeMedia(m, player.t, P.srcV, P.srcA, false) },
-        { label: "Rinomina...", run: async () => { const n = await askText("Rinomina", "Nome", m.name); if (n) { m.name = n; commit("Rinomina"); } } },
-        { label: "Collega supporto...", run: () => relink(m) }, "-", { label: "Elimina", run: () => deleteMedia() }]); });
+        { label: _t("videdit.apri_monitor_sorgente"), run: () => openSource(m) }, { label: _t("videdit.aggiungi_timeline_testina"), run: () => placeMedia(m, player.t, P.srcV, P.srcA, false) },
+        { label: _t("videdit.rinomina"), run: async () => { const n = await askText(_t("common.rinomina"), _t("common.nome"), m.name); if (n) { m.name = n; commit(_t("common.rinomina")); } } },
+        { label: _t("videdit.collega_supporto"), run: () => relink(m) }, "-", { label: _t("common.elimina"), run: () => deleteMedia() }]); });
       projList.append(row);
     }
   }
@@ -541,11 +541,11 @@ export function createVideoEditor(ctx, P, opts = {}) {
     const ids = [...projSel];
     if (!ids.length) return;
     const used = P.clips.filter(c => ids.includes(c.media));
-    if (used.length && !(await confirmBox("Elimina dal progetto", `Gli elementi sono usati da ${used.length} clip nella timeline: verranno tolte anche quelle. Continuare?`, "Elimina", true))) return;
+    if (used.length && !(await confirmBox(_t("videdit.elimina_progetto"), _t("videdit.elementi_sono_usati_0_clip", used.length), _t("common.elimina"), true))) return;
     used.forEach(removeClip);
     P.media = P.media.filter(m => !ids.includes(m.id));
     projSel.clear();
-    commit("Elimina elementi");
+    commit(_t("videdit.elimina_elementi"));
   }
   async function relink(m) {
     const ps = await pickFiles();
@@ -553,7 +553,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
     m.path = ps[0]; m.name = baseName(ps[0]); delete m.offline;
     player.forget(m.id); wave.delete(m.id); thumbs.delete(m.id);
     loadMeta(m);
-    commit("Collega supporto");
+    commit(_t("videdit.collega_supporto_2"));
   }
 
   // trascinamento di un elemento (pannello Progetto o Sorgente) nella timeline
@@ -587,10 +587,10 @@ export function createVideoEditor(ctx, P, opts = {}) {
   }
   // mette un elemento in timeline: clip video (o immagine) + clip audio collegata
   async function placeMedia(m, t, vt, at, insert, range = null) {
-    if (m.offline) return toast("Supporto non in linea: collegalo prima (clic destro > Collega supporto)", true);
+    if (m.offline) return toast(_t("videdit.supporto_non_linea_collegalo_prima"), true);
     if (m.kind === "video" && !P.clips.some(c => c.kind === "video") && m.w && (m.w !== P.settings.w || m.h !== P.settings.h || (m.fps && Math.abs(m.fps - fps) > 0.01))) {
-      const r = await modal("Avviso di mancata corrispondenza della clip", el("p", {}, `La clip (${m.w}×${m.h}, ${m.fps} fps) non corrisponde alle impostazioni della sequenza (${P.settings.w}×${P.settings.h}, ${fps} fps). Vuoi adattare la sequenza alla clip?`),
-        [{ label: "Mantieni impostazioni attuali", value: "keep" }, { label: "Cambia impostazioni sequenza", value: "change", primary: true }]);
+      const r = await modal(_t("videdit.avviso_mancata_corrispondenza_clip"), el("p", {}, _t("videdit.clip_0_1_2_fps", m.w, m.h, m.fps, P.settings.w, P.settings.h, fps)),
+        [{ label: _t("videdit.mantieni_impostazioni_attuali"), value: "keep" }, { label: _t("videdit.cambia_impostazioni_sequenza"), value: "change", primary: true }]);
       if (r === "change") { P.settings.w = m.w; P.settings.h = m.h; if (m.fps) P.settings.fps = fps = nearestRate(m.fps); fitMonitor(); }
     }
     t = snapF(Math.max(0, t));
@@ -611,7 +611,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
     else for (const c of made) liftRange(c.track, t, t + dur);
     P.clips.push(...made);
     sel = new Set(made.map(c => c.id)); selTr = null;
-    commit(insert ? "Inserisci" : "Sovrascrivi");
+    commit(insert ? _t("videdit.inserisci_2") : _t("videdit.sovrascrivi_2"));
   }
   const nearestRate = f => RATES.reduce((b, r) => (Math.abs(r - f) < Math.abs(b - f) ? r : b), RATES[0]);
 
@@ -627,40 +627,40 @@ export function createVideoEditor(ctx, P, opts = {}) {
     const top = [...P.tracks.v].reverse().find(tr => clipsOn(tr.id).some(c => c.start < t + d && end(c) > t));
     let tid = top ? P.tracks.v[P.tracks.v.indexOf(top) + 1]?.id : P.tracks.v[0].id;
     if (!tid || clipsOn(tid).some(c => c.start < t + d && end(c) > t)) tid = freeVideoTrack(t, t + d);
-    const c = { id: uid("c"), kind: "title", track: tid, start: t, dur: d, in: 0, speed: 1, name: "Titolo", title: defaultTitle(),
+    const c = { id: uid("c"), kind: "title", track: tid, start: t, dur: d, in: 0, speed: 1, name: _t("videdit.titolo"), title: defaultTitle(),
       motion: { x: x ?? P.settings.w / 2, y: y ?? P.settings.h * 0.8, scale: 100, rot: 0 }, opacity: 100, blend: "normal", fx: [], kf: {} };
     c.title.size = Math.round(P.settings.h / 11);
     P.clips.push(c);
     sel = new Set([c.id]); selTr = null;
-    commit("Nuovo titolo");
+    commit(_t("videdit.nuovo_titolo"));
     UL.show("ec");
     setTimeout(() => { const ta = UL.body("ec").querySelector("textarea"); ta?.focus(); ta?.select(); }, 30);
     setTool("select");
   }
   async function newColor() {
     const inp = el("input", { type: "color", value: "#1a4f8c", id: "ve-newcolor" });
-    const v = await modal("Colore a tinta unita", el("label", { style: { display: "flex", gap: "10px", alignItems: "center" } }, "Colore", inp), [{ label: "Annulla", value: null }, { label: "OK", primary: true, value: () => inp.value }]);
+    const v = await modal(_t("videdit.colore_tinta_unita_2"), el("label", { style: { display: "flex", gap: "10px", alignItems: "center" } }, _t("common.colore"), inp), [{ label: _t("common.annulla"), value: null }, { label: "OK", primary: true, value: () => inp.value }]);
     if (!v) return;
     const t = snapF(player.t), tid = freeVideoTrack(t, t + 5);
-    const c = { id: uid("c"), kind: "color", track: tid, start: t, dur: 5, in: 0, speed: 1, name: "Colore " + v, color: v, motion: defMotion(), opacity: 100, blend: "normal", fx: [], kf: {} };
+    const c = { id: uid("c"), kind: "color", track: tid, start: t, dur: 5, in: 0, speed: 1, name: _t("videdit.colore") + v, color: v, motion: defMotion(), opacity: 100, blend: "normal", fx: [], kf: {} };
     P.clips.push(c);
     sel = new Set([c.id]);
-    commit("Colore a tinta unita");
+    commit(_t("videdit.colore_tinta_unita_2"));
   }
 
   // ------------------------------------------------------------------ pannello Effetti (libreria)
-  const fxSearch = el("input", { type: "search", class: "ve-search", id: "ve-fxsearch-" + ctx.tab.name, placeholder: "Cerca effetti e transizioni", oninput: () => renderFxLib() });
+  const fxSearch = el("input", { type: "search", class: "ve-search", id: "ve-fxsearch-" + ctx.tab.name, placeholder: _t("videdit.cerca_effetti_transizioni"), oninput: () => renderFxLib() });
   const fxTree = el("div", { class: "ve-fxtree" });
   LL.body("effects").append(el("div", { class: "ve-phead" }, fxSearch), fxTree);
-  const fxOpen = new Set(["Effetti video", "Transizioni video", "Effetti audio", "Transizioni audio"]);
+  const fxOpen = new Set([_t("videdit.effetti_video"), _t("videdit.transizioni_video"), _t("videdit.effetti_audio"), _t("videdit.transizioni_audio")]);
   function renderFxLib() {
     fxTree.innerHTML = "";
     const q = fxSearch.value.trim().toLowerCase();
     const sections = [
-      ["Effetti video", Object.entries(EFFECTS).map(([k, e]) => ({ kind: "vfx", k, name: e.name, group: e.group }))],
-      ["Transizioni video", Object.entries(TRANSITIONS).map(([k, e]) => ({ kind: "vtr", k, name: e.name, group: e.group }))],
-      ["Effetti audio", [{ kind: "afx", k: "normalize", name: "Normalizza (picco a -1 dB)", group: "Ampiezza" }, { kind: "afx", k: "gain", name: "Guadagno audio...", group: "Ampiezza" }]],
-      ["Transizioni audio", Object.entries(AUDIO_TRANSITIONS).map(([k, e]) => ({ kind: "atr", k, name: e.name, group: e.group }))],
+      [_t("videdit.effetti_video"), Object.entries(EFFECTS).map(([k, e]) => ({ kind: "vfx", k, name: e.name, group: e.group }))],
+      [_t("videdit.transizioni_video"), Object.entries(TRANSITIONS).map(([k, e]) => ({ kind: "vtr", k, name: e.name, group: e.group }))],
+      [_t("videdit.effetti_audio"), [{ kind: "afx", k: "normalize", name: _t("videdit.normalizza_picco_1_db"), group: _t("videdit.ampiezza") }, { kind: "afx", k: "gain", name: _t("videdit.guadagno_audio"), group: _t("videdit.ampiezza") }]],
+      [_t("videdit.transizioni_audio"), Object.entries(AUDIO_TRANSITIONS).map(([k, e]) => ({ kind: "atr", k, name: e.name, group: e.group }))],
     ];
     for (const [title, items] of sections) {
       const vis = items.filter(i => !q || i.name.toLowerCase().includes(q));
@@ -673,7 +673,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
       for (const [gname, list] of Object.entries(groups)) {
         fxTree.append(el("div", { class: "ve-fxgrp" }, gname));
         for (const i of list) {
-          const it = el("div", { class: "ve-fxitem", title: i.kind.endsWith("tr") ? "Trascina su un punto di modifica o su un'estremita' della clip; doppio clic = applica alla clip selezionata" : "Trascina sulla clip; doppio clic = applica alle clip selezionate" });
+          const it = el("div", { class: "ve-fxitem", title: i.kind.endsWith("tr") ? _t("videdit.trascina_punto_modifica_estremita_clip") : _t("videdit.trascina_clip_doppio_clic_applica") });
           it.innerHTML = vIcon(i.kind.endsWith("tr") ? "transition" : "fx", 16);
           it.append(el("span", {}, i.name));
           it.addEventListener("dblclick", () => applyLibItem(i, null));
@@ -705,26 +705,26 @@ export function createVideoEditor(ctx, P, opts = {}) {
   }
   function applyLibItem(i, clip, side) {
     const targets = clip ? [clip] : [...sel].map(byId).filter(Boolean);
-    if (!targets.length) return toast("Seleziona prima una clip nella timeline", true);
+    if (!targets.length) return toast(_t("videdit.seleziona_prima_clip_timeline"), true);
     if (i.kind === "vfx") {
       const vt = targets.filter(c => c.kind !== "audio");
-      if (!vt.length) return toast("Gli effetti video vanno su clip video, immagini, titoli o colori", true);
+      if (!vt.length) return toast(_t("videdit.effetti_video_vanno_clip_video"), true);
       for (const c of vt) { c.fx = c.fx || []; c.fx.push({ type: i.k, on: true, p: Object.fromEntries(EFFECTS[i.k].params.map(p => [p.k, p.d])) }); }
       sel = new Set(vt.map(c => c.id));
-      commit("Applica " + i.name);
+      commit(_t("videdit.applica") + i.name);
       UL.show("ec");
       if (i.k === "lut") pickLut(vt[0], vt[0].fx.length - 1);
     } else if (i.kind === "afx") {
       const at = targets.filter(c => c.kind === "audio");
-      if (!at.length) return toast("Seleziona una clip audio", true);
+      if (!at.length) return toast(_t("videdit.seleziona_clip_audio"), true);
       sel = new Set(at.map(c => c.id));
       if (i.k === "normalize") normalizeAudio(at, -1); else audioGainDialog();
     } else {
       const audio = i.kind === "atr";
       const ok = targets.filter(c => (c.kind === "audio") === audio);
-      if (!ok.length) return toast(audio ? "Le transizioni audio vanno sulle clip audio" : "Le transizioni video vanno sulle clip video", true);
+      if (!ok.length) return toast(audio ? _t("videdit.transizioni_audio_vanno_sulle_clip") : _t("videdit.transizioni_video_vanno_sulle_clip"), true);
       for (const c of ok) addTransition(c, side || (clip ? "in" : nearSide(c)), i.k);
-      commit("Applica " + i.name);
+      commit(_t("videdit.applica") + i.name);
     }
   }
   const nearSide = c => (Math.abs(player.t - c.start) < Math.abs(player.t - end(c)) ? "in" : "out");
@@ -752,7 +752,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
       for (const c of cs) for (const side of ["in", "out"]) { const t = side === "in" ? c.start : end(c); const d = Math.abs(t - player.t); if (d < bd) { bd = d; best = [c, side]; } }
       if (best) { addTransition(best[0], best[1], audio ? "power" : "fade"); done++; }
     }
-    if (done) commit(audio ? "Applica transizione audio" : "Applica transizione video"); else toast("Nessuna clip sulle tracce di destinazione", true);
+    if (done) commit(audio ? _t("videdit.applica_transizione_audio") : _t("videdit.applica_transizione_video")); else toast(_t("videdit.nessuna_clip_sulle_tracce_destinazione"), true);
   }
 
   // ------------------------------------------------------------------ Controlli effetti
@@ -760,7 +760,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
   const ecRefs = [];
   function scrub(get, set, o = {}) {
     // valore trascinabile (come i numeri blu di Premiere): trascina a destra/sinistra, clic per digitare
-    const s = el("span", { class: "ve-scrub", tabindex: "0", title: "Trascina per cambiare, clic per digitare" + (o.title ? "\n" + o.title : "") });
+    const s = el("span", { class: "ve-scrub", tabindex: "0", title: _t("videdit.trascina_cambiare_clic_digitare") + (o.title ? "\n" + o.title : "") });
     const fmt = v => (o.fmt ? o.fmt(v) : (Math.round(v * 100) / 100).toLocaleString(LOCALE)) + (o.unit || "");
     const show = () => { s.textContent = fmt(get()); };
     show();
@@ -796,13 +796,13 @@ export function createVideoEditor(ctx, P, opts = {}) {
   // riga di proprieta' animabile: cronometro, nome, valore, navigatore dei fotogrammi chiave
   function kfRow(c, label, props, controls) {
     const anim = () => props.some(p => c.kf?.[p]?.length);
-    const watch = el("button", { class: "ve-watch" + (anim() ? " on" : ""), type: "button", title: "Attiva/disattiva animazione (fotogrammi chiave)" });
+    const watch = el("button", { class: "ve-watch" + (anim() ? " on" : ""), type: "button", title: _t("videdit.attiva_disattiva_animazione_fotogrammi_chiave") });
     watch.innerHTML = vIcon("watch", 15);
     watch.addEventListener("click", () => {
       c.kf = c.kf || {};
       const tau = clamp(snapF(player.t - c.start), 0, c.dur);
-      if (anim()) { for (const p of props) { const v = propAt(c, p, tau); delete c.kf[p]; setProp(c, p, v); } commit("Animazione disattivata"); }
-      else { for (const p of props) c.kf[p] = [[tau, propAt(c, p, tau)]]; commit("Animazione attivata"); }
+      if (anim()) { for (const p of props) { const v = propAt(c, p, tau); delete c.kf[p]; setProp(c, p, v); } commit(_t("videdit.animazione_disattivata")); }
+      else { for (const p of props) c.kf[p] = [[tau, propAt(c, p, tau)]]; commit(_t("videdit.animazione_attivata")); }
       renderEC();
     });
     const nav = el("span", { class: "ve-kfnav" });
@@ -810,7 +810,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
       const times = () => [...new Set(props.flatMap(p => (c.kf?.[p] || []).map(k => k[0])))].sort((a, b) => a - b);
       const tau = () => player.t - c.start;
       const on = () => times().some(t => Math.abs(t - tau()) < fr() / 2);
-      const kb = el("button", { class: "ve-kfbtn", type: "button", title: "Aggiungi/rimuovi fotogramma chiave" });
+      const kb = el("button", { class: "ve-kfbtn", type: "button", title: _t("videdit.aggiungi_rimuovi_fotogramma_chiave") });
       const paint = () => { kb.innerHTML = vIcon(on() ? "kf" : "kfOff", 13); };
       paint(); ecRefs.push(paint);
       kb.addEventListener("click", () => {
@@ -818,11 +818,11 @@ export function createVideoEditor(ctx, P, opts = {}) {
         if (on()) for (const p of props) c.kf[p] = c.kf[p].filter(k => Math.abs(k[0] - t) >= fr() / 2);
         else for (const p of props) { const v = propAt(c, p, t); c.kf[p].push([t, v]); c.kf[p].sort((a, b) => a[0] - b[0]); }
         for (const p of props) if (!c.kf[p].length) { delete c.kf[p]; }
-        commit("Fotogramma chiave"); renderEC();
+        commit(_t("videdit.fotogramma_chiave")); renderEC();
       });
       const go = d => { const ts = times(), cur = tau(); const t = d < 0 ? [...ts].reverse().find(x => x < cur - fr() / 2) : ts.find(x => x > cur + fr() / 2); if (t !== undefined) goto(c.start + t); };
-      const pb = el("button", { class: "ve-kfbtn", type: "button", title: "Vai al fotogramma chiave precedente", onclick: () => go(-1) }); pb.innerHTML = vIcon("prev", 12);
-      const nb = el("button", { class: "ve-kfbtn", type: "button", title: "Vai al fotogramma chiave successivo", onclick: () => go(1) }); nb.innerHTML = vIcon("next", 12);
+      const pb = el("button", { class: "ve-kfbtn", type: "button", title: _t("videdit.vai_fotogramma_chiave_precedente"), onclick: () => go(-1) }); pb.innerHTML = vIcon("prev", 12);
+      const nb = el("button", { class: "ve-kfbtn", type: "button", title: _t("videdit.vai_fotogramma_chiave_successivo"), onclick: () => go(1) }); nb.innerHTML = vIcon("next", 12);
       nav.append(pb, kb, nb);
     }
     return el("div", { class: "ve-ecrow" }, watch, el("span", { class: "ve-eclab" }, label), el("span", { class: "ve-ecval" }, ...controls), nav);
@@ -833,7 +833,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
     return [el("div", { class: "ve-ecsec" }, head, body), body];
   };
   const smallBtn = (icon, title, fn) => { const b = el("button", { class: "ve-kfbtn", type: "button", title, onclick: fn }); b.innerHTML = vIcon(icon, 14); return b; };
-  function propScrub(c, p, o) { return scrub(() => propAt(c, p, player.t - c.start) ?? 0, (v, done) => { setProp(c, p, v); if (done) commit(o.label || "Modifica"); else live(); }, o); }
+  function propScrub(c, p, o) { return scrub(() => propAt(c, p, player.t - c.start) ?? 0, (v, done) => { setProp(c, p, v); if (done) commit(o.label || _t("videdit.modifica")); else live(); }, o); }
   function renderEC() {
     if (UL.cur !== "ec") return;
     ecBox.innerHTML = "";
@@ -842,51 +842,51 @@ export function createVideoEditor(ctx, P, opts = {}) {
     if (tr) return renderTransitionEC(tr);
     const cs = [...sel].map(byId).filter(Boolean);
     const main = cs.length === 1 ? cs[0] : cs.length === 2 && cs[0].link && cs[0].link === cs[1].link ? cs.find(c => c.kind !== "audio") : null;
-    if (!main) { ecBox.append(el("div", { class: "ve-empty" }, cs.length ? `${cs.length} clip selezionate: selezionane una per vederne gli effetti` : "Seleziona una clip nella timeline per vederne gli effetti")); return; }
+    if (!main) { ecBox.append(el("div", { class: "ve-empty" }, cs.length ? _t("videdit.0_clip_selezionate_selezionane_vederne", cs.length) : _t("videdit.seleziona_clip_timeline_vederne_effetti"))); return; }
     const c = main;
-    ecBox.append(el("div", { class: "ve-ectop" }, el("b", {}, c.name || "Clip"), el("span", { class: "ve-muted" }, ` · ${tc(c.start, fps)} - ${tc(end(c), fps)}`)));
+    ecBox.append(el("div", { class: "ve-ectop" }, el("b", {}, c.name || _t("videdit.clip")), el("span", { class: "ve-muted" }, ` · ${tc(c.start, fps)} - ${tc(end(c), fps)}`)));
     if (c.kind === "audio") {
-      const [s, b] = ecSection("Volume", [smallBtn("reset", "Ripristina", () => { c.volume = 0; delete c.kf?.volume; commit("Ripristina volume"); renderEC(); })]);
-      b.append(kfRow(c, "Livello", ["volume"], [propScrub(c, "volume", { min: -60, max: 15, step: 0.1, unit: " dB", label: "Livello" })]));
-      b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }, "Guadagno clip"),
-        el("span", { class: "ve-ecval" }, scrub(() => c.gain || 0, (v, d) => { c.gain = v; if (d) commit("Guadagno"); else live(); }, { min: -60, max: 30, step: 0.1, unit: " dB" }),
-          el("button", { class: "ve-mini", type: "button", onclick: () => normalizeAudio([c], -1) }, "Normalizza")), el("span")));
+      const [s, b] = ecSection(_t("videdit.volume"), [smallBtn("reset", _t("videdit.ripristina"), () => { c.volume = 0; delete c.kf?.volume; commit(_t("videdit.ripristina_volume")); renderEC(); })]);
+      b.append(kfRow(c, _t("videdit.livello"), ["volume"], [propScrub(c, "volume", { min: -60, max: 15, step: 0.1, unit: " dB", label: _t("videdit.livello") })]));
+      b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }, _t("videdit.guadagno_clip")),
+        el("span", { class: "ve-ecval" }, scrub(() => c.gain || 0, (v, d) => { c.gain = v; if (d) commit(_t("videdit.guadagno")); else live(); }, { min: -60, max: 30, step: 0.1, unit: " dB" }),
+          el("button", { class: "ve-mini", type: "button", onclick: () => normalizeAudio([c], -1) }, _t("videdit.normalizza"))), el("span")));
       ecBox.append(s);
       ecBox.append(speedSection(c));
       return;
     }
     if (c.kind === "title") ecBox.append(titleSection(c));
     if (c.kind === "color") {
-      const [s, b] = ecSection("Colore");
-      b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }, "Colore"), el("span", { class: "ve-ecval" },
-        el("input", { type: "color", value: c.color, id: "ve-col-" + c.id, onchange: e => { c.color = e.target.value; c.name = "Colore " + c.color; commit("Colore"); } })), el("span")));
+      const [s, b] = ecSection(_t("common.colore"));
+      b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }, _t("common.colore")), el("span", { class: "ve-ecval" },
+        el("input", { type: "color", value: c.color, id: "ve-col-" + c.id, onchange: e => { c.color = e.target.value; c.name = _t("videdit.colore") + c.color; commit(_t("common.colore")); } })), el("span")));
       ecBox.append(s);
     }
     {
-      const [s, b] = ecSection("Movimento", [smallBtn("reset", "Ripristina posizione, scala e rotazione", () => { c.motion = defMotion(); for (const p of ["x", "y", "scale", "rot"]) delete c.kf?.[p]; commit("Ripristina movimento"); renderEC(); })]);
-      b.append(kfRow(c, "Posizione", ["x", "y"], [propScrub(c, "x", { step: 1, label: "Posizione", fmt: v => Math.round(v * 10) / 10 }), propScrub(c, "y", { step: 1, label: "Posizione", fmt: v => Math.round(v * 10) / 10 })]));
-      b.append(kfRow(c, "Scala", ["scale"], [propScrub(c, "scale", { min: 0, max: 1000, step: 0.5, label: "Scala", unit: "%" })]));
-      b.append(kfRow(c, "Rotazione", ["rot"], [propScrub(c, "rot", { step: 0.5, label: "Rotazione", unit: "°" })]));
+      const [s, b] = ecSection(_t("videdit.movimento"), [smallBtn("reset", _t("videdit.ripristina_posizione_scala_rotazione"), () => { c.motion = defMotion(); for (const p of ["x", "y", "scale", "rot"]) delete c.kf?.[p]; commit(_t("videdit.ripristina_movimento")); renderEC(); })]);
+      b.append(kfRow(c, _t("videdit.posizione"), ["x", "y"], [propScrub(c, "x", { step: 1, label: _t("videdit.posizione"), fmt: v => Math.round(v * 10) / 10 }), propScrub(c, "y", { step: 1, label: _t("videdit.posizione"), fmt: v => Math.round(v * 10) / 10 })]));
+      b.append(kfRow(c, _t("videdit.scala"), ["scale"], [propScrub(c, "scale", { min: 0, max: 1000, step: 0.5, label: _t("videdit.scala"), unit: "%" })]));
+      b.append(kfRow(c, _t("videdit.rotazione"), ["rot"], [propScrub(c, "rot", { step: 0.5, label: _t("videdit.rotazione"), unit: "°" })]));
       b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }), el("span", { class: "ve-ecval" },
-        el("button", { class: "ve-mini", type: "button", title: "Scala per riempire il fotogramma (senza bande nere)", onclick: () => { fillFrame(c); } }, "Riempi fotogramma"),
-        el("button", { class: "ve-mini", type: "button", title: "Riquadro in basso a destra (picture-in-picture)", onclick: () => { setProp(c, "scale", 35); setProp(c, "x", Math.round(P.settings.w * 0.78)); setProp(c, "y", Math.round(P.settings.h * 0.76)); commit("Picture-in-picture"); renderEC(); } }, "PiP")), el("span")));
+        el("button", { class: "ve-mini", type: "button", title: _t("videdit.scala_riempire_fotogramma_senza_bande"), onclick: () => { fillFrame(c); } }, _t("videdit.riempi_fotogramma")),
+        el("button", { class: "ve-mini", type: "button", title: _t("videdit.riquadro_basso_destra_picture_picture"), onclick: () => { setProp(c, "scale", 35); setProp(c, "x", Math.round(P.settings.w * 0.78)); setProp(c, "y", Math.round(P.settings.h * 0.76)); commit(_t("videdit.picture_picture")); renderEC(); } }, "PiP")), el("span")));
       ecBox.append(s);
     }
     {
-      const [s, b] = ecSection("Opacita'", [smallBtn("reset", "Ripristina", () => { c.opacity = 100; c.blend = "normal"; delete c.kf?.opacity; commit("Ripristina opacita'"); renderEC(); })]);
-      b.append(kfRow(c, "Opacita'", ["opacity"], [propScrub(c, "opacity", { min: 0, max: 100, step: 0.5, label: "Opacita'", unit: "%" })]));
-      b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }, "Metodo di fusione"), el("span", { class: "ve-ecval" },
-        el("select", { class: "ve-sel", id: "ve-blend-" + c.id, onchange: e => { c.blend = e.target.value; commit("Metodo di fusione"); } }, ...Object.entries(BLENDS).map(([k, n]) => el("option", { value: k, selected: (c.blend || "normal") === k }, n)))), el("span")));
+      const [s, b] = ecSection(_t("videdit.opacita"), [smallBtn("reset", _t("videdit.ripristina"), () => { c.opacity = 100; c.blend = "normal"; delete c.kf?.opacity; commit(_t("videdit.ripristina_opacita")); renderEC(); })]);
+      b.append(kfRow(c, _t("videdit.opacita"), ["opacity"], [propScrub(c, "opacity", { min: 0, max: 100, step: 0.5, label: _t("videdit.opacita"), unit: "%" })]));
+      b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }, _t("videdit.metodo_fusione")), el("span", { class: "ve-ecval" },
+        el("select", { class: "ve-sel", id: "ve-blend-" + c.id, onchange: e => { c.blend = e.target.value; commit(_t("videdit.metodo_fusione")); } }, ...Object.entries(BLENDS).map(([k, n]) => el("option", { value: k, selected: (c.blend || "normal") === k }, n)))), el("span")));
       ecBox.append(s);
     }
     if (c.kind === "video") ecBox.append(speedSection(c));
     (c.fx || []).forEach((e, i) => ecBox.append(fxSection(c, e, i)));
-    ecBox.append(el("div", { class: "ve-ecnote" }, "Aggiungi effetti dal pannello Effetti (trascinali sulla clip o doppio clic)."));
+    ecBox.append(el("div", { class: "ve-ecnote" }, _t("videdit.aggiungi_effetti_pannello_effetti_trascinali")));
   }
   function speedSection(c) {
-    const [s, b] = ecSection("Rimappatura tempo", [], false);
-    b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }, "Velocita'"), el("span", { class: "ve-ecval" },
-      el("span", {}, Math.round((c.speed || 1) * 1000) / 10 + "%"), el("button", { class: "ve-mini", type: "button", onclick: () => speedDialog() }, "Velocita'/Durata...")), el("span")));
+    const [s, b] = ecSection(_t("videdit.rimappatura_tempo"), [], false);
+    b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }, _t("videdit.velocita")), el("span", { class: "ve-ecval" },
+      el("span", {}, Math.round((c.speed || 1) * 1000) / 10 + "%"), el("button", { class: "ve-mini", type: "button", onclick: () => speedDialog() }, _t("videdit.velocita_durata"))), el("span")));
     return s;
   }
   function fillFrame(c) {
@@ -895,45 +895,45 @@ export function createVideoEditor(ctx, P, opts = {}) {
     const f = Math.min(P.settings.w / sw, P.settings.h / sh), g = Math.max(P.settings.w / sw, P.settings.h / sh);
     setProp(c, "scale", Math.round(g / f * 1000) / 10);
     setProp(c, "x", P.settings.w / 2); setProp(c, "y", P.settings.h / 2);
-    commit("Riempi fotogramma"); renderEC();
+    commit(_t("videdit.riempi_fotogramma")); renderEC();
   }
   function titleSection(c) {
     const T = c.title;
-    const [s, b] = ecSection("Testo");
-    const upd = (k, v, done = true) => { T[k] = v; if (done) commit("Testo"); else live(); };
+    const [s, b] = ecSection(_t("videdit.testo"));
+    const upd = (k, v, done = true) => { T[k] = v; if (done) commit(_t("videdit.testo")); else live(); };
     const ta = el("textarea", { class: "ve-ta", id: "ve-ta-" + c.id, rows: 3 }, T.text);
-    ta.addEventListener("input", () => { T.text = ta.value; c.name = ta.value.split("\n")[0].slice(0, 40) || "Titolo"; live(); });
-    ta.addEventListener("change", () => commit("Testo"));
+    ta.addEventListener("input", () => { T.text = ta.value; c.name = ta.value.split("\n")[0].slice(0, 40) || _t("videdit.titolo"); live(); });
+    ta.addEventListener("change", () => commit(_t("videdit.testo")));
     ta.addEventListener("keydown", e => e.stopPropagation());
     b.append(ta);
     const font = el("select", { class: "ve-sel", id: "ve-font-" + c.id, onchange: e => upd("font", e.target.value) }, ...FONTS.map(f => el("option", { value: f, selected: f === T.font, style: { fontFamily: f } }, f)));
     const tog = (k, label, title) => el("button", { class: "ve-mini" + (T[k] ? " on" : ""), type: "button", title, onclick: () => { upd(k, !T[k]); renderEC(); } }, label);
-    const al = a => el("button", { class: "ve-mini" + (T.align === a ? " on" : ""), type: "button", title: { left: "Allinea a sinistra", center: "Centra", right: "Allinea a destra" }[a], onclick: () => { upd("align", a); renderEC(); } }, { left: "⯇", center: "≡", right: "⯈" }[a]);
+    const al = a => el("button", { class: "ve-mini" + (T.align === a ? " on" : ""), type: "button", title: { left: _t("videdit.allinea_sinistra"), center: _t("videdit.centra"), right: _t("videdit.allinea_destra") }[a], onclick: () => { upd("align", a); renderEC(); } }, { left: "⯇", center: "≡", right: "⯈" }[a]);
     const color = (k, id) => el("input", { type: "color", value: T[k], id: `ve-${id}-${c.id}`, oninput: e => upd(k, e.target.value, false), onchange: e => upd(k, e.target.value) });
     const row = (label, ...ctl) => el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }, label), el("span", { class: "ve-ecval" }, ...ctl), el("span"));
-    b.append(row("Carattere", font), row("Dimensione", scrub(() => T.size, (v, d) => upd("size", v, d), { min: 4, max: 1000, step: 1, unit: " px" }), tog("bold", "G", "Grassetto"), tog("italic", "C", "Corsivo")),
-      row("Allineamento", al("left"), al("center"), al("right")), row("Riempimento", color("color", "tc")),
-      row("Traccia", tog("stroke", "Si'", "Contorno del testo"), color("strokeColor", "sc"), scrub(() => T.strokeW, (v, d) => upd("strokeW", v, d), { min: 0, max: 60, step: 0.5, unit: " px" })),
-      row("Ombra", tog("shadow", "Si'", "Ombra esterna"), color("shadowColor", "shc")),
-      row("Sfondo", tog("bg", "Si'", "Rettangolo dietro il testo"), color("bgColor", "bc"), scrub(() => T.bgOpacity ?? 60, (v, d) => upd("bgOpacity", v, d), { min: 0, max: 100, step: 1, unit: "%" })));
+    b.append(row(_t("videdit.carattere"), font), row(_t("videdit.dimensione"), scrub(() => T.size, (v, d) => upd("size", v, d), { min: 4, max: 1000, step: 1, unit: " px" }), tog("bold", "G", _t("videdit.grassetto")), tog("italic", "C", _t("videdit.corsivo"))),
+      row(_t("videdit.allineamento"), al("left"), al("center"), al("right")), row(_t("videdit.riempimento"), color("color", "tc")),
+      row(_t("videdit.traccia"), tog("stroke", _t("videdit.si"), _t("videdit.contorno_testo")), color("strokeColor", "sc"), scrub(() => T.strokeW, (v, d) => upd("strokeW", v, d), { min: 0, max: 60, step: 0.5, unit: " px" })),
+      row(_t("videdit.ombra"), tog("shadow", _t("videdit.si"), _t("videdit.ombra_esterna")), color("shadowColor", "shc")),
+      row(_t("videdit.sfondo"), tog("bg", _t("videdit.si"), _t("videdit.rettangolo_dietro_testo")), color("bgColor", "bc"), scrub(() => T.bgOpacity ?? 60, (v, d) => upd("bgOpacity", v, d), { min: 0, max: 100, step: 1, unit: "%" })));
     return s;
   }
   function fxSection(c, e, i) {
     const def = EFFECTS[e.type];
-    const onBtn = el("button", { class: "ve-fxon" + (e.on === false ? "" : " on"), type: "button", title: "Attiva/disattiva effetto" });
+    const onBtn = el("button", { class: "ve-fxon" + (e.on === false ? "" : " on"), type: "button", title: _t("videdit.attiva_disattiva_effetto") });
     onBtn.innerHTML = vIcon("fx", 15);
-    onBtn.addEventListener("click", () => { e.on = e.on === false; commit("Effetto attivo/disattivo"); renderEC(); });
+    onBtn.addEventListener("click", () => { e.on = e.on === false; commit(_t("videdit.effetto_attivo_disattivo")); renderEC(); });
     const [s, b] = ecSection(def?.name || e.type, [
-      smallBtn("prev", "Sposta sopra", () => { if (i > 0) { [c.fx[i - 1], c.fx[i]] = [c.fx[i], c.fx[i - 1]]; commit("Ordine effetti"); renderEC(); } }),
-      smallBtn("next", "Sposta sotto", () => { if (i < c.fx.length - 1) { [c.fx[i + 1], c.fx[i]] = [c.fx[i], c.fx[i + 1]]; commit("Ordine effetti"); renderEC(); } }),
-      smallBtn("reset", "Ripristina", () => { e.p = Object.fromEntries(def.params.map(p => [p.k, p.d])); commit("Ripristina effetto"); renderEC(); }),
-      smallBtn("trash", "Elimina effetto", () => { c.fx.splice(i, 1); commit("Elimina effetto"); renderEC(); })]);
+      smallBtn("prev", _t("videdit.sposta_sopra"), () => { if (i > 0) { [c.fx[i - 1], c.fx[i]] = [c.fx[i], c.fx[i - 1]]; commit(_t("videdit.ordine_effetti")); renderEC(); } }),
+      smallBtn("next", _t("videdit.sposta_sotto"), () => { if (i < c.fx.length - 1) { [c.fx[i + 1], c.fx[i]] = [c.fx[i], c.fx[i + 1]]; commit(_t("videdit.ordine_effetti")); renderEC(); } }),
+      smallBtn("reset", _t("videdit.ripristina"), () => { e.p = Object.fromEntries(def.params.map(p => [p.k, p.d])); commit(_t("videdit.ripristina_effetto")); renderEC(); }),
+      smallBtn("trash", _t("videdit.elimina_effetto"), () => { c.fx.splice(i, 1); commit(_t("videdit.elimina_effetto")); renderEC(); })]);
     s.querySelector(".ve-echead").insertBefore(onBtn, s.querySelector(".ve-ectitle"));
     for (const p of def?.params || []) {
       let ctl;
       if (p.type === "bool") ctl = el("input", { type: "checkbox", id: `ve-fx-${c.id}-${i}-${p.k}`, checked: !!(e.p[p.k] ?? p.d), onchange: ev => { e.p[p.k] = ev.target.checked; commit(def.name); } });
       else if (p.type === "color") ctl = el("input", { type: "color", id: `ve-fx-${c.id}-${i}-${p.k}`, value: e.p[p.k] ?? p.d, oninput: ev => { e.p[p.k] = ev.target.value; live(); }, onchange: () => commit(def.name) });
-      else if (p.type === "file") ctl = el("span", {}, el("span", { class: "ve-muted" }, e.p.file ? baseName(e.p.file) : "nessun file"), el("button", { class: "ve-mini", type: "button", onclick: () => pickLut(c, i) }, "Scegli..."));
+      else if (p.type === "file") ctl = el("span", {}, el("span", { class: "ve-muted" }, e.p.file ? baseName(e.p.file) : _t("videdit.nessun_file")), el("button", { class: "ve-mini", type: "button", onclick: () => pickLut(c, i) }, _t("videdit.scegli")));
       else ctl = scrub(() => e.p[p.k] ?? p.d, (v, d) => { e.p[p.k] = v; if (d) commit(def.name); else live(); }, { min: p.min, max: p.max, step: p.step || 1, unit: p.u ? " " + p.u : "" });
       if (p.type !== "file" && p.type !== "bool" && p.type !== "color") {
         const sl = el("input", { type: "range", class: "ve-range", id: `ve-fxr-${c.id}-${i}-${p.k}`, min: p.min, max: p.max, step: p.step || 1, value: e.p[p.k] ?? p.d });
@@ -943,13 +943,13 @@ export function createVideoEditor(ctx, P, opts = {}) {
         b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }, p.n), el("span", { class: "ve-ecval" }, ctl, sl), el("span")));
       } else b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }, p.n), el("span", { class: "ve-ecval" }, ctl), el("span")));
     }
-    if (e.type === "chroma") b.append(el("div", { class: "ve-ecnote" }, "Suggerimento: metti la clip con lo sfondo verde sulla traccia sopra quella dello sfondo nuovo."));
+    if (e.type === "chroma") b.append(el("div", { class: "ve-ecnote" }, _t("videdit.suggerimento_metti_clip_sfondo_verde")));
     return s;
   }
   async function pickLut(c, i) {
     const ps = await pickFiles();
     if (!ps?.length) return;
-    if (extOf(ps[0]) !== "cube") return toast("Serve un file LUT 3D .cube", true);
+    if (extOf(ps[0]) !== "cube") return toast(_t("videdit.serve_file_lut_3d_cube"), true);
     c.fx[i].p.file = ps[0];
     commit("LUT");
     renderEC();
@@ -958,16 +958,16 @@ export function createVideoEditor(ctx, P, opts = {}) {
     const audio = isA(tr.track);
     const lib = audio ? AUDIO_TRANSITIONS : TRANSITIONS;
     const a = byId(tr.a), b2 = byId(tr.b);
-    ecBox.append(el("div", { class: "ve-ectop" }, el("b", {}, lib[tr.type]?.name || tr.type), el("span", { class: "ve-muted" }, " · transizione " + (a && b2 ? "tra due clip (al centro del taglio)" : a ? "alla fine della clip" : "all'inizio della clip"))));
-    const [s, b] = ecSection("Transizione");
-    b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }, "Tipo"), el("span", { class: "ve-ecval" },
-      el("select", { class: "ve-sel", id: "ve-trtype-" + tr.id, onchange: e => { tr.type = e.target.value; commit("Tipo di transizione"); } }, ...Object.entries(lib).map(([k, v]) => el("option", { value: k, selected: k === tr.type }, v.name)))), el("span")));
-    b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }, "Durata"), el("span", { class: "ve-ecval" },
-      scrub(() => tr.dur, (v, d) => { tr.dur = Math.max(fr(), snapF(v)); if (d) { commit("Durata transizione"); renderEC(); } else live(); }, { min: fr(), max: 60, step: fr(), fmt: v => tc(v, fps), parse: s2 => parseTc(s2, fps) })), el("span")));
+    ecBox.append(el("div", { class: "ve-ectop" }, el("b", {}, lib[tr.type]?.name || tr.type), el("span", { class: "ve-muted" }, _t("videdit.transizione") + (a && b2 ? _t("videdit.tra_due_clip_centro_taglio") : a ? _t("videdit.fine_clip") : _t("videdit.all_inizio_clip")))));
+    const [s, b] = ecSection(_t("videdit.transizione_2"));
+    b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }, _t("videdit.tipo")), el("span", { class: "ve-ecval" },
+      el("select", { class: "ve-sel", id: "ve-trtype-" + tr.id, onchange: e => { tr.type = e.target.value; commit(_t("videdit.tipo_transizione")); } }, ...Object.entries(lib).map(([k, v]) => el("option", { value: k, selected: k === tr.type }, v.name)))), el("span")));
+    b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }, _t("videdit.durata")), el("span", { class: "ve-ecval" },
+      scrub(() => tr.dur, (v, d) => { tr.dur = Math.max(fr(), snapF(v)); if (d) { commit(_t("videdit.durata_transizione")); renderEC(); } else live(); }, { min: fr(), max: 60, step: fr(), fmt: v => tc(v, fps), parse: s2 => parseTc(s2, fps) })), el("span")));
     b.append(el("div", { class: "ve-ecrow" }, el("span", { class: "ve-watch" }), el("span", { class: "ve-eclab" }), el("span", { class: "ve-ecval" },
-      el("button", { class: "ve-mini", type: "button", onclick: () => { P.transitions = P.transitions.filter(x => x !== tr); selTr = null; commit("Elimina transizione"); } }, "Elimina transizione")), el("span")));
+      el("button", { class: "ve-mini", type: "button", onclick: () => { P.transitions = P.transitions.filter(x => x !== tr); selTr = null; commit(_t("videdit.elimina_transizione")); } }, _t("videdit.elimina_transizione"))), el("span")));
     ecBox.append(s);
-    if (a && b2) ecBox.append(el("div", { class: "ve-ecnote" }, "Se le clip non hanno materiale oltre il taglio, durante la transizione si ripete l'ultimo/primo fotogramma (come in Premiere)."));
+    if (a && b2) ecBox.append(el("div", { class: "ve-ecnote" }, _t("videdit.se_clip_non_hanno_materiale")));
   }
   function updateECValues() { ecRefs.forEach(f => f()); }
 
@@ -981,17 +981,17 @@ export function createVideoEditor(ctx, P, opts = {}) {
       const show = () => { val.textContent = (getDb() <= -60 ? "-∞" : (Math.round(getDb() * 10) / 10).toLocaleString(LOCALE)) + " dB"; };
       show();
       sl.addEventListener("input", () => { setDb(+sl.value); show(); player.dirty = true; });
-      sl.addEventListener("change", () => commit("Volume traccia"));
-      sl.addEventListener("dblclick", () => { setDb(0); sl.value = 0; show(); commit("Volume traccia"); });
+      sl.addEventListener("change", () => commit(_t("videdit.volume_traccia")));
+      sl.addEventListener("dblclick", () => { setDb(0); sl.value = 0; show(); commit(_t("videdit.volume_traccia")); });
       return el("div", { class: "ve-strip" }, el("div", { class: "ve-mxname" }, name), extra || el("div", { class: "ve-mxbtns" }), sl, val);
     };
     for (const t of P.tracks.a) {
       const ms = el("div", { class: "ve-mxbtns" },
-        el("button", { class: "ve-ms" + (t.mute ? " on m" : ""), type: "button", title: "Disattiva audio della traccia", onclick: () => { t.mute = !t.mute; commit("Mute"); } }, "M"),
-        el("button", { class: "ve-ms" + (t.solo ? " on s" : ""), type: "button", title: "Assolo", onclick: () => { t.solo = !t.solo; commit("Solo"); } }, "S"));
+        el("button", { class: "ve-ms" + (t.mute ? " on m" : ""), type: "button", title: _t("videdit.disattiva_audio_traccia"), onclick: () => { t.mute = !t.mute; commit(_t("videdit.mute")); } }, "M"),
+        el("button", { class: "ve-ms" + (t.solo ? " on s" : ""), type: "button", title: _t("videdit.assolo"), onclick: () => { t.solo = !t.solo; commit(_t("videdit.solo")); } }, "S"));
       box.append(strip(t.name || t.id, () => t.gain || 0, v => { t.gain = v <= -60 ? -120 : v; }, ms));
     }
-    box.append(strip("Master", () => P.settings.master || 0, v => { P.settings.master = v; if (player.master) player.master.gain.value = dbToLin(v); }));
+    box.append(strip(_t("videdit.master"), () => P.settings.master || 0, v => { P.settings.master = v; if (player.master) player.master.gain.value = dbToLin(v); }));
   }
 
   // ------------------------------------------------------------------ misuratori audio
@@ -1039,26 +1039,26 @@ export function createVideoEditor(ctx, P, opts = {}) {
     ctx.status(n[1] + " · " + toolHint[id]);
   }
   const toolHint = {
-    select: "clic seleziona, trascina sposta (Alt duplica, Ctrl inserisce), trascina i bordi per tagliare; Ctrl+clic sulla linea = fotogramma chiave",
-    trackfwd: "clic seleziona tutte le clip della traccia da quel punto in poi (Maiusc: tutte le tracce)",
-    ripple: "trascina un bordo: taglia e sposta le clip successive", rolling: "trascina un punto di modifica tra due clip",
-    rate: "trascina un bordo per cambiare la velocita'", razor: "clic per dividere la clip (Maiusc: tutte le tracce)",
-    slip: "trascina la clip per cambiare attacco e stacco del sorgente", slide: "trascina la clip tra le due vicine",
-    pen: "clic sulla linea di opacita'/volume per aggiungere fotogrammi chiave, trascinali per cambiarli", hand: "trascina per scorrere la timeline",
-    zoom: "clic per ingrandire, Alt+clic per ridurre", type: "clic sul monitor programma per scrivere un titolo",
+    select: _t("videdit.clic_seleziona_trascina_sposta_alt"),
+    trackfwd: _t("videdit.clic_seleziona_tutte_clip_traccia"),
+    ripple: _t("videdit.trascina_bordo_taglia_sposta_clip"), rolling: _t("videdit.trascina_punto_modifica_tra_due"),
+    rate: _t("videdit.trascina_bordo_cambiare_velocita"), razor: _t("videdit.clic_dividere_clip_maiusc_tutte"),
+    slip: _t("videdit.trascina_clip_cambiare_attacco_stacco"), slide: _t("videdit.trascina_clip_tra_due_vicine"),
+    pen: _t("videdit.clic_linea_opacita_volume_aggiungere"), hand: _t("videdit.trascina_scorrere_timeline"),
+    zoom: _t("videdit.clic_ingrandire_alt_clic_ridurre"), type: "clic sul monitor programma per scrivere un titolo",
   };
 
   // ------------------------------------------------------------------ timeline
-  const tlTc = el("span", { class: "ve-tc ve-tc-tl", title: "Posizione della testina" });
-  const snapBtn = el("button", { class: "ve-tlbtn on", type: "button", title: "Aggancia in timeline (S)", onclick: () => toggleSnap() });
+  const tlTc = el("span", { class: "ve-tc ve-tc-tl", title: _t("videdit.posizione_testina") });
+  const snapBtn = el("button", { class: "ve-tlbtn on", type: "button", title: _t("videdit.aggancia_timeline_s"), onclick: () => toggleSnap() });
   snapBtn.innerHTML = vIcon("snap", 16);
-  const linkBtn = el("button", { class: "ve-tlbtn on", type: "button", title: "Selezione collegata", onclick: () => { linkedSel = !linkedSel; linkBtn.classList.toggle("on", linkedSel); } });
+  const linkBtn = el("button", { class: "ve-tlbtn on", type: "button", title: _t("videdit.selezione_collegata"), onclick: () => { linkedSel = !linkedSel; linkBtn.classList.toggle("on", linkedSel); } });
   linkBtn.innerHTML = vIcon("link", 16);
-  const mkBtn = el("button", { class: "ve-tlbtn", type: "button", title: "Aggiungi marcatore (M)", onclick: () => addMarker() });
+  const mkBtn = el("button", { class: "ve-tlbtn", type: "button", title: _t("videdit.aggiungi_marcatore_m"), onclick: () => addMarker() });
   mkBtn.innerHTML = vIcon("marker", 16);
-  const setBtn = el("button", { class: "ve-tlbtn", type: "button", title: "Impostazioni di visualizzazione della timeline", onclick: e => openMenuAt(e.currentTarget, MENUS.Visualizza()) });
+  const setBtn = el("button", { class: "ve-tlbtn", type: "button", title: _t("videdit.impostazioni_visualizzazione_timeline"), onclick: e => openMenuAt(e.currentTarget, MENUS.Visualizza()) });
   setBtn.innerHTML = vIcon("wrench", 16);
-  const zoomRange = el("input", { type: "range", class: "ve-tlzoom", id: "ve-tlz-" + ctx.tab.name, min: 0, max: 100, step: 0.5, title: "Zoom della timeline (+ / -)" });
+  const zoomRange = el("input", { type: "range", class: "ve-tlzoom", id: "ve-tlz-" + ctx.tab.name, min: 0, max: 100, step: 0.5, title: _t("videdit.zoom_timeline") });
   zoomRange.addEventListener("input", () => setZoom(Math.pow(10, -1 + zoomRange.value / 100 * 3.6), player.t));
   const headCol = el("div", { class: "ve-heads" });
   const headInner = el("div", { class: "ve-headsin" });
@@ -1072,7 +1072,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
     el("div", { class: "ve-tlhead" }, tlTc, snapBtn, linkBtn, mkBtn, setBtn, el("span", { class: "grow" }), zoomRange),
     el("div", { class: "ve-tlbody" }, headCol, tlArea), el("div", { class: "ve-hsbrow" }, el("div", { style: { width: HEAD_W + "px", flex: "none" } }), hsb));
   const tRows = { showThumbs: true, showWaves: true };
-  function toggleSnap() { snapOn = !snapOn; snapBtn.classList.toggle("on", snapOn); ctx.status("Aggancio " + (snapOn ? "attivo" : "disattivato")); }
+  function toggleSnap() { snapOn = !snapOn; snapBtn.classList.toggle("on", snapOn); ctx.status(_t("videdit.aggancio") + (snapOn ? "attivo" : "disattivato")); }
 
   const trackH = t => t.h || 56;
   function rows() {
@@ -1120,19 +1120,19 @@ export function createVideoEditor(ctx, P, opts = {}) {
       const t = r.tr;
       const ib = (icon, title, on, fn, cls = "") => { const b = el("button", { class: "ve-hb " + cls + (on ? " on" : ""), type: "button", title, onclick: fn }); b.innerHTML = icon.startsWith("<") ? icon : vIcon(icon, 14); return b; };
       const isV = r.type === "v";
-      const patch = el("button", { class: "ve-patch" + ((isV ? P.srcV : P.srcA) === t.id ? " on" : ""), type: "button", title: "Traccia di destinazione per Inserisci/Sovrascrivi e per le transizioni predefinite",
+      const patch = el("button", { class: "ve-patch" + ((isV ? P.srcV : P.srcA) === t.id ? " on" : ""), type: "button", title: _t("videdit.traccia_destinazione_inserisci_sovrascrivi_transizioni"),
         onclick: () => { if (isV) P.srcV = t.id; else P.srcA = t.id; renderHeads(); } }, isV ? "V" : "A");
       const row = el("div", { class: "ve-head " + (isV ? "v" : "a"), style: { top: r.y + "px", height: r.h + "px" } },
-        patch, ib(t.lock ? "lock" : "unlock", "Attiva/disattiva blocco traccia", t.lock, () => { t.lock = !t.lock; commit("Blocco traccia"); }),
-        isV ? ib(t.hide ? "eyeOff" : "eye", "Attiva/disattiva output traccia", !t.hide, () => { t.hide = !t.hide; commit("Output traccia"); }, "eyeb")
-          : el("span", { class: "ve-ms2" }, ib("<b>M</b>", "Disattiva audio traccia", t.mute, () => { t.mute = !t.mute; commit("Mute"); }, "m"), ib("<b>S</b>", "Assolo traccia", t.solo, () => { t.solo = !t.solo; commit("Solo"); }, "s")),
-        el("span", { class: "ve-hname", title: "Doppio clic: altezza della traccia" }, t.id));
+        patch, ib(t.lock ? "lock" : "unlock", _t("videdit.attiva_disattiva_blocco_traccia"), t.lock, () => { t.lock = !t.lock; commit(_t("videdit.blocco_traccia")); }),
+        isV ? ib(t.hide ? "eyeOff" : "eye", _t("videdit.attiva_disattiva_output_traccia"), !t.hide, () => { t.hide = !t.hide; commit(_t("videdit.output_traccia")); }, "eyeb")
+          : el("span", { class: "ve-ms2" }, ib("<b>M</b>", _t("videdit.disattiva_audio_traccia_2"), t.mute, () => { t.mute = !t.mute; commit(_t("videdit.mute")); }, "m"), ib("<b>S</b>", _t("videdit.assolo_traccia"), t.solo, () => { t.solo = !t.solo; commit(_t("videdit.solo")); }, "s")),
+        el("span", { class: "ve-hname", title: _t("videdit.doppio_clic_altezza_traccia") }, t.id));
       row.addEventListener("dblclick", e => { if (e.target.closest("button")) return; t.h = trackH(t) > 60 ? 56 : 100; commit(); });
       row.addEventListener("contextmenu", e => { e.preventDefault(); openMenuAt({ x: e.clientX, y: e.clientY }, [
-        { label: "Rinomina traccia...", run: async () => { const n = await askText("Rinomina traccia", "Nome", t.name || t.id); if (n) { t.name = n; commit("Rinomina traccia"); } } },
-        { label: "Aggiungi traccia", run: () => { addTrack(r.type); commit("Aggiungi traccia"); } },
-        { label: "Elimina traccia", run: () => deleteTrack(t, r.type), disabled: () => (isV ? P.tracks.v : P.tracks.a).length < 2 },
-        "-", { label: trackH(t) > 60 ? "Riduci altezza" : "Espandi altezza", run: () => { t.h = trackH(t) > 60 ? 56 : 100; commit(); } }]); });
+        { label: _t("videdit.rinomina_traccia"), run: async () => { const n = await askText(_t("videdit.rinomina_traccia_2"), _t("common.nome"), t.name || t.id); if (n) { t.name = n; commit(_t("videdit.rinomina_traccia_2")); } } },
+        { label: _t("videdit.aggiungi_traccia"), run: () => { addTrack(r.type); commit(_t("videdit.aggiungi_traccia")); } },
+        { label: _t("videdit.elimina_traccia"), run: () => deleteTrack(t, r.type), disabled: () => (isV ? P.tracks.v : P.tracks.a).length < 2 },
+        "-", { label: trackH(t) > 60 ? _t("videdit.riduci_altezza") : _t("videdit.espandi_altezza"), run: () => { t.h = trackH(t) > 60 ? 56 : 100; commit(); } }]); });
       row.title = t.name || t.id;
       headInner.append(row);
     }
@@ -1142,18 +1142,18 @@ export function createVideoEditor(ctx, P, opts = {}) {
     const p = type === "v" ? "V" : "A";
     let n = list.length + 1;
     while (list.some(t => t.id === p + n)) n++;
-    const t = { id: p + n, name: (type === "v" ? "Video " : "Audio ") + n };
+    const t = { id: p + n, name: (type === "v" ? _t("videdit.video") : _t("videdit.audio")) + n };
     if (type === "a") t.gain = 0;
     list.push(t);
     return t.id;
   }
   async function deleteTrack(t, type) {
     const cs = clipsOn(t.id);
-    if (cs.length && !(await confirmBox("Elimina traccia", `La traccia ${t.id} contiene ${cs.length} clip che verranno eliminate. Continuare?`, "Elimina", true))) return;
+    if (cs.length && !(await confirmBox(_t("videdit.elimina_traccia"), _t("videdit.traccia_0_contiene_1_clip", t.id, cs.length), _t("common.elimina"), true))) return;
     cs.forEach(removeClip);
     if (type === "v") P.tracks.v = P.tracks.v.filter(x => x !== t); else P.tracks.a = P.tracks.a.filter(x => x !== t);
     if (P.srcV === t.id) P.srcV = P.tracks.v[0]?.id; if (P.srcA === t.id) P.srcA = P.tracks.a[0]?.id;
-    commit("Elimina traccia");
+    commit(_t("videdit.elimina_traccia"));
   }
 
   // disegno della timeline
@@ -1314,7 +1314,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
     g.fillStyle = "rgba(0,0,0,.25)"; g.fillRect(x0, y + 1, w, 14);
     g.fillStyle = "#fff"; g.font = "11px Segoe UI";
     let label = (c.fx?.length ? "fx " : "") + (c.name || m?.name || c.kind) + ((c.speed || 1) !== 1 ? ` [${Math.round(c.speed * 100)}%]` : "") + (c.link ? "" : (m?.audio && c.kind === "video" ? " (V)" : ""));
-    if (m?.offline) label = "SUPPORTO NON IN LINEA · " + label;
+    if (m?.offline) label = _t("videdit.supporto_non_linea") + label;
     g.fillText(label, Math.max(x0, 0) + 4, y + 12, Math.max(10, w - 8));
     g.restore();
     g.strokeStyle = selected ? "#ffffff" : "rgba(0,0,0,.55)";
@@ -1335,7 +1335,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
         g.fillRect(tToX(drop.t), rowY(r) + 1, drop.dur * pps, r.h - 2);
         g.strokeStyle = "#fff"; g.strokeRect(tToX(drop.t) + 0.5, rowY(r) + 1.5, drop.dur * pps - 1, r.h - 3);
       }
-      g.fillStyle = "#fff"; g.font = "11px Segoe UI"; g.fillText(drop.insert ? "Inserisci (sposta le clip successive)" : "Sovrascrivi · tieni premuto Ctrl per inserire", tToX(drop.t) + 4, RULER + 12);
+      g.fillStyle = "#fff"; g.font = "11px Segoe UI"; g.fillText(drop.insert ? _t("videdit.inserisci_sposta_clip_successive") : _t("videdit.sovrascrivi_tieni_premuto_ctrl_inserire"), tToX(drop.t) + 4, RULER + 12);
     }
     if (drop?.fxTarget) {
       const c = drop.fxTarget, r = rowOf(c.track);
@@ -1448,10 +1448,10 @@ export function createVideoEditor(ctx, P, opts = {}) {
     const r = tlArea.getBoundingClientRect();
     const h = hitClip(e.clientX - r.left, e.clientY - r.top);
     if (h?.clip) { if (!sel.has(h.clip.id)) { sel = withLinked([h.clip.id]); selTr = null; refreshSel(); } openMenuAt({ x: e.clientX, y: e.clientY }, MENUS.Clip()); }
-    else if (h?.tr) { selTr = h.tr.id; sel.clear(); refreshSel(); openMenuAt({ x: e.clientX, y: e.clientY }, [{ label: "Elimina transizione", run: () => { P.transitions = P.transitions.filter(t => t !== h.tr); selTr = null; commit("Elimina transizione"); } }]); }
+    else if (h?.tr) { selTr = h.tr.id; sel.clear(); refreshSel(); openMenuAt({ x: e.clientX, y: e.clientY }, [{ label: _t("videdit.elimina_transizione"), run: () => { P.transitions = P.transitions.filter(t => t !== h.tr); selTr = null; commit(_t("videdit.elimina_transizione")); } }]); }
     else if (h?.row) {
       const gap = gapAt(h.row.tr.id, xToT(e.clientX - r.left));
-      if (gap) { selGap = gap; drawTL(); openMenuAt({ x: e.clientX, y: e.clientY }, [{ label: "Elimina con ripple", run: () => rippleDeleteGap() }]); }
+      if (gap) { selGap = gap; drawTL(); openMenuAt({ x: e.clientX, y: e.clientY }, [{ label: _t("videdit.elimina_ripple"), run: () => rippleDeleteGap() }]); }
     }
   });
   function gapAt(tid, t) {
@@ -1522,7 +1522,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
         selTr = h.tr.id; sel.clear(); selGap = null; refreshSel();
         if (!h.edge) return null;
         const tr = h.tr, d0 = tr.dur, x0 = e.clientX;
-        return { move: ev => { tr.dur = Math.max(fr(), snapF(d0 + (h.edge === "b" ? 1 : -1) * (ev.clientX - x0) / pps * (tr.a && tr.b ? 2 : 1))); validateTransitions(P); drawTL(); player.dirty = true; player.idle(); }, up: () => commit("Durata transizione") };
+        return { move: ev => { tr.dur = Math.max(fr(), snapF(d0 + (h.edge === "b" ? 1 : -1) * (ev.clientX - x0) / pps * (tr.a && tr.b ? 2 : 1))); validateTransitions(P); drawTL(); player.dirty = true; player.idle(); }, up: () => commit(_t("videdit.durata_transizione")) };
       }
       if (!h.clip) {
         // spazio vuoto: riquadro di selezione, oppure selezione dello spazio tra due clip
@@ -1544,7 +1544,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
         };
       }
       const c = h.clip;
-      if (locked(c.track)) { toast("La traccia e' bloccata", true); return null; }
+      if (locked(c.track)) { toast(_t("videdit.traccia_bloccata"), true); return null; }
       selGap = null; selTr = null; selKf = null;
       // Ctrl+clic sulla linea: fotogramma chiave (come lo strumento Penna)
       if (e.ctrlKey && !h.edge && y > rowY(h.row) + 15) return TOOL_DOWN.pen(e, h, x, y, r);
@@ -1552,7 +1552,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
         // trascinare la linea di opacita'/volume senza fotogrammi chiave cambia il valore fisso
         const prop = h.prop, y0 = e.clientY, v0 = prop === "volume" ? c.volume || 0 : c.opacity ?? 100, H = h.row.h - 6;
         if (!sel.has(c.id)) { sel = withLinked([c.id]); refreshSel(); }
-        return { move: ev => { const dv = -(ev.clientY - y0) / H * (prop === "volume" ? 46 : 100); const v = prop === "volume" ? clamp(Math.round((v0 + dv) * 10) / 10, -60, 6) : clamp(Math.round(v0 + dv), 0, 100); c[prop] = v; ctx.status(prop === "volume" ? `Volume ${v} dB` : `Opacita' ${v}%`); drawTL(); player.dirty = true; player.idle(); }, up: () => commit(prop === "volume" ? "Volume" : "Opacita'") };
+        return { move: ev => { const dv = -(ev.clientY - y0) / H * (prop === "volume" ? 46 : 100); const v = prop === "volume" ? clamp(Math.round((v0 + dv) * 10) / 10, -60, 6) : clamp(Math.round(v0 + dv), 0, 100); c[prop] = v; ctx.status(prop === "volume" ? `Volume ${v} dB` : _t("videdit.opacita_0", v)); drawTL(); player.dirty = true; player.idle(); }, up: () => commit(prop === "volume" ? _t("videdit.volume") : _t("videdit.opacita")) };
       }
       if (h.edge) return trimDrag(e, c, h.edge, e.altKey ? "solo" : "normal", r);
       // selezione
@@ -1591,10 +1591,10 @@ export function createVideoEditor(ctx, P, opts = {}) {
             d = Math.max(d, -ob.in / ob.speed);
           }
           for (const [a, b] of pairs) { applyTrim(a, O.get(a.id), "out", d); applyTrim(b, O.get(b.id), "in", d); }
-          ctx.status("Modifica con rullo: " + (d >= 0 ? "+" : "") + tc(d, fps));
+          ctx.status(_t("videdit.modifica_rullo") + (d >= 0 ? "+" : "") + tc(d, fps));
           drawTL(); goto(B.start);
         },
-        up: () => commit("Modifica con rullo"),
+        up: () => commit(_t("videdit.modifica_rullo_2")),
       };
     },
     rate(e, h, x, y, r) {
@@ -1612,10 +1612,10 @@ export function createVideoEditor(ctx, P, opts = {}) {
             if (h.edge === "in") c.start = o.start + o.dur - nd;
             c.dur = nd;
           }
-          ctx.status(`Velocita' ${Math.round(h.clip.speed * 1000) / 10}%`);
+          ctx.status(_t("videdit.velocita_0", Math.round(h.clip.speed * 1000) / 10));
           drawTL();
         },
-        up: () => commit("Allungamento velocita'"),
+        up: () => commit(_t("videdit.allungamento_velocita")),
       };
     },
     razor(e, h) {
@@ -1633,11 +1633,11 @@ export function createVideoEditor(ctx, P, opts = {}) {
         move: ev => {
           const d = (ev.clientX - x0) / pps;
           for (const c of cs) { const o = O.get(c.id); c.in = clamp(o.in - d * o.speed, 0, Math.max(0, maxSrc(c) - o.dur * o.speed)); }
-          ctx.status("Slittamento: attacco sorgente " + tc(h.clip.in, fps));
+          ctx.status(_t("videdit.slittamento_attacco_sorgente") + tc(h.clip.in, fps));
           if (h.clip.kind === "video") { player.seek(clamp(player.t, h.clip.start, end(h.clip) - fr())); }
           drawTL();
         },
-        up: () => commit("Slittamento"),
+        up: () => commit(_t("videdit.slittamento")),
       };
     },
     slide(e, h, x, y, r) {
@@ -1666,14 +1666,14 @@ export function createVideoEditor(ctx, P, opts = {}) {
           }
           drawTL();
         },
-        up: () => commit("Scorrimento"),
+        up: () => commit(_t("videdit.scorrimento")),
       };
     },
     pen(e, h, x, y, r) {
       if (!h?.clip) return null;
       if (h.kf !== undefined) return dragKf(h, r);
       const c = h.clip, ry = rowY(h.row), H = h.row.h;
-      if (H < 40) { toast("Espandi la traccia (doppio clic sull'intestazione) per modificare i fotogrammi chiave", true); return null; }
+      if (H < 40) { toast(_t("videdit.espandi_traccia_doppio_clic_sull"), true); return null; }
       const prop = c.kind === "audio" ? "volume" : "opacity";
       const tau = clamp(snapF(xToT(x) - c.start), 0, c.dur);
       const v = c.kind === "audio" ? Math.round((((1 - (y - ry - 3) / (H - 6)) * 46) - 40) * 10) / 10 : Math.round((1 - (y - ry - 3) / (H - 6)) * 100);
@@ -1683,7 +1683,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
       c.kf[prop].sort((a, b) => a[0] - b[0]);
       sel = withLinked([c.id]);
       selKf = { c: c.id, prop, i: c.kf[prop].findIndex(k => k[0] === tau) };
-      commit("Fotogramma chiave");
+      commit(_t("videdit.fotogramma_chiave"));
       return dragKf({ clip: c, kf: selKf.i, prop, row: h.row }, r);
     },
   };
@@ -1701,10 +1701,10 @@ export function createVideoEditor(ctx, P, opts = {}) {
         k[1] = prop === "volume" ? Math.round((fy * 46 - 40) * 10) / 10 : Math.round(fy * 100);
         keys.sort((a, b) => a[0] - b[0]);
         selKf.i = keys.indexOf(k);
-        ctx.status(prop === "volume" ? `Volume ${k[1]} dB a ${tc(c.start + k[0], fps)}` : `Opacita' ${k[1]}% a ${tc(c.start + k[0], fps)}`);
+        ctx.status(prop === "volume" ? `Volume ${k[1]} dB a ${tc(c.start + k[0], fps)}` : _t("videdit.opacita_0_1", k[1], tc(c.start + k[0], fps)));
         drawTL(); player.dirty = true; player.idle();
       },
-      up: () => { if (moved) commit("Sposta fotogramma chiave"); else drawTL(); },
+      up: () => { if (moved) commit(_t("videdit.sposta_fotogramma_chiave")); else drawTL(); },
     };
   }
   // taglio di un bordo: normale (limitato dalle vicine), ripple (sposta le successive), solo (senza la clip collegata)
@@ -1737,11 +1737,11 @@ export function createVideoEditor(ctx, P, opts = {}) {
           else applyTrim(z, o, side, d);
         }
         if (mode === "ripple") { const delta = side === "in" ? -d : d; for (const z of after) { back(z, O.get(z.id)); z.start = O.get(z.id).start + delta; } }
-        ctx.status((mode === "ripple" ? "Ripple " : "Taglio ") + (side === "in" ? "in testa: " : "in coda: ") + (d >= 0 ? "+" : "") + tc(d, fps) + " · durata " + tc(c.dur, fps));
+        ctx.status((mode === "ripple" ? _t("videdit.ripple") : _t("videdit.taglio")) + (side === "in" ? _t("videdit.testa") : _t("videdit.coda")) + (d >= 0 ? "+" : "") + tc(d, fps) + _t("videdit.durata_2") + tc(c.dur, fps));
         drawTL();
         if (c.kind !== "audio") player.seek(side === "in" ? c.start : Math.max(c.start, end(c) - fr()));
       },
-      up: () => commit(mode === "ripple" ? "Modifica con ripple" : "Taglia"),
+      up: () => commit(mode === "ripple" ? _t("videdit.modifica_ripple") : _t("common.taglia")),
     };
   }
   // spostamento delle clip selezionate (Alt = duplica, Ctrl al rilascio = inserisci)
@@ -1786,7 +1786,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
             c.track = order[ni];
           } else c.track = o.track;
         }
-        ctx.status(`Sposta: ${d >= 0 ? "+" : ""}${tc(d, fps)}${ev.ctrlKey ? " · Inserisci" : " · Sovrascrivi (Ctrl per inserire)"}`);
+        ctx.status(_t("videdit.sposta_0_1_2", d >= 0 ? "+" : "", tc(d, fps), ev.ctrlKey ? _t("videdit.inserisci_3") : _t("videdit.sovrascrivi_ctrl_inserire")));
         drawTL();
       },
       up: ev => {
@@ -1802,7 +1802,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
           // la clip spostata lascia un vuoto all'origine e si inserisce alla destinazione
           insertSpace(a, b - a, syncTracks(a, a + EPS, [...new Set(moving.map(c => c.track))]), ids);
         } else for (const c of moving) liftRange(c.track, c.start, end(c), ids);
-        commit(dup ? "Duplica" : ev.ctrlKey ? "Sposta e inserisci" : "Sposta");
+        commit(dup ? _t("videdit.duplica") : ev.ctrlKey ? _t("videdit.sposta_inserisci") : _t("videdit.sposta"));
       },
     };
   }
@@ -1817,7 +1817,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
       const rr = splitClip(c, t, key);
       if (rr) done.push(rr);
     }
-    if (done.length) commit("Lama di rasoio"); else ctx.status("Niente da dividere in questo punto");
+    if (done.length) commit(_t("videdit.lama_rasoio")); else ctx.status(_t("videdit.niente_dividere_questo_punto"));
   }
   function addEdit(all) {
     const t = snapF(player.t);
@@ -1827,13 +1827,13 @@ export function createVideoEditor(ctx, P, opts = {}) {
     razorAt(t, targets.filter(c => c.start < t - EPS && end(c) > t + EPS));
   }
   function clearSel() {
-    if (selKf) { const c = byId(selKf.c); if (c?.kf?.[selKf.prop]) { c.kf[selKf.prop].splice(selKf.i, 1); if (!c.kf[selKf.prop].length) delete c.kf[selKf.prop]; } selKf = null; commit("Elimina fotogramma chiave"); return; }
-    if (selTr) { P.transitions = P.transitions.filter(t => t.id !== selTr); selTr = null; commit("Elimina transizione"); return; }
+    if (selKf) { const c = byId(selKf.c); if (c?.kf?.[selKf.prop]) { c.kf[selKf.prop].splice(selKf.i, 1); if (!c.kf[selKf.prop].length) delete c.kf[selKf.prop]; } selKf = null; commit(_t("videdit.elimina_fotogramma_chiave")); return; }
+    if (selTr) { P.transitions = P.transitions.filter(t => t.id !== selTr); selTr = null; commit(_t("videdit.elimina_transizione")); return; }
     if (selGap) return rippleDeleteGap();
     const cs = [...sel].map(byId).filter(c => c && !locked(c.track));
     if (!cs.length) return;
     cs.forEach(removeClip);
-    commit("Cancella");
+    commit(_t("videdit.cancella"));
   }
   function rippleDelete() {
     if (selGap) return rippleDeleteGap();
@@ -1847,7 +1847,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
       const tracks = syncTracks(a, b, [tr]).filter(tid => !clipsOn(tid).some(z => z.start < b - EPS && end(z) > a + EPS));
       closeRange(a, b, tracks);
     }
-    commit("Elimina con ripple");
+    commit(_t("videdit.elimina_ripple"));
   }
   function rippleDeleteGap() {
     const g = selGap;
@@ -1855,38 +1855,38 @@ export function createVideoEditor(ctx, P, opts = {}) {
     const tracks = syncTracks(g.a, g.b, [g.track]).filter(tid => !clipsOn(tid).some(z => z.start < g.b - EPS && end(z) > g.a + EPS));
     closeRange(g.a, g.b, tracks);
     selGap = null;
-    commit("Elimina spazio con ripple");
+    commit(_t("videdit.elimina_spazio_ripple"));
   }
   // Q / W: taglio con ripple della modifica precedente/successiva fino alla testina
   function rippleTrimTo(prevEdit) {
     const t = snapF(player.t);
     const under = P.clips.filter(c => c.start < t - EPS && end(c) > t + EPS && !locked(c.track));
-    if (!under.length) return ctx.status("Nessuna clip sotto la testina");
+    if (!under.length) return ctx.status(_t("videdit.nessuna_clip_sotto_testina"));
     if (prevEdit) { const a = Math.max(...under.map(c => c.start)); extractRange(a, t, unlockedTracks()); goto(a); }
     else { const b = Math.min(...under.map(end)); extractRange(t, b, unlockedTracks()); }
-    commit(prevEdit ? "Taglio con ripple della modifica precedente" : "Taglio con ripple della modifica successiva");
+    commit(prevEdit ? _t("videdit.taglio_ripple_modifica_precedente") : _t("videdit.taglio_ripple_modifica_successiva"));
   }
   function hasIO() { return P.inPoint !== null && P.inPoint !== undefined && P.outPoint !== null && P.outPoint !== undefined && P.outPoint > P.inPoint; }
-  function liftInOut() { if (!hasIO()) return toast("Imposta prima attacco (I) e stacco (O) nella sequenza", true); for (const tid of unlockedTracks()) liftRange(tid, P.inPoint, P.outPoint); commit("Solleva"); }
-  function extractInOut() { if (!hasIO()) return toast("Imposta prima attacco (I) e stacco (O) nella sequenza", true); extractRange(P.inPoint, P.outPoint, unlockedTracks()); const a = P.inPoint; P.outPoint = null; commit("Estrai"); goto(a); }
-  function markIn() { if (focus === "source") return srcMark("in"); P.inPoint = snapF(player.t); if (P.outPoint !== null && P.outPoint !== undefined && P.outPoint <= P.inPoint) P.outPoint = null; commit("Contrassegna attacco"); }
-  function markOut() { if (focus === "source") return srcMark("out"); P.outPoint = snapF(player.t); if (P.inPoint !== null && P.inPoint !== undefined && P.inPoint >= P.outPoint) P.inPoint = null; commit("Contrassegna stacco"); }
+  function liftInOut() { if (!hasIO()) return toast(_t("videdit.imposta_prima_attacco_i_stacco"), true); for (const tid of unlockedTracks()) liftRange(tid, P.inPoint, P.outPoint); commit(_t("videdit.solleva")); }
+  function extractInOut() { if (!hasIO()) return toast(_t("videdit.imposta_prima_attacco_i_stacco"), true); extractRange(P.inPoint, P.outPoint, unlockedTracks()); const a = P.inPoint; P.outPoint = null; commit(_t("videdit.estrai_2")); goto(a); }
+  function markIn() { if (focus === "source") return srcMark("in"); P.inPoint = snapF(player.t); if (P.outPoint !== null && P.outPoint !== undefined && P.outPoint <= P.inPoint) P.outPoint = null; commit(_t("videdit.contrassegna_attacco")); }
+  function markOut() { if (focus === "source") return srcMark("out"); P.outPoint = snapF(player.t); if (P.inPoint !== null && P.inPoint !== undefined && P.inPoint >= P.outPoint) P.inPoint = null; commit(_t("videdit.contrassegna_stacco_2")); }
   function markClip() {
     const c = [...sel].map(byId).find(Boolean) || P.clips.filter(x => x.start <= player.t && end(x) > player.t).sort((a, b) => a.track.localeCompare(b.track))[0];
     if (!c) return;
-    P.inPoint = c.start; P.outPoint = end(c); commit("Contrassegna clip");
+    P.inPoint = c.start; P.outPoint = end(c); commit(_t("videdit.contrassegna_clip"));
   }
   function addMarker() {
     const t = snapF(player.t);
     if (P.markers.some(m => Math.abs(m.t - t) < fr() / 2)) return;
     P.markers.push({ t, name: "" });
     P.markers.sort((a, b) => a.t - b.t);
-    commit("Aggiungi marcatore");
+    commit(_t("videdit.aggiungi_marcatore"));
   }
   async function editMarker(m) {
-    const n = await askText("Marcatore", "Nome / commento", m.name || "");
+    const n = await askText(_t("videdit.marcatore"), _t("videdit.nome_commento"), m.name || "");
     if (n === null) return;
-    m.name = n; commit("Marcatore");
+    m.name = n; commit(_t("videdit.marcatore"));
   }
   function gotoMarker(dir) {
     const t = player.t;
@@ -1901,20 +1901,20 @@ export function createVideoEditor(ctx, P, opts = {}) {
   }
   function selectAll() { sel = new Set(P.clips.filter(c => !locked(c.track)).map(c => c.id)); selTr = null; refreshSel(); }
   function deselect() { sel.clear(); selTr = null; selGap = null; selKf = null; refreshSel(); }
-  function toggleEnable() { const cs = [...sel].map(byId).filter(Boolean); if (!cs.length) return; const v = !cs[0].off; cs.forEach(c => { c.off = v; }); commit(v ? "Disattiva clip" : "Attiva clip"); }
+  function toggleEnable() { const cs = [...sel].map(byId).filter(Boolean); if (!cs.length) return; const v = !cs[0].off; cs.forEach(c => { c.off = v; }); commit(v ? _t("videdit.disattiva_clip") : _t("videdit.attiva_clip")); }
   function toggleLink() {
     const cs = [...sel].map(byId).filter(Boolean);
     if (!cs.length) return;
-    if (cs.some(c => c.link)) { cs.forEach(c => { c.link = null; }); commit("Scollega"); toast("Audio e video scollegati"); }
-    else { const vs = cs.filter(c => c.kind !== "audio"), as = cs.filter(c => c.kind === "audio"); if (!vs.length || !as.length) return toast("Seleziona una clip video e una audio da collegare", true); const l = uid("l"); cs.forEach(c => { c.link = l; }); commit("Collega"); toast("Audio e video collegati"); }
+    if (cs.some(c => c.link)) { cs.forEach(c => { c.link = null; }); commit(_t("videdit.scollega")); toast(_t("videdit.audio_video_scollegati")); }
+    else { const vs = cs.filter(c => c.kind !== "audio"), as = cs.filter(c => c.kind === "audio"); if (!vs.length || !as.length) return toast(_t("videdit.seleziona_clip_video_audio_collegare"), true); const l = uid("l"); cs.forEach(c => { c.link = l; }); commit(_t("videdit.collega")); toast(_t("videdit.audio_video_collegati")); }
   }
   function copySel(cut) {
     const cs = [...sel].map(byId).filter(Boolean);
     if (!cs.length) return;
     const t0 = Math.min(...cs.map(c => c.start));
     clipboard = cs.map(c => ({ ...structuredClone(c), off0: c.start - t0 }));
-    if (cut) { cs.forEach(removeClip); commit("Taglia"); }
-    ctx.status(`${cs.length} clip negli appunti`);
+    if (cut) { cs.forEach(removeClip); commit(_t("common.taglia")); }
+    ctx.status(_t("videdit.0_clip_negli_appunti", cs.length));
   }
   function paste(insert) {
     if (!clipboard) return;
@@ -1926,14 +1926,14 @@ export function createVideoEditor(ctx, P, opts = {}) {
     else for (const c of made) liftRange(c.track, c.start, end(c));
     P.clips.push(...made);
     sel = new Set(made.map(c => c.id));
-    commit(insert ? "Incolla inserimento" : "Incolla");
+    commit(insert ? _t("videdit.incolla_inserimento") : _t("common.incolla"));
     goto(t + span);
   }
   async function pasteAttributes() {
-    if (!clipboard?.length) return toast("Copia prima una clip (Ctrl+C)", true);
+    if (!clipboard?.length) return toast(_t("videdit.copia_prima_clip_ctrl_c"), true);
     const src0 = clipboard.find(c => c.kind !== "audio") || clipboard[0];
-    const boxes = [["motion", "Movimento"], ["opacity", "Opacita' e fusione"], ["fx", "Effetti"], ["volume", "Volume"]].map(([k, n]) => [k, el("input", { type: "checkbox", checked: true, id: "ve-pa-" + k }), n]);
-    const ok = await modal("Incolla attributi", el("div", { style: { display: "grid", gap: "6px" } }, ...boxes.map(([, b, n]) => el("label", { style: { display: "flex", gap: "8px" } }, b, n))), [{ label: "Annulla", value: false }, { label: "OK", value: true, primary: true }]);
+    const boxes = [["motion", _t("videdit.movimento")], ["opacity", _t("videdit.opacita_fusione")], ["fx", _t("videdit.effetti")], ["volume", _t("videdit.volume")]].map(([k, n]) => [k, el("input", { type: "checkbox", checked: true, id: "ve-pa-" + k }), n]);
+    const ok = await modal(_t("videdit.incolla_attributi"), el("div", { style: { display: "grid", gap: "6px" } }, ...boxes.map(([, b, n]) => el("label", { style: { display: "flex", gap: "8px" } }, b, n))), [{ label: _t("common.annulla"), value: false }, { label: "OK", value: true, primary: true }]);
     if (!ok) return;
     const on = Object.fromEntries(boxes.map(([k, b]) => [k, b.checked]));
     for (const c of [...sel].map(byId).filter(Boolean)) {
@@ -1944,21 +1944,21 @@ export function createVideoEditor(ctx, P, opts = {}) {
         if (on.fx) c.fx = structuredClone(src0.fx || []);
       } else if (on.volume) { const a = clipboard.find(x => x.kind === "audio"); if (a) { c.volume = a.volume || 0; c.gain = a.gain || 0; if (a.kf?.volume) c.kf.volume = structuredClone(a.kf.volume); else delete c.kf.volume; } }
     }
-    commit("Incolla attributi");
+    commit(_t("videdit.incolla_attributi"));
   }
   async function speedDialog() {
     const cs = [...sel].map(byId).filter(c => c && c.kind !== "title" && c.kind !== "color" && c.kind !== "image");
-    if (!cs.length) return toast("Seleziona una clip video o audio", true);
+    if (!cs.length) return toast(_t("videdit.seleziona_clip_video_audio"), true);
     const c = cs[0];
     const sp = el("input", { type: "number", class: "field", id: "ve-sp", value: Math.round((c.speed || 1) * 1000) / 10, min: 10, max: 1600, step: 1 });
     const du = el("input", { type: "text", class: "field", id: "ve-du", value: tc(c.dur, fps) });
     const rip = el("input", { type: "checkbox", id: "ve-rip" });
     sp.addEventListener("input", () => { du.value = tc(c.dur * (c.speed || 1) / (+sp.value / 100), fps); });
     du.addEventListener("input", () => { const d = parseTc(du.value, fps); if (d > 0) sp.value = Math.round(c.dur * (c.speed || 1) / d * 1000) / 10; });
-    const ok = await modal("Velocita'/Durata clip", el("div", { style: { display: "grid", gap: "10px" } },
-      el("label", { style: { display: "grid", gap: "4px" } }, "Velocita' (%)", sp), el("label", { style: { display: "grid", gap: "4px" } }, "Durata", du),
-      el("label", { style: { display: "flex", gap: "8px" } }, rip, "Modifica con ripple, sposta le clip successive"),
-      el("p", { class: "note", style: { margin: 0 } }, "L'intonazione dell'audio resta invariata.")), [{ label: "Annulla", value: false }, { label: "OK", value: true, primary: true }]);
+    const ok = await modal(_t("videdit.velocita_durata_clip"), el("div", { style: { display: "grid", gap: "10px" } },
+      el("label", { style: { display: "grid", gap: "4px" } }, _t("videdit.velocita_2"), sp), el("label", { style: { display: "grid", gap: "4px" } }, _t("videdit.durata"), du),
+      el("label", { style: { display: "flex", gap: "8px" } }, rip, _t("videdit.modifica_ripple_sposta_clip_successive")),
+      el("p", { class: "note", style: { margin: 0 } }, _t("videdit.l_intonazione_dell_audio_resta"))), [{ label: _t("common.annulla"), value: false }, { label: "OK", value: true, primary: true }]);
     if (!ok) return;
     const ns = clamp(+sp.value / 100, 0.1, 16);
     for (const z of new Set([...cs, ...cs.flatMap(partners)])) {
@@ -1970,13 +1970,13 @@ export function createVideoEditor(ctx, P, opts = {}) {
       if (rip.checked) { for (const o of P.clips) if (o !== z && o.track === z.track && o.start >= oldEnd - EPS) o.start += delta; }
       else { const n = clipsOn(z.track).find(o => o !== z && o.start >= oldEnd - EPS); if (n && end(z) > n.start) z.dur = n.start - z.start; }
     }
-    commit("Velocita'/Durata");
+    commit(_t("videdit.velocita_durata_2"));
     renderEC();
   }
   async function normalizeAudio(cs, target) {
     cs = cs.filter(c => c.kind === "audio");
-    if (!cs.length) return toast("Seleziona una o piu' clip audio", true);
-    ctx.status("Analisi del volume...");
+    if (!cs.length) return toast(_t("videdit.seleziona_piu_clip_audio"), true);
+    ctx.status(_t("videdit.analisi_volume"));
     for (const c of cs) {
       const m = mediaOf(c);
       try {
@@ -1985,94 +1985,94 @@ export function createVideoEditor(ctx, P, opts = {}) {
         c.gain = Math.round((target - r.max) * 10) / 10;
       } catch (e) { toast(e.message, true); }
     }
-    commit("Normalizza audio");
-    ctx.status(`Normalizzate ${cs.length} clip a ${target} dB di picco`);
+    commit(_t("videdit.normalizza_audio"));
+    ctx.status(_t("videdit.normalizzate_0_clip_1_db", cs.length, target));
     renderEC();
   }
   async function audioGainDialog() {
     const cs = [...sel].map(byId).filter(c => c?.kind === "audio");
-    if (!cs.length) return toast("Seleziona una o piu' clip audio", true);
-    const mode = el("select", { class: "field", id: "ve-gm" }, el("option", { value: "set" }, "Imposta guadagno a (dB)"), el("option", { value: "adj" }, "Regola guadagno di (dB)"), el("option", { value: "norm" }, "Normalizza picco massimo a (dB)"));
+    if (!cs.length) return toast(_t("videdit.seleziona_piu_clip_audio"), true);
+    const mode = el("select", { class: "field", id: "ve-gm" }, el("option", { value: "set" }, _t("videdit.imposta_guadagno_db")), el("option", { value: "adj" }, _t("videdit.regola_guadagno_db")), el("option", { value: "norm" }, _t("videdit.normalizza_picco_massimo_db")));
     const val = el("input", { type: "number", class: "field", id: "ve-gv", value: 0, step: 0.5 });
     mode.addEventListener("change", () => { val.value = mode.value === "norm" ? -1 : 0; });
-    const ok = await modal("Guadagno audio", el("div", { style: { display: "grid", gap: "10px" } }, mode, val), [{ label: "Annulla", value: false }, { label: "OK", value: true, primary: true }]);
+    const ok = await modal(_t("videdit.guadagno_audio_2"), el("div", { style: { display: "grid", gap: "10px" } }, mode, val), [{ label: _t("common.annulla"), value: false }, { label: "OK", value: true, primary: true }]);
     if (!ok) return;
     const v = +val.value;
     if (mode.value === "norm") return normalizeAudio(cs, v);
     cs.forEach(c => { c.gain = mode.value === "set" ? v : (c.gain || 0) + v; });
-    commit("Guadagno audio");
+    commit(_t("videdit.guadagno_audio_2"));
   }
   async function stabilizeClip() {
-    if (WEB) return toast("La stabilizzazione e' disponibile nell'app per PC", true);
+    if (WEB) return toast(_t("videdit.stabilizzazione_disponibile_nell_app_pc"), true);
     const c = [...sel].map(byId).find(x => x?.kind === "video");
-    if (!c) return toast("Seleziona una clip video", true);
+    if (!c) return toast(_t("videdit.seleziona_clip_video"), true);
     const m = mediaOf(c);
-    const ok = await confirmBox("Stabilizza", `Viene creata una copia stabilizzata di "${m.name}" (analisi del movimento in due passate, puo' richiedere alcuni minuti). La clip usera' la copia: puoi tornare all'originale con Annulla.`, "Stabilizza");
+    const ok = await confirmBox(_t("videdit.stabilizza"), _t("videdit.viene_creata_copia_stabilizzata_0", m.name), _t("videdit.stabilizza"));
     if (!ok) return;
     let out = m.path.replace(/(\.[^.\\/]+)?$/, "_stabilizzato.mp4");
     try { out = (await api("temp_path", { name: baseName(out) })).path; } catch { /* */ }
-    const bar = progressBox("Stabilizzazione di " + m.name);
+    const bar = progressBox(_t("videdit.stabilizzazione") + m.name);
     try {
       const j = await api("video_stabilize", { path: m.path }, { json: { out } });
       await waitJob(j.job, (p, msg) => bar.set(p, msg));
       bar.close();
       const [nm] = await importPaths([out], true);
       for (const z of [c, ...partners(c)]) if (z.kind === "video") z.media = nm.id;
-      commit("Stabilizza");
-      toast("Clip stabilizzata");
-    } catch (e) { bar.close(); toast("Stabilizzazione non riuscita: " + e.message, true, 8000); }
+      commit(_t("videdit.stabilizza"));
+      toast(_t("videdit.clip_stabilizzata"));
+    } catch (e) { bar.close(); toast(_t("videdit.stabilizzazione_non_riuscita") + e.message, true, 8000); }
   }
   function progressBox(title) {
     const back = document.getElementById("modal"), body = document.getElementById("modal-body");
-    const fill = el("span"), msg = el("p", {}, "Avvio...");
+    const fill = el("span"), msg = el("p", {}, _t("videdit.avvio"));
     body.innerHTML = "";
     body.append(el("h3", {}, title), msg, el("div", { class: "progress" }, fill));
     back.hidden = false;
-    return { set(p, m) { fill.style.width = Math.round(p * 100) + "%"; msg.textContent = (m || "In corso") + ` · ${Math.round(p * 100)}%`; }, close() { back.hidden = true; } };
+    return { set(p, m) { fill.style.width = Math.round(p * 100) + "%"; msg.textContent = (m || _t("videdit.corso")) + ` · ${Math.round(p * 100)}%`; }, close() { back.hidden = true; } };
   }
 
   // ------------------------------------------------------------------ impostazioni della sequenza
   async function sequenceSettings() {
-    const pre = el("select", { class: "field", id: "ve-pre" }, el("option", { value: "" }, "Personalizzata"), ...PRESETS.map(([n, w, h]) => el("option", { value: `${w}x${h}`, selected: w === P.settings.w && h === P.settings.h }, `${n} (${w}×${h})`)));
+    const pre = el("select", { class: "field", id: "ve-pre" }, el("option", { value: "" }, _t("videdit.personalizzata")), ...PRESETS.map(([n, w, h]) => el("option", { value: `${w}x${h}`, selected: w === P.settings.w && h === P.settings.h }, `${n} (${w}×${h})`)));
     const w = el("input", { type: "number", class: "field", id: "ve-sw", value: P.settings.w, min: 16, max: 8192 });
     const h = el("input", { type: "number", class: "field", id: "ve-sh", value: P.settings.h, min: 16, max: 8192 });
     const f = el("select", { class: "field", id: "ve-sf" }, ...RATES.map(r => el("option", { value: r, selected: r === fps }, r + " fps")));
     const bg = el("input", { type: "color", id: "ve-sbg", value: P.settings.bg || "#000000" });
     pre.addEventListener("change", () => { if (pre.value) { const [a, b] = pre.value.split("x"); w.value = a; h.value = b; } });
-    const ok = await modal("Impostazioni sequenza", el("div", { style: { display: "grid", gap: "10px" } },
-      el("label", { style: { display: "grid", gap: "4px" } }, "Formato", pre),
-      el("div", { style: { display: "flex", gap: "8px", alignItems: "center" } }, "Dimensione fotogramma", w, "×", h),
-      el("label", { style: { display: "grid", gap: "4px" } }, "Base temporale", f),
-      el("label", { style: { display: "flex", gap: "8px", alignItems: "center" } }, "Colore di sfondo", bg)), [{ label: "Annulla", value: false }, { label: "OK", value: true, primary: true }]);
+    const ok = await modal(_t("videdit.impostazioni_sequenza"), el("div", { style: { display: "grid", gap: "10px" } },
+      el("label", { style: { display: "grid", gap: "4px" } }, _t("videdit.formato"), pre),
+      el("div", { style: { display: "flex", gap: "8px", alignItems: "center" } }, _t("videdit.dimensione_fotogramma"), w, "×", h),
+      el("label", { style: { display: "grid", gap: "4px" } }, _t("videdit.base_temporale"), f),
+      el("label", { style: { display: "flex", gap: "8px", alignItems: "center" } }, _t("videdit.colore_sfondo"), bg)), [{ label: _t("common.annulla"), value: false }, { label: "OK", value: true, primary: true }]);
     if (!ok) return;
     const nw = Math.round(+w.value / 2) * 2, nh = Math.round(+h.value / 2) * 2;
     const sx = nw / P.settings.w, sy = nh / P.settings.h;
     for (const c of P.clips) { if (c.motion) { c.motion.x *= sx; c.motion.y *= sy; } if (c.kf?.x) c.kf.x.forEach(k => { k[1] *= sx; }); if (c.kf?.y) c.kf.y.forEach(k => { k[1] *= sy; }); }
     P.settings.w = nw; P.settings.h = nh; P.settings.fps = fps = +f.value; P.settings.bg = bg.value;
     for (const c of P.clips) { c.start = snapF(c.start); c.dur = Math.max(fr(), snapF(c.dur)); }
-    commit("Impostazioni sequenza");
+    commit(_t("videdit.impostazioni_sequenza"));
     fitMonitor();
   }
 
   // ------------------------------------------------------------------ esportazione (FFmpeg, mbvisual/video.py)
   async function exportDialog() {
-    if (WEB) return toast("L'esportazione video e' disponibile nell'app per PC (usa FFmpeg)", true, 6000);
-    if (!P.clips.length) return toast("La sequenza e' vuota", true);
+    if (WEB) return toast(_t("videdit.l_esportazione_video_disponibile_nell"), true, 6000);
+    if (!P.clips.length) return toast(_t("videdit.sequenza_vuota"), true);
     const fmtSel = el("select", { class: "field", id: "ve-xf" },
-      ...[["h264", "H.264 (MP4) - consigliato"], ["h265", "HEVC H.265 (MP4) - file piu' piccoli"], ["webm", "WebM (VP9 + Opus) - web"], ["prores", "QuickTime (MOV ProRes 422) - per altri montaggi"],
-        ["mp3", "Solo audio MP3"], ["wav", "Solo audio WAV"], ["m4a", "Solo audio AAC (M4A)"]].map(([v, n]) => el("option", { value: v }, n)));
-    const resSel2 = el("select", { class: "field", id: "ve-xr" }, el("option", { value: "" }, `Come la sequenza (${P.settings.w}×${P.settings.h})`),
+      ...[["h264", _t("videdit.h_264_mp4_consigliato")], ["h265", _t("videdit.hevc_h_265_mp4_file")], ["webm", _t("videdit.webm_vp9_opus_web")], ["prores", _t("videdit.quicktime_mov_prores_422_altri")],
+        ["mp3", _t("videdit.solo_audio_mp3")], ["wav", _t("videdit.solo_audio_wav")], ["m4a", _t("videdit.solo_audio_aac_m4a")]].map(([v, n]) => el("option", { value: v }, n)));
+    const resSel2 = el("select", { class: "field", id: "ve-xr" }, el("option", { value: "" }, _t("videdit.come_sequenza_0_1", P.settings.w, P.settings.h)),
       ...[[3840, 2160], [2560, 1440], [1920, 1080], [1280, 720], [854, 480]].filter(([a]) => a !== P.settings.w).map(([a, b]) => { const hh = Math.round(a * P.settings.h / P.settings.w / 2) * 2; return el("option", { value: `${a}x${P.settings.w >= P.settings.h ? hh : b}` }, `${a}×${P.settings.w >= P.settings.h ? hh : b}`); }));
-    const fpsSel = el("select", { class: "field", id: "ve-xfps" }, el("option", { value: "" }, `Come la sequenza (${fps} fps)`), ...RATES.filter(r => r !== fps).map(r => el("option", { value: r }, r + " fps")));
-    const qSel = el("select", { class: "field", id: "ve-xq" }, el("option", { value: "alta" }, "Alta"), el("option", { value: "media" }, "Media"), el("option", { value: "bassa" }, "Bassa (file piccolo)"));
-    const rng = el("select", { class: "field", id: "ve-xrange" }, el("option", { value: "all" }, "Intera sequenza"), hasIO() ? el("option", { value: "io", selected: true }, `Da attacco a stacco (${tc(P.outPoint - P.inPoint, fps)})`) : null);
+    const fpsSel = el("select", { class: "field", id: "ve-xfps" }, el("option", { value: "" }, _t("videdit.come_sequenza_0_fps", fps)), ...RATES.filter(r => r !== fps).map(r => el("option", { value: r }, r + " fps")));
+    const qSel = el("select", { class: "field", id: "ve-xq" }, el("option", { value: "alta" }, _t("videdit.alta")), el("option", { value: "media" }, _t("videdit.media")), el("option", { value: "bassa" }, _t("videdit.bassa_file_piccolo")));
+    const rng = el("select", { class: "field", id: "ve-xrange" }, el("option", { value: "all" }, _t("videdit.intera_sequenza")), hasIO() ? el("option", { value: "io", selected: true }, _t("videdit.attacco_stacco_0", tc(P.outPoint - P.inPoint, fps))) : null);
     const loud = el("input", { type: "checkbox", id: "ve-xl" });
     const open = el("input", { type: "checkbox", id: "ve-xo", checked: true });
-    const ok = await modal("Impostazioni di esportazione", el("div", { class: "ve-xgrid" },
-      el("label", {}, "Formato", fmtSel), el("label", {}, "Risoluzione", resSel2), el("label", {}, "Fotogrammi al secondo", fpsSel), el("label", {}, "Qualita'", qSel), el("label", {}, "Intervallo", rng),
-      el("label", { class: "chk" }, loud, "Normalizza il volume generale (EBU R128, -14 LUFS: YouTube, social)"), el("label", { class: "chk" }, open, "Apri il file al termine"),
-      el("p", { class: "note" }, "L'esportazione usa FFmpeg con gli stessi effetti, transizioni e fotogrammi chiave dell'anteprima.")),
-    [{ label: "Annulla", value: false }, { label: "Esporta...", value: true, primary: true }]);
+    const ok = await modal(_t("videdit.impostazioni_esportazione"), el("div", { class: "ve-xgrid" },
+      el("label", {}, _t("videdit.formato"), fmtSel), el("label", {}, _t("videdit.risoluzione"), resSel2), el("label", {}, _t("videdit.fotogrammi_secondo"), fpsSel), el("label", {}, _t("videdit.qualita"), qSel), el("label", {}, _t("videdit.intervallo"), rng),
+      el("label", { class: "chk" }, loud, _t("videdit.normalizza_volume_generale_ebu_r128")), el("label", { class: "chk" }, open, _t("videdit.apri_file_termine")),
+      el("p", { class: "note" }, _t("videdit.l_esportazione_usa_ffmpeg_stessi"))),
+    [{ label: _t("common.annulla"), value: false }, { label: _t("videdit.esporta"), value: true, primary: true }]);
     if (!ok) return;
     const f = fmtSel.value;
     const ext = { h264: "mp4", h265: "mp4", webm: "webm", prores: "mov", mp3: "mp3", wav: "wav", m4a: "m4a" }[f];
@@ -2083,12 +2083,12 @@ export function createVideoEditor(ctx, P, opts = {}) {
     if (resSel2.value) { const [a, b] = resSel2.value.split("x").map(Number); o.w = a; o.h = b; }
     if (fpsSel.value) o.fps = +fpsSel.value;
     if (rng.value === "io") { o.start = P.inPoint; o.end = P.outPoint; }
-    const bar = progressBox("Esportazione: " + baseName(out));
+    const bar = progressBox(_t("videdit.esportazione") + baseName(out));
     try {
       // i titoli si disegnano qui (stesso aspetto dell'anteprima) e passano a FFmpeg come immagini PNG
       o.titles = {};
       for (const c of P.clips.filter(z => z.kind === "title" && !z.off)) {
-        bar.set(0, "Preparazione dei titoli");
+        bar.set(0, _t("videdit.preparazione_titoli"));
         const cv = renderTitle(c.title);
         const blob = await new Promise(r => cv.toBlob(r, "image/png"));
         const p = (await api("temp_path", { name: `titolo_${c.id}.png` })).path;
@@ -2098,13 +2098,13 @@ export function createVideoEditor(ctx, P, opts = {}) {
       const proj = JSON.parse(snapState());
       proj.tracks.a.forEach(t => { t.gain = (t.gain || 0) + (P.settings.master || 0); });
       const j = await api("video_export", {}, { json: { project: proj, out, opts: o } });
-      await waitJob(j.job, (p, m) => bar.set(p, m || "Esportazione"));
+      await waitJob(j.job, (p, m) => bar.set(p, m || _t("videdit.esportazione_2")));
       bar.close();
-      toast("Esportato: " + baseName(out), false, 5000);
+      toast(_t("videdit.esportato") + baseName(out), false, 5000);
       if (open.checked) ctx.openFile(out);
     } catch (e) {
       bar.close();
-      await modal("Esportazione non riuscita", el("div", {}, el("p", {}, e.message), el("p", { class: "note" }, "I dettagli del comando sono in %TEMP%\\MBVisual\\video\\ultima_esportazione.")));
+      await modal(_t("videdit.esportazione_non_riuscita"), el("div", {}, el("p", {}, e.message), el("p", { class: "note" }, _t("videdit.i_dettagli_comando_sono_temp"))));
     }
   }
   async function exportFrame() {
@@ -2120,7 +2120,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
     const out = await pickSavePath(name, ctx.untitled ? "" : dirName(ctx.path));
     if (!out) return;
     await saveBytes(out, new Uint8Array(await blob.arrayBuffer()));
-    toast("Fotogramma esportato: " + baseName(out));
+    toast(_t("videdit.fotogramma_esportato") + baseName(out));
   }
 
   // ------------------------------------------------------------------ menu (come la barra dei menu di Premiere)
@@ -2154,61 +2154,61 @@ export function createVideoEditor(ctx, P, opts = {}) {
   const noSel = () => !sel.size;
   const MENUS = {
     File: () => [
-      { label: "Importa...", keys: "Ctrl+I", run: doImport }, "-",
-      { label: "Esporta media...", keys: "Ctrl+M", run: exportDialog }, { label: "Esporta fotogramma...", keys: "Ctrl+Shift+E", run: exportFrame }, "-",
-      { label: "Impostazioni sequenza...", run: sequenceSettings },
+      { label: _t("videdit.importa_2"), keys: "Ctrl+I", run: doImport }, "-",
+      { label: _t("videdit.esporta_media"), keys: "Ctrl+M", run: exportDialog }, { label: _t("videdit.esporta_fotogramma"), keys: "Ctrl+Shift+E", run: exportFrame }, "-",
+      { label: _t("videdit.impostazioni_sequenza_2"), run: sequenceSettings },
     ],
     Modifica: () => [
-      { label: "Annulla" + (hi > 0 ? " " + history[hi].label : ""), keys: "Ctrl+Z", run: undo, disabled: () => hi <= 0 },
-      { label: "Ripeti", keys: "Ctrl+Shift+Z", run: redo, disabled: () => hi >= history.length - 1 }, "-",
-      { label: "Taglia", keys: "Ctrl+X", run: () => copySel(true), disabled: noSel }, { label: "Copia", keys: "Ctrl+C", run: () => copySel(false), disabled: noSel },
-      { label: "Incolla", keys: "Ctrl+V", run: () => paste(false), disabled: () => !clipboard }, { label: "Incolla inserimento", keys: "Ctrl+Shift+V", run: () => paste(true), disabled: () => !clipboard },
-      { label: "Incolla attributi...", keys: "Ctrl+Alt+V", run: pasteAttributes, disabled: () => !clipboard || !sel.size }, "-",
-      { label: "Cancella", keys: "Delete", run: clearSel }, { label: "Elimina con ripple", keys: "Shift+Delete", run: rippleDelete }, "-",
-      { label: "Seleziona tutto", keys: "Ctrl+A", run: selectAll }, { label: "Deseleziona tutto", keys: "Ctrl+Shift+A", run: deselect },
+      { label: _t("common.annulla_op") + (hi > 0 ? " " + history[hi].label : ""), keys: "Ctrl+Z", run: undo, disabled: () => hi <= 0 },
+      { label: _t("common.ripeti"), keys: "Ctrl+Shift+Z", run: redo, disabled: () => hi >= history.length - 1 }, "-",
+      { label: _t("common.taglia"), keys: "Ctrl+X", run: () => copySel(true), disabled: noSel }, { label: _t("common.copia"), keys: "Ctrl+C", run: () => copySel(false), disabled: noSel },
+      { label: _t("common.incolla"), keys: "Ctrl+V", run: () => paste(false), disabled: () => !clipboard }, { label: _t("videdit.incolla_inserimento"), keys: "Ctrl+Shift+V", run: () => paste(true), disabled: () => !clipboard },
+      { label: _t("videdit.incolla_attributi_2"), keys: "Ctrl+Alt+V", run: pasteAttributes, disabled: () => !clipboard || !sel.size }, "-",
+      { label: _t("videdit.cancella"), keys: "Delete", run: clearSel }, { label: _t("videdit.elimina_ripple"), keys: "Shift+Delete", run: rippleDelete }, "-",
+      { label: _t("videdit.seleziona_tutto"), keys: "Ctrl+A", run: selectAll }, { label: _t("videdit.deseleziona_tutto"), keys: "Ctrl+Shift+A", run: deselect },
     ],
     Clip: () => [
-      { label: "Velocita'/Durata...", keys: "Ctrl+R", run: speedDialog, disabled: noSel },
-      { label: "Opzioni audio", sub: () => [{ label: "Guadagno audio...", keys: "G", run: audioGainDialog }, { label: "Normalizza (picco a -1 dB)", run: () => normalizeAudio([...sel].map(byId).filter(Boolean), -1) }] },
-      { label: "Stabilizza (analisi del movimento)...", run: stabilizeClip, disabled: () => ![...sel].some(id => byId(id)?.kind === "video") },
-      { label: "Riempi fotogramma", run: () => { const c = [...sel].map(byId).find(x => x && x.kind !== "audio"); if (c) fillFrame(c); }, disabled: noSel }, "-",
-      { label: "Abilita", keys: "Shift+E", run: toggleEnable, disabled: noSel, checked: () => sel.size && ![...sel].map(byId)[0]?.off },
-      { label: "Collega / Scollega", keys: "Ctrl+L", run: toggleLink, disabled: noSel },
-      { label: "Rinomina...", run: async () => { const c = byId([...sel][0]); if (!c) return; const n = await askText("Rinomina clip", "Nome", c.name || ""); if (n) { c.name = n; commit("Rinomina"); } }, disabled: noSel },
-      { label: "Mostra nel monitor Sorgente", run: () => { const m = mediaOf(byId([...sel][0])); if (m) openSource(m); }, disabled: noSel },
+      { label: _t("videdit.velocita_durata"), keys: "Ctrl+R", run: speedDialog, disabled: noSel },
+      { label: _t("videdit.opzioni_audio"), sub: () => [{ label: _t("videdit.guadagno_audio"), keys: "G", run: audioGainDialog }, { label: _t("videdit.normalizza_picco_1_db"), run: () => normalizeAudio([...sel].map(byId).filter(Boolean), -1) }] },
+      { label: _t("videdit.stabilizza_analisi_movimento"), run: stabilizeClip, disabled: () => ![...sel].some(id => byId(id)?.kind === "video") },
+      { label: _t("videdit.riempi_fotogramma"), run: () => { const c = [...sel].map(byId).find(x => x && x.kind !== "audio"); if (c) fillFrame(c); }, disabled: noSel }, "-",
+      { label: _t("videdit.abilita"), keys: "Shift+E", run: toggleEnable, disabled: noSel, checked: () => sel.size && ![...sel].map(byId)[0]?.off },
+      { label: _t("videdit.collega_scollega"), keys: "Ctrl+L", run: toggleLink, disabled: noSel },
+      { label: _t("videdit.rinomina"), run: async () => { const c = byId([...sel][0]); if (!c) return; const n = await askText(_t("videdit.rinomina_clip"), _t("common.nome"), c.name || ""); if (n) { c.name = n; commit(_t("common.rinomina")); } }, disabled: noSel },
+      { label: _t("videdit.mostra_monitor_sorgente"), run: () => { const m = mediaOf(byId([...sel][0])); if (m) openSource(m); }, disabled: noSel },
     ],
     Sequenza: () => [
-      { label: "Impostazioni sequenza...", run: sequenceSettings }, "-",
-      { label: "Aggiungi modifica", keys: "Ctrl+K", run: () => addEdit(false) }, { label: "Aggiungi modifica a tutte le tracce", keys: "Ctrl+Shift+K", run: () => addEdit(true) },
-      { label: "Taglio con ripple della modifica precedente fino alla testina", keys: "Q", run: () => rippleTrimTo(true) },
-      { label: "Taglio con ripple della modifica successiva fino alla testina", keys: "W", run: () => rippleTrimTo(false) }, "-",
-      { label: "Applica transizione video", keys: "Ctrl+D", run: () => defaultTransition(false) }, { label: "Applica transizione audio", keys: "Ctrl+Shift+D", run: () => defaultTransition(true) }, "-",
-      { label: "Solleva", keys: ";", run: liftInOut }, { label: "Estrai", keys: "'", run: extractInOut }, "-",
-      { label: "Aggancia in timeline", keys: "S", run: toggleSnap, checked: () => snapOn }, { label: "Selezione collegata", run: () => { linkedSel = !linkedSel; linkBtn.classList.toggle("on", linkedSel); }, checked: () => linkedSel }, "-",
-      { label: "Aggiungi traccia video", run: () => { addTrack("v"); commit("Aggiungi traccia"); } }, { label: "Aggiungi traccia audio", run: () => { addTrack("a"); commit("Aggiungi traccia"); } },
+      { label: _t("videdit.impostazioni_sequenza_2"), run: sequenceSettings }, "-",
+      { label: _t("videdit.aggiungi_modifica"), keys: "Ctrl+K", run: () => addEdit(false) }, { label: _t("videdit.aggiungi_modifica_tutte_tracce"), keys: "Ctrl+Shift+K", run: () => addEdit(true) },
+      { label: _t("videdit.taglio_ripple_modifica_precedente_fino"), keys: "Q", run: () => rippleTrimTo(true) },
+      { label: _t("videdit.taglio_ripple_modifica_successiva_fino"), keys: "W", run: () => rippleTrimTo(false) }, "-",
+      { label: _t("videdit.applica_transizione_video"), keys: "Ctrl+D", run: () => defaultTransition(false) }, { label: _t("videdit.applica_transizione_audio"), keys: "Ctrl+Shift+D", run: () => defaultTransition(true) }, "-",
+      { label: _t("videdit.solleva"), keys: ";", run: liftInOut }, { label: _t("videdit.estrai_2"), keys: "'", run: extractInOut }, "-",
+      { label: _t("videdit.aggancia_timeline"), keys: "S", run: toggleSnap, checked: () => snapOn }, { label: _t("videdit.selezione_collegata"), run: () => { linkedSel = !linkedSel; linkBtn.classList.toggle("on", linkedSel); }, checked: () => linkedSel }, "-",
+      { label: _t("videdit.aggiungi_traccia_video"), run: () => { addTrack("v"); commit(_t("videdit.aggiungi_traccia")); } }, { label: _t("videdit.aggiungi_traccia_audio"), run: () => { addTrack("a"); commit(_t("videdit.aggiungi_traccia")); } },
     ],
     Marcatori: () => [
-      { label: "Contrassegna attacco", keys: "I", run: markIn }, { label: "Contrassegna stacco", keys: "O", run: markOut }, { label: "Contrassegna clip", keys: "X", run: markClip }, "-",
-      { label: "Vai ad attacco", keys: "Shift+I", run: () => goto(P.inPoint ?? 0) }, { label: "Vai a stacco", keys: "Shift+O", run: () => goto(P.outPoint ?? total()) }, "-",
-      { label: "Cancella attacco", keys: "Ctrl+Shift+I", run: () => { P.inPoint = null; commit("Cancella attacco"); } }, { label: "Cancella stacco", keys: "Ctrl+Shift+O", run: () => { P.outPoint = null; commit("Cancella stacco"); } },
-      { label: "Cancella attacco e stacco", keys: "Ctrl+Shift+X", run: () => { P.inPoint = P.outPoint = null; commit("Cancella attacco e stacco"); } }, "-",
-      { label: "Aggiungi marcatore", keys: "M", run: addMarker }, { label: "Vai al marcatore successivo", keys: "Shift+M", run: () => gotoMarker(1) }, { label: "Vai al marcatore precedente", keys: "Ctrl+Shift+M", run: () => gotoMarker(-1) },
-      { label: "Cancella marcatore selezionato", keys: "Ctrl+Alt+M", run: () => { P.markers = P.markers.filter(m => Math.abs(m.t - player.t) >= fr() / 2); commit("Cancella marcatore"); } },
-      { label: "Cancella tutti i marcatori", keys: "Ctrl+Alt+Shift+M", run: () => { P.markers = []; commit("Cancella marcatori"); } },
+      { label: _t("videdit.contrassegna_attacco"), keys: "I", run: markIn }, { label: _t("videdit.contrassegna_stacco_2"), keys: "O", run: markOut }, { label: _t("videdit.contrassegna_clip"), keys: "X", run: markClip }, "-",
+      { label: _t("videdit.vai_ad_attacco"), keys: "Shift+I", run: () => goto(P.inPoint ?? 0) }, { label: _t("videdit.vai_stacco"), keys: "Shift+O", run: () => goto(P.outPoint ?? total()) }, "-",
+      { label: _t("videdit.cancella_attacco"), keys: "Ctrl+Shift+I", run: () => { P.inPoint = null; commit(_t("videdit.cancella_attacco")); } }, { label: _t("videdit.cancella_stacco"), keys: "Ctrl+Shift+O", run: () => { P.outPoint = null; commit(_t("videdit.cancella_stacco")); } },
+      { label: _t("videdit.cancella_attacco_stacco"), keys: "Ctrl+Shift+X", run: () => { P.inPoint = P.outPoint = null; commit(_t("videdit.cancella_attacco_stacco")); } }, "-",
+      { label: _t("videdit.aggiungi_marcatore"), keys: "M", run: addMarker }, { label: _t("videdit.vai_marcatore_successivo"), keys: "Shift+M", run: () => gotoMarker(1) }, { label: _t("videdit.vai_marcatore_precedente"), keys: "Ctrl+Shift+M", run: () => gotoMarker(-1) },
+      { label: _t("videdit.cancella_marcatore_selezionato"), keys: "Ctrl+Alt+M", run: () => { P.markers = P.markers.filter(m => Math.abs(m.t - player.t) >= fr() / 2); commit(_t("videdit.cancella_marcatore")); } },
+      { label: _t("videdit.cancella_tutti_i_marcatori"), keys: "Ctrl+Alt+Shift+M", run: () => { P.markers = []; commit(_t("videdit.cancella_marcatori")); } },
     ],
-    Grafica: () => [{ label: "Nuovo livello: testo", keys: "Ctrl+T", run: () => newTitle() }, { label: "Colore a tinta unita...", run: newColor }],
+    Grafica: () => [{ label: _t("videdit.nuovo_livello_testo"), keys: "Ctrl+T", run: () => newTitle() }, { label: _t("videdit.colore_tinta_unita"), run: newColor }],
     Visualizza: () => [
-      { label: "Zoom avanti (timeline)", keys: "Plus", run: () => setZoom(pps * 1.5) }, { label: "Zoom indietro (timeline)", keys: "Minus", run: () => setZoom(pps / 1.5) },
-      { label: "Adatta la sequenza alla finestra", keys: "\\", run: zoomFit }, "-",
-      { label: "Risoluzione riproduzione", sub: () => [[1, "Intera"], [0.5, "1/2"], [0.25, "1/4"]].map(([v, n]) => ({ label: n, checked: () => player.q === v, run: () => { player.q = v; resSel.value = v; player.dirty = true; player.idle(); } })) },
-      { label: "Mostra miniature video", checked: () => tRows.showThumbs, run: () => { tRows.showThumbs = !tRows.showThumbs; drawTL(); } },
-      { label: "Mostra forme d'onda audio", checked: () => tRows.showWaves, run: () => { tRows.showWaves = !tRows.showWaves; drawTL(); } },
-      { label: "Espandi tutte le tracce", run: () => { allTracks().forEach(t => { t.h = 100; }); drawTL(); } }, { label: "Riduci tutte le tracce", run: () => { allTracks().forEach(t => { t.h = 56; }); drawTL(); } },
+      { label: _t("videdit.zoom_avanti_timeline"), keys: "Plus", run: () => setZoom(pps * 1.5) }, { label: _t("videdit.zoom_indietro_timeline"), keys: "Minus", run: () => setZoom(pps / 1.5) },
+      { label: _t("videdit.adatta_sequenza_finestra"), keys: "\\", run: zoomFit }, "-",
+      { label: _t("videdit.risoluzione_riproduzione_2"), sub: () => [[1, _t("videdit.intera")], [0.5, "1/2"], [0.25, "1/4"]].map(([v, n]) => ({ label: n, checked: () => player.q === v, run: () => { player.q = v; resSel.value = v; player.dirty = true; player.idle(); } })) },
+      { label: _t("videdit.mostra_miniature_video"), checked: () => tRows.showThumbs, run: () => { tRows.showThumbs = !tRows.showThumbs; drawTL(); } },
+      { label: _t("videdit.mostra_forme_d_onda_audio"), checked: () => tRows.showWaves, run: () => { tRows.showWaves = !tRows.showWaves; drawTL(); } },
+      { label: _t("videdit.espandi_tutte_tracce"), run: () => { allTracks().forEach(t => { t.h = 100; }); drawTL(); } }, { label: _t("videdit.riduci_tutte_tracce"), run: () => { allTracks().forEach(t => { t.h = 56; }); drawTL(); } },
     ],
     Finestra: () => [
-      { label: "Progetto", keys: "Shift+1", run: () => LL.show("project") }, { label: "Sorgente", keys: "Shift+2", run: () => UL.show("source") },
-      { label: "Programma / Timeline", keys: "Shift+3", run: () => { focus = "program"; root.focus(); } }, { label: "Controlli effetti", keys: "Shift+5", run: () => UL.show("ec") },
-      { label: "Mixer tracce audio", keys: "Shift+6", run: () => UL.show("mixer") }, { label: "Effetti", keys: "Shift+7", run: () => LL.show("effects") },
+      { label: _t("videdit.progetto"), keys: "Shift+1", run: () => LL.show("project") }, { label: _t("videdit.sorgente"), keys: "Shift+2", run: () => UL.show("source") },
+      { label: _t("videdit.programma_timeline"), keys: "Shift+3", run: () => { focus = "program"; root.focus(); } }, { label: _t("videdit.controlli_effetti"), keys: "Shift+5", run: () => UL.show("ec") },
+      { label: _t("videdit.mixer_tracce_audio"), keys: "Shift+6", run: () => UL.show("mixer") }, { label: _t("videdit.effetti"), keys: "Shift+7", run: () => LL.show("effects") },
     ],
   };
   for (const name of Object.keys(MENUS)) {
@@ -2218,75 +2218,75 @@ export function createVideoEditor(ctx, P, opts = {}) {
     ctx.tb.append(b);
   }
   const tbBtn = (icon, label, title, fn) => { const b = el("button", { type: "button", title, onclick: fn }); b.innerHTML = vIcon(icon, 16); b.append(label); return b; };
-  ctx.tb.append(el("span", { class: "sep" }), tbBtn("undo", "", "Annulla (Ctrl+Z)", undo), tbBtn("redo", "", "Ripeti (Ctrl+Maiusc+Z)", redo), el("span", { class: "grow" }),
-    tbBtn("import", "Importa", "Importa file multimediali (Ctrl+I)", doImport), tbBtn("export", "Esporta", "Esporta il video con FFmpeg (Ctrl+M)", exportDialog));
+  ctx.tb.append(el("span", { class: "sep" }), tbBtn("undo", "", _t("videdit.annulla_ctrl_z"), undo), tbBtn("redo", "", _t("videdit.ripeti_ctrl_maiusc_z"), redo), el("span", { class: "grow" }),
+    tbBtn("import", _t("videdit.importa"), _t("videdit.importa_file_multimediali_ctrl_i_2"), doImport), tbBtn("export", _t("videdit.esporta_2"), _t("videdit.esporta_video_ffmpeg_ctrl_m"), exportDialog));
 
   // ------------------------------------------------------------------ tasti di Premiere Pro
   const free = () => !menuEl;
   keymap(ctx, "Premiere Pro", [
-    { keys: "Space", desc: "Riproduci / interrompi", run: togglePlay, group: "Riproduzione" },
-    { keys: "L", desc: "Riproduci avanti (premuto piu' volte: piu' veloce)", run: () => jkl("L"), group: "Riproduzione" },
-    { keys: "K", desc: "Interrompi", run: () => jkl("K"), group: "Riproduzione" },
-    { keys: "J", desc: "Riproduci indietro (premuto piu' volte: piu' veloce)", run: () => jkl("J"), group: "Riproduzione" },
-    { keys: "ArrowLeft", desc: "Indietro di un fotogramma", run: () => (focus === "source" ? srcSeek(srcVideo.currentTime - fr()) : step(-1)), group: "Riproduzione" },
-    { keys: "ArrowRight", desc: "Avanti di un fotogramma", run: () => (focus === "source" ? srcSeek(srcVideo.currentTime + fr()) : step(1)), group: "Riproduzione" },
-    { keys: "Shift+ArrowLeft", desc: "Indietro di 5 fotogrammi", run: () => step(-5), group: "Riproduzione" },
-    { keys: "Shift+ArrowRight", desc: "Avanti di 5 fotogrammi", run: () => step(5), group: "Riproduzione" },
-    { keys: "ArrowUp", desc: "Vai al punto di modifica precedente", run: () => gotoEdit(-1), group: "Riproduzione" },
-    { keys: "ArrowDown", desc: "Vai al punto di modifica successivo", run: () => gotoEdit(1), group: "Riproduzione" },
-    { keys: "Home", desc: "Vai all'inizio", run: () => goto(0), group: "Riproduzione" },
-    { keys: "End", desc: "Vai alla fine", run: () => goto(total()), group: "Riproduzione" },
-    { keys: "I", desc: "Contrassegna attacco", run: markIn, group: "Marcatori" },
-    { keys: "O", desc: "Contrassegna stacco", run: markOut, group: "Marcatori" },
-    { keys: "X", desc: "Contrassegna clip", run: markClip, group: "Marcatori" },
-    { keys: "Shift+I", desc: "Vai ad attacco", run: () => (focus === "source" ? srcSeek(src.in ?? 0) : goto(P.inPoint ?? 0)), group: "Marcatori" },
-    { keys: "Shift+O", desc: "Vai a stacco", run: () => (focus === "source" ? srcSeek(src.out ?? srcLen()) : goto(P.outPoint ?? total())), group: "Marcatori" },
-    { keys: "Ctrl+Shift+I", desc: "Cancella attacco", run: () => { P.inPoint = null; commit("Cancella attacco"); }, group: "Marcatori" },
-    { keys: "Ctrl+Shift+O", desc: "Cancella stacco", run: () => { P.outPoint = null; commit("Cancella stacco"); }, group: "Marcatori" },
-    { keys: "Ctrl+Shift+X", desc: "Cancella attacco e stacco", run: () => { if (focus === "source") { src.in = src.out = null; drawSrc(); } else { P.inPoint = P.outPoint = null; commit("Cancella attacco e stacco"); } }, group: "Marcatori" },
-    { keys: "M", desc: "Aggiungi marcatore", run: addMarker, group: "Marcatori" },
-    { keys: "Shift+M", desc: "Vai al marcatore successivo", run: () => gotoMarker(1), group: "Marcatori" },
-    { keys: "Ctrl+Shift+M", desc: "Vai al marcatore precedente", run: () => gotoMarker(-1), group: "Marcatori" },
-    ...TOOLS.map(([id, name, key]) => ({ keys: key, desc: name, run: () => setTool(id), group: "Strumenti", when: free })),
-    { keys: "Ctrl+K", desc: "Aggiungi modifica (dividi alla testina)", run: () => addEdit(false), group: "Montaggio" },
-    { keys: "Ctrl+Shift+K", desc: "Aggiungi modifica a tutte le tracce", run: () => addEdit(true), group: "Montaggio" },
-    { keys: "Q", desc: "Taglio con ripple della modifica precedente fino alla testina", run: () => rippleTrimTo(true), group: "Montaggio" },
-    { keys: "W", desc: "Taglio con ripple della modifica successiva fino alla testina", run: () => rippleTrimTo(false), group: "Montaggio" },
-    { keys: "Delete|Backspace", desc: "Cancella (clip, transizione, fotogramma chiave, spazio vuoto)", run: clearSel, group: "Montaggio" },
-    { keys: "Shift+Delete|Shift+Backspace|Alt+Backspace", desc: "Elimina con ripple", run: rippleDelete, group: "Montaggio" },
-    { keys: ",", desc: "Inserisci (dal monitor Sorgente)", run: () => fromSource(true), group: "Montaggio" },
-    { keys: ".", desc: "Sovrascrivi (dal monitor Sorgente)", run: () => fromSource(false), group: "Montaggio" },
-    { keys: ";", desc: "Solleva (da attacco a stacco)", run: liftInOut, group: "Montaggio" },
-    { keys: "'", desc: "Estrai (da attacco a stacco, con ripple)", run: extractInOut, group: "Montaggio" },
-    { keys: "Ctrl+D", desc: "Applica transizione video predefinita (dissolvenza incrociata)", run: () => defaultTransition(false), group: "Montaggio" },
-    { keys: "Ctrl+Shift+D", desc: "Applica transizione audio predefinita (potenza costante)", run: () => defaultTransition(true), group: "Montaggio" },
-    { keys: "Shift+D", desc: "Applica transizioni predefinite alla selezione", run: () => { defaultTransition(false); defaultTransition(true); }, group: "Montaggio" },
-    { keys: "Ctrl+L", desc: "Collega / scollega audio e video", run: toggleLink, group: "Montaggio" },
-    { keys: "Ctrl+R", desc: "Velocita'/Durata clip", run: speedDialog, group: "Montaggio" },
-    { keys: "G", desc: "Guadagno audio", run: audioGainDialog, group: "Montaggio" },
-    { keys: "Shift+E", desc: "Abilita / disabilita clip", run: toggleEnable, group: "Montaggio" },
-    { keys: "S", desc: "Aggancia in timeline", run: toggleSnap, group: "Montaggio" },
-    { keys: "Ctrl+Z", desc: "Annulla", run: undo, group: "Modifica" },
-    { keys: "Ctrl+Shift+Z|Ctrl+Y", desc: "Ripeti", run: redo, group: "Modifica" },
-    { keys: "Ctrl+C", desc: "Copia", run: () => copySel(false), group: "Modifica" },
-    { keys: "Ctrl+X", desc: "Taglia", run: () => copySel(true), group: "Modifica" },
-    { keys: "Ctrl+V", desc: "Incolla", run: () => paste(false), group: "Modifica" },
-    { keys: "Ctrl+Shift+V", desc: "Incolla inserimento", run: () => paste(true), group: "Modifica" },
-    { keys: "Ctrl+Alt+V", desc: "Incolla attributi", run: pasteAttributes, group: "Modifica" },
-    { keys: "Ctrl+A", desc: "Seleziona tutto", run: selectAll, group: "Modifica" },
-    { keys: "Ctrl+Shift+A|Escape", desc: "Deseleziona tutto", run: deselect, group: "Modifica" },
-    { keys: "Plus|=", desc: "Zoom avanti della timeline", run: () => setZoom(pps * 1.5), group: "Visualizza" },
-    { keys: "Minus", desc: "Zoom indietro della timeline", run: () => setZoom(pps / 1.5), group: "Visualizza" },
-    { keys: "\\", desc: "Adatta la sequenza alla finestra", run: zoomFit, group: "Visualizza" },
-    { keys: "Shift+1", desc: "Pannello Progetto", run: () => LL.show("project"), group: "Finestra" },
-    { keys: "Shift+2", desc: "Monitor Sorgente", run: () => UL.show("source"), group: "Finestra" },
-    { keys: "Shift+5", desc: "Controlli effetti", run: () => UL.show("ec"), group: "Finestra" },
-    { keys: "Shift+6", desc: "Mixer tracce audio", run: () => UL.show("mixer"), group: "Finestra" },
-    { keys: "Shift+7", desc: "Pannello Effetti", run: () => LL.show("effects"), group: "Finestra" },
-    { keys: "Ctrl+I", desc: "Importa", run: doImport, group: "File" },
-    { keys: "Ctrl+M", desc: "Esporta media", run: exportDialog, group: "File" },
-    { keys: "Ctrl+Shift+E", desc: "Esporta fotogramma", run: exportFrame, group: "File" },
-    { keys: "Ctrl+T", desc: "Nuovo titolo", run: () => newTitle(), group: "Grafica" },
+    { keys: "Space", desc: _t("videdit.riproduci_interrompi"), run: togglePlay, group: _t("videdit.riproduzione") },
+    { keys: "L", desc: _t("videdit.riproduci_avanti_premuto_piu_volte"), run: () => jkl("L"), group: _t("videdit.riproduzione") },
+    { keys: "K", desc: _t("videdit.interrompi"), run: () => jkl("K"), group: _t("videdit.riproduzione") },
+    { keys: "J", desc: _t("videdit.riproduci_indietro_premuto_piu_volte"), run: () => jkl("J"), group: _t("videdit.riproduzione") },
+    { keys: "ArrowLeft", desc: _t("videdit.indietro_fotogramma"), run: () => (focus === "source" ? srcSeek(srcVideo.currentTime - fr()) : step(-1)), group: _t("videdit.riproduzione") },
+    { keys: "ArrowRight", desc: _t("videdit.avanti_fotogramma"), run: () => (focus === "source" ? srcSeek(srcVideo.currentTime + fr()) : step(1)), group: _t("videdit.riproduzione") },
+    { keys: "Shift+ArrowLeft", desc: _t("videdit.indietro_5_fotogrammi"), run: () => step(-5), group: _t("videdit.riproduzione") },
+    { keys: "Shift+ArrowRight", desc: _t("videdit.avanti_5_fotogrammi"), run: () => step(5), group: _t("videdit.riproduzione") },
+    { keys: "ArrowUp", desc: _t("videdit.vai_punto_modifica_precedente"), run: () => gotoEdit(-1), group: _t("videdit.riproduzione") },
+    { keys: "ArrowDown", desc: _t("videdit.vai_punto_modifica_successivo"), run: () => gotoEdit(1), group: _t("videdit.riproduzione") },
+    { keys: "Home", desc: _t("videdit.vai_all_inizio"), run: () => goto(0), group: _t("videdit.riproduzione") },
+    { keys: "End", desc: _t("videdit.vai_fine"), run: () => goto(total()), group: _t("videdit.riproduzione") },
+    { keys: "I", desc: _t("videdit.contrassegna_attacco"), run: markIn, group: _t("videdit.marcatori") },
+    { keys: "O", desc: _t("videdit.contrassegna_stacco_2"), run: markOut, group: _t("videdit.marcatori") },
+    { keys: "X", desc: _t("videdit.contrassegna_clip"), run: markClip, group: _t("videdit.marcatori") },
+    { keys: "Shift+I", desc: _t("videdit.vai_ad_attacco"), run: () => (focus === "source" ? srcSeek(src.in ?? 0) : goto(P.inPoint ?? 0)), group: _t("videdit.marcatori") },
+    { keys: "Shift+O", desc: _t("videdit.vai_stacco"), run: () => (focus === "source" ? srcSeek(src.out ?? srcLen()) : goto(P.outPoint ?? total())), group: _t("videdit.marcatori") },
+    { keys: "Ctrl+Shift+I", desc: _t("videdit.cancella_attacco"), run: () => { P.inPoint = null; commit(_t("videdit.cancella_attacco")); }, group: _t("videdit.marcatori") },
+    { keys: "Ctrl+Shift+O", desc: _t("videdit.cancella_stacco"), run: () => { P.outPoint = null; commit(_t("videdit.cancella_stacco")); }, group: _t("videdit.marcatori") },
+    { keys: "Ctrl+Shift+X", desc: _t("videdit.cancella_attacco_stacco"), run: () => { if (focus === "source") { src.in = src.out = null; drawSrc(); } else { P.inPoint = P.outPoint = null; commit(_t("videdit.cancella_attacco_stacco")); } }, group: _t("videdit.marcatori") },
+    { keys: "M", desc: _t("videdit.aggiungi_marcatore"), run: addMarker, group: _t("videdit.marcatori") },
+    { keys: "Shift+M", desc: _t("videdit.vai_marcatore_successivo"), run: () => gotoMarker(1), group: _t("videdit.marcatori") },
+    { keys: "Ctrl+Shift+M", desc: _t("videdit.vai_marcatore_precedente"), run: () => gotoMarker(-1), group: _t("videdit.marcatori") },
+    ...TOOLS.map(([id, name, key]) => ({ keys: key, desc: name, run: () => setTool(id), group: _t("videdit.strumenti"), when: free })),
+    { keys: "Ctrl+K", desc: _t("videdit.aggiungi_modifica_dividi_testina"), run: () => addEdit(false), group: _t("videdit.montaggio") },
+    { keys: "Ctrl+Shift+K", desc: _t("videdit.aggiungi_modifica_tutte_tracce"), run: () => addEdit(true), group: _t("videdit.montaggio") },
+    { keys: "Q", desc: _t("videdit.taglio_ripple_modifica_precedente_fino"), run: () => rippleTrimTo(true), group: _t("videdit.montaggio") },
+    { keys: "W", desc: _t("videdit.taglio_ripple_modifica_successiva_fino"), run: () => rippleTrimTo(false), group: _t("videdit.montaggio") },
+    { keys: "Delete|Backspace", desc: _t("videdit.cancella_clip_transizione_fotogramma_chiave"), run: clearSel, group: _t("videdit.montaggio") },
+    { keys: "Shift+Delete|Shift+Backspace|Alt+Backspace", desc: _t("videdit.elimina_ripple"), run: rippleDelete, group: _t("videdit.montaggio") },
+    { keys: ",", desc: _t("videdit.inserisci_monitor_sorgente"), run: () => fromSource(true), group: _t("videdit.montaggio") },
+    { keys: ".", desc: _t("videdit.sovrascrivi_monitor_sorgente"), run: () => fromSource(false), group: _t("videdit.montaggio") },
+    { keys: ";", desc: _t("videdit.solleva_attacco_stacco"), run: liftInOut, group: _t("videdit.montaggio") },
+    { keys: "'", desc: _t("videdit.estrai_attacco_stacco_ripple"), run: extractInOut, group: _t("videdit.montaggio") },
+    { keys: "Ctrl+D", desc: _t("videdit.applica_transizione_video_predefinita_dissolvenza"), run: () => defaultTransition(false), group: _t("videdit.montaggio") },
+    { keys: "Ctrl+Shift+D", desc: _t("videdit.applica_transizione_audio_predefinita_potenza"), run: () => defaultTransition(true), group: _t("videdit.montaggio") },
+    { keys: "Shift+D", desc: _t("videdit.applica_transizioni_predefinite_selezione"), run: () => { defaultTransition(false); defaultTransition(true); }, group: _t("videdit.montaggio") },
+    { keys: "Ctrl+L", desc: _t("videdit.collega_scollega_audio_video"), run: toggleLink, group: _t("videdit.montaggio") },
+    { keys: "Ctrl+R", desc: _t("videdit.velocita_durata_clip"), run: speedDialog, group: _t("videdit.montaggio") },
+    { keys: "G", desc: _t("videdit.guadagno_audio_2"), run: audioGainDialog, group: _t("videdit.montaggio") },
+    { keys: "Shift+E", desc: _t("videdit.abilita_disabilita_clip"), run: toggleEnable, group: _t("videdit.montaggio") },
+    { keys: "S", desc: _t("videdit.aggancia_timeline"), run: toggleSnap, group: _t("videdit.montaggio") },
+    { keys: "Ctrl+Z", desc: _t("common.annulla_op"), run: undo, group: _t("videdit.modifica") },
+    { keys: "Ctrl+Shift+Z|Ctrl+Y", desc: _t("common.ripeti"), run: redo, group: _t("videdit.modifica") },
+    { keys: "Ctrl+C", desc: _t("common.copia"), run: () => copySel(false), group: _t("videdit.modifica") },
+    { keys: "Ctrl+X", desc: _t("common.taglia"), run: () => copySel(true), group: _t("videdit.modifica") },
+    { keys: "Ctrl+V", desc: _t("common.incolla"), run: () => paste(false), group: _t("videdit.modifica") },
+    { keys: "Ctrl+Shift+V", desc: _t("videdit.incolla_inserimento"), run: () => paste(true), group: _t("videdit.modifica") },
+    { keys: "Ctrl+Alt+V", desc: _t("videdit.incolla_attributi"), run: pasteAttributes, group: _t("videdit.modifica") },
+    { keys: "Ctrl+A", desc: _t("videdit.seleziona_tutto"), run: selectAll, group: _t("videdit.modifica") },
+    { keys: "Ctrl+Shift+A|Escape", desc: _t("videdit.deseleziona_tutto"), run: deselect, group: _t("videdit.modifica") },
+    { keys: "Plus|=", desc: _t("videdit.zoom_avanti_timeline_2"), run: () => setZoom(pps * 1.5), group: _t("videdit.visualizza") },
+    { keys: "Minus", desc: _t("videdit.zoom_indietro_timeline_2"), run: () => setZoom(pps / 1.5), group: _t("videdit.visualizza") },
+    { keys: "\\", desc: _t("videdit.adatta_sequenza_finestra"), run: zoomFit, group: _t("videdit.visualizza") },
+    { keys: "Shift+1", desc: _t("videdit.pannello_progetto"), run: () => LL.show("project"), group: _t("videdit.finestra") },
+    { keys: "Shift+2", desc: _t("videdit.monitor_sorgente"), run: () => UL.show("source"), group: _t("videdit.finestra") },
+    { keys: "Shift+5", desc: _t("videdit.controlli_effetti"), run: () => UL.show("ec"), group: _t("videdit.finestra") },
+    { keys: "Shift+6", desc: _t("videdit.mixer_tracce_audio"), run: () => UL.show("mixer"), group: _t("videdit.finestra") },
+    { keys: "Shift+7", desc: _t("videdit.pannello_effetti"), run: () => LL.show("effects"), group: _t("videdit.finestra") },
+    { keys: "Ctrl+I", desc: _t("videdit.importa"), run: doImport, group: _t("videdit.file") },
+    { keys: "Ctrl+M", desc: _t("videdit.esporta_media_2"), run: exportDialog, group: _t("videdit.file") },
+    { keys: "Ctrl+Shift+E", desc: _t("videdit.esporta_fotogramma_2"), run: exportFrame, group: _t("videdit.file") },
+    { keys: "Ctrl+T", desc: _t("videdit.nuovo_titolo"), run: () => newTitle(), group: _t("videdit.grafica") },
   ]);
 
   // ------------------------------------------------------------------ aggiornamento dell'interfaccia
@@ -2298,7 +2298,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
   }
   function status() {
     const n = P.clips.length;
-    ctx.status(`Sequenza ${P.settings.w}×${P.settings.h} · ${fps} fps · durata ${tc(total(), fps)} · ${n} clip` + (sel.size ? ` · ${sel.size} selezionate` : ""));
+    ctx.status(_t("videdit.sequenza_0_1_2_fps", P.settings.w, P.settings.h, fps, tc(total(), fps), n) + (sel.size ? _t("videdit.0_selezionate", sel.size) : ""));
   }
   const ro = new ResizeObserver(() => { fitMonitor(); drawTL(); drawSrc(); });
   ro.observe(root);
@@ -2310,7 +2310,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
   setTool("select");
   for (const m of P.media) loadMeta(m);
   renderFxLib();
-  history = [{ label: "Apri", s: snapState() }]; hi = 0;
+  history = [{ label: _t("videdit.apri"), s: snapState() }]; hi = 0;
   requestAnimationFrame(() => {
     fitMonitor();
     if (P.zoom) { pps = P.zoom; zoomRange.value = (Math.log10(pps) + 1) / 3.6 * 100; } else zoomFit();
@@ -2332,8 +2332,8 @@ export function createVideoEditor(ctx, P, opts = {}) {
   }
   return {
     saveFormats: ["mbvid"],
-    saveLabels: { mbvid: "Progetto video MB Visual" },
-    saveNote: "Per creare il file video usa Esporta (Ctrl+M): qui si salva il progetto di montaggio.",
+    saveLabels: { mbvid: _t("videdit.progetto_video_mb_visual") },
+    saveNote: _t("videdit.creare_file_video_usa_esporta"),
     async save(target) {
       await saveBytes(target, new TextEncoder().encode(serialize(target)));
       return {};

@@ -9,46 +9,47 @@
 //   transitions: [{ id, track, a, b, type, dur }]  (a = clip in uscita, b = clip in entrata; una delle due puo' mancare)
 //   markers: [{ t, name }], inPoint, outPoint, playhead, zoom }
 // Tempi in secondi (multipli di un fotogramma); i fotogrammi chiave sono relativi all'inizio della clip in timeline.
+import { t as _t } from "./i18n.js";
 
 export const EFFECTS = {
-  color: { name: "Correzione colore", group: "Regolazione colore", params: [
-    { k: "bright", n: "Luminosita'", min: -100, max: 100, d: 0 }, { k: "contrast", n: "Contrasto", min: -100, max: 100, d: 0 },
-    { k: "gamma", n: "Gamma", min: 0.2, max: 3, d: 1, step: 0.01 }, { k: "sat", n: "Saturazione", min: 0, max: 300, d: 100, u: "%" },
-    { k: "temp", n: "Temperatura", min: -100, max: 100, d: 0 }, { k: "tint", n: "Tinta", min: -100, max: 100, d: 0 }] },
-  bw: { name: "Bianco e nero", group: "Regolazione colore", params: [] },
-  lut: { name: "LUT colore (.cube)", group: "Regolazione colore", params: [{ k: "file", n: "File LUT", type: "file", d: "" }] },
-  blur: { name: "Sfocatura gaussiana", group: "Sfocatura e nitidezza", params: [{ k: "sigma", n: "Sfocatura", min: 0, max: 60, d: 6, step: 0.1, u: "px" }] },
-  sharpen: { name: "Nitidezza", group: "Sfocatura e nitidezza", params: [{ k: "amount", n: "Quantita'", min: 0, max: 2, d: 0.5, step: 0.1 }] },
-  crop: { name: "Ritaglio", group: "Trasforma", params: [{ k: "l", n: "Sinistra", min: 0, max: 100, d: 0, u: "%" }, { k: "t", n: "In alto", min: 0, max: 100, d: 0, u: "%" },
-    { k: "r", n: "Destra", min: 0, max: 100, d: 0, u: "%" }, { k: "b", n: "In basso", min: 0, max: 100, d: 0, u: "%" }] },
-  mirror: { name: "Rifletti", group: "Trasforma", params: [{ k: "h", n: "Orizzontale", type: "bool", d: true }, { k: "v", n: "Verticale", type: "bool", d: false }] },
-  chroma: { name: "Chiave colore (green screen)", group: "Incrustazione", params: [{ k: "color", n: "Colore chiave", type: "color", d: "#00ff00" },
-    { k: "sim", n: "Somiglianza", min: 0, max: 100, d: 30 }, { k: "blend", n: "Fusione", min: 0, max: 100, d: 10 }] },
+  color: { name: _t("vidmodel.correzione_colore"), group: _t("vidmodel.regolazione_colore"), params: [
+    { k: "bright", n: _t("vidmodel.luminosita"), min: -100, max: 100, d: 0 }, { k: "contrast", n: _t("vidmodel.contrasto"), min: -100, max: 100, d: 0 },
+    { k: "gamma", n: _t("vidmodel.gamma"), min: 0.2, max: 3, d: 1, step: 0.01 }, { k: "sat", n: _t("vidmodel.saturazione"), min: 0, max: 300, d: 100, u: "%" },
+    { k: "temp", n: _t("vidmodel.temperatura"), min: -100, max: 100, d: 0 }, { k: "tint", n: _t("vidmodel.tinta"), min: -100, max: 100, d: 0 }] },
+  bw: { name: _t("vidmodel.bianco_nero"), group: _t("vidmodel.regolazione_colore"), params: [] },
+  lut: { name: _t("vidmodel.lut_colore_cube"), group: _t("vidmodel.regolazione_colore"), params: [{ k: "file", n: _t("vidmodel.file_lut"), type: "file", d: "" }] },
+  blur: { name: _t("vidmodel.sfocatura_gaussiana"), group: _t("vidmodel.sfocatura_nitidezza"), params: [{ k: "sigma", n: _t("vidmodel.sfocatura"), min: 0, max: 60, d: 6, step: 0.1, u: "px" }] },
+  sharpen: { name: _t("vidmodel.nitidezza"), group: _t("vidmodel.sfocatura_nitidezza"), params: [{ k: "amount", n: _t("vidmodel.quantita"), min: 0, max: 2, d: 0.5, step: 0.1 }] },
+  crop: { name: _t("vidmodel.ritaglio"), group: _t("vidmodel.trasforma"), params: [{ k: "l", n: _t("vidmodel.sinistra"), min: 0, max: 100, d: 0, u: "%" }, { k: "t", n: _t("vidmodel.alto"), min: 0, max: 100, d: 0, u: "%" },
+    { k: "r", n: _t("vidmodel.destra"), min: 0, max: 100, d: 0, u: "%" }, { k: "b", n: _t("vidmodel.basso"), min: 0, max: 100, d: 0, u: "%" }] },
+  mirror: { name: _t("vidmodel.rifletti"), group: _t("vidmodel.trasforma"), params: [{ k: "h", n: _t("vidmodel.orizzontale"), type: "bool", d: true }, { k: "v", n: _t("vidmodel.verticale"), type: "bool", d: false }] },
+  chroma: { name: _t("vidmodel.chiave_colore_green_screen"), group: _t("vidmodel.incrustazione"), params: [{ k: "color", n: _t("vidmodel.colore_chiave"), type: "color", d: "#00ff00" },
+    { k: "sim", n: _t("vidmodel.somiglianza"), min: 0, max: 100, d: 30 }, { k: "blend", n: _t("vidmodel.fusione"), min: 0, max: 100, d: 10 }] },
 };
 export const AUDIO_EFFECTS = {
-  normalize: { name: "Normalizza (picco a -1 dB)", group: "Ampiezza" },
-  gain: { name: "Guadagno...", group: "Ampiezza" },
+  normalize: { name: _t("vidmodel.normalizza_picco_1_db"), group: _t("vidmodel.ampiezza") },
+  gain: { name: _t("vidmodel.guadagno"), group: _t("vidmodel.ampiezza") },
 };
 // transizioni: stessi nomi e forme di xfade di FFmpeg
 export const TRANSITIONS = {
-  fade: { name: "Dissolvenza incrociata", group: "Dissolvenza" }, fadeblack: { name: "Dissolvenza al nero", group: "Dissolvenza" },
-  fadewhite: { name: "Dissolvenza al bianco", group: "Dissolvenza" },
-  wipeleft: { name: "Tendina verso sinistra", group: "Tendina" }, wiperight: { name: "Tendina verso destra", group: "Tendina" },
-  wipeup: { name: "Tendina verso l'alto", group: "Tendina" }, wipedown: { name: "Tendina verso il basso", group: "Tendina" },
-  slideleft: { name: "Scorrimento a sinistra", group: "Scorrimento" }, slideright: { name: "Scorrimento a destra", group: "Scorrimento" },
-  slideup: { name: "Scorrimento in alto", group: "Scorrimento" }, slidedown: { name: "Scorrimento in basso", group: "Scorrimento" },
-  zoomin: { name: "Zoom avanti", group: "Zoom e forme" }, circleopen: { name: "Cerchio che si apre", group: "Zoom e forme" },
-  circleclose: { name: "Cerchio che si chiude", group: "Zoom e forme" },
+  fade: { name: _t("vidmodel.dissolvenza_incrociata"), group: _t("vidmodel.dissolvenza") }, fadeblack: { name: _t("vidmodel.dissolvenza_nero"), group: _t("vidmodel.dissolvenza") },
+  fadewhite: { name: _t("vidmodel.dissolvenza_bianco"), group: _t("vidmodel.dissolvenza") },
+  wipeleft: { name: _t("vidmodel.tendina_verso_sinistra"), group: _t("vidmodel.tendina") }, wiperight: { name: _t("vidmodel.tendina_verso_destra"), group: _t("vidmodel.tendina") },
+  wipeup: { name: _t("vidmodel.tendina_verso_l_alto"), group: _t("vidmodel.tendina") }, wipedown: { name: _t("vidmodel.tendina_verso_basso"), group: _t("vidmodel.tendina") },
+  slideleft: { name: _t("vidmodel.scorrimento_sinistra"), group: _t("vidmodel.scorrimento") }, slideright: { name: _t("vidmodel.scorrimento_destra"), group: _t("vidmodel.scorrimento") },
+  slideup: { name: _t("vidmodel.scorrimento_alto"), group: _t("vidmodel.scorrimento") }, slidedown: { name: _t("vidmodel.scorrimento_basso"), group: _t("vidmodel.scorrimento") },
+  zoomin: { name: _t("vidmodel.zoom_avanti"), group: _t("vidmodel.zoom_forme") }, circleopen: { name: _t("vidmodel.cerchio_che_si_apre"), group: _t("vidmodel.zoom_forme") },
+  circleclose: { name: _t("vidmodel.cerchio_che_si_chiude"), group: _t("vidmodel.zoom_forme") },
 };
 export const TRANS_IDX = Object.fromEntries(Object.keys(TRANSITIONS).map((k, i) => [k, i]));
-export const AUDIO_TRANSITIONS = { power: { name: "Potenza costante", group: "Dissolvenza incrociata" }, gain: { name: "Guadagno costante", group: "Dissolvenza incrociata" } };
-export const BLENDS = { normal: "Normale", multiply: "Moltiplica", screen: "Scolora", overlay: "Sovrapponi", hardlight: "Luce intensa", darken: "Scurisci",
-  lighten: "Schiarisci", difference: "Differenza", add: "Aggiungi" };
+export const AUDIO_TRANSITIONS = { power: { name: _t("vidmodel.potenza_costante"), group: _t("vidmodel.dissolvenza_incrociata") }, gain: { name: _t("vidmodel.guadagno_costante"), group: _t("vidmodel.dissolvenza_incrociata") } };
+export const BLENDS = { normal: _t("vidmodel.normale"), multiply: _t("vidmodel.moltiplica"), screen: _t("vidmodel.scolora"), overlay: _t("vidmodel.sovrapponi"), hardlight: _t("vidmodel.luce_intensa"), darken: _t("vidmodel.scurisci"),
+  lighten: _t("vidmodel.schiarisci"), difference: _t("vidmodel.differenza"), add: _t("common.aggiungi") };
 export const BLEND_IDX = Object.fromEntries(Object.keys(BLENDS).map((k, i) => [k, i]));
 export const FONTS = ["Arial", "Arial Black", "Bahnschrift", "Calibri", "Cambria", "Candara", "Comic Sans MS", "Consolas", "Constantia", "Corbel", "Courier New",
   "Georgia", "Impact", "Segoe UI", "Segoe UI Black", "Segoe Script", "Tahoma", "Times New Roman", "Trebuchet MS", "Verdana"];
-export const PRESETS = [["HD 1080p", 1920, 1080], ["4K UHD", 3840, 2160], ["HD 720p", 1280, 720], ["Verticale 1080x1920 (social)", 1080, 1920],
-  ["Quadrato 1080x1080", 1080, 1080], ["SD 854x480", 854, 480]];
+export const PRESETS = [["HD 1080p", 1920, 1080], ["4K UHD", 3840, 2160], ["HD 720p", 1280, 720], [_t("vidmodel.verticale_1080x1920_social"), 1080, 1920],
+  [_t("vidmodel.quadrato_1080x1080"), 1080, 1080], ["SD 854x480", 854, 480]];
 export const RATES = [23.976, 24, 25, 29.97, 30, 50, 59.94, 60];
 
 export const uid = p => p + Math.random().toString(36).slice(2, 9);
@@ -58,8 +59,8 @@ export const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 export function newProject(o = {}) {
   return {
     mbvid: 1, settings: { w: o.w || 1920, h: o.h || 1080, fps: o.fps || 25, bg: "#000000" }, media: [],
-    tracks: { v: [{ id: "V1", name: "Video 1" }, { id: "V2", name: "Video 2" }, { id: "V3", name: "Video 3" }],
-      a: [{ id: "A1", name: "Audio 1", gain: 0 }, { id: "A2", name: "Audio 2", gain: 0 }, { id: "A3", name: "Audio 3", gain: 0 }] },
+    tracks: { v: [{ id: "V1", name: _t("vidmodel.video_1") }, { id: "V2", name: _t("vidmodel.video_2") }, { id: "V3", name: _t("vidmodel.video_3") }],
+      a: [{ id: "A1", name: _t("vidmodel.audio_1"), gain: 0 }, { id: "A2", name: _t("vidmodel.audio_2"), gain: 0 }, { id: "A3", name: _t("vidmodel.audio_3"), gain: 0 }] },
     clips: [], transitions: [], markers: [], inPoint: null, outPoint: null, playhead: 0, zoom: null,
   };
 }
@@ -144,7 +145,7 @@ export function parseTc(str, fps) {
 
 // ------------------------------------------------------------------ titoli (grafica): testo disegnato su un canvas
 export function defaultTitle() {
-  return { text: "Titolo", font: "Arial", size: 96, color: "#ffffff", bold: true, italic: false, align: "center", lineH: 1.15,
+  return { text: _t("vidmodel.titolo"), font: "Arial", size: 96, color: "#ffffff", bold: true, italic: false, align: "center", lineH: 1.15,
     stroke: false, strokeColor: "#000000", strokeW: 4, shadow: true, shadowColor: "#000000", bg: false, bgColor: "#000000", bgOpacity: 60, pad: 24 };
 }
 // canvas della grandezza del testo (pixel della sequenza): la clip titolo non viene adattata (1 px = 1 px)
@@ -188,6 +189,6 @@ export function parseCube(text) {
     const p = l.split(/\s+/).map(Number);
     if (p.length >= 3 && !p.slice(0, 3).some(isNaN)) vals.push(p[0], p[1], p[2]);
   }
-  if (!size || vals.length < size * size * size * 3) throw new Error("File LUT .cube non valido (serve una LUT 3D)");
+  if (!size || vals.length < size * size * size * 3) throw new Error(_t("vidmodel.file_lut_cube_non_valido"));
   return { size, data: new Float32Array(vals.slice(0, size * size * size * 3)) };
 }

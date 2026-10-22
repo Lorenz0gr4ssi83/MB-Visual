@@ -3,6 +3,7 @@
 // lut3d, hflip/vflip, crop+pad), opacita', trasformazione su una tela grande quanto la sequenza, transizioni come xfade,
 // metodi di fusione come blend e sovrapposizione con alfa non premoltiplicato come overlay.
 // Convenzione: in tutte le texture la riga 0 e' il bordo superiore dell'immagine (come FFmpeg); solo l'uscita sul canvas si capovolge.
+import { t as tr } from "./i18n.js";
 import { TRANS_IDX, BLEND_IDX } from "./vidmodel.js";
 
 const VS = `#version 300 es
@@ -78,7 +79,7 @@ export class Compositor {
   constructor(canvas) {
     this.canvas = canvas;
     const gl = this.gl = canvas.getContext("webgl2", { alpha: false, premultipliedAlpha: false, preserveDrawingBuffer: true, antialias: false });
-    if (!gl) throw new Error("WebGL2 non disponibile: l'anteprima del montaggio non puo' funzionare");
+    if (!gl) throw new Error(tr("vidgl.webgl2_non_disponibile_l_anteprima"));
     this.progs = {};
     for (const [k, src] of Object.entries(FS)) this.progs[k] = this._prog(HEAD + src);
     this.buf = gl.createBuffer();
