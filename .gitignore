@@ -11,3 +11,6 @@ __pycache__/
 
 # copia pronta all'uso dell'app per PC (si ricrea con tools/build_portable.py)
 App per PC/
+# campioni ricavati da un DWG reale (tools/make_damaged_samples.py --dwg): non vanno nel repository
+tests/samples/danneggiati/disegno_troncato*
+!tests/samples/danneggiati/archivio_troncato.zip

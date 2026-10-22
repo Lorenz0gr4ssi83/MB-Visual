@@ -369,6 +369,8 @@ export async function mount(ctx) {
     db = parseDxf(text);
   } else {
     db = await decodeDwg(bytes, ctx, ld);
+    // DWG non piccolo senza nemmeno un oggetto: libredwg ha letto solo l'intestazione (file danneggiato) -> schermata di recupero
+    if (!db?.entities?.length && bytes.length > 60000) throw new Error(tr("v_cad2d.dwg_nessun_oggetto"));
   }
   normalize(db, dxfText ? "dxf" : "dwg");
   ld.set(0.7, tr("v_cad2d.preparazione_disegno"));

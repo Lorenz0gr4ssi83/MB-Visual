@@ -926,3 +926,36 @@ Acrobat Pro / PDF-XChange / Foxit. Solo app per PC (la web app tiene la barra se
   modifiche, immagini con maschera). Interfaccia provata con PDF reali (relazioni, tavole CAD, scansione OCR, moduli) in
   Edge senza finestra via DevTools; schermate prima/dopo nella cartella della sessione.
 
+
+## Recupero dei file danneggiati e sconosciuti (22/10/2026) - FATTO
+Motore `mbvisual/recover.py` (+ `recover_zip.py`, `recover_sqlite.py`), API unica `api/recover?op=check|identify|start|carve|text|
+as_ext|save|put|out`, schermata `ui/js/viewers/recover.js` + `ui/css/recover.css` (viewer "recover"). Solo app per PC (la web app
+resta con l'errore semplice ed esadecimale). Testi: chiavi `rec.*` e `srv_recover.*` (5 lingue).
+- Quando compare: (1) all'apertura `check` (letture veloci: %%EOF/startxref dei PDF, indice finale degli ZIP e testzip < 25 MB,
+  fine di JPEG/PNG/GIF e PIL < 40 MB, atomi MP4/MOV, intestazione e quick_check SQLite < 50 MB, intestazione DWG, contenitore
+  .msg) -> se danneggiato si apre "recover" con "Apri comunque l'originale"; (2) il visualizzatore lancia un errore: `showError`
+  di app.js chiama `showRecovery`; (3) estensione non in elenco: "recover" in modo "unknown" al posto dell'esadecimale (che resta a
+  un clic); (4) "Apri come -> Recupero e analisi" per qualsiasi file.
+- Recupero (lavoro in background, copie in %TEMP%\MBVisual\recupero\<sha1 percorso|dimensione|data>; l'originale si legge soltanto,
+  `save` rifiuta la destinazione = originale e le sorgenti fuori dalla cartella di recupero):
+  PDF = PyMuPDF (ricostruisce l'xref) poi, se non trova pagine, `_pdf_rebuild` (oggetti "N G obj..endobj" sparsi, nuovo albero
+  delle pagine e catalogo). pikepdf NON e' installato. ZIP/Office/OpenDocument = intestazioni locali una per una (deflate si
+  ferma da solo: funziona anche con i data descriptor), XML troncati ricostruiti con lxml recover=True, [Content_Types].xml/_rels
+  ricostruiti se mancano, relazioni/Override verso parti perse tolte, manifest ODF e mimetype in testa. Immagini = Pillow con
+  LOAD_TRUNCATED_IMAGES (stima della parte leggibile solo se il file e' davvero troncato); intestazione rotta -> immagini
+  incorporate. Audio/video = FFmpeg -err_detect ignore_err -fflags +genpts+discardcorrupt+igndts (-ignore_editlist solo MP4: con
+  MKV FFmpeg rifiuta l'opzione), prima copia dei flussi in MKV poi ricodifica H.264/AAC; MP4 senza moov: non recuperabile, spiegato.
+  SQLite = `.recover` di sqlite3.exe se c'e' (bin/sqlite o PATH, oggi NO) altrimenti lettore interno delle pagine (B-tree da
+  sqlite_master, overflow, righe orfane in lost_and_found come .recover). Email = .eml riletto con compat32 e base64 tollerante,
+  .msg con olefile per flussi (__substg1.0_*) o, se il contenitore e' illeggibile, testo UTF-16 + allegati ritagliati; il
+  risultato e' un .eml ricostruito. DWG = anteprima incorporata (indirizzo a 0x0D, BMP/PNG) + copie .bak/.sv$ (cartella del
+  disegno e TEMP) copiate come .dwg; il disegno lo rilegge la pagina con libredwg chiamando `dwg_read_file` senza fermarsi agli
+  errori (anche con il file allungato di zeri) e lo salva in DXF con cad_save.
+- Sconosciuti: `identify` (circa 100 firme: documenti, immagini, audio/video, archivi, CAD/3D, database, programmi, font,
+  certificati, testi XML/JSON/CSV/email...) -> "Aprilo come X" = copia con l'estensione giusta in recupero\<chiave>\come (oltre
+  1,5 GB si apre l'originale col visualizzatore forzato). `carve` = JPEG, PNG, GIF, BMP, PDF, ZIP (tipo Office riconosciuto),
+  RIFF, GZIP, 7z, SQLite, RTF dentro qualsiasi file (primo GB). `text` = testo leggibile in un .txt aperto nell'editor.
+- Collaudo: `python tools/make_damaged_samples.py [--dwg disegno.dwg]` -> `tests/samples/danneggiati` (attese in ATTESI.json;
+  i disegno_troncato* da un DWG reale sono in .gitignore) poi `python tests/test_recover.py` (97 prove: ogni copia recuperata si
+  riapre con PyMuPDF/python-docx/openpyxl/python-pptx/Pillow/sqlite3/email/FFmpeg, originali invariati). Il .msg di prova e'
+  scritto da un piccolo scrittore CFB nello script (nessuna libreria lo crea).

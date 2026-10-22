@@ -493,6 +493,32 @@ class Handler(BaseHTTPRequestHandler):
     def api_strings(self, qs):
         self._json({"ok": True, "strings": misc.strings(self._path(qs))})
 
+    # ------------------------------------------------------------ recupero dei file danneggiati e sconosciuti (mbvisual/recover.py)
+    def api_recover(self, qs):
+        from . import recover
+        op = _q(qs, "op", "")
+        p = self._path(qs)
+        if op == "check":
+            return self._json(recover.check(p, _q(qs, "ext", "")))
+        if op == "identify":
+            return self._json(recover.identify(p))
+        if op == "start":
+            return self._json({"ok": True, "job": jobs.start(recover.recover, p, fam=_q(qs, "fam") or None)})
+        if op == "carve":
+            return self._json({"ok": True, "job": jobs.start(recover.carve, p)})
+        if op == "text":
+            return self._json(recover.extract_text(p))
+        if op == "as_ext":
+            return self._json(recover.as_ext(p, _q(qs, "ext", "")))
+        if op == "save":
+            b = self._body_json()
+            return self._json(recover.save_copy(b["src"], b["out"], p))
+        if op == "put":  # file prodotto dall'interfaccia (DXF dal DWG riletto)
+            return self._json(recover.write_bytes(p, _q(qs, "name", "recuperato.bin"), self._body()))
+        if op == "out":
+            return self._json(recover.out_path(p, _q(qs, "name", "recuperato.bin")))
+        self._json({"ok": False, "errore": t("srv_server.api_sconosciuta")}, 404)
+
     def api_reveal(self, qs):
         subprocess.Popen(["explorer", "/select,", self._path(qs)])
         self._json({"ok": True})

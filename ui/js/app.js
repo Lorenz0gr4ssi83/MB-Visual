@@ -14,7 +14,7 @@ const VIEWER_NAMES = {
   image: tr("app.immagine"), svg: "SVG", media: tr("app.audio_video"), cad2d: tr("app.disegno_cad_2d"), model3d: tr("app.modello_3d"), inventor: tr("app.documento_inventor"),
   external: tr("app.programma_esterno"), archive: tr("app.archivio"), email: tr("app.email"), epub: "eBook", font: "Font",
   dwf: tr("app.pubblicazione_dwf"), sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), visio: tr("app.diagramma_visio"), gis: tr("app.mappa_gis"), bcf: tr("app.segnalazioni_bim_bcf"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"), compare: tr("app.confronto_revisioni"),
-  solidcad: tr("app.solidworks_solid_edge"),
+  solidcad: tr("app.solidworks_solid_edge"), recover: tr("app.recupero_file"),
   dicom: tr("app.immagine_medica_dicom"), calendar: tr("app.calendario"), contacts: tr("app.contatti"), cert: tr("app.certificato_digitale"),
   iwork: "Apple iWork", hpgl: tr("app.plotter_hpgl"), scidata: tr("app.dati_scientifici"), revit: "Revit",
 };
@@ -513,11 +513,23 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   const name = extraCtx.displayName || info.nome;
   const { cat } = resolveCategory(extraCtx.displayName && !extOf(extraCtx.displayName) ? info.nome : name, info.sniff);
   const ext = extFor(info.nome);
-  let viewer = forcedViewer || (cat ? cat.viewer : "hex");
+  // estensione non in elenco: schermata di riconoscimento e recupero (ui/js/viewers/recover.js); i byte grezzi restano a un clic
+  let viewer = forcedViewer || (cat ? cat.viewer : WEB ? "hex" : "recover");
   if (!forcedViewer && !WEB && TOOLS.onlyoffice && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
   // Navisworks senza Navisworks: NWD e NWC si aprono nel visualizzatore 3D (lettore nwd2mbv)
   if (!forcedViewer && !WEB && TOOLS.nwdreader && ["nwd", "nwc", "nwf"].includes(ext)) viewer = "model3d";
   if (!forcedViewer) viewer = await gisViewer(path, ext, viewer);
+  // controllo veloce dei formati principali (coda dei PDF, indice degli ZIP, fine delle immagini...): se il file e'
+  // danneggiato si mostra subito la schermata di recupero, con "Apri comunque l'originale" (mbvisual/recover.py check)
+  let recovery = null;
+  if (!WEB && (!forcedViewer || forcedViewer === "recover") && !extraCtx.noCheck && (cat || forcedViewer)) {
+    try {
+      const chk = await api("recover", { op: "check", path, ext });
+      if (chk.danneggiato) { recovery = { mode: "damaged", check: chk, intended: viewer === "recover" ? (cat?.viewer || null) : viewer }; viewer = "recover"; }
+      else if (forcedViewer === "recover") recovery = { mode: "manual", check: chk, intended: cat?.viewer || null };
+    } catch { /* il controllo non deve mai impedire l'apertura */ }
+  }
+  if (!recovery && viewer === "recover") recovery = { mode: cat ? "manual" : "unknown", intended: cat?.viewer || null };
   const view = el("div", { class: "view" });
   const tb = el("div", { class: "tb" });
   const body = el("div", { class: "body" });
@@ -529,7 +541,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   if (!extraCtx.untitled) remember(path);
   const ctx = {
     path, name, ext, info, cat, el: body, tb, tab, tools: TOOLS, registry: REG,
-    reason: !cat && !forcedViewer ? "unlisted" : null, ...extraCtx,
+    reason: !cat && !forcedViewer ? "unlisted" : null, recovery, ...extraCtx,
     setDirty(v) { if (tab.dirty !== v) { tab.dirty = v; renderTabs(); } },
     status(text) { tab.extra = text || ""; if (active === tab) updateStatus(); },
     openPaths, openAs: v => openFile(tab.path, v), openFile,
@@ -557,6 +569,12 @@ async function gisViewer(path, ext, viewer) {
 }
 
 export function showError(ctx, e) {
+  // al posto del messaggio di errore: schermata di recupero (cosa e' successo, cosa si e' salvato, Apri il recuperato...)
+  if (!WEB) return import("./viewers/recover.js").then(m => m.showRecovery(ctx, e)).then(a => { if (ctx.tab) ctx.tab.api = a || {}; }).catch(err => { console.error(err); showErrorPlain(ctx, e); });
+  showErrorPlain(ctx, e);
+}
+
+function showErrorPlain(ctx, e) {
   ctx.el.innerHTML = "";
   ctx.el.append(el("div", { class: "center" }, el("div", { class: "panel", style: { maxWidth: "560px", textAlign: "left" } },
     el("h3", { style: { marginTop: 0 } }, tr("app.non_stato_possibile_mostrare_contenuto")),
@@ -752,6 +770,7 @@ function compatibleViewers(t) {
   if (ext === "pdf" || kind === "pdf") add("pdf");
   if (kind === "text" || TEXT_LIKE.has(ext)) add("text");
   if (kind === "zip" || ZIP_BASED.has(ext)) add("archive");
+  if (!WEB) add("recover"); // riconoscimento dal contenuto, recupero, file incorporati
   add("hex"); // i byte grezzi si possono sempre vedere
   return out;
 }
