@@ -1,0 +1,49 @@
+/* Componenti (ui/js/components.js): vetrina con profili e interruttori, invito nei file che richiedono un componente spento.
+   Solo token di app.css ("Grafite di precisione"). */
+.cm-back { position: fixed; inset: 0; z-index: 95; display: grid; place-items: center; background: rgba(5, 6, 8, .55); backdrop-filter: blur(4px); padding: 24px; animation: mbv-fade .16s ease; }
+.cm-box { width: min(1120px, 100%); height: min(780px, 100%); display: grid; grid-template-rows: auto auto 1fr auto; background: var(--panel-2); color: var(--fg); border-radius: var(--r-xl); box-shadow: var(--sh-3); overflow: hidden; animation: mbv-rise .2s cubic-bezier(.2, .8, .2, 1); }
+.cm-head { display: flex; align-items: flex-start; gap: 18px; padding: 20px 16px 14px 26px; background: linear-gradient(180deg, var(--chrome), var(--chrome-2)); color: var(--chrome-fg); position: relative; }
+.cm-head::after { content: ""; position: absolute; left: 26px; bottom: 0; width: 56px; height: 3px; border-radius: 3px 3px 0 0; background: var(--accent); }
+.cm-head h2 { margin: 0 0 4px; font: 600 22px var(--display); letter-spacing: -.02em; }
+.cm-head p { margin: 0; color: var(--chrome-muted); font-size: 13px; max-width: 720px; }
+.cm-head .cm-x { color: var(--chrome-muted); }
+.cm-head .cm-x:hover { background: var(--chrome-3); color: var(--chrome-fg); }
+.cm-profbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 26px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.cm-profbar .label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.cm-prof { display: flex; gap: 2px; padding: 3px; border-radius: var(--r-md); background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); flex-wrap: wrap; }
+.cm-pchip { height: 30px; padding: 0 14px; border: 0; border-radius: var(--r-sm); background: none; color: var(--muted); font: 500 13px var(--ui); }
+.cm-pchip:hover { color: var(--fg); background: var(--hover); }
+.cm-pchip.on { background: var(--accent); color: var(--accent-fg); box-shadow: var(--sh-1); }
+.cm-prof-note { color: var(--muted); font-size: 12.5px; flex: 1 1 240px; }
+.cm-body { overflow: auto; padding: 18px 26px 22px; background: var(--bg); background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 24px 24px; }
+.cm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.cm-card { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: start; padding: 14px 14px 14px 14px; border-radius: var(--r-lg); background: var(--panel-2); box-shadow: var(--sh-2); transition: box-shadow .15s, opacity .15s; }
+.cm-card:not(.on) { opacity: .62; }
+.cm-card:not(.on) .cm-ico { background: var(--panel); color: var(--faint); box-shadow: inset 0 0 0 1px var(--line); }
+.cm-card.on { box-shadow: 0 0 0 1px var(--accent-line), var(--sh-1); }
+.cm-card.fixed { opacity: 1; box-shadow: var(--sh-2); }
+.cm-card.cm-focus { box-shadow: 0 0 0 2px var(--accent), var(--sh-2); opacity: 1; }
+.cm-ico { width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; background: linear-gradient(160deg, var(--chrome-3), var(--chrome)); color: var(--accent); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06); }
+.cm-ico svg { width: 22px; height: 22px; stroke-width: 1.7; }
+.cm-txt { display: grid; gap: 4px; min-width: 0; }
+.cm-txt b { font: 600 15px var(--display); letter-spacing: -.01em; }
+.cm-txt span { color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.cm-pill { font: 500 11px var(--ui); color: var(--muted); padding: 3px 8px; border-radius: 99px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); white-space: nowrap; }
+/* interruttore */
+.cm-card .cm-switch { appearance: none; -webkit-appearance: none; width: 36px !important; height: 20px !important; min-width: 36px; padding: 0; border: 0; margin: 2px 0 0; border-radius: 99px; background: var(--line-strong); position: relative; flex: none; transition: background .15s; }
+.cm-card .cm-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); transition: transform .15s; }
+.cm-card .cm-switch:checked { background: var(--accent); }
+.cm-card .cm-switch:checked::after { transform: translateX(16px); }
+.cm-card .cm-switch:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--panel-2), 0 0 0 4px var(--accent); }
+.cm-foot { display: flex; align-items: center; gap: 10px; height: 64px; padding: 0 18px 0 26px; border-top: 1px solid var(--line); background: var(--panel); }
+.cm-foot .grow { flex: 1; }
+.cm-foot .btn { height: 34px; padding: 0 18px; }
+.cm-count { font: 500 12px var(--mono); color: var(--muted); }
+/* invito discreto nella barra di un file */
+.tb .comp-invite, .comp-invite { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; margin-right: 6px; border: 0; border-radius: 99px; background: var(--accent-soft) !important; color: var(--accent-ink) !important; font: 500 12px var(--ui); white-space: nowrap; }
+.tb .comp-invite svg, .comp-invite svg { width: 14px; height: 14px; }
+.tb .comp-invite:hover, .comp-invite:hover { box-shadow: inset 0 0 0 1px var(--accent-line); }
+.comp-need { display: grid; grid-template-columns: auto 1fr; gap: 14px; max-width: 520px; }
+.comp-need p { margin: 4px 0 0; color: var(--muted); }
+.comp-need .note { color: var(--fg); }
+@media (max-width: 700px) { .cm-grid { grid-template-columns: 1fr; } .cm-back { padding: 0; } .cm-box { border-radius: 0; height: 100%; } }

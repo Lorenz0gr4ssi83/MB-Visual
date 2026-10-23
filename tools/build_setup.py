@@ -2,6 +2,7 @@
 
 Uso: %USERPROFILE%\\.mbvisual\\venv\\Scripts\\python.exe tools\\build_setup.py
 Risultato: %USERPROFILE%\\.mbvisual\\dist\\MBVisual-Setup-<versione>.exe (fuori da OneDrive)
+Con --out <cartella> il setup va li' (prove delle pagine senza toccare quello da pubblicare).
 """
 import json
 import os
@@ -29,9 +30,13 @@ def main() -> int:
         if not (APP / "_internal" / "bin" / "shell" / f"mbvshell-{arch}.dll").is_file():
             print(f"Attenzione: manca bin\\shell\\mbvshell-{arch}.dll (tools\\mbvshell\\build.cmd): niente miniature in Esplora")
     ver = info["versione"]
-    cmd = [str(iscc()), f"/DAppVersion={ver}", f"/DSourceDir={APP}", f"/DOutDir={DIST}", "/Q", str(ROOT / "installer" / "mbvisual.iss")]
+    # pagina dei componenti: icone, immagini e testi dal registro ui/components.json (stesso Python: Pillow e PyMuPDF)
+    art = DIST / "setup-art"
+    subprocess.run([sys.executable, str(ROOT / "tools" / "make_setup_art.py"), str(art)], check=True)
+    dest = Path(sys.argv[sys.argv.index("--out") + 1]) if "--out" in sys.argv else DIST
+    cmd = [str(iscc()), f"/DAppVersion={ver}", f"/DSourceDir={APP}", f"/DArtDir={art}", f"/DOutDir={dest}", "/Q", str(ROOT / "installer" / "mbvisual.iss")]
     subprocess.run(cmd, check=True)
-    out = DIST / f"MBVisual-Setup-{ver}.exe"
+    out = dest / f"MBVisual-Setup-{ver}.exe"
     print(f"Pronto: {out} ({out.stat().st_size / 1048576:.0f} MB)")
     return 0
 

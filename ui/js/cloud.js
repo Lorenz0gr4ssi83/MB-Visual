@@ -23,7 +23,7 @@ const remoteSeen = new Map(); // percorso -> versione remota gia' segnalata
 // ------------------------------------------------------------------ pannello
 export async function setupCloud() {
   loadCss("css/cloud.css");
-  const btn = el("button", { id: "btn-cloud", class: "cmd desktop-only", title: tr("cloud.archivi_cloud_sharepoint_onedrive_google"), onclick: toggle });
+  const btn = el("button", { id: "btn-cloud", class: "cmd desktop-only", "data-comp": "tools", title: tr("cloud.archivi_cloud_sharepoint_onedrive_google"), onclick: toggle });
   btn.insertAdjacentHTML("beforeend", ICON_CLOUD);
   btn.append(el("span", {}, tr("cloud.cloud")));
   $("btn-explorer").after(btn);

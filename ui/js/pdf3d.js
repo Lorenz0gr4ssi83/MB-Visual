@@ -23,6 +23,7 @@ export async function add3dButton(ctx) {
     await dlg;
     if (chosen) open(chosen);
   }, { title: t("pdf3d.suggerimento") });
+  b.dataset.comp = "mech";
   ctx.tb.prepend(b, el("span", { class: "sep" }));
   toast(t("pdf3d.trovati", models.length), false, 4000);
 }

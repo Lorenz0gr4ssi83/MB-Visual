@@ -860,7 +860,7 @@ export async function mount(ctx) {
   let bcfUi = null;
   const bcfGet = async () => (bcfUi ??= (await import("../bcfpanel.js")).attach3d(bcfHost, v => { bcfBtn.classList.toggle("on", v); if (v) navUi?.close(); }, await getBridge()));
   const bcfBtn = button(tr("v_model3d.segnalazioni"), '<svg viewBox="0 0 16 16" width="16" height="16"><path d="M3.5 14V2.5h8l-1.6 3 1.6 3h-8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
-    async () => (await bcfGet()).toggle(), { title: tr("v_model3d.segnalazioni_titolo") });
+    async () => (await bcfGet()).toggle(), { title: tr("v_model3d.segnalazioni_titolo"), comp: "bim" });
   exp.after(bcfBtn);
 
   // ---- funzioni di Navisworks Manage (ui/js/navmanage.js): Clash Detective, viste salvate, computo; dati nel file .mbvnav
@@ -874,9 +874,9 @@ export async function mount(ctx) {
     views: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M1.5 4.5h3l1-1.5h5l1 1.5h3v8.5h-13z"/><circle cx="8" cy="8.5" r="2.5"/></svg>',
     qto: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="1.5" width="12" height="13" rx="1"/><path d="M4.5 4.5h7M4.5 7.5h2M8 7.5h3.5M4.5 10.5h2M8 10.5h3.5"/></svg>' })[k];
   const navBtns = {
-    clash: button(tr("v_model3d.interferenze"), navIcon("clash"), async () => (await navGet()).toggle("clash"), { title: tr("v_model3d.interferenze_titolo") }),
-    views: button(tr("v_model3d.viste"), navIcon("views"), async () => (await navGet()).toggle("views"), { title: tr("v_model3d.viste_titolo") }),
-    qto: button(tr("v_model3d.computo"), navIcon("qto"), async () => (await navGet()).toggle("qto"), { title: tr("v_model3d.computo_titolo") }),
+    clash: button(tr("v_model3d.interferenze"), navIcon("clash"), async () => (await navGet()).toggle("clash"), { title: tr("v_model3d.interferenze_titolo"), comp: "bim" }),
+    views: button(tr("v_model3d.viste"), navIcon("views"), async () => (await navGet()).toggle("views"), { title: tr("v_model3d.viste_titolo"), comp: "bim" }),
+    qto: button(tr("v_model3d.computo"), navIcon("qto"), async () => (await navGet()).toggle("qto"), { title: tr("v_model3d.computo_titolo"), comp: "bim" }),
   };
   bcfBtn.after(navBtns.clash, navBtns.views, navBtns.qto);
   // ---- misure ed estrazioni (pannello comune a PDF, CAD e 3D: ui/js/measure/m3d.js; misure nel file .mbmis accanto)

@@ -79,8 +79,8 @@ export async function mount(ctx) {
     button(tr("v_media.fine_qui"), "scissors", () => { outP = media.currentTime; if (inP !== null && inP >= outP) inP = null; showMarks(); }, { title: tr("v_media.imposta_fine_taglio_posizione_attuale") }),
     button(tr("v_media.azzera"), null, () => { inP = outP = null; showMarks(); }), marks,
     el("span", { class: "sep" }),
-    button(tr("v_media.esporta_converti"), "download", () => exportDialog()),
-    button(tr("v_media.apri_montaggio"), "edit", () => openInEditor(), { title: tr("v_media.crea_progetto_montaggio_video_stile") }),
+    button(tr("v_media.esporta_converti"), "download", () => exportDialog(), { comp: "video" }),
+    button(tr("v_media.apri_montaggio"), "edit", () => openInEditor(), { title: tr("v_media.crea_progetto_montaggio_video_stile"), comp: "video" }),
     isVideo ? button(tr("v_media.fotogramma"), "camera", async () => {
       const out = await pickSavePath(withExt(ctx.name.replace(/\.[^.]+$/, "") + "_" + Math.round(media.currentTime) + "s.x", "png"), dirName(ctx.path));
       if (!out) return;

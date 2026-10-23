@@ -8,6 +8,7 @@ import { INK_ICON, paint as paintInk, widthAt } from "../ink.js";
 import { LAYER_PEN } from "../inkdxf.js";
 import { pinchPan } from "../touch.js";
 import { measureBtn, mbmisOf } from "../measure/mbutton.js";
+import { isOn } from "../components.js";
 
 
 // ---------------------------------------------------------------- colori ACI
@@ -421,7 +422,8 @@ export async function mount(ctx) {
   const side = el("div", {}, el("div", { style: { padding: "8px 10px", display: "flex", gap: "6px", alignItems: "center" } }, el("b", {}, tr("v_cad2d.layer")), el("span", { class: "note" }, String(model.layers.size)),
     el("span", { style: { flex: 1 } }), el("button", { class: "btn", onclick: () => setAll(true) }, tr("v_cad2d.tutti")), el("button", { class: "btn", onclick: () => setAll(false) }, tr("v_cad2d.nessuno"))), layerList);
   // editor del disegno (solo app per PC: il salvataggio usa il motore ezdxf)
-  const editor = WEB ? null : createCadEditor({
+  // senza il componente CAD 2D il disegno si apre in visualizzazione (misura, layer, esportazioni)
+  const editor = WEB || !isOn("cad") ? null : createCadEditor({
     ctx, db, sourceKind: dxfText ? "dxf" : "dwg", ACI, getModel: () => model,
     rebuild: () => { model = build(db); refreshLayers(); draw(); },
     draw: () => draw(), toWorld: (x, y) => toWorld(x, y), toScreen: (x, y) => toScreen(x, y), get view() { return view; },
@@ -446,7 +448,7 @@ export async function mount(ctx) {
   const lineScale = { v: 1 };
   // revisioni a mano libera (web app: tablet con penna) sul layer MARKUP del disegno (ui/js/ink.js, inkdxf.js)
   let ink = null;
-  const inkBtn = editor ? null : button(tr("ink.penna"), INK_ICON, () => toggleInk(), { class: "ink-toggle", title: tr("ink.annota_cad") });
+  const inkBtn = editor || !WEB ? null : button(tr("ink.penna"), INK_ICON, () => toggleInk(), { class: "ink-toggle", title: tr("ink.annota_cad") });
   async function toggleInk() {
     if (!ink) {
       const { createInk } = await import("../ink.js");
@@ -473,8 +475,8 @@ export async function mount(ctx) {
   ctx.tb.append(...[button(tr("v_cad2d.adatta"), "fit", fit), button("", "zoomIn", () => zoomAt(1.4), { iconOnly: true, title: tr("v_cad2d.ingrandisci") }), button("", "zoomOut", () => zoomAt(1 / 1.4), { iconOnly: true, title: tr("v_cad2d.riduci") }),
     el("span", { class: "sep" }), editor ? null : mBtn, measBtn, inkBtn, tBtn, lwBtn, bgBtn, el("span", { class: "sep" }),
     button("PNG", "download", () => exportPng()), button("SVG", "download", () => exportSvg()), button("PDF", "download", () => exportPdf()),
-    button(tr("gisdraw.mostra_mappa"), '<svg viewBox="0 0 24 24"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>', () => ctx.openAs("gis"), { title: tr("gisdraw.mostra_mappa_tip") }),
-    ctx.ext === "dxf" ? button(tr("v_cad2d.modifica_dxf_testo"), "code", () => ctx.openAs("text")) : null,
+    button(tr("gisdraw.mostra_mappa"), '<svg viewBox="0 0 24 24"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>', () => ctx.openAs("gis"), { title: tr("gisdraw.mostra_mappa_tip"), comp: "gis" }),
+    ctx.ext === "dxf" ? button(tr("v_cad2d.modifica_dxf_testo"), "code", () => ctx.openAs("text"), { comp: "cad" }) : null,
     ctx.tools.trueview ? button(tr("v_cad2d.apri_dwg_trueview"), "open", () => api("open_external", { path: ctx.path, app: "trueview" })) : null,
     el("span", { class: "grow" }), el("span", { class: "note" }, tr("v_cad2d.rotella_zoom_trascina_tasto_centrale"))].filter(Boolean));
 

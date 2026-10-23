@@ -137,6 +137,31 @@ l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.m
   altre si trasformano con `_xf` (prima le linee spostate venivano spostate due volte). Collaudo dalla console:
   `tests/cad_harness.js` (clic simulati in coordinate del disegno).
 
+## Componenti scelti all'installazione (23/10/2026) - FATTO
+Scopo commerciale: chi installa vede tutto cio' che l'app sa fare e sceglie cosa gli serve. I file restano TUTTI installati: i
+componenti accendono e spengono le funzioni. Registro unico `ui/components.json` (id, icona SVG, categorie/estensioni di
+formats.json legate al componente, `invite: "usa"` = invito "per usare tutte le funzioni" invece di "per modificarlo", profili).
+Sempre inclusi: base, shell (Integrazione con Windows). Facoltativi: office, cad, bim, mech (anche Revit), survey, gis, measure,
+graphics (Photoshop/Publisher/Visio: anche le immagini), video, sign, mail, pratiche, tools (lotti, ricerca, cloud), special
+(DICOM, HDF5/NetCDF, iWork). Profili: completo (predefinito), studio, impresa, ufficio, personalizzato.
+- Scelta salvata in `%LOCALAPPDATA%\MBVisual\componenti.json` ({profilo, attivi, noti}: un componente nuovo, assente da "noti",
+  nasce acceso) e su Windows anche in HKCU\Software\MB Visual\Componenti (Attivi, Profilo). Motore `mbvisual/components.py`
+  (API `components`, GET/POST, permessa anche senza licenza); `MBV_COMPONENTI=<file>` = file di prova (non tocca registro e scelta vera).
+- Interfaccia `ui/js/components.js` + `ui/css/components.css`: `isOn(id)`, `compFor(cat, ext)`, `needComp(id)` (finestra "Attiva"),
+  `showComponents()` = File > Componenti... (vetrina con profili e interruttori, la stessa dell'installabile). Elementi legati a un
+  componente: attributo `data-comp="<id>"` (o `button(..., { comp })` di core.js), nascosti da un foglio di stile generato.
+  File di un componente spento: si apre col suo visualizzatore + invito discreto nella barra (`lockIfNeeded` in app.js), Salva
+  propone di attivarlo; attivato, le schede si riaprono da sole (se non modificate). Office spento = niente ONLYOFFICE (editor leggeri),
+  CAD spento = cad2d senza editor. Nella web app tutto acceso. Mac: il .dmg non ha pagine, la scelta si fa al primo avvio
+  (`needsFirstRun`: Mac e nessun componenti.json).
+- Pratiche edilizie ben visibili: pulsante `#btn-pratiche` nella barra laterale (menu Nuova / Apri / recenti), voce nel menu File,
+  scorciatoia nella home, comandi nella palette (chiavi `pratiche.*`). Testi dei componenti: `comp.<id>.nome|desc`, `comp.prof.<id>.*`.
+- Installabile: `installer/mbvisual.iss` (WizardStyle modern dark, it + en scelti dalla lingua di Windows, pagina componenti con
+  tendina dei profili, elenco a sinistra e scheda con icona/nome/descrizione a destra). `tools/make_setup_art.py <cartella>` genera
+  da components.json e da it/en.json: componenti.iss ([Types], [Components], [CustomMessages]), icone BMP 48/96 e immagini col logo;
+  lo chiama `tools/build_setup.py` (`--out <cartella>` per le prove senza sovrascrivere il setup da pubblicare). Il setup scrive
+  componenti.json e il registro a fine installazione; aggiornando (anche /VERYSILENT di update.py) riprende la scelta dal registro.
+
 ## Editor di immagini in stile Photoshop (21/10/2026) - FATTO
 Le immagini si aprono in `ui/js/imgedit.js` (da `ui/js/viewers/image.js`): menu Modifica/Immagine/Livello/Seleziona/Filtro/
 Visualizza/Finestra nella barra del visualizzatore, barra opzioni dello strumento, barra strumenti verticale con gli stessi gruppi,

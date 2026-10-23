@@ -74,7 +74,7 @@ export async function mount(ctx) {
   wrap.append(el("p", { style: { color: "var(--muted)", fontSize: "12.5px", margin: 0 } }, r.avviso));
   ctx.el.append(wrap);
 
-  if (!WEB && signers.length && r.contenuto) ctx.tb.append(button(t("v_signed.aggiungi_firma"), "sign", () => import("../firma.js").then(m => m.signDialog({ path: ctx.path, openFile: ctx.openFile })), { title: t("v_signed.firma_parallela_controfirma_smart_card") }));
+  if (!WEB && signers.length && r.contenuto) ctx.tb.append(button(t("v_signed.aggiungi_firma"), "sign", () => import("../firma.js").then(m => m.signDialog({ path: ctx.path, openFile: ctx.openFile })), { title: t("v_signed.firma_parallela_controfirma_smart_card"), comp: "sign" }));
   ctx.tb.append(r.contenuto ? button(t("v_signed.apri_documento_contenuto"), "open", () => ctx.openFile(r.contenuto)) : el("span"),
     el("span", { class: "grow" }), el("span", { class: "note" }, t("v_signed.documento_contenuto_si_modifica_suo")));
   // apertura automatica del contenuto in una scheda accanto

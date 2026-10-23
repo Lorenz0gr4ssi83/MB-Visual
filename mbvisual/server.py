@@ -158,7 +158,7 @@ class Handler(BaseHTTPRequestHandler):
             if fn is None:
                 return self._json({"ok": False, "errore": t("srv_server.api_sconosciuta")}, 404)
             # licenza: senza attivazione valida rispondono solo licenza e aggiornamenti (mbvisual/license.py)
-            if not route.startswith(("/api/license", "/api/update", "/api/job")):
+            if not route.startswith(("/api/license", "/api/update", "/api/job", "/api/components")):
                 from . import license as lic
                 if lic.required() and not lic.status().get("attiva"):
                     return self._json({"ok": False, "errore": t("srv_server.licenza_non_attiva"), "licenza": True}, 402)
@@ -198,6 +198,14 @@ class Handler(BaseHTTPRequestHandler):
         else:
             res = windialog.open_files(_q(qs, "multiple", "1") != "0")
         self._json({"ok": True, "result": res})
+
+    # ------------------------------------------------------------ API: componenti attivi (mbvisual/components.py, ui/js/components.js)
+    def api_components(self, qs):
+        from . import components
+        if self.command == "POST":
+            b = self._body_json()
+            return self._json(components.save(b.get("attivi") or [], str(b.get("profilo") or "personalizzato")))
+        self._json(components.load())
 
     # ------------------------------------------------------------ API: lingua (ui/js/i18n.js)
     def api_lang(self, qs):

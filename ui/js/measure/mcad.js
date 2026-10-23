@@ -35,7 +35,7 @@ export function mbmisStore(ctx) {
 
 // pulsante "Misure" nella barra del visualizzatore (icona + testo, acceso quando il pannello e' aperto)
 export function measureButton(onclick) {
-  return button(tr("mis.misure"), micon("area", 16), onclick, { title: tr("mis.misure_titolo") });
+  return button(tr("mis.misure"), micon("area", 16), onclick, { title: tr("mis.misure_titolo"), comp: "measure" });
 }
 
 function baseFromHeader(H) {

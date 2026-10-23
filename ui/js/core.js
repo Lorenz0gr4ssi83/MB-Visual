@@ -121,6 +121,7 @@ export function button(label, icon, onclick, opts = {}) {
   if (icon) b.insertAdjacentHTML("beforeend", ICONS[icon] || icon);
   if (label && !opts.iconOnly) b.append(label);
   if (opts.iconOnly) b.classList.add("icon");
+  if (opts.comp) b.dataset.comp = opts.comp; // funzione di un componente (ui/js/components.js): nascosta se spento
   b.addEventListener("click", onclick);
   return b;
 }

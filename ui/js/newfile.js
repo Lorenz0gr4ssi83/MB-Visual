@@ -3,6 +3,7 @@
 // Office, PDF, DXF e database partono dai modelli in ui/templates (tools/make_templates.py); gli altri si generano qui.
 import { api, askText, confirmBox, el, pickFolder, toast, WEB } from "./core.js";
 import { t as tr } from "./i18n.js";
+import { isOn } from "./components.js";
 
 const enc = s => new TextEncoder().encode(s);
 const tpl = name => fetch("templates/" + name).then(r => { if (!r.ok) throw new Error(tr("newfile.modello_non_trovato") + name); return r.arrayBuffer(); }).then(b => new Uint8Array(b));
@@ -37,6 +38,8 @@ const TYPES = [
 
 // nella web app (telefono) il montaggio video non c'e' (serve il motore dell'app per PC): niente modello che poi non si apre
 const WEB_SKIP = new Set(["mbvid", "mbcomm"]);
+// tipi che richiedono un componente (ui/components.json): con il componente spento non compaiono
+const NEEDS = { docx: "office", xlsx: "office", pptx: "office", mbpub: "graphics", vsdx: "graphics", png: "graphics", mbcomm: "pratiche", mbvid: "video", dxf: "cad" };
 
 // icona del programma (colori e iniziale come le app originali, senza marchi)
 const APP = {
@@ -97,7 +100,7 @@ function thumb(kind, color) {
 
 export async function createNew({ openFile, ext = null }) {
   const items = [];
-  for (const [group, entries] of TYPES) for (const it of entries) if (!(WEB && WEB_SKIP.has(it[0]))) items.push({ group, ext: it[0], name: it[1], base: it[2], make: it[3], kind: it[4], note: it[5] });
+  for (const [group, entries] of TYPES) for (const it of entries) if (!(WEB && WEB_SKIP.has(it[0])) && isOn(NEEDS[it[0]])) items.push({ group, ext: it[0], name: it[1], base: it[2], make: it[3], kind: it[4], note: it[5] });
   let sel = items[0];
   // tipo gia' scelto (scorciatoie della home): niente galleria
   const quick = ext && items.find(i => i.ext === ext);

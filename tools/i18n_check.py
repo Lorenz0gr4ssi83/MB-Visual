@@ -22,7 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 I18N = ROOT / "ui" / "i18n"
 LANGS = ["en", "es", "fr", "de"]
-DYNAMIC_PREFIXES = ("fmt.", "keys.", "units.", "lang.")
+DYNAMIC_PREFIXES = ("fmt.", "keys.", "units.", "lang.", "comp.")
 
 
 def load(code: str) -> dict:

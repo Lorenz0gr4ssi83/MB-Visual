@@ -6,6 +6,7 @@ import {
 import { licenseGate, showAccount } from "./license.js";
 import { setupMobileQr } from "./mobileqr.js";
 import { initTouch, afterMount } from "./touch.js";
+import { initComponents, isOn, compFor, inviteChip, needComp, showComponents, needsFirstRun, ICON as COMP_ICON } from "./components.js";
 import { t as tr, tn, has as trHas, LANG, LANGS, LOCALE, MANUAL, keyName, setLanguage } from "./i18n.js";
 
 const $ = id => document.getElementById(id);
@@ -57,6 +58,7 @@ async function loadRegistry() {
     if (!EXT.get(e).includes(c)) EXT.get(e).push(c);
   }
   try { TOOLS = (await api("tools")).tools; } catch { TOOLS = {}; }
+  await initComponents(); // componenti scelti all'installazione (ui/js/components.js)
 }
 
 function extFor(name) {
@@ -230,7 +232,7 @@ const ICON_FILE = '<svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/
 const ICON_NEW = '<svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M12 11v6M9 14h6"/></svg>';
 const ICON_FOLDER = '<svg viewBox="0 0 24 24"><path d="M3 4h7v16H3zM14 4h7v7h-7zM14 14h7v6h-7z"/></svg>';
 
-function closeMenus() { for (const id of ["menu-open", "menu-as", "menu-file"]) $(id).hidden = true; }
+function closeMenus() { for (const id of ["menu-open", "menu-as", "menu-file", "menu-pratiche"]) $(id).hidden = true; }
 function placeMenu(m, anchor) {
   // dentro lo schermo anche sul telefono: larghezza vera del menu (prima su schermi stretti finiva a sinistra fuori schermo)
   const r = anchor.getBoundingClientRect();
@@ -267,11 +269,13 @@ const ICON_SAVE = '<svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5zM8 3v6h8V3
 const ICON_SAVEAS = '<svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v6M5 3v18h7M8 3v6h8V3M17 15v6M14 18h6"/></svg>';
 const ICON_UPD = '<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>';
 // menu File: nuovo, salva, salva con nome, aggiornamenti (le voci di apertura stanno nel menu Apri)
+const ICON_COMPONENTS = '<svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M17 13.5v7M13.5 17h7"/></svg>';
 const ICON_ACCOUNT = '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg>';
 // stampa professionale (ui/js/print.js, mbvisual/stampa.py): solo app per PC
 const ICON_PRINT = '<svg viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-8h16v8h-3M7 14h10v7H7z"/></svg>';
 async function doPrint(batch = false) {
   if (WEB) return toast(tr("app.stampa_solo_pc"), true);
+  if (batch && !(await needComp("cad"))) return;
   const m = await import("./print.js");
   if (batch) m.openBatchPrint();
   else if (active) m.openPrint(active);
@@ -283,23 +287,26 @@ function fileMenu(anchor) {
   closeMenus();
   m.innerHTML = "";
   const item = (icon, text, hint, fn, disabled = false) => { const b = el("button", { disabled: disabled || undefined, onclick: () => { m.hidden = true; fn(); } }); b.insertAdjacentHTML("beforeend", icon); b.append(el("span", {}, text)); if (hint) b.append(el("span", { class: "hint" }, hint)); return b; };
+  const gated = (comp, b) => (isOn(comp) ? [b] : []);
   m.append(item(ICON_NEW, tr("app.crea_nuovo"), "Ctrl+N", doNew),
+    ...(WEB ? [] : gated("pratiche", item(ICON_PRATICA, tr("pratiche.nuova"), "", newPratica))),
     item(ICON_SAVE, tr("common.salva"), "Ctrl+S", () => save(false), !active),
     item(ICON_SAVEAS, tr("app.salva_nome"), keysText("Ctrl+Shift+S"), () => save(true), !active),
-    ...(window.MBCloud ? [item('<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/></svg>', tr("cloud.salva_nel_cloud"), "", () => window.MBCloud.saveToCloud(), !active)] : []), // ui/js/cloud.js
-    ...(WEB ? [] : [item(ICON_PRINT, tr("app.stampa"), "Ctrl+P", () => doPrint(), !active), item(ICON_PRINT, tr("app.stampa_lotti"), keysText("Ctrl+Shift+P"), () => doPrint(true))]),
+    ...(window.MBCloud && isOn("tools") ? [item('<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/></svg>', tr("cloud.salva_nel_cloud"), "", () => window.MBCloud.saveToCloud(), !active)] : []), // ui/js/cloud.js
+    ...(WEB ? [] : [item(ICON_PRINT, tr("app.stampa"), "Ctrl+P", () => doPrint(), !active), ...gated("cad", item(ICON_PRINT, tr("app.stampa_lotti"), keysText("Ctrl+Shift+P"), () => doPrint(true)))]),
     item('<svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM6 9h2M10 9h2M14 9h2M18 9h0M6 13h12"/></svg>', tr("app.scorciatoie_tastiera"), "F1", showShortcuts),
     item('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>', tr("lang.impostazioni") + " › " + tr("lang.titolo") + "...", LANG.toUpperCase(), showLanguage));
-  if (!WEB) m.append(item('<svg viewBox="0 0 24 24"><path d="M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18"/></svg>', tr("app.firma_digitale"), "", () => import("./firma.js").then(f => f.signDialog({ path: active.path, openFile })), !active?.path)); // ui/js/firma.js
+  if (!WEB && isOn("sign")) m.append(item('<svg viewBox="0 0 24 24"><path d="M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18"/></svg>', tr("app.firma_digitale"), "", () => import("./firma.js").then(f => f.signDialog({ path: active.path, openFile })), !active?.path)); // ui/js/firma.js
   // confronto tra revisioni (PDF, DWG/DXF, IFC): ui/js/viewers/compare.js
-  m.append(item('<svg viewBox="0 0 24 24"><path d="M4 4h7v16H4zM13 4h7v16h-7M8 9l-2 2 2 2M16 9l2 2-2 2"/></svg>', tr("app.confronta_con"), "", compareWith, !active || active.viewer === "compare" || !COMPARE_EXT.test(extOf(active.info?.nome || active.name))));
+  if (isOn("bim")) m.append(item('<svg viewBox="0 0 24 24"><path d="M4 4h7v16H4zM13 4h7v16h-7M8 9l-2 2 2 2M16 9l2 2-2 2"/></svg>', tr("app.confronta_con"), "", compareWith, !active || active.viewer === "compare" || !COMPARE_EXT.test(extOf(active.info?.nome || active.name))));
   if (WEB && window.MBV_MOBILE) m.append(el("hr"), item(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount)); // app per cellulari con licenza
   if (!WEB) {
     // conversione a lotti (ui/js/batch.js): cartella del pannello Esplora gia' proposta
-    m.append(item(ICON_TODRAW, tr("todrawing.converti_disegno_menu"), "", () => toDrawing(), !canToDrawing(active)));
-    m.append(item('<svg viewBox="0 0 24 24"><path d="M4 4h10v10H4zM10 10h10v10H10M17 6l3 3-3 3"/></svg>', tr("app.conversione_lotti"), "",
+    if (isOn("cad")) m.append(item(ICON_TODRAW, tr("todrawing.converti_disegno_menu"), "", () => toDrawing(), !canToDrawing(active)));
+    if (isOn("tools")) m.append(item('<svg viewBox="0 0 24 24"><path d="M4 4h10v10H4zM10 10h10v10H10M17 6l3 3-3 3"/></svg>', tr("app.conversione_lotti"), "",
       () => import("./batch.js").then(b => b.openBatch({ paths: exDir && !$("explorer").hidden ? [exDir] : [] }))));
-    m.append(el("hr"), item(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount), item(ICON_UPD, tr("app.verifica_aggiornamenti"), "", () => checkUpdates(true)));
+    m.append(el("hr"), item(ICON_COMPONENTS, tr("comp.menu"), "", () => openComponents()),
+      item(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount), item(ICON_UPD, tr("app.verifica_aggiornamenti"), "", () => checkUpdates(true)));
     if (!TOOLS.mac) m.append(item('<svg viewBox="0 0 24 24"><path d="M3 5h8v6H3zM13 5h8v6h-8zM3 13h8v6H3zM13 13h8v6h-8z"/></svg>', tr("app.integrazione_windows"), "", () => import("./shellint.js").then(x => x.showShellIntegration())));
     if (updInfo?.installabile && !updInfo.installata) m.append(item("", tr(TOOLS.mac ? "app.installa_mac_menu" : "app.installa_questo_pc"), "", askInstall));
   }
@@ -538,7 +545,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   const ext = extFor(info.nome);
   // estensione non in elenco: schermata di riconoscimento e recupero (ui/js/viewers/recover.js); i byte grezzi restano a un clic
   let viewer = forcedViewer || (cat ? cat.viewer : WEB ? "hex" : "recover");
-  if (!forcedViewer && !WEB && TOOLS.onlyoffice && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
+  if (!forcedViewer && !WEB && TOOLS.onlyoffice && isOn("office") && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
   // Navisworks senza Navisworks: NWD e NWC si aprono nel visualizzatore 3D (lettore nwd2mbv)
   if (!forcedViewer && !WEB && TOOLS.nwdreader && ["nwd", "nwc", "nwf"].includes(ext)) viewer = "model3d";
   if (!forcedViewer) viewer = await gisViewer(path, ext, viewer);
@@ -575,6 +582,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
     tab.api = (await mod.mount(ctx)) || {};
     addOfficeButton(tab, tb);
     addDrawingButton(tab, tb);
+    lockIfNeeded(tab, ext, tb);
     afterMount(ctx); // tablet: pannello laterale a scomparsa
     if (extraCtx.untitled) { tab.untitled = true; tab.dirty = true; renderTabs(); } // file nuovo: si salva quando e dove si vuole
   } catch (e) {
@@ -591,7 +599,7 @@ export async function mountPreview(path, host, extra = {}) {
   const { cat } = resolveCategory(info.nome, info.sniff);
   const ext = extFor(info.nome);
   let viewer = cat ? cat.viewer : "hex";
-  if (!WEB && TOOLS.onlyoffice && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
+  if (!WEB && TOOLS.onlyoffice && isOn("office") && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
   if (!WEB && TOOLS.nwdreader && ["nwd", "nwc", "nwf"].includes(ext)) viewer = "model3d";
   viewer = await gisViewer(path, ext, viewer);
   host.innerHTML = "";
@@ -614,6 +622,7 @@ export async function mountPreview(path, host, extra = {}) {
 
 // posta elettronica (ui/js/mail): una scheda sola, riattivata se gia' aperta
 export function openMail(opts = {}) {
+  if (!isOn("mail")) return needComp("mail").then(ok => ok && openMail(opts));
   const t = tabs.find(x => x.viewer === "mail");
   if (t) { activate(t); if (opts.go) t.api?.go?.(opts.go); return t; }
   return openFile("mail://posta", "mail", { displayName: tr("mail.posta"), ...opts });
@@ -647,11 +656,87 @@ function showErrorPlain(ctx, e) {
       el("button", { class: "btn", onclick: () => api("open_external", { path: ctx.path }).catch(err => toast(err.message, true)) }, tr(TOOLS.mac ? "app.apri_programma_predefinito" : "app.apri_programma_windows"))))));
 }
 
+// ------------------------------------------------------------------ componenti (ui/js/components.js)
+// file che richiede un componente spento: si apre in visualizzazione, con l'invito discreto ad attivarlo
+function lockIfNeeded(t, ext, tb) {
+  if (WEB || t.preview || ["recover", "hex", "text"].includes(t.viewer)) return;
+  const need = t.viewer === "compare" ? "bim" : ["mail", "mailcompose"].includes(t.viewer) ? "mail" : compFor(t.cat?.id, ext);
+  if (!need || isOn(need)) return;
+  t.lockedComp = need;
+  t.invite = inviteChip(need);
+  tb.prepend(t.invite);
+}
+const openComponents = (opts = {}) => showComponents(opts);
+// dopo un cambio: i file aperti in visualizzazione del componente appena acceso si riaprono con tutte le funzioni
+function componentsChanged() {
+  renderHomeNew();
+  for (const t of [...tabs]) {
+    if (!t.lockedComp || !isOn(t.lockedComp)) continue;
+    t.invite?.remove();
+    t.lockedComp = null;
+    if (!t.dirty) reloadTab(t);
+  }
+  startMailBadge();
+  renderTabs();
+}
+let mailBadge = false;
+function startMailBadge() {
+  if (WEB || mailBadge || !isOn("mail")) return;
+  mailBadge = true;
+  import("./mail/mailbadge.js").then(m => m.setupMailBadge()).catch(e => console.error(e)); // posta in background: messaggi da leggere, avvisi
+}
+
+// ------------------------------------------------------------------ pratiche edilizie (ui/js/viewers/pratica.js)
+const ICON_PRATICA = '<svg viewBox="0 0 24 24"><path d="M3 11.5L11 5l8 6.5M5 10v11h12V10M8.5 15.5l2 2 3.5-3.5"/></svg>';
+const newPratica = () => doNew("mbcomm");
+async function openPratica() {
+  const ps = await pickFiles();
+  if (ps?.length) openPaths(ps);
+}
+function praticheMenu(anchor) {
+  const m = $("menu-pratiche");
+  if (!m.hidden) { m.hidden = true; return; }
+  closeMenus();
+  m.innerHTML = "";
+  const item = (icon, text, fn) => { const b = el("button", { onclick: () => { m.hidden = true; fn(); } }); b.insertAdjacentHTML("beforeend", icon); b.append(el("span", {}, text)); return b; };
+  m.append(el("div", { class: "sec label" }, tr("pratiche.titolo")),
+    item(ICON_NEW, tr("pratiche.nuova"), newPratica), item(ICON_FOLDER, tr("pratiche.apri"), openPratica), el("hr"), el("div", { class: "sec label" }, tr("pratiche.recenti")));
+  const list = recentList().filter(r => /\.mbcomm$/i.test(r.path));
+  if (!list.length) m.append(el("div", { class: "empty" }, tr("pratiche.nessuna_recente")));
+  for (const r of list.slice(0, 8)) {
+    m.append(el("button", { class: "rec", title: r.path, onclick: () => { m.hidden = true; openPaths([r.path]); } },
+      badgeFor(r.name), el("span", { class: "nm" }, r.name.replace(/\.mbcomm$/i, "")), el("span", { class: "pt" }, dirName(r.path))));
+  }
+  m.hidden = false;
+  const a = anchor.getBoundingClientRect();
+  const side = innerWidth > 700; // su schermi stretti la barra laterale sta in basso
+  m.style.left = (side ? a.right + 8 : Math.max(8, Math.min(a.left, innerWidth - m.offsetWidth - 8))) + "px";
+  m.style.top = (side ? Math.max(8, Math.min(a.top, innerHeight - m.offsetHeight - 8)) : Math.max(8, a.top - m.offsetHeight - 8)) + "px";
+}
+
+// home: scorciatoie "Crea nuovo" dei componenti attivi
+const HOME_NEW = [["docx", "newfile.documento_word", "--t-doc", '<path d="M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M9 17h4"/>', "office"],
+  ["xlsx", "newfile.cartella_lavoro_excel", "--t-xls", '<rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 10h16M4 15h16M10 4v16"/>', "office"],
+  ["pptx", "newfile.presentazione_powerpoint", "--t-ppt", '<rect x="3" y="5" width="18" height="12" rx="1.5"/><path d="M12 17v3M8 20h8"/>', "office"],
+  ["dxf", "newfile.disegno_cad", "--t-cad", '<path d="M4 4h16v16H4zM14 14h6M14 14v6"/>', "cad"],
+  ["mbcomm", "newfile.pratica_edilizia", "--t-sig", '<path d="M3 11.5L11 5l8 6.5M5 10v11h12V10M8.5 15.5l2 2 3.5-3.5"/>', "pratiche"],
+  ["mbpub", "newfile.pubblicazione", "--t-av", '<path d="M4 4h16v16H4zM4 10h16M10 10v10"/>', "graphics"],
+  ["mbvid", "newfile.progetto_video", "--t-3d", '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/>', "video"]];
+function renderHomeNew() {
+  const row = $("home-newrow");
+  row.innerHTML = "";
+  row.append(el("span", { class: "label" }, tr("idx.crea_nuovo")),
+    ...HOME_NEW.filter(([ext, , , , comp]) => isOn(comp) && !(WEB && ["mbvid", "mbcomm"].includes(ext))).map(([ext, key, c, svg]) => el("button", { class: "new-chip", style: { "--c": `var(${c})` }, onclick: () => doNew(ext),
+      html: `<span class="ci"><svg viewBox="0 0 24 24">${svg}</svg></span>` }, tr(key))));
+}
+
 // ------------------------------------------------------------------ salvataggio
 async function save(asNew) {
   const t = active;
   if (!t) return;
   const a = t.api || {};
+  // file aperto in visualizzazione perche' il suo componente e' spento: si propone di attivarlo
+  if (t.lockedComp && !isOn(t.lockedComp)) return needComp(t.lockedComp);
   // file nuovo mai salvato: Salva chiede subito dove (nella cartella Documenti, non in quella temporanea)
   if (t.untitled && !asNew && !WEB) {
     const target = await pickSavePath(t.name, "");
@@ -756,7 +841,7 @@ async function convertTo(t, a, target) {
 // ------------------------------------------------------------------ PDF e immagini -> disegno DXF/DWG (ui/js/todrawing.js, mbvisual/todrawing.py)
 const ICON_TODRAW = '<svg viewBox="0 0 24 24"><path d="M4 4h9l4 4v5M13 4v4h4M4 4v16h7"/><path d="M14 17h7M14 21l7-8M17.5 21a3.5 3.5 0 0 0 0-7"/></svg>';
 const TODRAW_EXT = /^(pdf|png|jpe?g|jpe|jfif|tiff?|bmp|dib|gif|webp|avif|heic|heif|jp2|j2k|jpx|tga|pcx|ppm|pgm|pbm|pnm|qoi)$/;
-const canToDrawing = t => !!t && !WEB && !!t.path && !t.path.startsWith("web://") && !t.path.startsWith("download://") && TODRAW_EXT.test(extOf(t.info?.nome || t.path));
+const canToDrawing = t => !!t && !WEB && isOn("cad") && !!t.path && !t.path.startsWith("web://") && !t.path.startsWith("download://") && TODRAW_EXT.test(extOf(t.info?.nome || t.path));
 function toDrawing(t = active, out = null) {
   if (!canToDrawing(t)) return;
   import("./todrawing.js").then(m => m.openToDrawing({ path: t.path, out, openFile }));
@@ -765,6 +850,7 @@ function addDrawingButton(t, tb) {
   if (!canToDrawing(t) || !["pdf", "image"].includes(t.viewer)) return;
   const b = button(tr("todrawing.converti_disegno"), ICON_TODRAW, () => toDrawing(t), { title: tr("todrawing.converti_disegno_aiuto") });
   b.classList.add("td-btn");
+  b.dataset.comp = "cad";
   tb.prepend(b, el("span", { class: "sep" }));
 }
 
@@ -845,7 +931,7 @@ function compatibleViewers(t) {
   const add = v => { if (v && VIEWER_NAMES[v] && !out.includes(v)) out.push(v); };
   add(t.viewer);
   for (const c of EXT.get(ext) || []) add(c.viewer);
-  if (!WEB && TOOLS.onlyoffice && OO_EXTS.has(ext)) add("oo");
+  if (!WEB && TOOLS.onlyoffice && isOn("office") && OO_EXTS.has(ext)) add("oo");
   if (ext === "svg") { add("svg"); add("image"); }
   if (["html", "htm", "xhtml"].includes(ext)) add("html");
   if (["md", "markdown"].includes(ext)) add("markdown");
@@ -938,7 +1024,7 @@ function toggleFormats() {
 function goBack() {
   if (window.MBV_BACK?.()) return; // schermate a tutto schermo (scanner, realta' aumentata) gestiscono da sole il tasto indietro
   if (!$("modal").hidden) return document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-  if (!$("menu-open").hidden || !$("menu-as").hidden || !$("menu-file").hidden) return closeMenus();
+  if (!$("menu-open").hidden || !$("menu-as").hidden || !$("menu-file").hidden || !$("menu-pratiche").hidden) return closeMenus();
   if (!$("dragover").hidden) { $("dragover").hidden = true; document.body.classList.remove("dragging"); return; }
   if (document.fullscreenElement) return document.exitFullscreen?.();
   if (!$("formats").hidden) return toggleFormats();
@@ -1004,16 +1090,19 @@ function openPalette() {
     c(ICON_SAVE, tr("common.salva"), "Ctrl+S", () => save(false), has),
     c(ICON_SAVEAS, tr("app.salva_nome"), "Ctrl+Shift+S", () => save(true), has),
     c(ICON_PRINT, tr("app.stampa"), "Ctrl+P", () => doPrint(), has && !WEB),
-    c(ICON_PRINT, tr("app.stampa_lotti"), "Ctrl+Shift+P", () => doPrint(true), !WEB),
+    c(ICON_PRINT, tr("app.stampa_lotti"), "Ctrl+Shift+P", () => doPrint(true), !WEB && isOn("cad")),
+    c(ICON_PRATICA, tr("pratiche.nuova"), "", newPratica, !WEB && isOn("pratiche")),
+    c(ICON_PRATICA, tr("pratiche.apri"), "", openPratica, !WEB && isOn("pratiche")),
+    c(ICON_COMPONENTS, tr("comp.menu"), "", () => openComponents(), !WEB),
     c(ICON_I("M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v6M12 7.5v.5"), tr("idx.proprieta"), "", showProperties, has),
     c(ICON_I("M3 6h6l2 2h10v11H3zM3 10h18"), tr("app.cartella_progetto"), "", chooseExplorerFolder, !WEB),
-    c(ICON_I("M11 17.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM16 16l4.5 4.5"), tr("search.cerca_titolo"), "Ctrl+Shift+F", () => import("./search.js").then(m => m.toggle(true)), !WEB),
+    c(ICON_I("M11 17.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM16 16l4.5 4.5"), tr("search.cerca_titolo"), "Ctrl+Shift+F", () => import("./search.js").then(m => m.toggle(true)), !WEB && isOn("tools")),
     c(ICON_FORMATS, tr("idx.elenco_completo_formati_supportati"), "", () => { if ($("formats").hidden) toggleFormats(); }),
-    c(ICON_MAIL, tr("mail.posta_titolo"), "", () => openMail(), !WEB),
-    c(ICON_MAIL_NEW, tr("mail.nuovo_messaggio"), "", () => import("./mail/mailapp.js").then(m => m.newMessage()), !WEB),
-    c(ICON_I("M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18"), tr("app.firma_digitale"), "", () => import("./firma.js").then(f => f.signDialog({ path: active.path, openFile })), !WEB && !!active?.path),
+    c(ICON_MAIL, tr("mail.posta_titolo"), "", () => openMail(), !WEB && isOn("mail")),
+    c(ICON_MAIL_NEW, tr("mail.nuovo_messaggio"), "", () => import("./mail/mailapp.js").then(m => m.newMessage()), !WEB && isOn("mail")),
+    c(ICON_I("M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18"), tr("app.firma_digitale"), "", () => import("./firma.js").then(f => f.signDialog({ path: active.path, openFile })), !WEB && isOn("sign") && !!active?.path),
     c(ICON_TODRAW, tr("todrawing.converti_disegno_menu"), "", () => toDrawing(), canToDrawing(active)),
-    c(ICON_I("M4 4h7v16H4zM13 4h7v16h-7M8 9l-2 2 2 2M16 9l2 2-2 2"), tr("app.confronta_con"), "", compareWith, has && active.viewer !== "compare" && COMPARE_EXT.test(extOf(active.info?.nome || active.name))),
+    c(ICON_I("M4 4h7v16H4zM13 4h7v16h-7M8 9l-2 2 2 2M16 9l2 2-2 2"), tr("app.confronta_con"), "", compareWith, isOn("bim") && has && active.viewer !== "compare" && COMPARE_EXT.test(extOf(active.info?.nome || active.name))),
     c(ICON_I("M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"), tr("idx.tema_chiaro_scuro"), "", () => $("btn-theme").click()),
     c(ICON_I("M3 6h18v12H3zM6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"), tr("app.scorciatoie_tastiera"), "F1", showShortcuts),
     c(ICON_I("M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"), tr("lang.impostazioni") + " › " + tr("lang.titolo"), "", showLanguage),
@@ -1087,15 +1176,7 @@ async function boot() {
   // home: il logo al centro; i tipi di file aperti si consultano nella scheda Formati
   const total = new Set(REG.categories.flatMap(c => c.exts)).size;
   $("home-note").append(el("i"), el("button", { class: "link", onclick: toggleFormats }, tr("app.0_estensioni_supportate_vedi_l", total)));
-  const NEW = [["docx", "newfile.documento_word", "--t-doc", '<path d="M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M9 17h4"/>'],
-    ["xlsx", "newfile.cartella_lavoro_excel", "--t-xls", '<rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 10h16M4 15h16M10 4v16"/>'],
-    ["pptx", "newfile.presentazione_powerpoint", "--t-ppt", '<rect x="3" y="5" width="18" height="12" rx="1.5"/><path d="M12 17v3M8 20h8"/>'],
-    ["dxf", "newfile.disegno_cad", "--t-cad", '<path d="M4 4h16v16H4zM14 14h6M14 14v6"/>'],
-    ["mbpub", "newfile.pubblicazione", "--t-av", '<path d="M4 4h16v16H4zM4 10h16M10 10v10"/>'],
-    ["mbvid", "newfile.progetto_video", "--t-3d", '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/>']];
-  $("home-newrow").append(el("span", { class: "label" }, tr("idx.crea_nuovo")),
-    ...NEW.map(([ext, key, c, svg]) => el("button", { class: "new-chip", style: { "--c": `var(${c})` }, onclick: () => doNew(ext),
-      html: `<span class="ci"><svg viewBox="0 0 24 24">${svg}</svg></span>` }, tr(key))));
+  renderHomeNew();
   const keyHint = (k, text) => el("span", {}, ...keyCombos(k).map(x => el("kbd", {}, x)), text);
   $("home-keys").append(keyHint("Ctrl+K", tr("pal.cerca_breve")), keyHint("Ctrl+Tab", tr("app.file_successivo")), keyHint("F1", tr("app.scorciatoie_tastiera")));
   setupDrop();
@@ -1103,7 +1184,8 @@ async function boot() {
   setupBack();
   initTouch();
   if (!WEB) import("./cloud.js").then(m => m.setupCloud()).catch(e => console.error(e)); // archivi cloud (SharePoint, Drive, Dropbox, Autodesk)
-  if (!WEB) import("./mail/mailbadge.js").then(m => m.setupMailBadge()).catch(e => console.error(e)); // posta in background: messaggi da leggere, avvisi
+  startMailBadge(); // posta in background (solo con il componente Posta e PEC)
+  window.addEventListener("mbv-components", componentsChanged);
   if (!WEB) licenseGate(); // licenza dell'app per PC: senza attivazione copre l'app con la schermata della chiave
   if (!WEB) setupMobileQr(); // QR nella home per installare l'app sul cellulare (posti liberi della licenza)
   if (!WEB) setTimeout(() => checkUpdates(false), 3000);
@@ -1122,7 +1204,7 @@ async function boot() {
   $("ex-search").addEventListener("click", () => import("./search.js").then(m => m.toggle(true)));
   // clic destro nel pannello Esplora: conversione a lotti della cartella (o a partire dal file)
   $("ex-list").addEventListener("contextmenu", e => {
-    if (WEB || !exDir) return;
+    if (WEB || !exDir || !isOn("tools")) return;
     e.preventDefault();
     const b = e.target.closest(".ex-item");
     import("./batch.js").then(m => m.explorerMenu(e, b ? b.dataset.path : exDir, b ? b.classList.contains("dir") : true, p => openPaths([p])));
@@ -1135,14 +1217,15 @@ async function boot() {
   $("btn-home").addEventListener("click", () => activate(null));
   $("btn-search").addEventListener("click", () => import("./search.js").then(m => m.toggle()));
   $("btn-mail").addEventListener("click", () => openMail());
+  $("btn-pratiche").addEventListener("click", e => praticheMenu(e.currentTarget));
   $("btn-keys").addEventListener("click", showShortcuts);
   $("btn-palette").addEventListener("click", openPalette);
-  document.addEventListener("click", e => { if (!e.target.closest(".menu-wrap")) closeMenus(); });
+  document.addEventListener("click", e => { if (!e.target.closest(".menu-wrap, #btn-pratiche, #menu-pratiche")) closeMenus(); });
   document.addEventListener("keydown", e => {
     const k = e.key.toLowerCase();
     // palette dei comandi; Ctrl+K resta all'editor se il programma originale lo usa (Premiere, Publisher, Office) o nei testi
     if (e.ctrlKey && !e.shiftKey && !e.altKey && k === "k" && !editorOwnsCtrlK(e)) { e.preventDefault(); openPalette(); }
-    else if (e.ctrlKey && e.shiftKey && k === "f" && !WEB) { e.preventDefault(); import("./search.js").then(m => m.toggle()); } // ricerca nel progetto
+    else if (e.ctrlKey && e.shiftKey && k === "f" && !WEB && isOn("tools")) { e.preventDefault(); import("./search.js").then(m => m.toggle()); } // ricerca nel progetto
     else if (e.ctrlKey && k === "o") { e.preventDefault(); doOpen(); }
     else if (e.ctrlKey && k === "n") { e.preventDefault(); doNew(); }
     else if (e.ctrlKey && k === "s") { e.preventDefault(); save(e.shiftKey); }
@@ -1153,7 +1236,8 @@ async function boot() {
   });
   window.addEventListener("beforeunload", e => { if (tabs.some(t => t.dirty)) { e.preventDefault(); e.returnValue = ""; } });
   renderTabs();
+  if (needsFirstRun()) showComponents({ welcome: true }); // Mac: il .dmg non ha pagine di installazione, si sceglie al primo avvio
 }
 
-window.MB = { openPaths, openFile, openMail, mountPreview, closeTab, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, get exDir() { return exDir; }, activate, modal, askQuit, print: doPrint, save: asNew => save(!!asNew) };
+window.MB = { openPaths, openFile, openMail, openComponents, mountPreview, closeTab, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, get exDir() { return exDir; }, activate, modal, askQuit, print: doPrint, save: asNew => save(!!asNew) };
 const READY = boot();

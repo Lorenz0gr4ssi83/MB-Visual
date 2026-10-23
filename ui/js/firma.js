@@ -6,6 +6,7 @@
 import { api, baseName, dirName, el, modal, pickFiles, pickFolder, pickSavePath, toast, waitJob, WEB } from "./core.js";
 import { t } from "./i18n.js";
 import { renderSigner } from "./viewers/signed.js";
+import { needComp } from "./components.js";
 
 const lbl = (text, ...input) => el("label", { style: { display: "grid", gap: "4px" } }, text, ...input);
 const inp = (id, value = "", type = "text", ph = "") => el("input", { id, type, value, placeholder: ph || undefined, class: "field", style: { width: "100%", padding: "6px 8px" } });
@@ -20,6 +21,7 @@ const DISP = () => ({ smartcard: t("firma.disp_smartcard"), windows: t("firma.di
 // opts: { path, openFile(path) }
 export async function signDialog({ path, openFile }) {
   if (WEB) return toast(t("firma.solo_pc"), true);
+  if (!(await needComp("sign"))) return;
   const isPdf = /\.pdf$/i.test(path), isP7m = /\.p7m$/i.test(path);
   const [st, certsR] = await Promise.all([api("firma", { op: "impostazioni" }, { json: {} }), api("firma", { op: "certificati" }, { json: {} }).catch(e => ({ certificati: [], errore: e.message }))]);
   let certs = certsR.certificati || [];

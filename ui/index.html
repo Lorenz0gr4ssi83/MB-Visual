@@ -8,6 +8,7 @@
 <link rel="preload" href="fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/components.css">
 </head>
 <body>
 <!-- barra del titolo: schede dei documenti (il logo resta solo nella cornice della finestra), ricerca dei comandi (Ctrl+K) -->
@@ -47,8 +48,9 @@
   <nav class="rail" id="rail">
     <button id="btn-home" title="Home" data-i18n-title="app.home"><svg viewBox="0 0 24 24"><path d="M4 11l8-6 8 6v9H4zM10 20v-5h4v5"/></svg></button>
     <button id="btn-explorer" class="desktop-only" title="Esplora una cartella di progetto" data-i18n-title="idx.esplora_cartella_progetto"><svg viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3zM3 10h18"/></svg><span data-i18n="idx.esplora">Esplora</span></button>
-    <button id="btn-search" class="desktop-only" title="Cerca nel contenuto di tutti i file della cartella (Ctrl+Maiusc+F)" data-i18n-title="search.cerca_titolo"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v5M14 3v4h4M6 3v18h6"/><circle cx="16.5" cy="16.5" r="3.5"/><path d="M19 19l2.5 2.5"/></svg></button>
-    <button id="btn-mail" class="desktop-only" title="Posta elettronica, PEC, calendario e contatti" data-i18n-title="mail.posta_titolo"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/></svg><span data-i18n="mail.posta">Posta</span></button>
+    <button id="btn-search" class="desktop-only" data-comp="tools" title="Cerca nel contenuto di tutti i file della cartella (Ctrl+Maiusc+F)" data-i18n-title="search.cerca_titolo"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v5M14 3v4h4M6 3v18h6"/><circle cx="16.5" cy="16.5" r="3.5"/><path d="M19 19l2.5 2.5"/></svg></button>
+    <button id="btn-mail" class="desktop-only" data-comp="mail" title="Posta elettronica, PEC, calendario e contatti" data-i18n-title="mail.posta_titolo"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/></svg><span data-i18n="mail.posta">Posta</span></button>
+    <button id="btn-pratiche" class="desktop-only" data-comp="pratiche" title="Pratiche edilizie: CILA, SCIA, moduli unificati e fascicolo" data-i18n-title="pratiche.rail_titolo"><svg viewBox="0 0 24 24"><path d="M3 11.5L11 5l8 6.5M5 10v11h12V10M8.5 15.5l2 2 3.5-3.5"/></svg><span data-i18n="pratiche.titolo">Pratiche edilizie</span></button>
     <button id="btn-formats" title="Elenco completo dei formati supportati" data-i18n-title="idx.elenco_completo_formati_supportati"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg><span data-i18n="idx.formati">Formati</span></button>
     <span class="spacer"></span>
     <button id="btn-keys" title="Scorciatoie da tastiera (F1)" data-i18n-title="app.scorciatoie_tastiera"><svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></button>
@@ -59,7 +61,7 @@
       <span class="label" data-i18n="idx.cartella_progetto">Cartella di progetto</span>
       <button class="mini" id="ex-pick" title="Scegli la cartella" data-i18n-title="idx.scegli_cartella" data-i18n="idx.scegli">Scegli</button>
       <button class="mini" id="ex-up" title="Cartella superiore" data-i18n-title="idx.cartella_superiore" data-i18n="idx.su">Su</button>
-      <button class="mini" id="ex-search" title="Cerca nel contenuto di tutti i file della cartella (Ctrl+Maiusc+F)" data-i18n-title="search.cerca_titolo" data-i18n="search.cerca">Cerca</button>
+      <button class="mini" id="ex-search" data-comp="tools" title="Cerca nel contenuto di tutti i file della cartella (Ctrl+Maiusc+F)" data-i18n-title="search.cerca_titolo" data-i18n="search.cerca">Cerca</button>
     </div>
     <div class="ex-path" id="ex-path" data-i18n="idx.nessuna_cartella_aperta">Nessuna cartella aperta</div>
     <input class="ex-filter" id="ex-filter" type="search" placeholder="Filtra per nome o estensione" data-i18n-ph="idx.filtra_nome_estensione">
@@ -109,6 +111,7 @@
   <span id="st-version" class="mono" title="Versione di MB Visual" data-i18n-title="idx.versione_mb_visual"></span>
 </footer>
 <div class="overlay" id="dragover" hidden><div data-i18n="idx.rilascia_aprire">Rilascia per aprire</div></div>
+<div class="menu menu-side" id="menu-pratiche" hidden></div>
 <div class="modal-back" id="modal" hidden><div class="modal" id="modal-body"></div></div>
 <div class="toast" id="toast" hidden></div>
 <script type="importmap">{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }</script>
