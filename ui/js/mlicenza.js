@@ -9,6 +9,7 @@ async function wipeAndLeave(reason) {
   try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch { /* */ }
   localStorage.removeItem(EXP);
   try { await (await import("./phonestore.js")).wipe(); } catch { /* */ } // file recenti salvati nel telefono
+  try { await (await import("./mmailcore.js")).wipe(); } catch { /* */ } // posta salvata nel telefono
   location.replace("/attiva?motivo=" + encodeURIComponent(reason));
 }
 

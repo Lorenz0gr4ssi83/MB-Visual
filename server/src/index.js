@@ -578,6 +578,13 @@ export default {
       // app per cellulari: l'attivazione viaggia nel cookie (HttpOnly) invece che nel corpo della richiesta
       const viaCookie = !b.token && !b.key && getCookie(req, COOKIE);
       if (viaCookie) b.token = getCookie(req, COOKIE);
+      // posta dell'app per telefono: passaggio IMAP/SMTP senza memoria, solo per telefoni attivati (server/src/mailgw.js)
+      if (url.pathname === "/v1/mail/imap" || url.pathname === "/v1/mail/smtp") {
+        if (!(await mobileToken(env, req))) return fail(401, "App non attivata");
+        const { mailGateway } = await import("./mailgw.js");
+        const connect = env._connect || (await import("cloudflare:sockets")).connect; // _connect: prove senza Cloudflare
+        return await mailGateway(env, url.pathname, b, connect);
+      }
       let res;
       if (url.pathname === "/v1/activate") res = await activate(env, b);
       else if (url.pathname === "/v1/check") res = await check(env, b);

@@ -22,6 +22,7 @@ const I = d => `<svg viewBox="0 0 24 24">${d.startsWith("<") ? d : `<path d="${d
 const ICON = {
   home: I("M4 11l8-6 8 6v9H4zM10 20v-5h4v5"),
   files: I("M3 6h6l2 2h10v11H3zM3 10h18"),
+  mail: I('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/>'),
   scan: I("M3 8V4h4M17 4h4v4M21 16v4h-4M7 20H3v-4M7 9h10M7 12h10M7 15h6"),
   tools: I('<rect x="4" y="4" width="7" height="7" rx="1.8"/><rect x="13" y="4" width="7" height="7" rx="1.8"/><rect x="4" y="13" width="7" height="7" rx="1.8"/><path d="M16.5 13.5v6M13.5 16.5h6"/>'),
   account: I('<circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.5c1-3.6 3.9-5.5 7.5-5.5s6.5 1.9 7.5 5.5"/>'),
@@ -196,17 +197,17 @@ let nav, vbar, dock, vtitle, vsub, toolsBtn, panelBtn, pagePill, modeChip;
 function buildShell() {
   const app = el("div", { id: "ph-app" });
   nav = el("nav", { class: "ph-nav", role: "tablist" });
-  const tabs = [["home", "home", t("app.home")], ["files", "files", t("ph.file")], ["scan", "scan", t("ph.scansiona")], ["tools", "tools", t("ph.strumenti")], ["account", "account", t("ph.account")]];
+  const tabs = [["home", "home", t("app.home")], ["files", "files", t("ph.file")], ["scan", "scan", t("ph.scansiona")], ["mail", "mail", t("mail.posta")], ["account", "account", t("ph.account")]];
   for (const [id, icon, label] of tabs) {
     const b = btn("ph-tab" + (id === "scan" ? " ph-tab-scan" : ""), null, null, () => go(id), { "data-tab": id, role: "tab", "aria-label": label });
-    b.append(el("span", { class: "ph-ti", html: ICON[icon] }), el("span", { class: "ph-tl" }, label));
+    b.append(el("span", { class: "ph-ti", html: ICON[icon] }, id === "mail" ? el("i", { class: "ph-badge", hidden: true }) : null), el("span", { class: "ph-tl" }, label));
     nav.append(b);
   }
   S.home = makeScreen("home", "MB Visual", buildHome);
   S.files = makeScreen("files", t("ph.file"), buildFiles);
-  S.tools = makeScreen("tools", t("ph.strumenti"), buildTools);
+  S.mail = makeScreen("mail", t("mail.posta"), s => import("./mmail.js").then(m => m.buildMail(s, mailHelpers())));
   S.account = makeScreen("account", t("ph.account"), buildAccount);
-  ap(app, S.home.el, S.files.el, S.tools.el, S.account.el);
+  ap(app, S.home.el, S.files.el, S.mail.el, S.account.el);
   // barra del documento aperto
   vtitle = el("b", {}); vsub = el("span", {});
   vbar = el("header", { class: "ph-vbar" },
@@ -432,6 +433,7 @@ function moreMenu() {
     { label: t("idx.apri_come"), icon: "viewas", run: () => openAsSheet(tab) },
     cmp ? { label: t("app.confronta_con"), icon: "compare", run: () => UI.compareWith() } : null,
     { label: t("idx.proprieta"), icon: "info", run: () => UI.showProperties() },
+    WEB && tab.path.startsWith("web://") ? { label: t("mm.invia_email"), icon: "mail", run: () => mailFile(tab) } : null,
     "sep",
     { label: t("ph.chiudi_file"), icon: "x", danger: true, run: () => window.MB.closeTab(tab) },
   ] });
@@ -706,6 +708,8 @@ function buildHome(s) {
   // recenti
   const list = el("div", { class: "ph-rlist" }, ...skeletonRows(3));
   b.append(sectionHead(t("app.recenti"), el("button", { type: "button", class: "ph-link", onclick: () => go("files") }, t("ph.mostra_tutti"))), list);
+  // strumenti (prima avevano una scheda: ora la barra in basso ha la Posta)
+  b.append(sectionHead(t("ph.strumenti")), toolTiles());
   // apri per tipo
   b.append(sectionHead(t("ph.apri_per_tipo")), el("div", { class: "ph-types" }, ...BY_TYPE.map(([icon, , key, accept, c]) =>
     el("button", { type: "button", class: "ph-type", style: { "--c": `var(${c})` }, onclick: () => { haptic(); openPicked({ accept }); }, html: `<span class="ph-tyi">${ICON[icon]}</span>` }, t(key)))));
@@ -774,21 +778,14 @@ async function clearStored(after) {
 }
 
 // ------------------------------------------------------------------ Strumenti
-const NEW_TYPES = [["docx", "newfile.documento_word", "--t-doc", "office"], ["xlsx", "newfile.cartella_lavoro_excel", "--t-xls", "office"],
-  ["pptx", "newfile.presentazione_powerpoint", "--t-ppt", "page"], ["dxf", "newfile.disegno_cad", "--t-cad", "cad"], ["mbpub", "newfile.pubblicazione", "--t-av", "page"]];
-function buildTools(s) {
-  const b = s.body;
-  b.innerHTML = "";
+function toolTiles() {
   const tile = (icon, label, sub, fn, c = "--accent") => ap(el("button", { type: "button", class: "ph-tile", style: { "--c": `var(${c})` }, onclick: () => { haptic(); fn(); } }),
     el("span", { class: "ph-tyi", html: ICON[icon] }), el("b", {}, label), sub ? el("small", {}, sub) : null);
-  b.append(el("div", { class: "ph-tiles" },
+  return el("div", { class: "ph-tiles" },
     tile("scan", t("scanner.home"), t("ph.scansiona_sub"), () => UI.doScan(), "--t-img"),
     tile("compare", t("ph.confronta"), t("ph.confronta_sub"), compareTwo, "--t-cad"),
     tile("merge", t("ph.unisci_pdf"), t("ph.unisci_pdf_sub"), mergePdf, "--t-pdf"),
-    tile("formats", t("idx.formati"), t("ph.formati_sub"), () => UI.toggleFormats(), "--t-code")));
-  b.append(sectionHead(t("idx.crea_nuovo")), el("div", { class: "ph-group" },
-    ...NEW_TYPES.map(([ext, key, c, icon]) => { const r = row(null, t(key), "." + ext, () => UI.doNew(ext)); r.prepend(el("span", { class: "ph-ri ph-tint", style: { "--c": `var(${c})` }, html: ICON[icon] })); return r; }),
-    row("plus", t("ph.altri_modelli"), null, () => UI.doNew())));
+    tile("formats", t("idx.formati"), t("ph.formati_sub"), () => UI.toggleFormats(), "--t-code"));
 }
 async function compareTwo() {
   const ps = await pick({ multiple: true });
@@ -838,7 +835,7 @@ function buildAccount(s) {
   // informazioni
   b.append(sectionHead(t("ph.informazioni")), el("div", { class: "ph-group" },
     row("formats", t("idx.elenco_completo_formati_supportati"), null, () => UI.toggleFormats()),
-    el("div", { class: "ph-field" }, el("span", { class: "ph-ri", html: ICON.info }), el("span", { class: "ph-rl" }, el("b", {}, t("ph.versione")), el("small", { class: "mono" }, window.MBV_BUILD || "-")))));
+    el("div", { class: "ph-field" }, el("span", { class: "ph-ri", html: ICON.info }), el("span", { class: "ph-rl" }, el("b", {}, t("ph.versione")), el("small", { class: "mono" }, window.MBV_VERSION ? `${window.MBV_VERSION} · ${(window.MBV_BUILD || "").split("-").slice(1).join("-")}` : window.MBV_BUILD || "-")))));
   if (window.MBV_MOBILE) b.append(el("p", { class: "ph-powered" }, "Powered by MB Group"));
 }
 async function loadLicense(box) {
@@ -881,9 +878,55 @@ function setTheme(k) {
   sync();
 }
 
+// ------------------------------------------------------------------ viste sovrapposte (posta: messaggio, scrittura, account)
+// { title, actions: [{icon, label, run, primary}], beforeClose: async () => bool } -> { el, body, close(force), onClose }
+const views = [];
+export function pushView({ title = "", actions = [], beforeClose = null } = {}) {
+  const head = el("header", { class: "ph-pvhead" }, btn("ph-vb ph-back", "back", null, () => v.close(), { "aria-label": t("common.indietro") }), el("b", {}, title));
+  const tools = el("span", { class: "ph-pvact" });
+  for (const a of actions) {
+    const b = el("button", { type: "button", class: "ph-vb" + (a.primary ? " ph-pvprim" : ""), "aria-label": a.label, title: a.label, onclick: () => a.run() });
+    b.insertAdjacentHTML("beforeend", a.icon.startsWith("<") ? a.icon : ICON[a.icon]);
+    if (a.primary) b.append(el("span", {}, a.label));
+    tools.append(b);
+  }
+  head.append(tools);
+  const body = el("div", { class: "ph-pvbody" });
+  const sec = el("section", { class: "ph-pview" }, head, body);
+  const v = {
+    el: sec, body, onClose: null,
+    async close(force = false) {
+      if (!force && beforeClose && !(await beforeClose())) return;
+      const i = views.indexOf(v); if (i >= 0) views.splice(i, 1);
+      sec.classList.add("out"); setTimeout(() => sec.remove(), 220);
+      root.classList.toggle("ph-pv-open", views.length > 0);
+      v.onClose?.();
+    },
+  };
+  views.push(v);
+  document.body.append(sec);
+  root.classList.add("ph-pv-open");
+  return v;
+}
+function setBadge(n) {
+  const b = nav?.querySelector(".ph-badge");
+  if (!b) return;
+  b.hidden = !n;
+  b.textContent = n > 99 ? "99+" : String(n || "");
+}
+const mailHelpers = () => ({ actionSheet, pushView, haptic, deliver, pick, setBadge });
+async function mailFile(tab) {
+  const blob = window.MBV_API.blobOf(tab.path);
+  const name = tab.info?.nome || tab.name;
+  const m = await import("./mmail.js");
+  await m.badgeOnly(mailHelpers());
+  m.compose({ subject: name, attachments: [{ name, type: blob.type, data: new Uint8Array(await blob.arrayBuffer()) }] });
+}
+
 // ------------------------------------------------------------------ tasto indietro di sistema
 export function back() {
   if (document.querySelector(".ph-find") || openSheets.length) { closeTop(); return true; }
+  if (views.length) { views[views.length - 1].close(); return true; }
   // menu aperti da un visualizzatore o da un editor: si chiudono come con Esc o un tocco fuori
   if ([...document.querySelectorAll(".ps-menu, .pb-pop, .pb-menu, .vs-pop, .vs-menu, .cad-menu:not([hidden]), .cad-snapmenu:not([hidden]), .ps-fly")].some(m => m.getClientRects().length)) {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
@@ -919,4 +962,26 @@ export function initPhone(ui) {
   S.home.refresh();
   sync();
   requestAnimationFrame(() => root.classList.add("ph-ready"));
+  updates();
+  if (window.MBV_MOBILE || window.MBV_MAIL) {
+    const poll = () => import("./mmail.js").then(m => { m.badgeOnly(mailHelpers()); return m.background(); }).catch(() => {});
+    setTimeout(poll, 4000);
+    setInterval(() => { if (document.visibilityState === "visible") poll(); }, 180000);
+  }
+}
+
+// aggiornamento automatico (service worker di tools/build_web.py): avviso della versione nuova e, se ci sono file
+// modificati non salvati, richiesta di ricaricare quando l'utente e' pronto
+function updates() {
+  const v = window.MBV_VERSION;
+  let prev = null;
+  try { prev = localStorage.getItem("mbv-versione"); if (v) localStorage.setItem("mbv-versione", v); } catch { /* */ }
+  if (v && prev && prev !== v) setTimeout(() => toast(t("ph.aggiornata", v), false, 5000), 900);
+  const ask = () => actionSheet({ title: t("ph.agg_pronto"), sub: t("ph.agg_testo"), items: [
+    { label: t("ph.ricarica"), icon: "download", run: async () => {
+      for (const tab of (window.MB?.tabs || []).filter(x => x.dirty)) { window.MB.activate(tab); if (!(await window.MB.modal(t("ph.agg_pronto"), el("p", {}, t("ph.agg_perdi", tab.name)), [{ label: t("common.annulla"), value: false }, { label: t("ph.ricarica"), value: true, danger: true }]))) return; }
+      window.__mbvReload = true; location.reload();
+    } }] });
+  addEventListener("mbv-update", ask);
+  if (window.MBV_UPDATE_READY) ask();
 }
