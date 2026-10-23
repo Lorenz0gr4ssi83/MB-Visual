@@ -113,6 +113,9 @@ def main() -> int:
     version = re.search(r'^VERSION = "([^"]+)"', (ROOT / "app.py").read_text(encoding="utf-8"), re.M).group(1)
     info = {"versione": version, "build": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "sistema": "macos"}
     (stage / "build.json").write_text(json.dumps(info), encoding="utf-8")
+    sys.path.insert(0, str(ROOT / "tools"))
+    import cloud_secrets
+    cloud_secrets.write(ROOT)  # ID dei client OAuth (Accedi con Google): secret MBV_CLOUD_IDS del workflow
     bin_dir = build_bin(stage)
 
     sep = os.pathsep
@@ -131,7 +134,7 @@ def main() -> int:
         "--collect-data", "pptx", "--collect-data", "docx",
         "--hidden-import", "asn1crypto", "--hidden-import", "mbvisual.pdftools", "--collect-submodules", "pypdf",
         # firma digitale (pyHanko): sul Mac file .p12 e firma remota CSC; segreti nel Portachiavi (mbvisual/secret.py)
-        "--hidden-import", "mbvisual.firma", "--hidden-import", "mbvisual.winsign", "--hidden-import", "mbvisual.csc",
+        "--hidden-import", "mbvisual.cloud_ids_build", "--hidden-import", "mbvisual.firma", "--hidden-import", "mbvisual.winsign", "--hidden-import", "mbvisual.csc",
         "--hidden-import", "mbvisual.firmaponte", "--hidden-import", "mbvisual.secret", "--collect-submodules", "pyhanko.sign",
         "--collect-submodules", "pyhanko.pdf_utils", "--collect-submodules", "pyhanko.stamp", "--collect-data", "pyhanko",
         "--collect-submodules", "pyhanko_certvalidator",

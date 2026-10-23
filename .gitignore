@@ -14,3 +14,6 @@ App per PC/
 # campioni ricavati da un DWG reale (tools/make_damaged_samples.py --dwg): non vanno nel repository
 tests/samples/danneggiati/disegno_troncato*
 !tests/samples/danneggiati/archivio_troncato.zip
+
+# ID dei client OAuth scritti dalle build (tools/cloud_secrets.py)
+mbvisual/cloud_ids_build.py

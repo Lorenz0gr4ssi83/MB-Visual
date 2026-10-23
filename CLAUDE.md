@@ -313,6 +313,12 @@ Autodesk Construction Cloud/BIM 360 (APS Data Management), senza sincronizzare l
   Documenti nativi Google: esportati in docx/xlsx/pptx, al salvataggio si propone un file nuovo. File -> "Salva nel cloud..."
   (anche in un altro formato via api convert). app.js: solo import all'avvio e la voce di menu.
 - Guida per l'utente (registrazioni Entra, Google Cloud, Dropbox, APS + integrazione personalizzata ACC): `ui/guide/archivi-cloud.md`.
+- Google REGISTRATO (23/10/2026): progetto Google Cloud "mb-visual" (account dell'utente), Gmail/Calendar/People/Drive API attive,
+  schermata di consenso "MB Visual" Esterna in stato TEST (max 100 utenti di prova, aggiunti a mano in Google Auth Platform ->
+  Pubblico; accesso che scade ogni 7 giorni e avviso "app non verificata"), client "Applicazione desktop". ID e segreto NON nel repo
+  (la protezione push di GitHub li rifiuta): `%USERPROFILE%\.mbvisual\licenze\cloud_ids.json` + secret MBV_CLOUD_IDS del repo;
+  `tools/cloud_secrets.py` scrive `mbvisual/cloud_ids_build.py` (gitignore) a ogni build. Per i clienti: pubblicare l'app (home page,
+  informativa privacy, verifica Google e valutazione di sicurezza annuale CASA per l'ambito mail.google.com).
 - Testi tradotti: chiavi `cloud.*` (cloud.js, import `t as tr`: `t` e' la scheda attiva) e `srv_cloud.*` (cloud.py; la variabile
   dei token si chiama `toks`, non `t`). La guida e' solo in italiano.
 - Collaudo SENZA account: `python tests/test_cloud.py` (finto fornitore OAuth + finte API Dropbox e Graph, 52 prove);

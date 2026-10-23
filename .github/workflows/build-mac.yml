@@ -91,6 +91,8 @@ jobs:
           rm -rf ~/.mbvisual/onlyoffice && cp -R dist ~/.mbvisual/onlyoffice
 
       - name: App e disco
+        env:
+          MBV_CLOUD_IDS: ${{ secrets.MBV_CLOUD_IDS }}
         run: python tools/build_mac.py --out dist-mac
 
       - name: Prove su macOS (OCR, conversioni, stampanti, file di esempio aperti in WebKit)
