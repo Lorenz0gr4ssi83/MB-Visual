@@ -13,6 +13,20 @@ GREY = (138, 140, 137)
 WHITE = (252, 255, 251)
 
 
+def icon_frame(big: Image.Image, s: int) -> Image.Image:
+    """Un formato dell'icona: riduzione in due passi (meno sfocata di una sola) e leggera nitidezza sotto i 64 px."""
+    from PIL import ImageFilter
+    im = big
+    while im.width > s * 2:
+        im = im.resize((im.width // 2, im.height // 2), Image.LANCZOS)
+    im = im.resize((s, s), Image.LANCZOS)
+    if s < 64:
+        rgb = im.convert("RGB").filter(ImageFilter.UnsharpMask(radius=0.6, percent=60, threshold=1))
+        rgb.putalpha(im.getchannel("A"))
+        im = rgb
+    return im
+
+
 def main() -> None:
     im = Image.open(SRC).convert("RGBA")
     w, h = im.size
@@ -77,8 +91,10 @@ def main() -> None:
     small.paste(WHITE + (255,), ((w - gw) // 2, (h - gh) // 2 + 4), white)
     small.putalpha(ImageChops.multiply(small.getchannel("A"), mask))
     small.save(out / "logo-small.png")
-    sizes = [16, 24, 32, 48, 64, 128, 256]
-    imgs = [(small if s <= 32 else big).resize((s, s), Image.LANCZOS) for s in sizes]
+    # icona di Windows: lo stesso logo completo in tutti i formati (anche 16-32 px della barra delle applicazioni),
+    # rimpicciolito dal 512 px: richiesta dell'utente, la versione semplificata "solo mb" sembrava un'altra icona
+    sizes = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256]
+    imgs = [icon_frame(big, s) for s in sizes]
     imgs[-1].save(ROOT / "app.ico", sizes=[(s, s) for s in sizes], append_images=imgs[:-1])
     print("ok")
 

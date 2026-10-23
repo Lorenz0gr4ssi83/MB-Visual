@@ -133,6 +133,25 @@ def _unblock_files():
         pass
 
 
+def _close_old_edge_windows():
+    """Finestre di Edge rimaste dal ripiego delle versioni fino alla 1.6.0 (che finivano sempre li'): chiudendo l'app
+    per aggiornarla, la finestra di Edge restava aperta sull'avanzamento. Si chiudono solo i processi di Edge con il
+    profilo dedicato di MB Visual (--user-data-dir=.../MBVisual/edge-app), mai l'Edge normale dell'utente."""
+    if sys.platform != "win32":
+        return
+    import subprocess
+    prof = os.path.join(os.environ.get("LOCALAPPDATA", tempfile.gettempdir()), "MBVisual", "edge-app")
+    if not os.path.isdir(prof):
+        return
+    ps = ("Get-CimInstance Win32_Process -Filter \"Name='msedge.exe'\" | Where-Object { $_.CommandLine -like '*"
+          + prof.replace("'", "''") + "*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }")
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps], timeout=30, creationflags=0x08000000,
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as ex:  # noqa: BLE001
+        print("finestre di Edge del ripiego non chiuse:", ex)
+
+
 def _edge_app(url: str) -> bool:
     """Ripiego quando la finestra nativa non parte (pythonnet bloccato da criteri aziendali o antivirus):
     MB Visual in una finestra di Microsoft Edge in modalita' app, con un profilo tutto suo. True se Edge si e' aperto."""
@@ -190,13 +209,17 @@ def main():
     try:
         import webview
         from webview.dom import DOMEventHandler
-        from webview import guilib
+        # NON "from webview import guilib": in pywebview quel nome e' una variabile che vale None fino a start(), e
+        # l'errore mandava SEMPRE nel ripiego in Edge (finestra di Edge, icona a parte nella barra, finestra di
+        # aggiornamento che restava aperta). La funzione si prende dal modulo webview.guilib.
+        from webview.guilib import initialize as gui_initialize
         # Windows: carica subito pythonnet/WebView2 (se fallisce si passa al ripiego); Mac: WebKit (Cocoa)
-        guilib.initialize("edgechromium" if sys.platform == "win32" else "cocoa" if sys.platform == "darwin" else None)
+        gui_initialize("edgechromium" if sys.platform == "win32" else "cocoa" if sys.platform == "darwin" else None)
     except Exception as ex:  # noqa: BLE001
         _fallback(srv, url, ex)
         return
 
+    threading.Thread(target=_close_old_edge_windows, daemon=True).start()
     api = Api()
     window = webview.create_window("MB Visual", url, js_api=api, width=1400, height=900, min_size=(900, 600),
                                    background_color="#0b0d10", text_select=True)

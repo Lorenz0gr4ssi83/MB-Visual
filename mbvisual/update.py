@@ -286,8 +286,21 @@ def repair_shortcuts() -> dict:
     finally:
         sh = lnk = None  # oggetti COM rilasciati prima di chiudere COM (altrimenti avvisi Win32 all'uscita)
         pythoncom.CoUninitialize()
-    if fixed:
-        _log(f"collegamenti riparati: {fixed}")
+    # versione nuova: l'icona e' un file nuovo nello stesso percorso (_internal/app.ico) e Windows continuerebbe a
+    # mostrare quella vecchia in memoria (barra delle applicazioni, menu Start): la cache si rinfresca una volta
+    mark = DATA_DIR / "icone_versione.txt"
+    ver = str(current().get("build") or "")
+    try:
+        icons_old = mark.read_text(encoding="utf-8").strip() != ver
+    except OSError:
+        icons_old = True
+    if fixed or icons_old:
+        _log(f"collegamenti riparati: {fixed}, cache delle icone rinfrescata per la build {ver}")
+        try:
+            mark.parent.mkdir(parents=True, exist_ok=True)
+            mark.write_text(ver, encoding="utf-8")
+        except OSError:
+            pass
         try:  # aggiorna la cache delle icone di Windows (solo per l'utente)
             subprocess.run([os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "ie4uinit.exe"), "-show"],
                            timeout=20, creationflags=NO_WINDOW, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
