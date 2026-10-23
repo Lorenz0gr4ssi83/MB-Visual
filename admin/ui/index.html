@@ -42,6 +42,17 @@
   .pick label, .nsw { display: flex; gap: 8px; align-items: center; color: var(--fg); font-size: 13px; }
   .nsw { padding: 3px 0; }
   .modal .pick label input, .nsw input { width: auto; flex: none; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; background: var(--panel); color: var(--muted); padding: 5px 12px; font: inherit; }
+  .seg button.on { background: var(--accent); color: #0d1b26; font-weight: 600; }
+  details.grp { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+  details.grp > summary { display: flex; align-items: center; gap: 10px; padding: 9px 12px; font-weight: 600; background: var(--panel2); }
+  details.grp > summary .n { color: var(--muted); font-weight: 400; }
+  details.grp > summary .grow { flex: 1; }
+  #toast .undo { margin-left: 10px; background: none; border: 0; color: var(--accent); font-weight: 700; font: inherit; }
+  tr.picked td { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  textarea.mail { width: 100%; min-height: 260px; font: 13px/1.45 "Segoe UI", system-ui, sans-serif; }
+  .modal .row2 { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
   .pair { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
   .pair .qr { background: #fff; padding: 10px; border-radius: 8px; line-height: 0; }
   .pair .qr svg * { stroke: none !important; }
@@ -73,14 +84,25 @@ const NOTIFY = { activation_pc: "Nuova attivazione di un PC", activation_mobile:
   admin_login: "Accesso alla gestione da un telefono" };
 const STATO = { active: "attiva", revoked: "revocata", replaced: "sostituita", open: "aperta", pending: "in attesa", done: "completata", closed: "chiusa" };
 let view = "panoramica", data = {};
+const pref = (k, d) => { try { return JSON.parse(localStorage.getItem("mbva-" + k)) ?? d; } catch { return d; } };
+const setPref = (k, v) => { try { localStorage.setItem("mbva-" + k, JSON.stringify(v)); } catch {} };
+let evMode = pref("gruppi", "giorno"), evType = "", evArch = false, openGroups = new Set(pref("aperti", [])), sortBy = pref("ordina", "created"), sortDir = pref("verso", -1),
+  licFilter = "", licQuery = "", showAll = false, picked = new Set(), hiddenKeys = new Set();
 function toast(t, bad) { const e = $("#toast"); e.textContent = t; e.className = bad ? "err" : ""; e.style.display = "block"; clearTimeout(e._h); e._h = setTimeout(() => (e.style.display = "none"), 3500); }
+function undoToast(text, onCommit, onUndo, secs = 6) {
+  const e = $("#toast"); clearTimeout(e._h); e.className = ""; e.style.display = "block";
+  let left = secs, done = false;
+  const draw = () => { e.innerHTML = `${esc(text)} <span class="muted">(${left})</span><button class="undo">Annulla</button>`; e.querySelector(".undo").onclick = () => { if (done) return; done = true; clearInterval(t); e.style.display = "none"; onUndo(); }; };
+  draw();
+  const t = setInterval(() => { left--; if (left > 0) return draw(); clearInterval(t); if (done) return; done = true; e.style.display = "none"; onCommit(); }, 1000);
+}
 async function call(m, p, b) { const r = await window.pywebview.api.call(m, p, b ?? null); if (r && r.ok === false) throw new Error(r.errore || "Errore"); return r; }
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => { view = t.dataset.v; document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t)); render(); });
 
 async function adminRefresh() {
   try {
-    const [s, l, r, e] = await Promise.all([call("GET", "/admin/summary"), call("GET", "/admin/licenses"), call("GET", "/admin/requests"), call("GET", "/admin/events?after=0")]);
-    data = { s, lic: l.licenze, req: r.richieste, ev: e.avvisi.slice(-300).reverse() };
+    const [s, l, r, e] = await Promise.all([call("GET", "/admin/summary"), call("GET", "/admin/licenses"), call("GET", "/admin/requests"), call("GET", "/admin/events?after=0" + (evArch ? "&archiviati=1" : ""))]);
+    data = { s, lic: l.licenze, req: r.richieste, ev: e.avvisi.slice().reverse() };
     $("#conn").textContent = "Collegato · " + new Date().toLocaleTimeString("it-IT");
     const open = data.req.filter(x => x.status === "open" || x.status === "pending").length;
     $("#nreq").innerHTML = open ? `<span class="badge">${open}</span>` : "";
@@ -97,25 +119,46 @@ function render() {
     const s = data.s;
     m.innerHTML = `<div class="cards">${[["Licenze attive", s.licenze], ["PC attivi", s.pc], ["Cellulari attivi", s.cellulari], ["Richieste aperte", s.richieste_aperte], ["Avvisi non letti", s.avvisi_non_letti]]
       .map(([l, n]) => `<div class="card"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("")}</div>
-      <div class="toolbar"><h3 style="margin:0">Avvisi</h3><span class="grow"></span><button class="b" onclick="readAll()">Segna tutti come letti</button></div>
-      <div class="card" style="padding:0">${data.ev.map(e => `<div class="ev ${e.read ? "" : "unread"}"><span class="muted">${fmt(e.created)}</span><b>${esc(KIND[e.kind] || e.kind)}</b><span>${esc(e.text)}</span></div>`).join("") || `<p class="muted" style="padding:10px">Nessun avviso</p>`}</div>`;
+      <div class="toolbar"><h3 style="margin:0">${evArch ? "Archivio" : "Avvisi"}</h3><span class="grow"></span>
+        <span class="muted">Raggruppa per</span><div class="seg">${[["giorno", "Giorno"], ["mese", "Mese"], ["anno", "Anno"]].map(([k, l]) => `<button data-mode="${k}" class="${evMode === k ? "on" : ""}">${l}</button>`).join("")}</div>
+        <select id="evt"><option value="">Tutti i tipi</option>${[...new Set(data.ev.map(e => e.kind))].map(k => `<option value="${esc(k)}" ${evType === k ? "selected" : ""}>${esc(KIND[k] || k)}</option>`).join("")}</select>
+        <label style="display:flex;gap:6px;align-items:center;color:var(--fg)"><input type="checkbox" id="evarch" ${evArch ? "checked" : ""}> archivio</label></div>
+      <div id="groups"></div>`;
+    m.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { evMode = b.dataset.mode; setPref("gruppi", evMode); render(); });
+    $("#evt").onchange = e => { evType = e.target.value; drawGroups(); };
+    $("#evarch").onchange = e => { evArch = e.target.checked; data.ev = []; drawGroups(); adminRefresh(); };
+    drawGroups();
   }
   if (view === "licenze") {
-    const rows = data.lic.map(l => {
+    const rows = licRows().map(l => {
       const devs = l.dispositivi.filter(d => d.status === "active");
-      return `<tr><td><span class="mono">${esc(l.key)}</span><br><span class="st ${l.status}">${STATO[l.status]}</span>${l.replaced_by ? ` <span class="muted">→ ${esc(l.replaced_by)}</span>` : ""}</td>
+      return `<tr class="${picked.has(l.key) ? "picked" : ""}"><td><input type="checkbox" class="pk" data-k="${esc(l.key)}" ${picked.has(l.key) ? "checked" : ""}></td><td><span class="mono">${esc(l.key)}</span><br><span class="st ${l.status}">${STATO[l.status]}</span>${l.replaced_by ? ` <span class="muted">→ ${esc(l.replaced_by)}</span>` : ""}</td>
         <td><b>${esc(l.customer)}</b><br><span class="muted">${esc(l.email)}</span>${l.notes ? `<br><span class="muted">${esc(l.notes)}</span>` : ""}</td>
         <td>PC ${devs.filter(d => d.kind === "pc").length}/${l.max_pc}<br>Cell. ${devs.filter(d => d.kind === "mobile").length}/${l.max_mobile}</td>
-        <td class="muted">${fmt(l.created)}${l.expires ? "<br>scade " + esc(l.expires) : ""}</td>
-        <td><button class="b" onclick="copyKey('${l.key}')">Copia</button>${l.status === "active" ? `<button class="b" onclick="editLic('${l.key}')">Modifica</button><button class="b" onclick="act('${l.key}','replace','Generare una chiave nuova? Questa smettera\\' di funzionare su tutti i dispositivi.')">Nuova chiave</button><button class="b d" onclick="act('${l.key}','revoke','Revocare la licenza? Tutte le app si bloccano.')">Revoca</button>` : l.status === "revoked" ? `<button class="b" onclick="act('${l.key}','reactivate')">Riattiva</button>` : ""}</td></tr>`
-        + devs.map(d => `<tr class="sub"><td></td><td colspan="2">${d.kind === "pc" ? "PC" : "Cellulare"} · <b>${esc(d.name || "-")}</b> <span class="muted">${esc(d.version)}</span></td><td class="muted">attivato ${fmt(d.activated)}<br>ultimo uso ${fmt(d.last_seen)}</td><td><button class="b d" onclick="freeDev(${d.id})">Libera</button></td></tr>`).join("");
+        <td class="muted">creata ${fmt(l.created)}<br>${l.prima_attivazione ? "1ª attivazione " + fmt(l.prima_attivazione) : "mai attivata"}${l.expires ? "<br>scade " + esc(l.expires.slice(0, 10)) : ""}</td>
+        <td><button class="b" onclick="copyKey('${l.key}')">Copia</button><button class="b" onclick="mailLic('${l.key}')">Email</button>${l.status === "active" ? `<button class="b" onclick="editLic('${l.key}')">Modifica</button><button class="b" onclick="act('${l.key}','replace','Generare una chiave nuova? Questa smettera\\' di funzionare su tutti i dispositivi.')">Nuova chiave</button><button class="b d" onclick="act('${l.key}','revoke','Revocare la licenza? Tutte le app si bloccano.')">Revoca</button>` : l.status === "revoked" ? `<button class="b" onclick="act('${l.key}','reactivate')">Riattiva</button>` : ""}<button class="b d" onclick="delLic(['${l.key}'])">Elimina</button></td></tr>`
+        + devs.map(d => `<tr class="sub"><td></td><td></td><td colspan="2">${d.kind === "pc" ? "PC" : "Cellulare"} · <b>${esc(d.name || "-")}</b> <span class="muted">${esc(d.version)}</span></td><td class="muted">attivato ${fmt(d.activated)}<br>ultimo uso ${fmt(d.last_seen)}</td><td><button class="b d" onclick="freeDev(${d.id})">Libera</button></td></tr>`).join("");
     }).join("");
     m.innerHTML = `<form class="new" onsubmit="return newLic(event)"><label>Cliente<input name="customer" required></label><label>Email<input name="email" type="email"></label>
       <label>PC<input name="max_pc" type="number" value="1" min="1"></label><label>Cellulari<input name="max_mobile" type="number" value="2" min="0"></label>
       <label>Note<input name="notes"></label><button class="b p" style="height:32px">Crea licenza</button></form>
-      <div class="toolbar"><input id="flt" placeholder="Cerca cliente, chiave, email" oninput="filt()" style="width:320px"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="all" onchange="filt()"> anche sostituite e revocate</label></div>
-      <table id="lt"><thead><tr><th>Chiave</th><th>Cliente</th><th>Dispositivi</th><th>Creata</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
-    filt();
+      <div class="toolbar"><input id="flt" placeholder="Cerca cliente, chiave, email" value="${esc(licQuery)}" style="width:260px">
+        <select id="lfl"><option value="">Attive e revocate</option><option value="prova">Prova / test / collaudo</option><option value="revocate">Solo revocate</option><option value="mai">Mai attivate</option><option value="sostituite">Sostituite (chiavi vecchie)</option></select>
+        ${licFilter ? "" : `<label style="display:flex;gap:6px;align-items:center;color:var(--fg)"><input type="checkbox" id="all" ${showAll ? "checked" : ""}> anche sostituite</label>`}
+        <span class="grow"></span><span class="muted">Ordina per</span><select id="srt"><option value="created">Data di creazione</option><option value="first">Prima attivazione</option><option value="name">Nome</option></select>
+        <button class="b" id="dir">${sortBy === "name" ? (sortDir < 0 ? "A → Z" : "Z → A") : (sortDir < 0 ? "Piu' recenti prima" : "Meno recenti prima")}</button></div>
+      <div class="toolbar" id="selbar" style="${picked.size ? "" : "display:none"}"><b>${picked.size} selezionate</b><button class="b d" onclick="delLic([...picked])">Elimina selezionate</button><button class="b" onclick="picked.clear();render()">Deseleziona</button></div>
+      <table id="lt"><thead><tr><th><input type="checkbox" id="pkall" title="Seleziona tutte quelle in elenco"></th><th>Chiave</th><th>Cliente</th><th>Dispositivi</th><th>Date</th><th></th></tr></thead><tbody>${rows || `<tr><td colspan="6" class="muted">Nessuna licenza</td></tr>`}</tbody></table>`;
+    $("#lfl").value = licFilter; $("#srt").value = sortBy;
+    $("#flt").oninput = e => { licQuery = e.target.value; const pos = e.target.selectionStart; render(); const f = $("#flt"); f.focus(); f.setSelectionRange(pos, pos); };
+    $("#all")?.addEventListener("change", e => { showAll = e.target.checked; render(); });
+    $("#lfl").onchange = e => { licFilter = e.target.value; render(); };
+    $("#srt").onchange = e => { sortBy = e.target.value; sortDir = -1; setPref("ordina", sortBy); setPref("verso", sortDir); render(); };
+    $("#dir").onclick = () => { sortDir = -sortDir; setPref("verso", sortDir); render(); };
+    m.querySelectorAll(".pk").forEach(c => c.onchange = () => { if (c.checked) picked.add(c.dataset.k); else picked.delete(c.dataset.k); render(); });
+    const vis = licRows().map(l => l.key);
+    $("#pkall").checked = vis.length > 0 && vis.every(k => picked.has(k));
+    $("#pkall").onchange = e => { vis.forEach(k => e.target.checked ? picked.add(k) : picked.delete(k)); render(); };
   }
   if (view === "richieste") {
     m.innerHTML = `<table><thead><tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Messaggio</th><th>Stato</th><th></th></tr></thead><tbody>${data.req.map(r => `<tr>
@@ -124,6 +167,82 @@ function render() {
       <td>${esc(r.message)}${r.new_key ? `<br>nuova chiave <span class="mono">${esc(r.new_key)}</span>` : ""}</td><td><span class="st ${r.status}">${STATO[r.status]}</span></td>
       <td>${r.status === "pending" ? `<button class="b p" onclick="reqAct(${r.id},'approve')">Approva</button>` : ""}${r.status === "open" || r.status === "pending" ? `<button class="b" onclick="reqAct(${r.id},'close')">Chiudi</button>` : ""}</td></tr>`).join("") || `<tr><td colspan="6" class="muted">Nessuna richiesta</td></tr>`}</tbody></table>`;
   }
+}
+// ---- avvisi raggruppati per giorno / mese / anno
+function groupOf(e) {
+  const d = new Date(e.created.replace(" ", "T") + "Z"), y = d.getFullYear(), mo = String(d.getMonth() + 1).padStart(2, "0"), da = String(d.getDate()).padStart(2, "0");
+  if (evMode === "anno") return [String(y), String(y)];
+  if (evMode === "mese") return [`${y}-${mo}`, d.toLocaleDateString("it-IT", { month: "long", year: "numeric" })];
+  const same = (a, b) => a.toDateString() === b.toDateString();
+  return [`${y}-${mo}-${da}`, same(d, new Date()) ? "Oggi" : same(d, new Date(Date.now() - 86400000)) ? "Ieri" : d.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" })];
+}
+function drawGroups() {
+  const box = $("#groups"); if (!box) return;
+  const groups = [];
+  for (const e of data.ev.filter(e => !evType || e.kind === evType).sort((a, b) => (a.created < b.created ? 1 : a.created > b.created ? -1 : b.id - a.id))) { const [k, label] = groupOf(e); let g = groups.at(-1); if (!g || g.k !== k) groups.push(g = { k, label, items: [] }); g.items.push(e); }
+  const noState = !pref("aperti", null);
+  box.innerHTML = groups.map((g, i) => { const unread = g.items.filter(e => !e.read).length, open = openGroups.has(evMode + ":" + g.k) || (noState && i === 0);
+    return `<details class="grp" ${open ? "open" : ""}><summary>${esc(g.label.charAt(0).toUpperCase() + g.label.slice(1))}<span class="n">${g.items.length} avvisi</span>${unread && !evArch ? `<span class="badge">${unread} da leggere</span>` : ""}<span class="grow"></span>
+      ${!evArch && unread ? `<button class="b" data-read>Segna come letti</button>` : ""}<button class="b" data-arch>${evArch ? "Ripristina" : "Archivia"}</button></summary>
+      ${g.items.map(e => `<div class="ev ${e.read || evArch ? "" : "unread"}"><span class="muted">${fmt(e.created)}</span><b>${esc(KIND[e.kind] || e.kind)}</b><span>${esc(e.text)}</span></div>`).join("")}</details>`; }).join("")
+    || `<p class="muted">${evArch ? "Archivio vuoto" : "Nessun avviso"}</p>`;
+  box.querySelectorAll("details.grp").forEach((d, i) => {
+    const g = groups[i], key = evMode + ":" + g.k, ids = g.items.map(e => e.id);
+    d.addEventListener("toggle", () => { if (d.open) openGroups.add(key); else openGroups.delete(key); setPref("aperti", [...openGroups].slice(-300)); });
+    d.querySelector("[data-read]")?.addEventListener("click", async ev => { ev.preventDefault(); try { await call("POST", "/admin/events/read", { ids }); g.items.forEach(e => (e.read = 1)); drawGroups(); adminRefresh(); } catch (x) { toast(x.message, true); } });
+    d.querySelector("[data-arch]").addEventListener("click", async ev => { ev.preventDefault();
+      try { await call("POST", "/admin/events/archive", { ids, archivia: !evArch }); data.ev = data.ev.filter(e => !ids.includes(e.id)); drawGroups(); toast(evArch ? "Avvisi ripristinati" : `${ids.length} avvisi archiviati`); adminRefresh(); }
+      catch (x) { toast(x.message, true); } });
+  });
+}
+// ---- licenze: filtri, ordinamento, eliminazione con Annulla
+const isTest = l => /prova|test|collaudo|da cancellare/i.test(`${l.customer} ${l.notes}`);
+function licRows() {
+  const q = licQuery.toLowerCase();
+  const rows = data.lic.filter(l => !hiddenKeys.has(l.key)).filter(l => licFilter === "prova" ? isTest(l) : licFilter === "revocate" ? l.status === "revoked" : licFilter === "mai" ? !l.prima_attivazione
+    : licFilter === "sostituite" ? l.status === "replaced" : (showAll || l.status === "active" || l.status === "revoked"))
+    .filter(l => `${l.key} ${l.customer} ${l.email} ${l.notes}`.toLowerCase().includes(q));
+  const val = l => sortBy === "name" ? (l.customer || "").toLocaleLowerCase("it") : sortBy === "first" ? (l.prima_attivazione || "") : l.created;
+  return rows.sort((a, b) => { const x = val(a), y = val(b);
+    if (sortBy === "first" && (!x || !y)) return !x && !y ? 0 : !x ? 1 : -1;
+    return (x < y ? -1 : x > y ? 1 : 0) * (sortBy === "name" ? -sortDir : sortDir); });
+}
+function delLic(keys) {
+  const inUse = data.lic.filter(l => keys.includes(l.key) && l.dispositivi.some(d => d.status === "active")).length;
+  const who = keys.length === 1 ? `la licenza di ${data.lic.find(l => l.key === keys[0])?.customer || keys[0]}` : `${keys.length} licenze`;
+  if (!confirm(`Eliminare ${who}?${inUse ? ` ${inUse === 1 && keys.length === 1 ? "E' in uso: i suoi dispositivi smettono" : `${inUse} sono in uso: i loro dispositivi smettono`} di funzionare.` : ""}\n\nHai qualche secondo per annullare.`)) return;
+  keys.forEach(k => { hiddenKeys.add(k); picked.delete(k); }); render();
+  undoToast(keys.length === 1 ? "Licenza eliminata" : `${keys.length} licenze eliminate`, async () => {
+    try { await call("POST", "/admin/licenses/delete", { keys }); } catch (x) { toast(x.message, true); }
+    keys.forEach(k => hiddenKeys.delete(k)); adminRefresh();
+  }, () => { keys.forEach(k => hiddenKeys.delete(k)); render(); toast("Eliminazione annullata"); });
+}
+// ---- email con la chiave
+let settingsCache = null;
+const getSettings = async () => (settingsCache ||= await call("GET", "/admin/settings"));
+const fillMail = (t, l, st) => t.replace(/\{(\w+)\}/g, (m, k) => ({ cliente: l.customer || "", chiave: l.key, pc: l.max_pc, cellulari: l.max_mobile, link_setup: st.link_setup, link_telefono: st.link_telefono })[k] ?? m);
+async function mailLic(key) {
+  const l = data.lic.find(x => x.key === key); if (!l) return;
+  let st, mc; try { st = await getSettings(); mc = await window.pywebview.api.mail_config(); } catch (x) { return toast(x.message, true); }
+  const back = document.createElement("div"); back.className = "mback";
+  back.innerHTML = `<div class="modal"><h3>Invia la chiave per email <span class="muted" style="font-size:12px">${esc(l.customer)}</span></h3>
+    <label>A<input id="m-to" value="${esc(l.email)}" placeholder="indirizzo email"></label><label>Oggetto<input id="m-sub" value="${esc(fillMail(st.email.oggetto, l, st))}"></label>
+    <label>Testo<textarea id="m-txt" class="mail">${esc(fillMail(st.email.testo, l, st))}</textarea></label>
+    <div class="muted">${mc.pronto ? `Si invia da <b>${esc(mc.mittente)}</b>.` : "Invio diretto non configurato (Impostazioni → Email): puoi aprire la mail nel programma di posta."} Il testo preimpostato si cambia in Impostazioni.</div>
+    <div class="err" id="m-err"></div>
+    <div class="row2"><button class="b" id="m-no">Chiudi</button><button class="b" id="m-copy">Copia testo</button><button class="b" id="m-open">Apri nel programma di posta</button>${mc.pronto ? `<button class="b p" id="m-send">Invia</button>` : ""}</div></div>`;
+  document.body.append(back);
+  const q = id => back.querySelector(id), v = id => q(id).value;
+  q("#m-no").onclick = () => back.remove();
+  q("#m-copy").onclick = async () => { await window.pywebview.api.copy(v("#m-txt")); toast("Testo copiato"); };
+  q("#m-open").onclick = async () => { await window.pywebview.api.open_mail(v("#m-to").trim(), v("#m-sub"), v("#m-txt")); back.remove(); };
+  q("#m-send")?.addEventListener("click", async () => {
+    const to = v("#m-to").trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) { q("#m-err").textContent = "Scrivi un indirizzo email valido."; return; }
+    q("#m-send").disabled = true; q("#m-send").textContent = "Invio...";
+    const r = await window.pywebview.api.mail_send(to, v("#m-sub"), v("#m-txt"));
+    if (r.ok) { back.remove(); toast("Email inviata a " + to); } else { q("#m-err").textContent = r.errore; q("#m-send").disabled = false; q("#m-send").textContent = "Invia"; }
+  });
 }
 function filt() {
   const q = ($("#flt")?.value || "").toLowerCase(), all = $("#all")?.checked;
@@ -183,13 +302,49 @@ async function renderSettings(m) {
     <div><button class="b p" onclick="saveUrl()">Salva indirizzo</button></div>
     <label style="display:flex;gap:8px;align-items:center;color:var(--fg)"><input type="checkbox" id="auto" ${c.autostart ? "checked" : ""} onchange="setAuto()"> Avvia con Windows (nascosta nell'area di notifica)</label>
     <p class="muted">Chiudendo la finestra l'app resta attiva nell'area di notifica e ti avvisa di attivazioni, richieste e segnalazioni. Per uscire: clic destro sull'icona → Esci.</p></div>
+    <div class="card" style="max-width:640px;display:grid;gap:10px;margin-top:14px"><h3>Email</h3>
+    <p class="muted" style="margin:0">Account da cui MB Visual Admin invia le chiavi. Gmail: serve una "password per le app" (Account Google → Sicurezza → Verifica in due passaggi → Password per le app).
+      Microsoft 365 / Outlook: serve che l'invio SMTP sia consentito per la casella. In alternativa ogni email si puo' aprire nel programma di posta.</p>
+    <div id="mailcfg" class="muted">...</div>
+    <h3 style="margin-top:8px">Testo dell'email con la chiave</h3><p class="muted" style="margin:0">Uguale anche nell'app per telefono. Campi automatici: {cliente} {chiave} {pc} {cellulari} {link_setup} {link_telefono}</p>
+    <div id="mailtpl" class="muted">...</div></div>
     <div class="card" style="max-width:640px;display:grid;gap:8px;margin-top:14px"><h3>Notifiche da ricevere</h3>
     <p class="muted" style="margin:0">Valgono per le notifiche di Windows e per l'app per telefono. Gli avvisi restano comunque nella Panoramica.</p><div id="nsel" class="muted">...</div></div>
     <div class="card" style="max-width:640px;display:grid;gap:12px;margin-top:14px"><h3>App per telefono</h3>
     <p class="muted" style="margin:0">Gestisci licenze, dispositivi e richieste anche dal telefono, con le notifiche. Inquadra il QR con il telefono e installa l'app sulla schermata Home.
       Su iPhone l'app installata non vede l'accesso fatto in Safari: aprila e scrivi un nuovo codice di 6 cifre. Il codice vale 10 minuti e una volta sola.</p>
     <div id="pair"></div><div><button class="b p" onclick="newPair()">Collega un telefono</button></div></div>`;
-  loadNotify();
+  loadNotify(); loadMail();
+}
+const MAIL_PRESET = { gmail: { server: "smtp.gmail.com", porta: 587, sicurezza: "starttls" }, m365: { server: "smtp.office365.com", porta: 587, sicurezza: "starttls" },
+  outlook: { server: "smtp-mail.outlook.com", porta: 587, sicurezza: "starttls" } };
+async function loadMail() {
+  const box = $("#mailcfg"), tb = $("#mailtpl"); if (!box) return;
+  const c = await window.pywebview.api.mail_config();
+  box.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <label>Tipo di account<select id="mc-p"><option value="">Altro (SMTP)</option><option value="gmail">Gmail</option><option value="m365">Microsoft 365</option><option value="outlook">Outlook.com</option></select></label>
+      <label>Indirizzo del mittente<input id="mc-from" value="${esc(c.mittente)}" placeholder="nome@azienda.it"></label>
+      <label>Server SMTP<input id="mc-srv" value="${esc(c.server)}"></label><label>Porta<input id="mc-port" type="number" value="${c.porta || 587}"></label>
+      <label>Sicurezza<select id="mc-sec"><option value="starttls">STARTTLS</option><option value="ssl">SSL/TLS</option></select></label>
+      <label>Utente<input id="mc-user" value="${esc(c.utente)}" placeholder="di solito l'indirizzo"></label>
+      <label style="grid-column:1/-1">Password${c.password_salvata ? " (salvata: lascia vuoto per non cambiarla)" : ""}<input id="mc-pw" type="password" autocomplete="new-password"></label></div>
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="b p" id="mc-save">Salva</button><button class="b" id="mc-test">Invia una prova a me</button>${c.pronto ? `<button class="b d" id="mc-del">Togli account</button>` : ""}</div>
+    <p class="muted" style="margin:6px 0 0">La password resta solo su questo PC, cifrata con l'account di Windows.</p>`;
+  $("#mc-sec").value = c.sicurezza || "starttls"; $("#mc-p").value = c.preset || "";
+  $("#mc-p").onchange = e => { const p = MAIL_PRESET[e.target.value]; if (p) { $("#mc-srv").value = p.server; $("#mc-port").value = p.porta; $("#mc-sec").value = p.sicurezza; } };
+  const cfg = () => ({ preset: $("#mc-p").value, mittente: $("#mc-from").value.trim(), server: $("#mc-srv").value.trim(), porta: +$("#mc-port").value || 587, sicurezza: $("#mc-sec").value,
+    utente: $("#mc-user").value.trim() || $("#mc-from").value.trim(), password: $("#mc-pw").value });
+  $("#mc-save").onclick = async () => { const r = await window.pywebview.api.mail_set(cfg()); if (r.ok) { toast("Account email salvato"); loadMail(); } else toast(r.errore, true); };
+  $("#mc-test").onclick = async () => { const r0 = await window.pywebview.api.mail_set(cfg()); if (!r0.ok) return toast(r0.errore, true);
+    toast("Invio in corso..."); const r = await window.pywebview.api.mail_test(); if (r.ok) toast("Email di prova inviata a " + $("#mc-from").value); else toast(r.errore, true); };
+  $("#mc-del")?.addEventListener("click", async () => { if (!confirm("Togliere l'account email da questo PC?")) return; await window.pywebview.api.mail_set(null); loadMail(); });
+  try {
+    const st = await getSettings();
+    tb.innerHTML = `<label>Oggetto<input id="t-sub" value="${esc(st.email.oggetto)}"></label><label>Testo<textarea id="t-txt" class="mail">${esc(st.email.testo)}</textarea></label>
+      <div style="display:flex;gap:8px;margin-top:6px"><button class="b p" id="t-save">Salva il testo</button><button class="b" id="t-def">Ripristina il testo predefinito</button></div>`;
+    $("#t-save").onclick = async () => { try { await call("POST", "/admin/settings", { email: { oggetto: $("#t-sub").value, testo: $("#t-txt").value } }); settingsCache = null; toast("Testo dell'email salvato"); } catch (x) { toast(x.message, true); } };
+    $("#t-def").onclick = () => { $("#t-sub").value = st.email_predefinita.oggetto; $("#t-txt").value = st.email_predefinita.testo; };
+  } catch (x) { tb.innerHTML = `<span class="err">${esc(x.message)}</span>`; }
 }
 async function loadNotify() {
   const box = $("#nsel"); if (!box) return;

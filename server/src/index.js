@@ -89,6 +89,29 @@ async function expiryCheck(env) {
     }
   }
 }
+async function deleteLicense(env, key) {
+  for (const sql of ["DELETE FROM devices WHERE license_key = ?", "DELETE FROM mobile_links WHERE license_key = ?", "DELETE FROM pair_codes WHERE license_key = ?",
+    "DELETE FROM requests WHERE license_key = ?", "DELETE FROM licenses WHERE key = ?"]) await env.DB.prepare(sql).bind(key).run();
+}
+// testo preimpostato dell'email con la chiave (modificabile nell'app di gestione): {cliente} {chiave} {pc} {cellulari} {link_setup} {link_telefono}
+const EMAIL_DEFAULT = { oggetto: "Licenza MB Visual",
+  testo: "Buongiorno {cliente},\n\necco la chiave di licenza di MB Visual:\n\n{chiave}\n\n" +
+    "PC (Windows): scarica e installa MB Visual da {link_setup}\nAl primo avvio inserisci la chiave.\n\n" +
+    "Telefono: apri {link_telefono} con Safari (iPhone) o Chrome (Android), aggiungi l'app alla schermata Home e inserisci la chiave. " +
+    "In alternativa inquadra il codice QR nella home di MB Visual sul PC.\n\n" +
+    "La licenza vale per {pc} PC e {cellulari} cellulari. Conserva questa email: la chiave serve anche per reinstallare.\n\nCordiali saluti" };
+// installabile per PC: l'ultimo setup pubblicato, scaricato attraverso questo server (nell'indirizzo non compare nessun nome)
+async function setupDownload(env, req) {
+  const repo = env.RELEASES_REPO || "";
+  if (!repo) return fail(404, "Installabile non disponibile");
+  const rel = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, { headers: { "user-agent": "MBVisual-Server", accept: "application/vnd.github+json" }, cf: { cacheTtl: 600 } }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const asset = rel?.assets?.find(a => /setup.*\.exe$/i.test(a.name)) || rel?.assets?.find(a => /\.exe$/i.test(a.name));
+  if (!asset) return fail(503, "Installabile non disponibile al momento: riprova tra qualche minuto");
+  const r = await fetch(asset.browser_download_url, { headers: { "user-agent": "MBVisual-Server" }, redirect: "follow" });
+  if (!r.ok || !r.body) return fail(502, "Download non riuscito: riprova tra qualche minuto");
+  return new Response(r.body, { headers: { "content-type": "application/octet-stream", "content-disposition": `attachment; filename="${asset.name.replace(/[^A-Za-z0-9._-]/g, "")}"`,
+    ...(r.headers.get("content-length") ? { "content-length": r.headers.get("content-length") } : {}), "cache-control": "no-store" } });
+}
 const getLicense = (env, key) => env.DB.prepare("SELECT * FROM licenses WHERE key = ?").bind(key).first();
 function licenseProblem(lic) {
   if (!lic) return [404, "Chiave di licenza non valida"];
@@ -199,20 +222,25 @@ async function admin(env, req, url, sub) {
   const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
   const all = async (sql, ...a) => (await env.DB.prepare(sql).bind(...a).all()).results;
   if (p[0] === "settings") {
-    if (req.method === "POST") {
+    const put = (k, v) => env.DB.prepare("INSERT INTO admin_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(k, JSON.stringify(v)).run();
+    if (req.method === "POST" && body.notifiche) {
       const n = {};
-      for (const k of NOTIFY_KINDS) if (body.notifiche && body.notifiche[k] === false) n[k] = false;
-      await env.DB.prepare("INSERT INTO admin_settings (key, value) VALUES ('notifiche', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(JSON.stringify(n)).run();
+      for (const k of NOTIFY_KINDS) if (body.notifiche[k] === false) n[k] = false;
+      await put("notifiche", n);
     }
+    if (req.method === "POST" && body.email) await put("email", { oggetto: String(body.email.oggetto || "").slice(0, 300), testo: String(body.email.testo || "").slice(0, 8000) });
     const n = await notifySettings(env);
-    return json({ ok: true, tipi: NOTIFY_KINDS, notifiche: Object.fromEntries(NOTIFY_KINDS.map(k => [k, n[k] !== false])) });
+    const em = await env.DB.prepare("SELECT value FROM admin_settings WHERE key = 'email'").first();
+    let email = null; try { email = em ? JSON.parse(em.value) : null; } catch {}
+    return json({ ok: true, tipi: NOTIFY_KINDS, notifiche: Object.fromEntries(NOTIFY_KINDS.map(k => [k, n[k] !== false])),
+      email: email?.testo ? email : EMAIL_DEFAULT, email_predefinita: EMAIL_DEFAULT, link_setup: `${url.origin}/scarica`, link_telefono: `${url.origin}/` });
   }
   if (p[0] === "pair" && req.method === "POST") return json(await newPairCode(env, url.origin)); // codice di 6 cifre per collegare il telefono
   if (p[0] === "summary") {
     const one = async sql => (await env.DB.prepare(sql).first()).n;
     return json({ ok: true, licenze: await one("SELECT COUNT(*) n FROM licenses WHERE status='active'"), pc: await one("SELECT COUNT(*) n FROM devices WHERE status='active' AND kind='pc'"),
       cellulari: await one("SELECT COUNT(*) n FROM devices WHERE status='active' AND kind='mobile'"), richieste_aperte: await one("SELECT COUNT(*) n FROM requests WHERE status IN ('open','pending')"),
-      avvisi_non_letti: await one("SELECT COUNT(*) n FROM events WHERE read=0") });
+      avvisi_non_letti: await one("SELECT COUNT(*) n FROM events WHERE read=0 AND archived=0") });
   }
   if (p[0] === "licenses" && !p[1]) {
     if (req.method === "POST") {
@@ -223,7 +251,14 @@ async function admin(env, req, url, sub) {
     }
     const lics = await all("SELECT * FROM licenses ORDER BY created DESC");
     const devs = await all("SELECT * FROM devices ORDER BY id");
-    return json({ ok: true, licenze: lics.map(l => ({ ...l, dispositivi: devs.filter(d => d.license_key === l.key) })) });
+    return json({ ok: true, licenze: lics.map(l => { const d = devs.filter(x => x.license_key === l.key);
+      return { ...l, dispositivi: d, prima_attivazione: d.reduce((m, x) => (!m || x.activated < m ? x.activated : m), null) }; }) });
+  }
+  // eliminazione: la licenza sparisce dall'elenco e i suoi dispositivi smettono di funzionare (gli avvisi restano)
+  if (p[0] === "licenses" && p[1] === "delete" && req.method === "POST") {
+    const keys = (Array.isArray(body.keys) ? body.keys : []).map(String).slice(0, 500);
+    for (const k of keys) await deleteLicense(env, k);
+    return json({ ok: true, eliminate: keys.length });
   }
   if (p[0] === "licenses" && p[1]) {
     const key = decodeURIComponent(p[1]);
@@ -247,6 +282,7 @@ async function admin(env, req, url, sub) {
         .bind(String(body.customer ?? lic.customer), String(body.email ?? lic.email), String(body.notes ?? lic.notes), maxPc, maxMob, exp, exp, exp, key).run();
       return json({ ok: true, liberati: [...free].filter(id => devs.some(d => d.id === id)).length });
     }
+    else if (p[2] === "delete") { await deleteLicense(env, key); return json({ ok: true, eliminate: 1 }); }
     else if (p[2] === "replace") { const lic = await getLicense(env, key); if (!lic) return fail(404, "Licenza inesistente"); return json({ ok: true, key: await replaceKey(env, lic) }); }
     else return fail(404, "Operazione sconosciuta");
     return json({ ok: true });
@@ -266,8 +302,21 @@ async function admin(env, req, url, sub) {
     if (p[2] === "close") { await env.DB.prepare("UPDATE requests SET status='closed' WHERE id=?").bind(r.id).run(); return json({ ok: true }); }
     return fail(400, "Operazione non possibile");
   }
-  if (p[0] === "events" && p[1] === "read") { await env.DB.prepare("UPDATE events SET read=1 WHERE id <= ?").bind(+body.upto || 0).run(); return json({ ok: true }); }
-  if (p[0] === "events") return json({ ok: true, avvisi: await all("SELECT * FROM events WHERE id > ? ORDER BY id LIMIT 500", +(url.searchParams.get("after") || 0)) });
+  const ids = (Array.isArray(body.ids) ? body.ids : []).map(Number).filter(Number.isFinite).slice(0, 5000);
+  const inIds = async (sql, ...a) => { for (let i = 0; i < ids.length; i += 90) { const part = ids.slice(i, i + 90); await env.DB.prepare(sql.replace("(?)", `(${part.map(() => "?").join(",")})`)).bind(...a, ...part).run(); } };
+  if (p[0] === "events" && p[1] === "read") {
+    if (ids.length) await inIds("UPDATE events SET read=1 WHERE id IN (?)");
+    else await env.DB.prepare("UPDATE events SET read=1 WHERE id <= ?").bind(+body.upto || 0).run();
+    return json({ ok: true });
+  }
+  if (p[0] === "events" && p[1] === "archive") { await inIds("UPDATE events SET archived=?, read=1 WHERE id IN (?)", body.archivia === false ? 0 : 1); return json({ ok: true }); }
+  if (p[0] === "events") {
+    const after = +(url.searchParams.get("after") || 0), arch = url.searchParams.get("archiviati") === "1";
+    // after=0: gli ultimi 3000 (elenco della Panoramica); after>0: i nuovi in ordine (notifiche dell'app per PC)
+    const rows = after ? await all("SELECT * FROM events WHERE id > ? ORDER BY id LIMIT 500", after)
+      : (await all(`SELECT * FROM events WHERE archived = ? ORDER BY id DESC LIMIT 3000`, arch ? 1 : 0)).reverse();
+    return json({ ok: true, avvisi: rows });
+  }
   return fail(404, "Percorso sconosciuto");
 }
 
@@ -520,6 +569,7 @@ export default {
       const P = adminPath(env);
       if (P && (url.pathname === "/" + P || url.pathname.startsWith("/" + P + "/"))) return await adminApp(env, req, url, { admin, json, fail, event });
       if (url.pathname.startsWith("/admin")) return await admin(env, req, url);
+      if (url.pathname === "/scarica" && req.method === "GET") return await setupDownload(env, req);
       if (!url.pathname.startsWith("/v1/")) {
         if (env.ASSETS && (req.method === "GET" || req.method === "HEAD")) return await serveApp(env, req, url);
         if (req.method !== "POST") return json({ ok: true, servizio: "Licenze MB Visual" });

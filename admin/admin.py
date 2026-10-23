@@ -112,10 +112,96 @@ class Api:
                 return p.read_text(encoding="utf-8")
         return ""
 
+    # ---- email con la chiave: account SMTP dell'utente (Gmail, Microsoft 365, altro), password cifrata con DPAPI
+    def mail_config(self):
+        c = _mail_load()
+        return {"pronto": bool(c.get("server") and c.get("mittente") and c.get("password")), "password_salvata": bool(c.get("password")),
+                **{k: c.get(k, "") for k in ("preset", "mittente", "server", "sicurezza", "utente")}, "porta": c.get("porta", 587)}
+
+    def mail_set(self, cfg):
+        if cfg is None:
+            MAIL_CFG.unlink(missing_ok=True)
+            return {"ok": True}
+        old = _mail_load()
+        c = {k: cfg.get(k, "") for k in ("preset", "mittente", "server", "sicurezza", "utente")}
+        c["porta"] = int(cfg.get("porta") or 587)
+        if not c["mittente"] or "@" not in c["mittente"] or not c["server"]:
+            return {"ok": False, "errore": "Scrivi l'indirizzo del mittente e il server SMTP."}
+        c["password"] = _protect(cfg["password"]) if cfg.get("password") else old.get("password", "")
+        VAULT.mkdir(parents=True, exist_ok=True)
+        MAIL_CFG.write_text(json.dumps(c), encoding="utf-8")
+        return {"ok": True}
+
+    def mail_send(self, to, subject, body):
+        return _mail_send(to, subject, body)
+
+    def mail_test(self):
+        c = _mail_load()
+        return _mail_send(c.get("mittente", ""), "Prova da MB Visual Admin", "Se leggi questa email, l'invio delle chiavi da MB Visual Admin funziona.")
+
+    def open_mail(self, to, subject, body):
+        """Mail pronta nel programma di posta predefinito (mailto)."""
+        from urllib.parse import quote
+        os.startfile(f"mailto:{quote(to or '')}?subject={quote(subject or '')}&body={quote(body or '')}")
+        return True
+
     def copy(self, text):
         import subprocess
         subprocess.run(["clip"], input=text.encode("utf-16-le"), creationflags=0x08000000, check=False)
         return True
+
+
+MAIL_CFG = VAULT / "admin_email.json"
+
+
+def _protect(text: str) -> str:
+    import base64
+    import win32crypt
+    return base64.b64encode(win32crypt.CryptProtectData(text.encode("utf-8"), "MB Visual Admin", None, None, None, 0)).decode()
+
+
+def _unprotect(blob: str) -> str:
+    import base64
+    import win32crypt
+    return win32crypt.CryptUnprotectData(base64.b64decode(blob), None, None, None, 0)[1].decode("utf-8")
+
+
+def _mail_load() -> dict:
+    try:
+        return json.loads(MAIL_CFG.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _mail_send(to: str, subject: str, body: str) -> dict:
+    import smtplib
+    import ssl
+    from email.message import EmailMessage
+    from email.utils import formatdate, make_msgid
+    c = _mail_load()
+    if not (c.get("server") and c.get("mittente") and c.get("password")):
+        return {"ok": False, "errore": "Account email non configurato (Impostazioni → Email)."}
+    msg = EmailMessage()
+    msg["From"], msg["To"], msg["Subject"] = c["mittente"], to, subject
+    msg["Date"], msg["Message-ID"] = formatdate(localtime=True), make_msgid(domain=c["mittente"].split("@")[-1])
+    msg.set_content(body)
+    try:
+        ctx = ssl.create_default_context()
+        if c.get("sicurezza") == "ssl":
+            srv = smtplib.SMTP_SSL(c["server"], int(c.get("porta") or 465), context=ctx, timeout=30)
+        else:
+            srv = smtplib.SMTP(c["server"], int(c.get("porta") or 587), timeout=30)
+            if c.get("sicurezza") != "nessuna":  # "nessuna": solo per le prove con un server locale
+                srv.starttls(context=ctx)
+        with srv:
+            srv.login(c.get("utente") or c["mittente"], _unprotect(c["password"]))
+            srv.send_message(msg)
+        return {"ok": True}
+    except smtplib.SMTPAuthenticationError:
+        return {"ok": False, "errore": "Accesso rifiutato dal server di posta: controlla utente e password (Gmail: serve una password per le app; "
+                                        "Microsoft 365: l'invio SMTP deve essere consentito per la casella)."}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "errore": f"Invio non riuscito: {e}"}
 
 
 def _autostart_path() -> Path:

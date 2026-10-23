@@ -17,6 +17,8 @@ crons = ["0 6 * * *"]
 
 [vars]
 PUBLIC_KEY = "__PUBLIC_KEY__"
+# repository pubblico dei soli setup: /scarica lo consegna attraverso il server (nell'indirizzo non compare il nome)
+RELEASES_REPO = "Lorenz0gr4ssi83/MB-Visual-Rilasci"
 
 [[d1_databases]]
 binding = "DB"

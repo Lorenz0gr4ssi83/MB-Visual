@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS events (
   license_key TEXT,
   text        TEXT NOT NULL,
   read        INTEGER NOT NULL DEFAULT 0,
+  archived    INTEGER NOT NULL DEFAULT 0,      -- archiviato dalla Panoramica (non compare piu' nell'elenco normale)
   created     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

@@ -97,6 +97,25 @@
     box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
   #toast.bad { border-color: var(--bad); }
   .empty { padding: 18px 14px; color: var(--muted); text-align: center; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { border: 0; background: var(--panel); padding: 8px 12px; font-size: 13.5px; color: var(--muted); }
+  .seg button.on { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+  select.sel { padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); font-size: 14px; max-width: 100%; }
+  details.grp { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+  details.grp > summary { list-style: none; display: flex; align-items: center; gap: 8px; padding: 12px 14px; font-weight: 600; }
+  details.grp > summary::-webkit-details-marker { display: none; }
+  details.grp > summary::before { content: "›"; display: inline-block; width: 12px; color: var(--muted); transition: transform .15s; }
+  details.grp[open] > summary::before { transform: rotate(90deg); }
+  details.grp > summary .n { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: auto; }
+  .gact { display: flex; gap: 8px; padding: 0 14px 10px; }
+  .row.sel-on { padding-left: 46px; position: relative; }
+  .row .pick-box { position: absolute; left: 14px; top: 14px; width: 22px; height: 22px; accent-color: var(--accent); }
+  .row.picked { background: rgba(240, 125, 46, .10); }
+  .selbar { position: sticky; top: calc(58px + var(--top)); z-index: 9; display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: var(--r); background: var(--panel2); border: 1px solid var(--accent); }
+  .selbar b { flex: 1; }
+  #toast .undo { margin-left: 10px; background: none; border: 0; color: var(--accent); font-weight: 700; }
+  .field textarea.mail { min-height: 230px; font-size: 14px; line-height: 1.45; }
 </style>
 </head>
 <body>
@@ -158,9 +177,22 @@ const STATO = { active: "attiva", revoked: "revocata", replaced: "sostituita", o
 const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 let state = {}, view = (location.hash.slice(1) || "panoramica"), data = null, showAll = false, query = "";
+// preferenze ricordate su questo telefono (raggruppamento avvisi, ordinamento licenze)
+const pref = (k, d) => { try { return JSON.parse(localStorage.getItem("mbva-" + k)) ?? d; } catch { return d; } };
+const setPref = (k, v) => { try { localStorage.setItem("mbva-" + k, JSON.stringify(v)); } catch {} };
+let evMode = pref("gruppi", "giorno"), evType = "", evArch = false, openGroups = new Set(pref("aperti", [])), sortBy = pref("ordina", "created"), sortDir = pref("verso", -1),
+  licFilter = "", selMode = false, picked = new Set(), hiddenKeys = new Set(), pushOn = null;
 if (!["panoramica", "licenze", "richieste", "impostazioni"].includes(view)) view = "panoramica";
 
 function toast(t, bad) { const e = $("toast"); e.textContent = t; e.className = bad ? "bad" : ""; clearTimeout(e._h); e._h = setTimeout(() => e.classList.add("hide"), 3800); }
+// azione rimandata di qualche secondo con "Annulla" (eliminazioni)
+function undoToast(text, onCommit, onUndo, secs = 6) {
+  const e = $("toast"); clearTimeout(e._h); e.className = "";
+  let left = secs, done = false;
+  const draw = () => { e.innerHTML = `${esc(text)} <span class="faint">(${left})</span><button class="undo">Annulla</button>`; e.querySelector(".undo").onclick = () => { if (done) return; done = true; clearInterval(t); e.classList.add("hide"); onUndo(); }; };
+  draw();
+  const t = setInterval(() => { left--; if (left > 0) return draw(); clearInterval(t); if (done) return; done = true; e.classList.add("hide"); onCommit(); }, 1000);
+}
 async function api(method, path, body) {
   const r = await fetch(`${BASE}/api/${path}`, { method, credentials: "same-origin", cache: "no-store",
     headers: body !== undefined ? { "content-type": "application/json" } : {}, body: body !== undefined ? JSON.stringify(body) : undefined });
@@ -238,8 +270,9 @@ function setView(v) {
 $("refresh").onclick = () => refresh();
 async function refresh(quiet) {
   try {
-    const [s, l, r, e] = await Promise.all([api("GET", "admin/summary"), api("GET", "admin/licenses"), api("GET", "admin/requests"), api("GET", "admin/events?after=0")]);
-    data = { s, lic: l.licenze, req: r.richieste, ev: e.avvisi.slice(-200).reverse() };
+    const [s, l, r, e] = await Promise.all([api("GET", "admin/summary"), api("GET", "admin/licenses"), api("GET", "admin/requests"), api("GET", "admin/events?after=0" + (evArch ? "&archiviati=1" : ""))]);
+    data = { s, lic: l.licenze, req: r.richieste, ev: e.avvisi.slice().reverse() };
+    pushOn = await pushSub().catch(() => null);
     $("conn").textContent = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
     const open = data.req.filter(x => x.status === "open" || x.status === "pending").length;
     $("nreq").textContent = open; $("nreq").classList.toggle("hide", !open);
@@ -268,16 +301,33 @@ function render() {
       <div><button class="btn s" onclick="localStorage.setItem('mbva-noinstalla','1');render()">Nascondi</button></div></div>`;
     m.innerHTML = hint + `<div class="cards">${[["Licenze attive", s.licenze], ["PC attivi", s.pc], ["Cellulari attivi", s.cellulari], ["Richieste aperte", s.richieste_aperte, s.richieste_aperte > 0]]
       .map(([l, n, a]) => `<div class="tile${a ? " alert" : ""}"><div class="n">${n}</div><div class="l">${l}</div></div>`).join("")}</div>
-      <div class="sec"><h3>Avvisi ${s.avvisi_non_letti ? `<span class="badge">${s.avvisi_non_letti}</span>` : ""}</h3>${s.avvisi_non_letti ? `<button class="btn s" id="readall">Segna come letti</button>` : ""}</div>
-      <div class="box">${data.ev.map(e => `<div class="row ${e.read ? "" : "unread"}"><div class="top"><b>${esc(KIND[e.kind] || e.kind)}</b><span class="t">${fmt(e.created)}</span></div><div class="muted">${esc(e.text)}</div></div>`).join("")
-        || `<div class="empty">Nessun avviso</div>`}</div>`;
-    $("readall")?.addEventListener("click", readAll);
+      <div class="sec"><h3>${evArch ? "Archivio" : "Avvisi"} ${!evArch && s.avvisi_non_letti ? `<span class="badge">${s.avvisi_non_letti}</span>` : ""}</h3></div>
+      <div class="bar"><div class="seg">${[["giorno", "Giorno"], ["mese", "Mese"], ["anno", "Anno"]].map(([k, l]) => `<button data-mode="${k}" class="${evMode === k ? "on" : ""}">${l}</button>`).join("")}</div>
+        <select class="sel" id="evt"><option value="">Tutti i tipi</option>${[...new Set(data.ev.map(e => e.kind))].map(k => `<option value="${esc(k)}" ${evType === k ? "selected" : ""}>${esc(KIND[k] || k)}</option>`).join("")}</select>
+        <label class="toggle"><input type="checkbox" id="evarch" ${evArch ? "checked" : ""}> archivio</label></div>
+      <div id="groups" style="display:grid;gap:10px"></div>`;
+    pushBanner(m);
+    m.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { evMode = b.dataset.mode; setPref("gruppi", evMode); render(); });
+    $("evt").onchange = e => { evType = e.target.value; drawGroups(); };
+    $("evarch").onchange = e => { evArch = e.target.checked; data.ev = []; drawGroups(); refresh(); };
+    drawGroups();
   }
   if (view === "licenze") {
     m.innerHTML = `<div class="search"><input type="search" id="q" placeholder="Cerca cliente, chiave, email" value="${esc(query)}"></div>
-      <label class="toggle"><input type="checkbox" id="all" ${showAll ? "checked" : ""}> anche sostituite e revocate</label><div class="box" id="ll"></div>`;
+      <div class="bar"><select class="sel" id="srt"><option value="created">Data di creazione</option><option value="first">Prima attivazione</option><option value="name">Nome</option></select>
+        <button class="btn s" id="dir" title="Inverti l'ordine">${sortBy === "name" ? (sortDir < 0 ? "A → Z" : "Z → A") : (sortDir < 0 ? "Piu' recenti prima" : "Meno recenti prima")}</button>
+        <button class="btn s" id="selm">${selMode ? "Fine" : "Seleziona"}</button></div>
+      <div class="bar"><select class="sel" id="flt"><option value="">Attive e revocate</option><option value="prova">Prova / test / collaudo</option><option value="revocate">Solo revocate</option>
+        <option value="mai">Mai attivate</option><option value="sostituite">Sostituite (chiavi vecchie)</option></select>
+        ${licFilter ? "" : `<label class="toggle"><input type="checkbox" id="all" ${showAll ? "checked" : ""}> anche sostituite</label>`}</div>
+      <div class="selbar hide" id="selbar"></div><div class="box" id="ll"></div>`;
+    $("srt").value = sortBy; $("flt").value = licFilter;
     $("q").oninput = e => { query = e.target.value; listLic(); };
-    $("all").onchange = e => { showAll = e.target.checked; listLic(); };
+    $("all")?.addEventListener("change", e => { showAll = e.target.checked; listLic(); });
+    $("srt").onchange = e => { sortBy = e.target.value; sortDir = -1; setPref("ordina", sortBy); setPref("verso", sortDir); render(); };
+    $("dir").onclick = () => { sortDir = -sortDir; setPref("verso", sortDir); render(); };
+    $("selm").onclick = () => { selMode = !selMode; picked.clear(); render(); };
+    $("flt").onchange = e => { licFilter = e.target.value; render(); };
     listLic();
   }
   if (view === "richieste") {
@@ -289,14 +339,105 @@ function render() {
     m.querySelectorAll("[data-a]").forEach(b => b.onclick = () => reqAct(+b.dataset.id, b.dataset.a));
   }
 }
-function listLic() {
+// ------------------------------------------------------------ avvisi raggruppati per giorno, mese o anno (gruppi richiudibili)
+const evDate = e => new Date(e.created.replace(" ", "T") + "Z");
+function groupOf(e) {
+  const d = evDate(e), y = d.getFullYear(), mo = String(d.getMonth() + 1).padStart(2, "0"), da = String(d.getDate()).padStart(2, "0");
+  if (evMode === "anno") return [String(y), String(y)];
+  if (evMode === "mese") return [`${y}-${mo}`, d.toLocaleDateString("it-IT", { month: "long", year: "numeric" })];
+  const today = new Date(), yest = new Date(Date.now() - 86400000), same = (a, b) => a.toDateString() === b.toDateString();
+  return [`${y}-${mo}-${da}`, same(d, today) ? "Oggi" : same(d, yest) ? "Ieri" : d.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" })];
+}
+function drawGroups() {
+  const box = $("groups"); if (!box) return;
+  // per data (gli avvisi possono arrivare in ordine diverso), poi per numero
+  const list = data.ev.filter(e => !evType || e.kind === evType).sort((a, b) => (a.created < b.created ? 1 : a.created > b.created ? -1 : b.id - a.id)), groups = [];
+  for (const e of list) { const [k, label] = groupOf(e); let g = groups.at(-1); if (!g || g.k !== k) groups.push(g = { k, label, items: [] }); g.items.push(e); }
+  const noState = !pref("aperti", null);
+  box.innerHTML = groups.map((g, i) => { const unread = g.items.filter(e => !e.read).length, open = openGroups.has(evMode + ":" + g.k) || (noState && i === 0);
+    return `<details class="grp" data-g="${esc(g.k)}" ${open ? "open" : ""}><summary><span>${esc(g.label.charAt(0).toUpperCase() + g.label.slice(1))}</span>${unread && !evArch ? `<span class="badge">${unread}</span>` : ""}<span class="n">${g.items.length}</span></summary>
+      <div class="gact">${!evArch && unread ? `<button class="btn s" data-read>Segna come letti</button>` : ""}<button class="btn s" data-arch>${evArch ? "Ripristina" : "Archivia"}</button></div>
+      ${g.items.map(e => `<div class="row ${e.read || evArch ? "" : "unread"}"><div class="top"><b>${esc(KIND[e.kind] || e.kind)}</b><span class="t">${fmt(e.created)}</span></div><div class="muted">${esc(e.text)}</div></div>`).join("")}</details>`; }).join("")
+    || `<div class="box"><div class="empty">${evArch ? "Archivio vuoto" : "Nessun avviso"}</div></div>`;
+  box.querySelectorAll("details.grp").forEach((d, i) => {
+    const g = groups[i], key = evMode + ":" + g.k, ids = g.items.map(e => e.id);
+    d.addEventListener("toggle", () => { if (d.open) openGroups.add(key); else openGroups.delete(key); setPref("aperti", [...openGroups].slice(-200)); });
+    d.querySelector("[data-read]")?.addEventListener("click", async () => { try { await api("POST", "admin/events/read", { ids }); g.items.forEach(e => (e.read = 1)); refresh(true); drawGroups(); } catch (x) { toast(x.message, true); } });
+    d.querySelector("[data-arch]").addEventListener("click", async () => {
+      try { await api("POST", "admin/events/archive", { ids, archivia: !evArch }); data.ev = data.ev.filter(e => !ids.includes(e.id)); drawGroups(); toast(evArch ? "Avvisi ripristinati" : `${ids.length} avvisi archiviati`); refresh(true); }
+      catch (x) { toast(x.message, true); }
+    });
+  });
+}
+// invito ad attivare le notifiche push su questo telefono (finche' non sono attive)
+function pushBanner(m) {
+  const ok = "PushManager" in window && "serviceWorker" in navigator && state.notifiche;
+  if (!ok || pushOn || localStorage.getItem("mbva-nopush") === "1") return;
+  const denied = Notification.permission === "denied";
+  const b = document.createElement("div"); b.className = "banner";
+  b.innerHTML = `<b>Notifiche su questo telefono: non attive</b><span class="muted">${denied ? "Sono bloccate: apri le impostazioni del telefono → App → MBV Admin (o il browser) → Notifiche e consentile, poi torna qui."
+    : "Attivale per ricevere sul telefono le attivazioni, le richieste e le segnalazioni scelte in Impostazioni."}</span>
+    <div class="actions">${denied ? "" : `<button class="btn s p" data-on>Attiva notifiche</button>`}<button class="btn s" data-no>Non ora</button></div>`;
+  m.prepend(b);
+  b.querySelector("[data-on]")?.addEventListener("click", async () => { if (await enablePush()) b.remove(); });
+  b.querySelector("[data-no]").onclick = () => { localStorage.setItem("mbva-nopush", "1"); b.remove(); };
+}
+async function enablePush() {
+  try {
+    if (await Notification.requestPermission() !== "granted") throw new Error("Permesso per le notifiche non concesso.");
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: unb64u(state.notifiche) });
+    await api("POST", "push/sub", sub.toJSON()); pushOn = sub;
+    try { await api("POST", "push/test", {}); } catch {}
+    toast("Notifiche attive: ti ho mandato una notifica di prova"); return true;
+  } catch (e) { toast(e.message, true); return false; }
+}
+
+// ------------------------------------------------------------ licenze: filtri, ordinamento, selezione, eliminazione
+const isTest = l => /prova|test|collaudo|da cancellare/i.test(`${l.customer} ${l.notes}`);
+const neverUsed = l => !l.prima_attivazione;
+function licRows() {
   const q = query.toLowerCase();
-  const rows = data.lic.filter(l => (showAll || l.status === "active" || l.status === "revoked") && `${l.key} ${l.customer} ${l.email} ${l.notes}`.toLowerCase().includes(q));
-  $("ll").innerHTML = rows.map(l => { const d = l.dispositivi.filter(x => x.status === "active");
-    return `<div class="row tap" data-k="${esc(l.key)}"><div class="top"><b>${esc(l.customer || "(senza nome)")}</b><span class="chip ${l.status}">${STATO[l.status]}</span></div>
-      <div class="mono note">${esc(l.key)}</div><div class="note">PC ${d.filter(x => x.kind === "pc").length}/${l.max_pc} · cellulari ${d.filter(x => x.kind === "mobile").length}/${l.max_mobile}</div></div>`; }).join("")
+  const rows = data.lic.filter(l => !hiddenKeys.has(l.key)).filter(l => licFilter === "prova" ? isTest(l) : licFilter === "revocate" ? l.status === "revoked" : licFilter === "mai" ? neverUsed(l)
+    : licFilter === "sostituite" ? l.status === "replaced" : (showAll || l.status === "active" || l.status === "revoked"))
+    .filter(l => `${l.key} ${l.customer} ${l.email} ${l.notes}`.toLowerCase().includes(q));
+  const val = l => sortBy === "name" ? (l.customer || "").toLocaleLowerCase("it") : sortBy === "first" ? (l.prima_attivazione || "") : l.created;
+  return rows.sort((a, b) => { const x = val(a), y = val(b);
+    if (sortBy === "first" && (!x || !y)) return !x && !y ? 0 : !x ? 1 : -1; // mai attivate sempre in fondo
+    return (x < y ? -1 : x > y ? 1 : 0) * (sortBy === "name" ? -sortDir : sortDir); });
+}
+function deleteKeys(keys) {
+  keys.forEach(k => hiddenKeys.add(k)); picked.clear(); selMode = false; render();
+  undoToast(keys.length === 1 ? "Licenza eliminata" : `${keys.length} licenze eliminate`, async () => {
+    try { await api("POST", "admin/licenses/delete", { keys }); } catch (x) { toast(x.message, true); }
+    keys.forEach(k => hiddenKeys.delete(k)); refresh(true);
+  }, () => { keys.forEach(k => hiddenKeys.delete(k)); render(); toast("Eliminazione annullata"); });
+}
+function listLic() {
+  const rows = licRows();
+  $("ll").innerHTML = rows.map(l => { const d = l.dispositivi.filter(x => x.status === "active"), on = picked.has(l.key);
+    const when = sortBy === "first" ? (l.prima_attivazione ? "prima attivazione " + fmt(l.prima_attivazione) : "mai attivata") : "creata " + fmt(l.created);
+    return `<div class="row tap${selMode ? " sel-on" : ""}${on ? " picked" : ""}" data-k="${esc(l.key)}">${selMode ? `<input type="checkbox" class="pick-box" ${on ? "checked" : ""}>` : ""}
+      <div class="top"><b>${esc(l.customer || "(senza nome)")}</b><span class="chip ${l.status}">${STATO[l.status]}</span></div>
+      <div class="mono note">${esc(l.key)}</div><div class="note">PC ${d.filter(x => x.kind === "pc").length}/${l.max_pc} · cellulari ${d.filter(x => x.kind === "mobile").length}/${l.max_mobile} · ${when}</div></div>`; }).join("")
     || `<div class="empty">Nessuna licenza</div>`;
-  $("ll").querySelectorAll("[data-k]").forEach(r => r.onclick = () => licSheet(r.dataset.k));
+  $("ll").querySelectorAll("[data-k]").forEach(r => r.onclick = () => {
+    if (!selMode) return licSheet(r.dataset.k);
+    const k = r.dataset.k; if (picked.has(k)) picked.delete(k); else picked.add(k); drawSelBar(); listLic();
+  });
+  drawSelBar();
+}
+function drawSelBar() {
+  const bar = $("selbar"); if (!bar) return;
+  bar.classList.toggle("hide", !selMode);
+  if (!selMode) return;
+  bar.innerHTML = `<b>${picked.size} selezionate</b><button class="btn s" id="s-all">Tutte</button><button class="btn s d" id="s-del" ${picked.size ? "" : "disabled"}>Elimina</button>`;
+  $("s-all").onclick = () => { const r = licRows(); if (r.every(l => picked.has(l.key))) picked.clear(); else r.forEach(l => picked.add(l.key)); listLic(); };
+  $("s-del").onclick = () => {
+    const keys = [...picked], act = data.lic.filter(l => keys.includes(l.key) && l.dispositivi.some(d => d.status === "active")).length;
+    if (!confirm(`Eliminare ${keys.length} licenze?${act ? ` ${act} sono in uso: i loro dispositivi smettono di funzionare.` : ""} Hai qualche secondo per annullare.`)) return;
+    deleteKeys(keys);
+  };
 }
 
 // ------------------------------------------------------------ fogli
@@ -329,8 +470,8 @@ function licSheet(key) {
       <dt>Creata</dt><dd>${fmt(l.created)}${l.expires ? " · scade " + esc(l.expires) : ""}</dd></dl>
     <div><b>Dispositivi</b>${devs.map(d => `<div class="dev"><div><div>${d.kind === "pc" ? "PC" : "Cellulare"} · <b>${esc(d.name || "-")}</b></div>
       <div class="note">${esc([d.version, "ultimo uso " + fmt(d.last_seen)].filter(Boolean).join(" · "))}</div></div><button class="btn s d" data-free="${d.id}">Libera</button></div>`).join("") || `<div class="note">Nessun dispositivo attivo</div>`}</div>
-    <div class="actions">${l.status === "active" ? `<button class="btn s" data-x="edit">Modifica</button><button class="btn s" data-x="replace">Nuova chiave</button><button class="btn s d" data-x="revoke">Revoca</button>`
-      : l.status === "revoked" ? `<button class="btn s" data-x="reactivate">Riattiva</button>` : ""}</div>`);
+    <div class="actions"><button class="btn s p" data-x="mail">Invia per email</button>${l.status === "active" ? `<button class="btn s" data-x="edit">Modifica</button><button class="btn s" data-x="replace">Nuova chiave</button><button class="btn s d" data-x="revoke">Revoca</button>`
+      : l.status === "revoked" ? `<button class="btn s" data-x="reactivate">Riattiva</button>` : ""}<button class="btn s d" data-x="delete">Elimina</button></div>`);
   s.querySelectorAll("[data-free]").forEach(b => b.onclick = async () => {
     if (!confirm("Liberare il dispositivo? L'app su quel dispositivo si blocca e il posto torna disponibile.")) return;
     try { await api("POST", `admin/devices/${b.dataset.free}/revoke`, {}); toast("Dispositivo liberato"); s.remove(); await refresh(); licSheet(key); } catch (x) { toast(x.message, true); }
@@ -340,6 +481,11 @@ function licSheet(key) {
     if (x === "copy") return copy(l.key, "Chiave copiata");
     if (x === "share") return share(l.key, l.customer);
     if (x === "edit") { s.remove(); return licForm(l); }
+    if (x === "mail") { s.remove(); return mailSheet(l); }
+    if (x === "delete") {
+      if (!confirm(`Eliminare la licenza di ${l.customer || l.key}?${devs.length ? " I suoi dispositivi smettono di funzionare." : ""} Hai qualche secondo per annullare.`)) return;
+      s.remove(); return deleteKeys([l.key]);
+    }
     if (x === "replace" && !confirm("Generare una chiave nuova? Questa smettera' di funzionare su tutti i dispositivi.")) return;
     if (x === "revoke" && !confirm("Revocare la licenza? Tutte le app si bloccano.")) return;
     try { const r = await api("POST", `admin/licenses/${encodeURIComponent(l.key)}/${x}`, {}); s.remove(); await refresh(); if (r.key) keySheet("Nuova chiave", r.key, l.customer); else toast("Fatto"); }
@@ -387,6 +533,23 @@ function licForm(l) {
   };
 }
 $("fab").onclick = () => licForm(null);
+// ------------------------------------------------------------ email con la chiave: testo preimpostato (Impostazioni), si apre nella posta del telefono o si condivide
+let settingsCache = null;
+const getSettings = async () => (settingsCache ||= await api("GET", "admin/settings"));
+const fillMail = (t, l, st) => t.replace(/\{(\w+)\}/g, (m, k) => ({ cliente: l.customer || "", chiave: l.key, pc: l.max_pc, cellulari: l.max_mobile, link_setup: st.link_setup, link_telefono: st.link_telefono })[k] ?? m);
+async function mailSheet(l) {
+  let st; try { st = await getSettings(); } catch (x) { return toast(x.message, true); }
+  const s = sheet(`<h3>Invia la chiave per email</h3>
+    <label class="field">A<input id="m-to" type="email" value="${esc(l.email)}" placeholder="indirizzo email" autocomplete="off"></label>
+    <label class="field">Oggetto<input id="m-sub" value="${esc(fillMail(st.email.oggetto, l, st))}"></label>
+    <label class="field">Testo<textarea id="m-txt" class="mail">${esc(fillMail(st.email.testo, l, st))}</textarea></label>
+    <div class="actions"><button class="btn p" id="m-open">Apri nella posta</button><button class="btn" id="m-share">Condividi</button><button class="btn" id="m-copy">Copia testo</button></div>
+    <div class="note">Il testo preimpostato si cambia in Impostazioni → Testo dell'email.</div>`);
+  const v = id => s.querySelector(id).value;
+  s.querySelector("#m-open").onclick = () => { location.href = `mailto:${encodeURIComponent(v("#m-to").trim())}?subject=${encodeURIComponent(v("#m-sub"))}&body=${encodeURIComponent(v("#m-txt"))}`; };
+  s.querySelector("#m-share").onclick = async () => { if (navigator.share) { try { await navigator.share({ title: v("#m-sub"), text: v("#m-txt") }); } catch {} } else copy(v("#m-txt"), "Testo copiato"); };
+  s.querySelector("#m-copy").onclick = () => copy(v("#m-txt"), "Testo copiato");
+}
 async function reqAct(id, what) {
   if (what === "approve" && !confirm("Approvare il cambio dispositivo? Verra' generata una chiave nuova e la vecchia smettera' di funzionare.")) return;
   try { const r = await api("POST", `admin/requests/${id}/${what}`, {}); await refresh(); if (r.key) keySheet("Cambio approvato: nuova chiave", r.key, data.req.find(x => x.id === id)?.customer); else toast("Fatto"); }
@@ -404,11 +567,13 @@ async function renderSettings(m) {
   if (view !== "impostazioni") return;
   m.innerHTML = `<div class="sec"><h3>Notifiche</h3></div><div class="box"><div class="row">
       ${!state.notifiche ? `<div class="muted">Notifiche non configurate sul server.</div>` : !pushOk ? `<div class="muted">${ios && !standalone ? "Su iPhone le notifiche arrivano solo all'app installata sulla schermata Home." : "Questo browser non riceve notifiche."}</div>`
-        : sub ? `<div>Attive su questo telefono: attivazioni, richieste, segnalazioni e accessi alla gestione.</div><div class="actions"><button class="btn s" id="p-test">Prova</button><button class="btn s d" id="p-off">Disattiva</button></div>`
+        : sub ? `<div>Attive su questo telefono, per i tipi scelti qui sotto.</div><div class="actions"><button class="btn s" id="p-test">Prova</button><button class="btn s d" id="p-off">Disattiva</button></div>`
         : `<div class="muted">${Notification.permission === "denied" ? "Le notifiche sono bloccate nelle impostazioni del telefono per questa app." : "Ricevi un avviso per ogni attivazione, richiesta o segnalazione."}</div>${Notification.permission === "denied" ? "" : `<div class="actions"><button class="btn s p" id="p-on">Attiva notifiche</button></div>`}`}
     </div></div>
     <div class="sec"><h3>Notifiche da ricevere</h3></div><div class="note" style="margin:-4px 2px 0">Valgono per il telefono e per MB Visual Admin sul PC. Gli avvisi restano comunque nella Panoramica.</div>
     <div class="box" id="nsel"><div class="empty">...</div></div>
+    <div class="sec"><h3>Testo dell'email con la chiave</h3></div><div class="note" style="margin:-4px 2px 0">Uguale anche in MB Visual Admin sul PC.</div>
+    <div class="box"><div class="row" id="mailtpl"><div class="empty">...</div></div></div>
     <div class="sec"><h3>Impronta / PIN</h3></div><div class="box"><div class="row">
       ${state.impronta ? `<div>L'app chiede l'impronta, il volto o il PIN a ogni apertura e dopo ${10} minuti senza operazioni.</div><div class="actions"><button class="btn s" id="w-lock">Blocca ora</button><button class="btn s d" id="w-off">Rimuovi</button></div>`
         : wa ? `<div class="muted">Non attivo: chi apre questo telefono sbloccato puo' gestire le licenze.</div><div class="actions"><button class="btn s p" id="w-on">Attiva impronta / PIN</button></div>`
@@ -426,14 +591,15 @@ async function renderSettings(m) {
       try { await api("POST", "admin/settings", { notifiche: n }); toast(i.checked ? "Notifica attivata" : "Notifica disattivata"); } catch (e) { i.checked = !i.checked; toast(e.message, true); }
     });
   }).catch(e => { const box = $("nsel"); if (box) box.innerHTML = `<div class="empty err">${esc(e.message)}</div>`; });
-  $("p-on")?.addEventListener("click", async () => {
-    try {
-      if (await Notification.requestPermission() !== "granted") throw new Error("Permesso per le notifiche non concesso.");
-      const reg = await navigator.serviceWorker.ready;
-      const s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: unb64u(state.notifiche) });
-      await api("POST", "push/sub", s.toJSON()); toast("Notifiche attive"); renderSettings(m);
-    } catch (e) { toast(e.message, true); }
-  });
+  $("p-on")?.addEventListener("click", async () => { if (await enablePush()) renderSettings(m); });
+  getSettings().then(st => {
+    const box = $("mailtpl"); if (!box) return;
+    box.innerHTML = `<label class="field">Oggetto<input id="t-sub" value="${esc(st.email.oggetto)}"></label><label class="field">Testo<textarea id="t-txt" class="mail">${esc(st.email.testo)}</textarea></label>
+      <div class="note">Campi che si riempiono da soli: {cliente} {chiave} {pc} {cellulari} {link_setup} {link_telefono}</div>
+      <div class="actions"><button class="btn s p" id="t-save">Salva</button><button class="btn s" id="t-def">Ripristina il testo predefinito</button></div>`;
+    $("t-save").onclick = async () => { try { settingsCache = null; await api("POST", "admin/settings", { email: { oggetto: $("t-sub").value, testo: $("t-txt").value } }); toast("Testo dell'email salvato"); } catch (e) { toast(e.message, true); } };
+    $("t-def").onclick = () => { $("t-sub").value = st.email_predefinita.oggetto; $("t-txt").value = st.email_predefinita.testo; };
+  }).catch(() => {});
   $("p-off")?.addEventListener("click", async () => { try { const s = await pushSub(); if (s) { await api("POST", "push/unsub", { endpoint: s.endpoint }); await s.unsubscribe(); } toast("Notifiche disattivate"); renderSettings(m); } catch (e) { toast(e.message, true); } });
   $("p-test")?.addEventListener("click", async () => { try { const r = await api("POST", "push/test", {}); toast(r.inviate ? "Notifica di prova inviata" : "Invio non riuscito", !r.inviate); } catch (e) { toast(e.message, true); } });
   $("w-on")?.addEventListener("click", async () => { try { await registerPasskey(); state.impronta = true; localStorage.removeItem("mbva-noimpronta"); toast("Impronta / PIN attivo"); renderSettings(m); } catch (e) { toast(e.name === "NotAllowedError" ? "Operazione annullata" : e.message, true); } });

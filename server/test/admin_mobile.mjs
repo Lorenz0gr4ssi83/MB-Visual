@@ -210,6 +210,38 @@ ok(av.length === 1, "licenza scaduta: un avviso");
 await up({ max_pc: 1, max_mobile: 4, expires: "" });
 ok((await lic0()).expires === null && (await call("/v1/check", { body: { token: pcTok } })).d.ok, "scadenza tolta: la licenza torna valida");
 
+// ---- licenze: data della prima attivazione, eliminazione singola e in blocco
+const lics1 = (await api("admin/licenses")).d.licenze;
+const withDev = lics1.find(l => l.key === nl.d.key);
+ok(withDev.prima_attivazione && withDev.prima_attivazione <= withDev.dispositivi.map(d => d.activated).sort()[0], "elenco licenze: data della prima attivazione", withDev.prima_attivazione);
+const del1 = (await api("admin/licenses", { customer: "prova da cancellare 1" })).d.key, del2 = (await api("admin/licenses", { customer: "test da cancellare 2" })).d.key;
+const delTok = (await call("/v1/activate", { body: { key: del1, device: "pc-del", kind: "pc", name: "PC del" } })).d.token;
+ok((await api(`admin/licenses/${del1}/delete`, {})).d.ok, "licenza eliminata");
+ok(!(await api("admin/licenses")).d.licenze.some(l => l.key === del1), "la licenza eliminata non compare piu'");
+ok((await call("/v1/check", { body: { token: delTok } })).status === 404, "il PC della licenza eliminata si blocca");
+const bulk = (await api("admin/licenses/delete", { keys: [del2, "MBV-INESI-STENT-EEEEE-EEEEE"] })).d;
+ok(bulk.ok && !(await api("admin/licenses")).d.licenze.some(l => l.key === del2), "eliminazione in blocco");
+
+// ---- Panoramica: archivio e lettura per gruppo
+let evAll = (await api("admin/events?after=0")).d.avvisi;
+const two = evAll.slice(-2).map(e => e.id);
+ok((await api("admin/events/read", { ids: two })).d.ok && (await api("admin/events?after=0")).d.avvisi.filter(e => two.includes(e.id)).every(e => e.read === 1), "segna come letti un gruppo di avvisi");
+await api("admin/events/archive", { ids: two });
+evAll = (await api("admin/events?after=0")).d.avvisi;
+const arch = (await api("admin/events?after=0&archiviati=1")).d.avvisi;
+ok(!evAll.some(e => two.includes(e.id)) && two.every(id => arch.some(e => e.id === id)), "archivia un gruppo: esce dall'elenco e va nell'archivio");
+await api("admin/events/archive", { ids: [two[0]], archivia: false });
+ok((await api("admin/events?after=0")).d.avvisi.some(e => e.id === two[0]), "ripristino dall'archivio");
+ok((await call(`/admin/events?after=${two[0] - 1}`, { bearer: env.ADMIN_TOKEN })).d.avvisi.some(e => e.id === two[1]), "app per PC: i nuovi avvisi arrivano anche se archiviati (notifiche)");
+
+// ---- testo dell'email con la chiave
+const em0 = (await api("admin/settings")).d;
+ok(em0.email.testo.includes("{chiave}") && em0.link_setup === `${ORIGIN}/scarica` && em0.link_telefono === `${ORIGIN}/` && !/lorenz/i.test(JSON.stringify(em0)), "email: testo preimpostato con chiave, link del setup e del telefono (senza nomi personali)");
+await api("admin/settings", { email: { oggetto: "Chiave MB Visual", testo: "Ciao {cliente}: {chiave}" } });
+const em1 = (await api("admin/settings")).d;
+ok(em1.email.oggetto === "Chiave MB Visual" && em1.email.testo === "Ciao {cliente}: {chiave}" && em1.notifiche.activation_pc !== undefined, "email: testo modificato salvato (notifiche invariate)");
+ok((await call("/scarica")).status === 404, "/scarica senza repository configurato: 404 chiaro");
+
 // ---- telefoni collegati, uscita
 const tel = (await api("sessions")).d.telefoni;
 ok(tel.length === 2 && tel.find(t => t.questo)?.impronta === true, "elenco dei telefoni collegati (2, questo con impronta)");

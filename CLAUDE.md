@@ -224,6 +224,16 @@ ode-x64 e wrangler installato in
   licenza: max_pc/max_mobile anche con dispositivi attivi; sotto i dispositivi attivi serve `free` (id da disattivare), altrimenti 409
   `troppi_dispositivi` (le finestre chiedono quali disattivare). Scadenza da campo data = fino alle 23:59:59. Cron giornaliero (06:00 UTC,
   wrangler.toml [triggers]) = avvisi "in scadenza" (15 giorni prima) e "scaduta", una volta sola (colonne warn_*; migrazione 003).
+- Admin, revisione 3 (23/10/2026): Panoramica raggruppata per giorno/mese/anno (gruppi richiudibili, filtro per tipo, "Segna come
+  letti" e "Archivia" per gruppo, vista Archivio: colonna events.archived, migrazione 004, `POST /admin/events/read|archive {ids}`,
+  `events?after=0[&archiviati=1]` = ultimi 3000); licenze eliminabili (`POST /admin/licenses/delete {keys}` o `/:key/delete`: via anche
+  dispositivi, link, codici, richieste) con selezione multipla, filtri (prova/test/collaudo, revocate, mai attivate, sostituite) e
+  "Annulla" per 6 s (l'eliminazione parte allo scadere); ordinamento per creazione / prima attivazione (`prima_attivazione` nell'elenco) /
+  nome, nei due versi, ricordato (localStorage mbva-*). Email con la chiave: testo preimpostato in admin_settings "email" (segnaposto
+  {cliente} {chiave} {pc} {cellulari} {link_setup} {link_telefono}); PC = SMTP dell'utente in Impostazioni (admin.py, password DPAPI in
+  %USERPROFILE%\.mbvisual\licenzedmin_email.json; prova: `python admin/test_mail.py`) o programma di posta (mailto); telefono =
+  mailto / Condividi. `GET /scarica` = ultimo setup da RELEASES_REPO passato attraverso il Worker (nessun nome nell'indirizzo).
+  Telefono: avviso "Notifiche non attive" in Panoramica finche' il push non e' attivo (prima l'utente non l'aveva mai attivato).
 
 ## Archivi cloud (22/10/2026) - FATTO, collegamento reale da provare dopo la registrazione delle app
 Pannello "Cloud" accanto a Esplora (solo app per PC): SharePoint/OneDrive (Microsoft Graph), Google Drive, Dropbox,
