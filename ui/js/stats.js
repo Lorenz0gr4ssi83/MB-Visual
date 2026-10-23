@@ -1,4 +1,5 @@
-// Statistiche d'uso anonime (solo app per PC/Mac e SOLO con il consenso esplicito; predefinito: no). Motore: mbvisual/stats.py.
+// Statistiche d'uso anonime (solo app per PC/Mac e SOLO con il consenso esplicito). Motore: mbvisual/stats.py.
+// Alla prima apertura "Si'" e' il pulsante principale (arancione, con il fuoco) ma vale solo se cliccato: Esc o nessuna scelta = niente.
 // Finestra di consenso al primo avvio, impostazione in File > Impostazioni > Statistiche d'uso, informativa.
 // track(tipo, chiave) conta in memoria; ogni 60 s i conteggi passano al motore (op=conta), che li tiene per giorno e manda i
 // giorni conclusi al server una volta al giorno. Senza consenso track() non fa nulla e non parte nessuna richiesta di conteggio.
@@ -95,7 +96,8 @@ export async function showStatsSettings() {
   upd();
   const box = el("div", { style: { display: "grid", gap: "10px", maxWidth: "520px" } },
     el("label", { style: { display: "flex", gap: "8px", alignItems: "center" } }, cb, tr("stat.casella")),
-    state, el("p", { style: { margin: 0, color: "var(--muted)" } }, tr("stat.domanda_dett")));
+    state, st.id ? el("p", { class: "note", style: { margin: 0, userSelect: "text" } }, tr("stat.identificativo", st.id)) : null,
+    el("p", { style: { margin: 0, color: "var(--muted)" } }, tr("stat.domanda_dett")));
   const r = await modal(tr("stat.titolo"), box, [{ label: tr("stat.leggi_informativa"), value: "inf" }, { label: tr("common.annulla"), value: false }, { label: tr("common.ok"), value: true, primary: true }]);
   if (r === "inf") { await showPolicy(); return showStatsSettings(); }
   if (r === true && cb.checked !== (st.consenso === true)) await setConsent(cb.checked).catch(e => toast(e.message, true));

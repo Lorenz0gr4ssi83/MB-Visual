@@ -10,13 +10,14 @@
 //            POST /v1/mlink/claim {link, device, name}   POST /v1/mlink/pair {code, device, name}
 //            POST /v1/stats {inst, days}   POST /v1/stats/forget {inst}   statistiche d'uso anonime con consenso (src/stats.js)
 // Gestione (Authorization: Bearer ADMIN_TOKEN):
-//            GET  /admin/summary, /admin/licenses, /admin/requests, /admin/events?after=ID, /admin/usage?giorni=30
+//            GET  /admin/summary, /admin/licenses, /admin/requests, /admin/events?after=ID, /admin/usage?giorni=30   POST /admin/usage/forget {inst}
 //            POST /admin/licenses {customer,email,notes,max_pc,max_mobile,expires}
 //            POST /admin/licenses/:key/(revoke|reactivate|update)   POST /admin/devices/:id/revoke
 //            POST /admin/requests/:id/(approve|close)               POST /admin/events/read {upto}
 
 import { adminApp, adminPath, newPairCode, notifyAdmins, pushFor } from "./adminapp.js";
-import { postStats, forgetStats, purgeStats, usageSummary } from "./stats.js";
+import { postStats, forgetStats, usageSummary } from "./stats.js";
+import { presentationPage, privacyPage } from "./pages.js";
 
 const TOKEN_DAYS = 30;           // validita' offline di un'attivazione
 const CHANGES_PER_YEAR = 3;      // cambi dispositivo automatici; oltre servono l'approvazione del proprietario
@@ -238,7 +239,9 @@ async function admin(env, req, url, sub) {
       email: email?.testo ? email : EMAIL_DEFAULT, email_predefinita: EMAIL_DEFAULT, link_setup: `${url.origin}/scarica`, link_telefono: `${url.origin}/` });
   }
   if (p[0] === "pair" && req.method === "POST") return json(await newPairCode(env, url.origin)); // codice di 6 cifre per collegare il telefono
-  if (p[0] === "usage") return usageSummary(env, url, json); // statistiche d'uso anonime (src/stats.js)
+  // statistiche d'uso anonime (src/stats.js): riepilogo e cancellazione su richiesta dell'utente (identificativo dalle sue impostazioni)
+  if (p[0] === "usage" && p[1] === "forget" && req.method === "POST") return forgetStats(env, { inst: String(body.inst || "").trim().toLowerCase() }, json, fail);
+  if (p[0] === "usage") return usageSummary(env, url, json);
   if (p[0] === "summary") {
     const one = async sql => (await env.DB.prepare(sql).first()).n;
     return json({ ok: true, licenze: await one("SELECT COUNT(*) n FROM licenses WHERE status='active'"), pc: await one("SELECT COUNT(*) n FROM devices WHERE status='active' AND kind='pc'"),
@@ -561,9 +564,7 @@ export default {
   async scheduled(controller, env, ctx) {
     env = Object.assign(Object.create(env), { _wait: pr => ctx.waitUntil(pr) });
     await expiryCheck(env);
-    await purgeStats(env); // statistiche d'uso: conservazione massima 13 mesi
   },
-  _purgeStats: purgeStats, // prove (harness)
   _expiryCheck: expiryCheck, // prove (harness)
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
@@ -575,6 +576,9 @@ export default {
       if (P && (url.pathname === "/" + P || url.pathname.startsWith("/" + P + "/"))) return await adminApp(env, req, url, { admin, json, fail, event });
       if (url.pathname.startsWith("/admin")) return await admin(env, req, url);
       if (url.pathname === "/scarica" && req.method === "GET") return await setupDownload(env, req);
+      // pagine pubbliche (anche per la verifica dell'app OAuth di Google): presentazione e informativa (src/pages.js)
+      if ((url.pathname === "/mbvisual" || url.pathname === "/privacy") && (req.method === "GET" || req.method === "HEAD"))
+        return new Response((url.pathname === "/privacy" ? privacyPage : presentationPage)(env), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=600" } });
       if (!url.pathname.startsWith("/v1/")) {
         if (env.ASSETS && (req.method === "GET" || req.method === "HEAD")) return await serveApp(env, req, url);
         if (req.method !== "POST") return json({ ok: true, servizio: "Licenze MB Visual" });

@@ -5,7 +5,9 @@
 //   POST /v1/stats         {inst, days: [{day, app, version, os, arch, lang, launches, seconds, comps, exts, funcs, errors}]}
 //   POST /v1/stats/forget  {inst}   revoca del consenso: cancella tutte le righe di quell'identificativo
 //   GET  /admin/usage?giorni=30     riepilogo per MB Visual Admin (PC e telefono)
-// Le righe piu' vecchie di 13 mesi le cancella il cron giornaliero (purgeStats).
+//   POST /admin/usage/forget {inst} cancellazione su richiesta (l'utente legge l'identificativo in File > Impostazioni)
+// Conservazione: nessuna scadenza automatica (scelta del proprietario); i dati restano finche' servono e si cancellano alla
+// revoca del consenso o su richiesta. L'informativa nell'app dice esattamente questo: non aggiungere scadenze non applicate.
 
 const MAX_DAYS = 45;          // giorni accettati in un pacchetto (l'app conserva al massimo 40 giorni non inviati)
 const RE_INST = /^[0-9a-f]{32}$/;
@@ -53,11 +55,6 @@ export async function forgetStats(env, b, json, fail) {
   if (!RE_INST.test(inst)) return fail(400, "Identificativo non valido");
   const r = await env.DB.prepare("DELETE FROM usage_days WHERE inst = ?").bind(inst).run();
   return json({ ok: true, cancellati: r?.meta?.changes ?? 0 });
-}
-
-// cron giornaliero: conservazione massima 13 mesi
-export async function purgeStats(env) {
-  await env.DB.prepare("DELETE FROM usage_days WHERE day < date('now', '-13 months')").run();
 }
 
 // riepilogo per l'app di gestione: periodo di N giorni (7-400) + andamento mensile degli ultimi 13 mesi

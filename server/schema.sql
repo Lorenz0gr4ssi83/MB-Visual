@@ -120,6 +120,7 @@ CREATE TABLE IF NOT EXISTS admin_settings (
 );
 
 -- statistiche d'uso anonime (consenso esplicito nell'app): server/migrations/005_statistiche.sql
+-- nessuna scadenza automatica: cancellazione alla revoca del consenso o su richiesta
 CREATE TABLE IF NOT EXISTS usage_days (
   inst     TEXT NOT NULL,                        -- identificativo casuale dell installazione (non legato a licenza o PC)
   day      TEXT NOT NULL,                        -- AAAA-MM-GG

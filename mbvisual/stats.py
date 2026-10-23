@@ -1,8 +1,10 @@
-"""Statistiche d'uso anonime, SOLO con il consenso esplicito dell'utente (predefinito: no).
+"""Statistiche d'uso anonime, SOLO con il consenso esplicito dell'utente.
 
-Chiesto con una finestra al primo avvio (ui/js/stats.js) o dalla casella del programma di installazione
-(installer/mbvisual.iss scrive HKCU\\Software\\MB Visual\\Statistiche, valore Consenso 0/1: l'app lo applica e lo cancella);
-modificabile in File > Impostazioni > Statistiche d'uso. Informativa: chiavi stat.inf_* (ui/js/stats.js).
+Chiesto con una finestra alla prima apertura dell'app (ui/js/stats.js): "Si'" e' il pulsante principale, ma il consenso vale
+solo se cliccato (finche' non si sceglie non si conta e non parte nulla). Il programma di installazione non chiede nulla: una
+casella gia' spuntata non sarebbe un consenso valido. Modificabile in File > Impostazioni > Statistiche d'uso, dove si vede
+anche l'identificativo (serve per chiedere la cancellazione). Informativa: chiavi stat.inf_* (ui/js/stats.js).
+Conservazione sul server: finche' servono a migliorare l'app; cancellazione alla revoca o su richiesta (nessuna scadenza fissa).
 
 Con il consenso si contano, per giorno: avvii, secondi d'uso, estensioni dei file aperti (solo quelle del registro dei formati),
 funzioni usate, errori dei visualizzatori (visualizzatore, tipo di errore, estensione), componenti attivi, versione, sistema,
@@ -30,7 +32,6 @@ from .paths import DATA_DIR, IS_MAC, IS_WIN
 FROZEN = bool(getattr(sys, "frozen", False))
 # MBV_STATISTICHE = altro file (prove); MBV_STAT_URL = server di prova (in sviluppo senza questa variabile non si invia nulla)
 FILE = Path(os.environ["MBV_STATISTICHE"]) if os.environ.get("MBV_STATISTICHE") else DATA_DIR / "statistiche.json"
-REG_KEY = r"Software\MB Visual\Statistiche"
 SEND_EVERY = 6 * 3600
 KEEP_DAYS = 40
 RE_EXT = re.compile(r"^[a-z0-9_]{1,12}$")
@@ -114,24 +115,12 @@ def _today(d: dict) -> dict:
     return row
 
 
-def _registry_choice():
-    """Scelta fatta nel programma di installazione: si applica una volta e si cancella."""
-    if not IS_WIN or os.environ.get("MBV_STATISTICHE"):
-        return None
-    try:
-        import winreg
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, REG_KEY, 0, winreg.KEY_READ | winreg.KEY_SET_VALUE) as k:
-            v, _ = winreg.QueryValueEx(k, "Consenso")
-            winreg.DeleteValue(k, "Consenso")
-            return bool(int(v))
-    except (OSError, ValueError):
-        return None
-
-
 # ---------------------------------------------------------------- API (server.py api_stats)
 def status() -> dict:
     d = _load()
-    return {"ok": True, "consenso": d.get("consenso") is True, "chiesto": "consenso" in d, "deciso": d.get("deciso", "")}
+    on = d.get("consenso") is True
+    # identificativo mostrato nelle impostazioni: serve per chiedere la cancellazione dei dati gia' inviati
+    return {"ok": True, "consenso": on, "chiesto": "consenso" in d, "deciso": d.get("deciso", ""), "id": d.get("inst", "") if on else ""}
 
 
 def set_consent(on: bool, origine: str = "app") -> dict:
@@ -181,11 +170,8 @@ def track(b: dict) -> dict:
 
 # ---------------------------------------------------------------- avvio e invio
 def on_launch() -> None:
-    """Avvio dell'app (app.py, non le miniature): scelta dell'installazione, conteggio dell'avvio, invii in background."""
+    """Avvio dell'app (app.py, non le miniature): conteggio dell'avvio (solo con il consenso), invii in background."""
     global _started
-    reg = _registry_choice()
-    if reg is not None:
-        set_consent(reg, "installazione")
     with _lock:
         d = _load()
         if d.get("consenso") is True and d.get("inst"):

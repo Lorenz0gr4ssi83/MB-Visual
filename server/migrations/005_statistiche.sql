@@ -1,5 +1,5 @@
--- Statistiche d'uso anonime (solo con il consenso dell'utente): una riga per installazione e giorno, cancellate dopo 13 mesi
--- dal cron giornaliero. Nessun IP, nessun dato della licenza, nessun nome di file.
+-- Statistiche d'uso anonime (solo con il consenso dell'utente): una riga per installazione e giorno, cancellate alla revoca
+-- del consenso o su richiesta (nessuna scadenza automatica). Nessun IP, nessun dato della licenza, nessun nome di file.
 CREATE TABLE IF NOT EXISTS usage_days (
   inst     TEXT NOT NULL,                        -- identificativo casuale dell installazione (non legato a licenza o PC)
   day      TEXT NOT NULL,                        -- AAAA-MM-GG

@@ -67,6 +67,7 @@
   .u-n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; } .u-sub { color: var(--muted); font-size: 11px; }
   .u-cols { display: flex; align-items: flex-end; gap: 2px; height: 120px; } .u-cols div { flex: 1; height: 100%; display: flex; align-items: flex-end; }
   .u-cols i { display: block; width: 100%; background: var(--accent); border-radius: 2px 2px 0 0; }
+  .u-forget { display: flex; gap: 8px; } .u-forget input { flex: 1; min-width: 0; }
   .u-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 4px; }
 </style>
 </head>
@@ -137,8 +138,8 @@ function uCols(title, rows, label) {
 function usageHtml(u) {
   const day = k => new Date(k + "T12:00:00").toLocaleDateString("it-IT", { day: "numeric", month: "short" });
   const mon = k => new Date(k + "-15T12:00:00").toLocaleDateString("it-IT", { month: "short", year: "2-digit" });
-  return `<p class="muted u-note">Solo le installazioni che hanno acconsentito alle statistiche anonime. Dati dal ${esc(new Date(u.dal + "T12:00:00").toLocaleDateString("it-IT"))}; conservati al massimo 13 mesi.</p>
-    <div class="cards">${[["Installazioni attive nel periodo", u.attivi], ["Installazioni in 13 mesi", u.installazioni], ["Avvii", u.avvii], ["Ore d'uso", u.ore], ["Minuti per avvio", u.minuti_sessione]]
+  return `<p class="muted u-note">Solo le installazioni che hanno acconsentito alle statistiche anonime. Dati dal ${esc(new Date(u.dal + "T12:00:00").toLocaleDateString("it-IT"))}. Si cancellano quando l'utente revoca il consenso o su richiesta (sotto).</p>
+    <div class="cards">${[["Installazioni attive nel periodo", u.attivi], ["Installazioni in archivio", u.installazioni], ["Avvii", u.avvii], ["Ore d'uso", u.ore], ["Minuti per avvio", u.minuti_sessione]]
       .map(([l, n]) => `<div class="card"><div class="n">${uNum(n)}</div><div class="l">${l}</div></div>`).join("")}</div>
     <div class="u-grid">
       ${uCols("Installazioni attive al giorno", u.per_giorno, day)}
@@ -151,9 +152,18 @@ function usageHtml(u) {
       ${uBars("App", u.app, r => ({ pc: "Windows", mac: "Mac" })[r.k] || r.k, () => "")}
       ${uBars("Lingue", u.lingue, r => (r.k || "—").toUpperCase(), () => "")}
       ${uBars("Componenti attivi", u.componenti, r => U_COMP[r.k] || r.k, () => "")}
+      <section class="u-box"><h3>Cancellazione su richiesta</h3><p class="muted u-note">L'utente trova l'identificativo in MB Visual, File › Impostazioni › Statistiche d'uso.</p>
+        <div class="u-forget"><input id="u-inst" placeholder="Identificativo (32 caratteri)" maxlength="40" class="mono"><button class="b p" onclick="uForget()">Cancella i dati</button></div></section>
     </div>`;
 }
-let uDays = pref("utilizzo", 30);
+async function uForget() {
+  const inst = document.getElementById("u-inst").value.trim().toLowerCase();
+  if (!/^[0-9a-f]{32}$/.test(inst)) return toast("Identificativo non valido: 32 caratteri 0-9 e a-f", true);
+  if (!confirm("Cancellare tutti i dati statistici di questo identificativo?")) return;
+  try { const r = await call("POST", "/admin/usage/forget", { inst }); toast(r.cancellati ? `Cancellati ${r.cancellati} giorni di dati` : "Nessun dato con questo identificativo"); uData = null; render(); }
+  catch (e) { toast(e.message, true); }
+}
+let uDays = pref("utilizzo", 30), uData = null;
 async function renderUsage(m) {
   const head = `<div class="toolbar"><h3 style="margin:0">Utilizzo dell'app</h3><span class="grow"></span><span class="muted">Periodo</span>
     <div class="seg">${[[7, "7 giorni"], [30, "30 giorni"], [90, "3 mesi"], [365, "12 mesi"]].map(([k, l]) => `<button data-d="${k}" class="${uDays === k ? "on" : ""}">${l}</button>`).join("")}</div></div>`;

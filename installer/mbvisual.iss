@@ -84,8 +84,6 @@ en.Launch=Launch MB Visual
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:DesktopIcon}"; GroupDescription: "{cm:Shortcuts}"
-; statistiche d'uso anonime (mbvisual/stats.py): consenso esplicito, casella NON spuntata (testi da tools/make_setup_art.py)
-Name: "statistiche"; Description: "{cm:StatCasella}"; GroupDescription: "{cm:StatGruppo}"; Flags: unchecked
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -313,22 +311,7 @@ begin
   RegWriteStringValue(HKCU, RegKey, 'Profilo', Profilo);
 end;
 
-// statistiche d'uso: la scelta passa all'app (valore Consenso, applicato e cancellato da mbvisual/stats.py). Mai nelle
-// installazioni silenziose (aggiornamenti automatici) e la casella vuota non revoca un consenso dato nell'app: si revoca
-// da File > Impostazioni > Statistiche d'uso.
-procedure SaveStatsChoice();
-begin
-  if WizardSilent then Exit;
-  if WizardIsTaskSelected('statistiche') then
-    RegWriteDWordValue(HKCU, 'Software\MB Visual\Statistiche', 'Consenso', 1)
-  else if not FileExists(ExpandConstant('{localappdata}\MBVisual\statistiche.json')) then
-    RegWriteDWordValue(HKCU, 'Software\MB Visual\Statistiche', 'Consenso', 0);
-end;
-
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  if CurStep = ssPostInstall then begin
-    SaveChoice();
-    SaveStatsChoice();
-  end;
+  if CurStep = ssPostInstall then SaveChoice();
 end;

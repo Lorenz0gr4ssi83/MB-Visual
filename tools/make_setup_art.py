@@ -128,8 +128,6 @@ def main() -> int:
             L.append(f'{lang}.ProfDesc_{p}={iss_escape(T[f"comp.prof.{p}.desc"])}')
         L.append(f'{lang}.CompSempre={iss_escape(T["comp.sempre"])}')
         L.append(f'{lang}.CompSottotitolo={iss_escape(T["comp.sottotitolo"])}')
-        L.append(f'{lang}.StatCasella={iss_escape(T["stat.casella_setup"])}')  # statistiche d'uso (installer/mbvisual.iss [Tasks])
-        L.append(f'{lang}.StatGruppo={iss_escape(T["stat.titolo"])}:')
     (out / "componenti.iss").write_text("\n".join(L) + "\n", encoding="utf-8-sig")
     print(f"Pagine dei componenti pronte in {out}")
     return 0

@@ -6,7 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync, mkdirSync, existsSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { createServer } from "node:http";
-import { homedir } from "node:os";
+import { homedir, userInfo } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import worker from "../src/index.js";
@@ -243,9 +243,23 @@ if (process.argv[2] === "serve") {
   ok((await call("/admin/usage", undefined)).status === 401, "statistiche: riepilogo solo con il codice di gestione");
   const fg = await call("/v1/stats/forget", { inst: instA });
   ok(fg.ok && fg.cancellati === 2 && !env._db.prepare("SELECT COUNT(*) n FROM usage_days WHERE inst = ?").get(instA).n, "statistiche: revoca = dati dell'identificativo cancellati");
-  env._db.prepare("INSERT INTO usage_days (inst, day) VALUES (?, date('now', '-14 months')), (?, date('now', '-12 months'))").run(instA, instA);
-  await worker._purgeStats(env);
-  ok(env._db.prepare("SELECT COUNT(*) n FROM usage_days WHERE inst = ?").get(instA).n === 1, "statistiche: righe oltre 13 mesi cancellate dal cron, le altre restano");
+  // cancellazione su richiesta dall'app di gestione (identificativo comunicato dall'utente); nessuna scadenza automatica
+  env._db.prepare("INSERT INTO usage_days (inst, day) VALUES (?, date('now', '-14 months')), (?, date('now', '-1 days'))").run(instA, instA);
+  await worker.scheduled({}, env, { waitUntil: () => {} });
+  ok(env._db.prepare("SELECT COUNT(*) n FROM usage_days WHERE inst = ?").get(instA).n === 2, "statistiche: il cron non cancella nulla (conservazione senza scadenza automatica)");
+  ok((await call("/admin/usage/forget", { inst: instA.toUpperCase() })).status === 401, "statistiche: cancellazione su richiesta solo con il codice di gestione");
+  const af = await call("/admin/usage/forget", { inst: " " + instA.toUpperCase() + " " }, true);
+  ok(af.ok && af.cancellati === 2 && !env._db.prepare("SELECT COUNT(*) n FROM usage_days WHERE inst = ?").get(instA).n, "statistiche: cancellazione su richiesta dall'app di gestione");
+
+  // ---- pagine pubbliche per Google (presentazione e informativa): senza cookie, senza licenza, nessun nome di persona
+  for (const [path, must] of [["/mbvisual", ["Powered by MB Group", "/privacy"]], ["/privacy", ["Limited Use requirements", "myaccount.google.com/permissions", "Powered by MB Group", "non arrivano mai ai server"]]]) {
+    const r = await worker.fetch(new Request("https://x" + path), env);
+    const html = await r.text();
+    ok(r.status === 200 && /text\/html/.test(r.headers.get("content-type")) && must.every(m => html.includes(m)) && !html.toLowerCase().includes(userInfo().username.toLowerCase()), `pagina pubblica ${path}`);
+  }
+  env.SUPPORT_EMAIL = "assistenza@esempio.test";
+  ok((await (await worker.fetch(new Request("https://x/privacy"), env)).text()).includes("mailto:assistenza@esempio.test"), "informativa: email di assistenza da SUPPORT_EMAIL");
+  delete env.SUPPORT_EMAIL;
 
   console.log(fails ? `\n${fails} prove NON riuscite` : "\nTutte le prove riuscite");
   process.exit(fails ? 1 : 0);
