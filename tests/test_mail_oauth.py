@@ -424,5 +424,31 @@ try:
 except RuntimeError as e:
     check("codice rifiutato -> errore leggibile", "Google" in str(e), str(e))
 
+print("Aggiungi account in un passo (wizard)")
+from mbvisual.mail import wizard  # noqa: E402
+d = wizard.detect("ufficio@pec.it")
+check("PEC Aruba: solo password", d["via"] == "pec" and d["cfg"]["imap"] == "imaps.pec.aruba.it" and d["cfg"]["pec"])
+check("Gmail con ID Google: accesso Google", wizard.detect("x@gmail.com")["via"] == "google")
+check("Outlook.com con ID Microsoft: accesso Microsoft", wizard.detect("x@hotmail.it")["via"] == "microsoft")
+_st = oauth.status
+oauth.status = lambda: {"ok": True, "configurati": {"microsoft": False, "google": False}}
+d = wizard.detect("x@gmail.com")
+check("Gmail senza ID: password per le app (IMAP Gmail)", d["via"] == "password" and d["cfg"]["imap"] == "imap.gmail.com" and d["nota"])
+d = wizard.detect("x@outlook.com")
+check("Microsoft senza ID: password su outlook.office365.com", d["via"] == "password" and d["cfg"]["imap"] == "outlook.office365.com" and d["nota"])
+oauth.status = _st
+check("nome visualizzato dall'indirizzo", wizard.display_name("mario.rossi@studio.it") == "Mario Rossi" and wizard.display_name("info2024@x.it") == "Info2024")
+loc = {"tipo": "imap", "imap": "127.0.0.1", "imap_port": ip, "imap_sec": "none", "smtp": "127.0.0.1", "smtp_port": sp, "smtp_sec": "none"}
+r = wizard.quick_add({"email": "anna@cliente.prova.it", "password": "sbagliata", "cfg": loc}, lambda *a: None)
+check("password sbagliata: messaggio semplice", not r["ok"] and r["codice"] == "password" and r["aiuto"], r)
+r = wizard.quick_add({"email": "x@gmail.com", "password": "normale", "cfg": {**loc}}, lambda *a: None)
+check("Gmail rifiuta la password: istruzioni per la password per le app", not r["ok"] and r["codice"] == "password_google"
+      and r["link"] == "https://myaccount.google.com/apppasswords" and len(r["aiuto"]) == 3, r)
+r = wizard.quick_add({"email": "anna@cliente.prova.it", "password": "prova", "cfg": {**loc, "imap_port": 1}}, lambda *a: None)
+check("server irraggiungibile: controlla la connessione", not r["ok"] and r["codice"] == "rete", r)
+r = wizard.quick_add({"email": "anna@cliente.prova.it", "password": "prova", "cfg": loc, "gestore": "Posta aziendale"}, lambda *a: None)
+na = accounts.get(r["id"]) if r.get("ok") else {}
+check("password giusta: prova e salva da solo", r["ok"] and na["nome"] == "Anna" and na["utente"] == "anna@cliente.prova.it", r)
+
 print(f"\n{OK} prove riuscite, {len(FAIL)} fallite" + (": " + ", ".join(FAIL) if FAIL else ""))
 sys.exit(1 if FAIL else 0)

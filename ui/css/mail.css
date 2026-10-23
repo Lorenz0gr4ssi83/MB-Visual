@@ -325,3 +325,39 @@
 .rail button .mbadge { position: absolute; top: 3px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; display: grid; place-items: center;
   background: var(--accent); color: var(--accent-fg); font: 600 9.5px/1 var(--mono); box-shadow: 0 0 0 2px var(--chrome); pointer-events: none; }
 .rail button .mbadge[hidden] { display: none; }
+
+/* Aggiungi account (mailadd.js): una colonna, come Outlook */
+.ml-addback { position: fixed; inset: 0; z-index: 85; display: grid; place-items: center; background: rgba(5, 6, 8, .45); backdrop-filter: blur(3px); animation: mbv-fade .15s ease; }
+.ml-add { position: relative; width: min(460px, 94vw); max-height: 92vh; overflow: auto; display: grid; justify-items: center; gap: 12px; padding: 38px 36px 26px;
+  background: var(--panel-2); border-radius: 18px; box-shadow: var(--sh-3); text-align: center; }
+.ml-addx { position: absolute; top: 12px; right: 12px; }
+.ml-add h2 { margin: 2px 0 0; font: 600 22px/1.25 var(--display); letter-spacing: -.02em; }
+.ml-add p { margin: 0; line-height: 1.5; }
+.ml-addicon { width: 58px; height: 58px; border-radius: 16px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.ml-addicon svg { width: 30px; height: 30px; stroke-width: 1.5; }
+.ml-addicon.ok { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+.ml-addicon.warn { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); }
+.ml-addin { width: 100%; height: 46px; padding: 0 14px; border: 0; border-radius: 11px; background: var(--bg); font: 400 15px var(--ui);
+  box-shadow: inset 0 0 0 1px var(--line-strong); }
+.ml-addin:focus { outline: none; box-shadow: inset 0 0 0 1.5px var(--accent), 0 0 0 4px var(--accent-soft); }
+.ml-addpw { position: relative; width: 100%; }
+.ml-addpw .ml-addin { padding-right: 46px; }
+.ml-addeye { position: absolute; right: 6px; top: 7px; width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; background: none; color: var(--muted); padding: 0; }
+.ml-addeye:hover { background: var(--hover); color: var(--fg); }
+.ml-addeye svg { width: 18px; height: 18px; }
+.ml-addgo { width: 100%; height: 46px !important; justify-content: center; font-size: 15px !important; border-radius: 11px !important; margin-top: 4px; }
+.ml-addman { font-size: 12.5px; margin-top: 4px; color: var(--muted) !important; }
+.ml-addman:hover { color: var(--accent-ink) !important; }
+.ml-addwho { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; font-size: 13px; }
+.ml-addkind { display: inline-flex; gap: 7px; align-items: center; padding: 5px 12px; border-radius: 999px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); font-size: 12.5px; }
+.ml-addkind svg { width: 15px; height: 15px; color: var(--ok); }
+.ml-addnote { width: 100%; text-align: left; font-size: 12.5px; color: var(--muted); padding: 9px 12px; border-radius: 10px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); }
+.ml-adderr { width: 100%; text-align: left; display: grid; gap: 6px; font-size: 13px; padding: 11px 14px; border-radius: 10px; color: var(--fg);
+  background: color-mix(in srgb, var(--bad) 8%, var(--panel-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bad) 35%, transparent), inset 3px 0 0 var(--bad); }
+.ml-adderr b { color: var(--bad); font-weight: 600; }
+.ml-adderr ol { margin: 0; padding-left: 20px; display: grid; gap: 3px; }
+.ml-adderr .btn { justify-self: start; height: 30px; }
+.ml-adderr code { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+.ml-addwait { display: grid; justify-items: center; gap: 8px; padding: 6px 0; }
+.ml-addwait .spinner { margin: 0; }
+.ml-addrow { display: flex; gap: 8px; }

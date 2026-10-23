@@ -6,32 +6,32 @@ utente di Windows): si leggono anche senza rete e gli invii partono da soli quan
 
 ## 1. Collegare una casella
 
-Posta → pulsante **Aggiungi account** (in basso a sinistra) oppure ⚙ Impostazioni → Account.
+Posta → **Aggiungi account** (in basso a sinistra, o ⚙ Impostazioni → Account). Come in Outlook:
 
-### Casella normale (IMAP)
-1. Scegli **Altra casella (IMAP)**, scrivi indirizzo e password, premi **Avanti**.
-2. MB Visual cerca da solo i server: gestori noti (Libero, Virgilio, TIM, Tiscali, Aruba, Yahoo, iCloud...),
-   configurazione pubblicata dal dominio (autoconfig), banca dati dei gestori di Thunderbird, Autodiscover di
-   Microsoft, server di posta del dominio (MX), nomi tipici (imap./mail./smtp.).
-3. Controlla i dati e premi **Prova e salva**: MB Visual prova sia la ricezione (IMAP) sia l'invio (SMTP).
+1. Scrivi **solo l'indirizzo e-mail** e premi **Continua**.
+2. MB Visual capisce da solo come collegarlo:
+   - **PEC** (Aruba, Legalmail, Namirial, Poste, Register, Actalis, Libero, TIM): chiede solo la password della PEC.
+   - **Gmail** e posta aziendale su **Google Workspace**: si apre il browser con l'accesso Google, nessuna password in MB Visual.
+   - **Outlook.com / Hotmail** e posta aziendale su **Microsoft 365**: si apre l'accesso Microsoft nel browser.
+   - **Tutte le altre caselle** (Libero, Aruba, Register, dominio dello studio...): trova da solo i server (banche dati dei
+     gestori, configurazione pubblicata dal dominio, server di posta del dominio) e chiede solo la password.
+3. MB Visual prova ricezione e invio e salva l'account da solo. Il nome che vedono i destinatari si ricava dall'account
+   (profilo Google/Microsoft o la parte prima della @) e si cambia in Impostazioni → Account.
 
-Se il gestore chiede la **verifica in due passaggi**, nel campo password va una *password per le app* creata dal
-pannello del gestore (Gmail, Yahoo, iCloud, Aruba con 2FA...).
+Se qualcosa non va il messaggio dice cosa fare in parole semplici (password errata, password per le app, rete assente,
+server che rifiuta l'invio). Le **Impostazioni manuali** (link in fondo alla finestra) restano per i casi particolari:
+nome utente diverso dall'indirizzo (es. Legalmail usa l'ID InfoCert, TIM PEC un nome utente dedicato), server e porte
+indicati dall'amministratore, CalDAV/CardDAV.
 
-### PEC
-Scegli **PEC**: i server di Aruba, Legalmail (InfoCert), Namirial, Poste (Postecert e Postecertifica), Register,
-Actalis, Libero e TIM sono già impostati (porte SSL 993/465). Basta l'indirizzo e la password della casella.
-Note dei gestori:
-- **Legalmail**: il nome utente è quello dato da InfoCert, non l'indirizzo (modificalo nella schermata successiva).
-- **Namirial**: abilita prima l'accesso IMAP dalla webmail.
-- **TIM PEC**: nome utente diverso dall'indirizzo e password secondaria dedicata.
-- **Aruba** con verifica in due passaggi: crea una password per le app.
+### Gmail con la password (senza l'accesso Google)
+Google non accetta la password normale nei programmi di posta. Serve una **password per le app**:
+1. apri https://myaccount.google.com/apppasswords (se la pagina non c'e', attiva prima la Verifica in due passaggi);
+2. scrivi un nome (es. "MB Visual") e premi Crea: Google mostra una password di 16 lettere;
+3. incollala in MB Visual al posto della password normale.
 
-Per la PEC con dominio personalizzato (es. `studio@pec.ditta.it`) scegli il gestore che fornisce il servizio.
-
-### Microsoft 365 / Outlook.com e Gmail
-Accesso sicuro nel browser (OAuth 2.0): MB Visual non vede mai la password. Vedi il capitolo 6 per la registrazione
-dell'applicazione (da fare una volta sola per tutto lo studio).
+### Microsoft 365 aziendale con la password
+Molte aziende hanno disattivato l'accesso con password per le caselle Microsoft 365: in quel caso serve l'accesso Microsoft
+(il pulsante si apre da solo quando la versione di MB Visual lo include) oppure l'amministratore deve abilitare IMAP per la casella.
 
 ## 2. Uso quotidiano
 
@@ -116,8 +116,11 @@ dell'applicazione (da fare una volta sola per tutto lo studio).
 
 ## 6. Microsoft 365 e Google: cosa registrare (una volta per lo studio)
 
-MB Visual usa gli stessi ID applicazione degli **Archivi cloud** (vedi la guida `archivi-cloud.md`), con permessi in
-più per posta, calendario e contatti.
+Le versioni distribuite di MB Visual includono gia' il client Google (accesso Google per Gmail, Workspace e Drive) e, quando
+registrato, quello Microsoft: in quel caso non serve fare nulla. Le istruzioni qui sotto servono solo per usare una
+registrazione propria (es. un'azienda che vuole la sua app in Entra). MB Visual usa gli stessi ID applicazione degli
+**Archivi cloud** (vedi la guida `archivi-cloud.md`), con permessi in piu' per posta, calendario e contatti; un ID scritto
+in Cloud → Configura ha la precedenza su quello incluso.
 
 ### Microsoft Entra (Microsoft 365 / Outlook.com)
 1. portal.azure.com → **Microsoft Entra ID → Registrazioni app → Nuova registrazione**.

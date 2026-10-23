@@ -339,7 +339,6 @@ function renderEmptyState() {
     el("p", {}, tr("mail.benvenuto_testo")),
     el("div", { class: "ml-wact" },
       el("button", { class: "btn primary", onclick: () => import("./mailsettings.js").then(m => m.addAccount()) }, icon("piu"), tr("mail.aggiungi_account")),
-      el("button", { class: "btn", onclick: () => import("./mailsettings.js").then(m => m.addAccount({ pec: true })) }, icon("pec"), tr("mail.aggiungi_pec")),
       el("button", { class: "btn", onclick: () => import("./mailsettings.js").then(m => m.openGuide()) }, tr("mail.apri_guida")))));
 }
 
