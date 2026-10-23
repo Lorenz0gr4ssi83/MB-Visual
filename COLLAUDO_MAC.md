@@ -9,7 +9,10 @@ Priorità del collaudo: **1) l'app si avvia, 2) apre i file**. Il resto viene do
 
 ## 1. Scaricare la build
 
-Il link diretto all'ultima build te lo manda chi ha preparato il collaudo. In alternativa:
+Il modo più semplice: dal Mac apri la pagina **Releases** del repository **MB-Visual-Rilasci** su GitHub e, nella
+versione più recente (1.6.1 o successiva), scarica `MBVisual-<versione>-mac.dmg`.
+
+In alternativa, la build più recente di prova:
 1. Su GitHub apri il repository **MB-Visual**, scheda **Actions**, ed entra con il tuo account.
 2. Nell'elenco a sinistra scegli **Build Mac**, poi clicca l'esecuzione più recente con il segno verde (ramo `main`).
 3. In fondo alla pagina, nella sezione **Artifacts**, scarica:

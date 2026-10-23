@@ -1253,3 +1253,13 @@ Quantity Takeoff). Pulsante "Misure" nella barra di ogni visualizzatore; moduli 
 - DA FARE / limiti: nei DWF i caratteri disegnati come tracciati
   finiscono tra i "simboli uguali"; volumi solo per mesh chiuse; nessuna prova con PDF da 60.000 tracciati (l'aggancio si ferma a
   300.000 segmenti per pagina, i simboli oltre 25.000 tracciati).
+- 1.6.1 (23/10/2026) pubblicata: setup Windows + MBVisual-1.6.1-mac.dmg nella release v1.6.1 di MB-Visual-Rilasci,
+  Windows anche in "App per PC". Il .dmg si prende dall'artefatto MBVisual-mac-dmg della build Mac (gh run download,
+  a volte si interrompe: ripetere).
+- DIFETTO GRAVE corretto nella 1.6.1: dalla 1.5.7 `from webview import guilib` in app.py dava None (in pywebview e' una
+  variabile fino a start()), quindi l'app partiva SEMPRE nel ripiego in Edge (avvio.log in %LOCALAPPDATA%\MBVisual):
+  icona a parte nella barra delle applicazioni, finestra di Edge che restava aperta durante l'aggiornamento e seconda
+  finestra dopo. Ora `from webview.guilib import initialize`; all'avvio si chiudono le finestre di Edge del profilo
+  MBVisual\edge-app rimaste dalle versioni vecchie. Controllo rapido: nessuna riga nuova "uso Edge" in avvio.log.
+- Icona: app.ico con il logo completo in tutti i formati 16-256 (tools/make_logo.py icon_frame); la versione "solo mb"
+  sotto i 32 px non piaceva all'utente. update.repair_shortcuts rinfresca la cache delle icone (ie4uinit -show) a ogni build.
