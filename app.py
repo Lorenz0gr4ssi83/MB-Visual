@@ -192,6 +192,8 @@ def main():
     srv, port = start_server()
     import threading
     threading.Thread(target=_refresh_shell, daemon=True).start()
+    from mbvisual import stats
+    stats.on_launch()  # statistiche d'uso anonime: conta e invia SOLO con il consenso dell'utente
     url = f"http://127.0.0.1:{port}/?t={TOKEN}"
     files = [os.path.abspath(a) for a in sys.argv[1:] if not a.startswith("--") and os.path.exists(a)]
 

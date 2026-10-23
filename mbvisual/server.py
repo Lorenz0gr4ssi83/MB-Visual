@@ -158,7 +158,7 @@ class Handler(BaseHTTPRequestHandler):
             if fn is None:
                 return self._json({"ok": False, "errore": t("srv_server.api_sconosciuta")}, 404)
             # licenza: senza attivazione valida rispondono solo licenza e aggiornamenti (mbvisual/license.py)
-            if not route.startswith(("/api/license", "/api/update", "/api/job", "/api/components")):
+            if not route.startswith(("/api/license", "/api/update", "/api/job", "/api/components", "/api/stats")):
                 from . import license as lic
                 if lic.required() and not lic.status().get("attiva"):
                     return self._json({"ok": False, "errore": t("srv_server.licenza_non_attiva"), "licenza": True}, 402)
@@ -206,6 +206,17 @@ class Handler(BaseHTTPRequestHandler):
             b = self._body_json()
             return self._json(components.save(b.get("attivi") or [], str(b.get("profilo") or "personalizzato")))
         self._json(components.load())
+
+    # ------------------------------------------------------------ API: statistiche d'uso anonime con consenso (mbvisual/stats.py, ui/js/stats.js)
+    def api_stats(self, qs):
+        from . import stats
+        op = _q(qs, "op", "stato")
+        b = self._body_json() if self.command == "POST" else {}
+        if op == "consenso" and self.command == "POST":
+            return self._json(stats.set_consent(bool(b.get("consenso"))))
+        if op == "conta" and self.command == "POST":
+            return self._json(stats.track(b))
+        self._json(stats.status())
 
     # ------------------------------------------------------------ API: lingua (ui/js/i18n.js)
     def api_lang(self, qs):

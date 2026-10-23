@@ -8,13 +8,15 @@
 //            POST /v1/request   {token | key+device, type:"change"|"report", message, name}
 //            POST /v1/mlink     {token del PC} -> link monouso per il QR (liberi, attesa_fino)   GET /l/<link> pagina del telefono
 //            POST /v1/mlink/claim {link, device, name}   POST /v1/mlink/pair {code, device, name}
+//            POST /v1/stats {inst, days}   POST /v1/stats/forget {inst}   statistiche d'uso anonime con consenso (src/stats.js)
 // Gestione (Authorization: Bearer ADMIN_TOKEN):
-//            GET  /admin/summary, /admin/licenses, /admin/requests, /admin/events?after=ID
+//            GET  /admin/summary, /admin/licenses, /admin/requests, /admin/events?after=ID, /admin/usage?giorni=30
 //            POST /admin/licenses {customer,email,notes,max_pc,max_mobile,expires}
 //            POST /admin/licenses/:key/(revoke|reactivate|update)   POST /admin/devices/:id/revoke
 //            POST /admin/requests/:id/(approve|close)               POST /admin/events/read {upto}
 
 import { adminApp, adminPath, newPairCode, notifyAdmins, pushFor } from "./adminapp.js";
+import { postStats, forgetStats, purgeStats, usageSummary } from "./stats.js";
 
 const TOKEN_DAYS = 30;           // validita' offline di un'attivazione
 const CHANGES_PER_YEAR = 3;      // cambi dispositivo automatici; oltre servono l'approvazione del proprietario
@@ -236,6 +238,7 @@ async function admin(env, req, url, sub) {
       email: email?.testo ? email : EMAIL_DEFAULT, email_predefinita: EMAIL_DEFAULT, link_setup: `${url.origin}/scarica`, link_telefono: `${url.origin}/` });
   }
   if (p[0] === "pair" && req.method === "POST") return json(await newPairCode(env, url.origin)); // codice di 6 cifre per collegare il telefono
+  if (p[0] === "usage") return usageSummary(env, url, json); // statistiche d'uso anonime (src/stats.js)
   if (p[0] === "summary") {
     const one = async sql => (await env.DB.prepare(sql).first()).n;
     return json({ ok: true, licenze: await one("SELECT COUNT(*) n FROM licenses WHERE status='active'"), pc: await one("SELECT COUNT(*) n FROM devices WHERE status='active' AND kind='pc'"),
@@ -558,7 +561,9 @@ export default {
   async scheduled(controller, env, ctx) {
     env = Object.assign(Object.create(env), { _wait: pr => ctx.waitUntil(pr) });
     await expiryCheck(env);
+    await purgeStats(env); // statistiche d'uso: conservazione massima 13 mesi
   },
+  _purgeStats: purgeStats, // prove (harness)
   _expiryCheck: expiryCheck, // prove (harness)
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
@@ -574,10 +579,14 @@ export default {
         if (env.ASSETS && (req.method === "GET" || req.method === "HEAD")) return await serveApp(env, req, url);
         if (req.method !== "POST") return json({ ok: true, servizio: "Licenze MB Visual" });
       }
+      if (url.pathname.startsWith("/v1/stats") && +(req.headers.get("content-length") || 0) > 256000) return fail(413, "Pacchetto troppo grande");
       const b = await req.json().catch(() => ({}));
       // app per cellulari: l'attivazione viaggia nel cookie (HttpOnly) invece che nel corpo della richiesta
       const viaCookie = !b.token && !b.key && getCookie(req, COOKIE);
       if (viaCookie) b.token = getCookie(req, COOKIE);
+      // statistiche d'uso anonime: senza token, cookie o dati della licenza
+      if (url.pathname === "/v1/stats") return await postStats(env, b, json, fail);
+      if (url.pathname === "/v1/stats/forget") return await forgetStats(env, b, json, fail);
       let res;
       if (url.pathname === "/v1/activate") res = await activate(env, b);
       else if (url.pathname === "/v1/check") res = await check(env, b);

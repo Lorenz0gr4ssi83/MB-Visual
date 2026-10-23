@@ -52,6 +52,7 @@ export function attachNav(h, getBridge, onToggle) {
     tabsRow.innerHTML = "";
     for (const [k, label, icon] of TABS) tabsRow.append(el("button", { class: "nav-tab" + (k === tab ? " on" : ""), html: icon + "<span>" + label + "</span>", onclick: () => show(k) }));
     // scheda creata una volta sola anche con due clic ravvicinati (promessa memorizzata)
+    if (!paneP[tab]) window.MBStat?.track("fn", "nav." + tab); // statistiche anonime: interferenze, viste, computo
     paneP[tab] ??= (async () => {
       const box = el("div", { class: "nav-pane" });
       body.append(box);

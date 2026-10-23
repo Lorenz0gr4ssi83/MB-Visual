@@ -44,6 +44,7 @@ const KEY_LABEL = { type: "mis.tipo", voce: "mis.voce", layer: "mis.layer", page
 const DISP_UNITS = ["mm", "cm", "m", "km", "in", "ft"];
 
 export function createSession(env) {
+  window.MBStat?.track("fn", "misure"); // statistiche anonime (solo con consenso)
   const M = {
     env, tool: null, sel: new Set(), showScales: true, hidden: new Set(),
     doc: C.newDoc(env.ctx?.name, env.base),

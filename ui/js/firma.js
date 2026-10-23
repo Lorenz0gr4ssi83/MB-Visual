@@ -20,6 +20,7 @@ const DISP = () => ({ smartcard: t("firma.disp_smartcard"), windows: t("firma.di
 
 // opts: { path, openFile(path) }
 export async function signDialog({ path, openFile }) {
+  window.MBStat?.track("fn", "firma"); // statistiche anonime (solo con consenso)
   if (WEB) return toast(t("firma.solo_pc"), true);
   if (!(await needComp("sign"))) return;
   const isPdf = /\.pdf$/i.test(path), isP7m = /\.p7m$/i.test(path);

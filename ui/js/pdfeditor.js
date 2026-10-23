@@ -115,7 +115,7 @@ export function createPdfEditor(ctx, frame, setBusy) {
   // ogni passo scrive un FILE NUOVO: il file mostrato da pdf.js puo' essere ancora aperto in lettura e su Windows
   // non si potrebbe sostituire (la modifica restava in un file temporaneo e sembrava non applicata)
   const nextCopy = async () => (await api("pdf_work", { path: E.work })).path;
-  async function ensureWork() { if (!E.work) E.work = (await api("pdf_work", { path: ctx.path })).path; }
+  async function ensureWork() { if (!E.work) window.MBStat?.track("fn", "editor_pdf"); if (!E.work) E.work = (await api("pdf_work", { path: ctx.path })).path; }
   async function flushAnnotations() {
     // annotazioni di pdf.js (evidenziazioni, penna, moduli compilati) scritte in una nuova copia
     const a = app();

@@ -125,6 +125,7 @@ function placed(prep, scale) {
 
 // ---------------------------------------------------------------- finestra "Vedi in AR"
 export async function openAR({ model, ext, name }) {
+  window.MBStat?.track("fn", "realta_aumentata"); // statistiche anonime (solo con consenso)
   loadCss("css/ar.css");
   const [xr, ql] = [await webxrAR(), quickLook()];
   const ios = isIOS();

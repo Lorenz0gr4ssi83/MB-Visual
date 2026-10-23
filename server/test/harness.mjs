@@ -218,6 +218,35 @@ if (process.argv[2] === "serve") {
   const mtry = await post("/v1/mlink", { token: pr.d.token });
   ok(mtry.r.status === 403 && /PC/.test(mtry.d.errore), "QR: un cellulare non puo' generare il QR");
 
+  // ---- statistiche d'uso anonime (solo con consenso, inviate dall'app): pacchetti per giorno, revoca, conservazione, riepilogo
+  const day = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+  const instA = "a".repeat(32), instB = "0123456789abcdef0123456789abcdef";
+  const pkt = (inst, days) => call("/v1/stats", { inst, days });
+  const dA = { day: day(1), app: "pc", version: "1.6.3", os: "Windows 11", arch: "ARM64", lang: "it", launches: 2, seconds: 3600, comps: ["office", "cad"],
+    exts: { pdf: 5, dwg: 2 }, funcs: { stampa: 1, "nav.clash": 2 }, errors: { "cad2d|TypeError|dwg": 1 } };
+  const s1 = await pkt(instA, [dA, { ...dA, day: day(2), version: "1.6.2", exts: { pdf: 1 } }]);
+  ok(s1.ok && s1.ricevuti === 2, "statistiche: pacchetto di 2 giorni ricevuto");
+  ok((await pkt(instA, [dA])).ok && env._db.prepare("SELECT COUNT(*) n FROM usage_days WHERE inst = ?").get(instA).n === 2, "statistiche: giorno rimandato sostituito (niente doppi)");
+  ok((await pkt(cur, [dA])).status === 400, "statistiche: identificativo non casuale (es. chiave di licenza) rifiutato");
+  await pkt(instB, [{ day: day(0), app: "mac", version: "1.6.3", os: "macOS 15", arch: "arm64", lang: "en", launches: 1, seconds: 60,
+    exts: { pdf: 1, "C:\\Users\\nome\\progetto.dwg": 3, "nome file": 1 }, funcs: { conversione_lotti: 1, "<script>": 1 }, errors: { "pdf|Error|pdf": 1, "testo libero del file": 1 } },
+    { day: "2020-01-01", launches: 9 }, { day: day(-5), launches: 9 }]);
+  const rowB = env._db.prepare("SELECT * FROM usage_days WHERE inst = ?").all(instB);
+  ok(rowB.length === 1 && rowB[0].exts === '{"pdf":1}' && rowB[0].funcs === '{"conversione_lotti":1}' && rowB[0].errors === '{"pdf|Error|pdf":1}',
+    "statistiche: percorsi, nomi e testi liberi scartati; giorni fuori intervallo ignorati", rowB[0]?.exts);
+  ok(!/\bip\b|license|device/i.test(env._db.prepare("SELECT sql FROM sqlite_master WHERE name = 'usage_days'").get().sql.replace(/--.*$/gm, "")), "statistiche: nessuna colonna per IP, licenza o dispositivo");
+  const us = await call("/admin/usage?giorni=30", undefined, true);
+  ok(us.ok && us.attivi === 2 && us.avvii === 5 && us.formati[0].k === "pdf" && us.formati[0].n === 7 && us.funzioni.some(f => f.k === "nav.clash" && f.n === 4),
+    "statistiche: riepilogo (attivi, avvii, formati, funzioni)", JSON.stringify(us.formati) + JSON.stringify(us.funzioni));
+  ok(us.versioni.length === 1 && us.versioni[0].k === "1.6.3" && us.versioni[0].n === 2 && us.sistemi.some(x => x.k === "Windows 11 ARM64") && us.errori.length === 2 && us.componenti.length === 2,
+    "statistiche: versione attuale per installazione, sistemi, errori, componenti");
+  ok((await call("/admin/usage", undefined)).status === 401, "statistiche: riepilogo solo con il codice di gestione");
+  const fg = await call("/v1/stats/forget", { inst: instA });
+  ok(fg.ok && fg.cancellati === 2 && !env._db.prepare("SELECT COUNT(*) n FROM usage_days WHERE inst = ?").get(instA).n, "statistiche: revoca = dati dell'identificativo cancellati");
+  env._db.prepare("INSERT INTO usage_days (inst, day) VALUES (?, date('now', '-14 months')), (?, date('now', '-12 months'))").run(instA, instA);
+  await worker._purgeStats(env);
+  ok(env._db.prepare("SELECT COUNT(*) n FROM usage_days WHERE inst = ?").get(instA).n === 1, "statistiche: righe oltre 13 mesi cancellate dal cron, le altre restano");
+
   console.log(fails ? `\n${fails} prove NON riuscite` : "\nTutte le prove riuscite");
   process.exit(fails ? 1 : 0);
 }

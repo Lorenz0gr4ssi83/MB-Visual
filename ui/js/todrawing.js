@@ -19,6 +19,7 @@ export function canConvert(path) {
 }
 
 export async function openToDrawing({ path, out = null, openFile = null }) {
+  window.MBStat?.track("fn", "converti_disegno"); // statistiche anonime (solo con consenso)
   loadCss("css/todrawing.css");
   const prefs = loadPrefs();
   let info;

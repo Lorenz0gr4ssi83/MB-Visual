@@ -6,6 +6,7 @@ import {
 import { licenseGate, showAccount, accountInfo, licenseReport, licenseChange, licenseNewKey } from "./license.js";
 import { setupMobileQr } from "./mobileqr.js";
 import { initTouch, afterMount } from "./touch.js";
+import { initStats, track, trackError, showStatsSettings } from "./stats.js";
 import { initComponents, isOn, compFor, inviteChip, needComp, showComponents, needsFirstRun, ICON as COMP_ICON } from "./components.js";
 import { t as tr, tn, has as trHas, LANG, LANGS, LOCALE, MANUAL, keyName, setLanguage } from "./i18n.js";
 
@@ -279,12 +280,14 @@ const ICON_ACCOUNT = '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><pa
 const ICON_PRINT = '<svg viewBox="0 0 24 24"><path d="M7 9V3h10v6M7 17H4v-8h16v8h-3M7 14h10v7H7z"/></svg>';
 async function doPrint(batch = false) {
   if (WEB) return toast(tr("app.stampa_solo_pc"), true);
+  track("fn", batch ? "stampa_lotti" : "stampa");
   if (batch && !(await needComp("cad"))) return;
   const m = await import("./print.js");
   if (batch) m.openBatchPrint();
   else if (active) m.openPrint(active);
   else m.openBatchPrint();
 }
+const ICON_STATS = '<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>';
 function fileMenu(anchor) {
   const m = $("menu-file");
   if (!m.hidden) { m.hidden = true; return; }
@@ -299,7 +302,8 @@ function fileMenu(anchor) {
     ...(window.MBCloud && isOn("tools") ? [item('<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/></svg>', tr("cloud.salva_nel_cloud"), "", () => window.MBCloud.saveToCloud(), !active)] : []), // ui/js/cloud.js
     ...(WEB ? [] : [item(ICON_PRINT, tr("app.stampa"), "Ctrl+P", () => doPrint(), !active), ...gated("cad", item(ICON_PRINT, tr("app.stampa_lotti"), keysText("Ctrl+Shift+P"), () => doPrint(true)))]),
     item('<svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM6 9h2M10 9h2M14 9h2M18 9h0M6 13h12"/></svg>', tr("app.scorciatoie_tastiera"), "F1", showShortcuts),
-    item('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>', tr("lang.impostazioni") + " › " + tr("lang.titolo") + "...", LANG.toUpperCase(), showLanguage));
+    item('<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>', tr("lang.impostazioni") + " › " + tr("lang.titolo") + "...", LANG.toUpperCase(), showLanguage),
+    ...(WEB ? [] : [item(ICON_STATS, tr("lang.impostazioni") + " › " + tr("stat.titolo") + "...", "", showStatsSettings)]));
   if (!WEB && isOn("sign")) m.append(item('<svg viewBox="0 0 24 24"><path d="M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18"/></svg>', tr("app.firma_digitale"), "", () => import("./firma.js").then(f => f.signDialog({ path: active.path, openFile })), !active?.path)); // ui/js/firma.js
   // confronto tra revisioni (PDF, DWG/DXF, IFC): ui/js/viewers/compare.js
   if (isOn("bim")) m.append(item('<svg viewBox="0 0 24 24"><path d="M4 4h7v16H4zM13 4h7v16h-7M8 9l-2 2 2 2M16 9l2 2-2 2"/></svg>', tr("app.confronta_con"), "", compareWith, !active || active.viewer === "compare" || !COMPARE_EXT.test(extOf(active.info?.nome || active.name))));
@@ -418,6 +422,7 @@ async function runUpdateJob(route, title, doneText, params = {}) {
 // nuovo file vuoto (Word, Excel, PowerPoint, PDF, DXF, testo, immagini, database), aperto subito nel suo editor
 // ext: tipo scelto da una scorciatoia della home (senza passare dalla galleria)
 async function doNew(ext) {
+  track("fn", "crea_nuovo");
   const { createNew } = await import("./newfile.js");
   await createNew({ dir: exDir || "", openFile: (p, v, x) => openFile(p, v, x), ext: typeof ext === "string" ? ext : null });
 }
@@ -584,6 +589,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   try {
     const mod = await import(`./viewers/${viewer}.js`);
     tab.api = (await mod.mount(ctx)) || {};
+    track("ext", cat ? ext : "altro"); track("fn", "v." + viewer); // statistiche anonime (solo con consenso): estensione, mai il nome
     addOfficeButton(tab, tb);
     addDrawingButton(tab, tb);
     lockIfNeeded(tab, ext, tb);
@@ -644,6 +650,7 @@ async function gisViewer(path, ext, viewer) {
 }
 
 export function showError(ctx, e) {
+  trackError(ctx.tab?.viewer, e, ctx.cat ? ctx.ext : ""); // statistiche anonime: solo visualizzatore, tipo di errore ed estensione
   // al posto del messaggio di errore: schermata di recupero (cosa e' successo, cosa si e' salvato, Apri il recuperato...)
   if (!WEB) return import("./viewers/recover.js").then(m => m.showRecovery(ctx, e)).then(a => { if (ctx.tab) ctx.tab.api = a || {}; }).catch(err => { console.error(err); showErrorPlain(ctx, e); });
   showErrorPlain(ctx, e);
@@ -739,6 +746,7 @@ function renderHomeNew() {
 async function save(asNew) {
   const t = active;
   if (!t) return;
+  track("fn", asNew ? "salva_con_nome" : "salva");
   const a = t.api || {};
   // file aperto in visualizzazione perche' il suo componente e' spento: si propone di attivarlo
   if (t.lockedComp && !isOn(t.lockedComp)) return needComp(t.lockedComp);
@@ -822,6 +830,7 @@ async function chooseFormat(t, a) {
 }
 
 async function convertTo(t, a, target) {
+  track("fn", "converti." + (/^[a-z0-9]{1,8}$/.test(extOf(target)) ? extOf(target) : "altro"));
   // PDF e immagini in DXF/DWG: la finestra "Converti in disegno" (scala, layer, pulizia, anteprima) con il nome gia' scelto
   if (/^(dxf|dwg)$/.test(extOf(target)) && canToDrawing(t)) return toDrawing(t, target);
   try {
@@ -1088,6 +1097,7 @@ function editorOwnsCtrlK(e) {
 }
 const ICON_I = (d) => `<svg viewBox="0 0 24 24"><path d="${d}"/></svg>`;
 function openPalette() {
+  track("fn", "palette");
   const has = !!active;
   const c = (icon, label, keys, run, ok = true) => ({ icon, label, keys: keys ? keysText(keys) : "", run, ok });
   const commands = [
@@ -1112,6 +1122,7 @@ function openPalette() {
     c(ICON_I("M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"), tr("idx.tema_chiaro_scuro"), "", () => $("btn-theme").click()),
     c(ICON_I("M3 6h18v12H3zM6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"), tr("app.scorciatoie_tastiera"), "F1", showShortcuts),
     c(ICON_I("M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"), tr("lang.impostazioni") + " › " + tr("lang.titolo"), "", showLanguage),
+    c(ICON_STATS, tr("lang.impostazioni") + " › " + tr("stat.titolo"), "", showStatsSettings, !WEB),
     c(ICON_ACCOUNT, tr("app.account_licenza"), "", showAccount, !WEB || !!window.MBV_MOBILE),
     c(ICON_UPD, tr("app.verifica_aggiornamenti"), "", () => checkUpdates(true), !WEB),
     c(ICON_X, tr("app.chiudi_tutto"), "", closeAll, tabs.length > 0),
@@ -1200,6 +1211,7 @@ async function boot() {
   startMailBadge(); // posta in background (solo con il componente Posta e PEC)
   window.addEventListener("mbv-components", componentsChanged);
   if (!WEB) licenseGate(); // licenza dell'app per PC: senza attivazione copre l'app con la schermata della chiave
+  if (!WEB) initStats(); // statistiche d'uso anonime: chiede il consenso la prima volta, senza consenso non conta e non invia
   if (!WEB) setupMobileQr(); // QR nella home per installare l'app sul cellulare (posti liberi della licenza)
   if (!WEB) setTimeout(() => checkUpdates(false), 3000);
   setInterval(() => { if (!document.hidden) checkExternalChange(active); }, 2000);

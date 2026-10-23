@@ -58,6 +58,16 @@
   .pair .qr svg * { stroke: none !important; }
   .pair .code { font: 600 30px Consolas, monospace; letter-spacing: .18em; }
   h3 { margin: 0 0 10px; font-size: 14px; }
+  .u-note { margin: 0 0 12px; }
+  .u-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 12px; }
+  .u-box { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+  .u-row { display: grid; grid-template-columns: minmax(0, 1.4fr) 1fr auto; gap: 10px; align-items: center; padding: 3px 0; }
+  .u-lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .u-bar { height: 8px; background: var(--panel2); border-radius: 4px; overflow: hidden; } .u-bar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+  .u-n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; } .u-sub { color: var(--muted); font-size: 11px; }
+  .u-cols { display: flex; align-items: flex-end; gap: 2px; height: 120px; } .u-cols div { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+  .u-cols i { display: block; width: 100%; background: var(--accent); border-radius: 2px 2px 0 0; }
+  .u-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -66,6 +76,7 @@
   <button class="tab on" data-v="panoramica">Panoramica</button>
   <button class="tab" data-v="licenze">Licenze</button>
   <button class="tab" data-v="richieste">Richieste <span id="nreq"></span></button>
+  <button class="tab" data-v="utilizzo">Utilizzo</button>
   <button class="tab" data-v="impostazioni">Impostazioni</button>
   <span class="grow"></span>
   <span class="muted" id="conn"></span>
@@ -99,6 +110,64 @@ function undoToast(text, onCommit, onUndo, secs = 6) {
 async function call(m, p, b) { const r = await window.pywebview.api.call(m, p, b ?? null); if (r && r.ok === false) throw new Error(r.errore || "Errore"); return r; }
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => { view = t.dataset.v; document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t)); render(); });
 
+// ------------------------------------------------------------ Utilizzo: statistiche d'uso anonime (solo installazioni con consenso; server/src/stats.js)
+const U_FN = { "stampa": "Stampa", "stampa_lotti": "Stampa a lotti", "crea_nuovo": "Crea nuovo", "salva": "Salva", "salva_con_nome": "Salva con nome", "palette": "Palette dei comandi",
+  "conversione_lotti": "Conversione a lotti", "firma": "Firma digitale", "converti_disegno": "Converti in disegno", "realta_aumentata": "Realtà aumentata", "misure": "Misure",
+  "nav.clash": "Interferenze", "nav.views": "Viste salvate", "nav.qto": "Computo", "bcf": "Segnalazioni BCF", "editor_pdf": "Editor PDF (modifiche)", "ricerca_progetto": "Ricerca nel progetto" };
+const U_V = { pdf: "PDF", cad2d: "CAD 2D", model3d: "3D / BIM", image: "Immagini", oo: "Office (ONLYOFFICE)", docx: "Word", sheet: "Excel", pptx: "PowerPoint", compare: "Confronto revisioni",
+  gis: "Mappa GIS", recover: "Recupero file", text: "Testo / codice", hex: "Esadecimale", archive: "Archivi", email: "Email", media: "Audio / video", publisher: "Pubblicazioni",
+  video: "Montaggio video", visio: "Visio", dwf: "DWF", solidcad: "SolidWorks / Solid Edge", inventor: "Inventor", pratica: "Pratiche edilizie", bcf: "BCF",
+  calendar: "Calendari", contacts: "Contatti", cert: "Certificati", dicom: "DICOM", signed: "File firmati", sqlite: "SQLite", svg: "SVG", font: "Caratteri", epub: "EPUB",
+  html: "HTML", markdown: "Markdown", hpgl: "HP-GL", iwork: "Apple iWork", revit: "Revit", scidata: "Dati scientifici", office: "Office (LibreOffice)", external: "Programmi esterni" };
+const U_COMP = { bim: "BIM e coordinamento", cad: "CAD 2D", gis: "Mappe e GIS", graphics: "Grafica", mail: "Posta e PEC", measure: "Misure ed estrazioni", mech: "Meccanica", office: "Office",
+  pratiche: "Pratiche edilizie", sign: "Firma digitale", special: "Formati specialistici", survey: "Rilievi", tools: "Strumenti di ufficio", video: "Video" };
+const uName = k => U_FN[k] || (k.startsWith("v.") ? "Visualizzatore: " + (U_V[k.slice(2)] || k.slice(2)) : k.startsWith("converti.") ? "Salva con nome in ." + k.slice(9) : k);
+const uErr = k => { const [v, tp, x] = k.split("|"); return `${U_V[v] || v} · ${tp}${x ? " · ." + x : ""}`; };
+const uNum = n => Number(n || 0).toLocaleString("it-IT");
+function uBars(title, rows, label = r => r.k, extra = r => (r.inst != null ? ` <span class="u-sub">${uNum(r.inst)} inst.</span>` : "")) {
+  const max = Math.max(1, ...rows.map(r => r.n));
+  return `<section class="u-box"><h3>${title}</h3>${rows.length ? rows.map(r => `<div class="u-row"><div class="u-lab">${esc(label(r) || "—")}</div>
+    <div class="u-bar"><i style="width:${Math.max(2, (r.n / max) * 100)}%"></i></div><div class="u-n">${uNum(r.n)}${extra(r)}</div></div>`).join("") : `<p class="muted">Nessun dato</p>`}</section>`;
+}
+function uCols(title, rows, label) {
+  const max = Math.max(1, ...rows.map(r => r.n));
+  return `<section class="u-box"><h3>${title}</h3>${rows.length ? `<div class="u-cols">${rows.map(r => `<div title="${esc(label(r.k))}: ${uNum(r.n)}"><i style="height:${Math.max(3, (r.n / max) * 100)}%"></i></div>`).join("")}</div>
+    <div class="u-axis"><span>${esc(label(rows[0].k))}</span><span>${esc(label(rows.at(-1).k))}</span></div>` : `<p class="muted">Nessun dato</p>`}</section>`;
+}
+function usageHtml(u) {
+  const day = k => new Date(k + "T12:00:00").toLocaleDateString("it-IT", { day: "numeric", month: "short" });
+  const mon = k => new Date(k + "-15T12:00:00").toLocaleDateString("it-IT", { month: "short", year: "2-digit" });
+  return `<p class="muted u-note">Solo le installazioni che hanno acconsentito alle statistiche anonime. Dati dal ${esc(new Date(u.dal + "T12:00:00").toLocaleDateString("it-IT"))}; conservati al massimo 13 mesi.</p>
+    <div class="cards">${[["Installazioni attive nel periodo", u.attivi], ["Installazioni in 13 mesi", u.installazioni], ["Avvii", u.avvii], ["Ore d'uso", u.ore], ["Minuti per avvio", u.minuti_sessione]]
+      .map(([l, n]) => `<div class="card"><div class="n">${uNum(n)}</div><div class="l">${l}</div></div>`).join("")}</div>
+    <div class="u-grid">
+      ${uCols("Installazioni attive al giorno", u.per_giorno, day)}
+      ${uCols("Installazioni attive al mese", u.per_mese, mon)}
+      ${uBars("Formati più aperti", u.formati, r => "." + r.k)}
+      ${uBars("Funzioni più usate", u.funzioni, r => uName(r.k))}
+      ${uBars("Errori più frequenti", u.errori, r => uErr(r.k))}
+      ${uBars("Versioni in uso", u.versioni, r => r.k, () => "")}
+      ${uBars("Sistemi", u.sistemi, r => r.k, () => "")}
+      ${uBars("App", u.app, r => ({ pc: "Windows", mac: "Mac" })[r.k] || r.k, () => "")}
+      ${uBars("Lingue", u.lingue, r => (r.k || "—").toUpperCase(), () => "")}
+      ${uBars("Componenti attivi", u.componenti, r => U_COMP[r.k] || r.k, () => "")}
+    </div>`;
+}
+let uDays = pref("utilizzo", 30);
+async function renderUsage(m) {
+  const head = `<div class="toolbar"><h3 style="margin:0">Utilizzo dell'app</h3><span class="grow"></span><span class="muted">Periodo</span>
+    <div class="seg">${[[7, "7 giorni"], [30, "30 giorni"], [90, "3 mesi"], [365, "12 mesi"]].map(([k, l]) => `<button data-d="${k}" class="${uDays === k ? "on" : ""}">${l}</button>`).join("")}</div></div>`;
+  m.innerHTML = head + `<p class="muted">Caricamento...</p>`;
+  const wire = () => m.querySelectorAll("[data-d]").forEach(b => b.onclick = () => { uDays = +b.dataset.d; setPref("utilizzo", uDays); renderUsage(m); });
+  wire();
+  try {
+    const u = await call("GET", "/admin/usage?giorni=" + uDays);
+    if (view !== "utilizzo") return;
+    m.innerHTML = head + usageHtml(u);
+    wire();
+  } catch (e) { m.innerHTML = head + `<p class="err">${esc(e.message)}</p>`; wire(); }
+}
+
 async function adminRefresh() {
   try {
     const [s, l, r, e] = await Promise.all([call("GET", "/admin/summary"), call("GET", "/admin/licenses"), call("GET", "/admin/requests"), call("GET", "/admin/events?after=0" + (evArch ? "&archiviati=1" : ""))]);
@@ -114,6 +183,7 @@ window.adminRefresh = adminRefresh;
 function render() {
   const m = $("#main");
   if (view === "impostazioni") return renderSettings(m);
+  if (view === "utilizzo") return renderUsage(m);
   if (!data.s) { m.innerHTML = `<p class="muted">Collegamento al server delle licenze...</p>`; return; }
   if (view === "panoramica") {
     const s = data.s;

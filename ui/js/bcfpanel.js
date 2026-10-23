@@ -430,6 +430,7 @@ export function attach3d(h, onToggle, shared) {
     else recovery.del(key);
   }
   function toggle(v = panel.el.hidden) {
+    if (v && panel.el.hidden) window.MBStat?.track("fn", "bcf"); // statistiche anonime (solo con consenso)
     panel.el.hidden = !v;
     onToggle?.(v);
     if (v && pending) offerRecovery();

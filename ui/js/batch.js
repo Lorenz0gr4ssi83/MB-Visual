@@ -69,6 +69,7 @@ const btn = (label, onclick, cls = "") => el("button", { class: "btn " + cls, ty
 
 // ---------------------------------------------------------------- impostazioni del lotto
 export async function openBatch({ paths = [] } = {}) {
+  window.MBStat?.track("fn", "conversione_lotti"); // statistiche anonime (solo con consenso)
   const saved = load();
   const S = {
     sources: [...paths], recursive: saved.recursive ?? true, scan: null, op: saved.op || "pdf",

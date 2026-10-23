@@ -21,6 +21,7 @@ function load(k) { try { return localStorage.getItem(k); } catch { return null; 
 export function toggle(force) {
   build();
   const show = force ?? P.box.hidden;
+  if (show && P.box.hidden) window.MBStat?.track("fn", "ricerca_progetto"); // statistiche anonime (solo con consenso)
   P.box.hidden = !show;
   $("btn-explorer")?.classList.toggle("srch-on", show);
   window.dispatchEvent(new Event("resize"));

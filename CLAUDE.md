@@ -1339,3 +1339,24 @@ Quantity Takeoff). Pulsante "Misure" nella barra di ogni visualizzatore; moduli 
   MBVisual\edge-app rimaste dalle versioni vecchie. Controllo rapido: nessuna riga nuova "uso Edge" in avvio.log.
 - Icona: app.ico con il logo completo in tutti i formati 16-256 (tools/make_logo.py icon_frame); la versione "solo mb"
   sotto i 32 px non piaceva all'utente. update.repair_shortcuts rinfresca la cache delle icone (ie4uinit -show) a ogni build.
+
+## Statistiche d'uso anonime con consenso (23/10/2026) - FATTO (server da ripubblicare con la migrazione 005)
+Base legale scelta: consenso esplicito (GDPR art. 6.1.a + art. 122 Codice privacy), predefinito NO. Solo app per PC/Mac (web app esclusa).
+- App: `mbvisual/stats.py` (API `api/stats?op=stato|consenso|conta`, esente dal controllo licenza) + `ui/js/stats.js` (finestra al primo
+  avvio quando l'app e' libera, File > Impostazioni > Statistiche d'uso, informativa con chiavi `stat.inf_*`). `app.py main` chiama
+  `stats.on_launch()`. Stato in DATA_DIR/statistiche.json (consenso, inst = token_hex(16) nuovo a ogni consenso, giorni, da_cancellare);
+  `MBV_STATISTICHE=<file>` per le prove; in sviluppo non si invia nulla senza `MBV_STAT_URL`. Thread: dopo 60 s e ogni 6 h manda i giorni
+  CONCLUSI a POST /v1/stats e ripete /v1/stats/forget finche' il server conferma; giorni locali oltre 40 scartati.
+- Conteggi: `track("ext", ext)` solo per estensioni del registro (altrimenti "altro"), `track("fn", chiave)` (app.js: v.<visualizzatore>,
+  stampa, salva, converti.<ext>, crea_nuovo, palette; altri moduli con `window.MBStat?.track`: conversione_lotti, firma, converti_disegno,
+  misure, nav.clash|views|qto, bcf, editor_pdf, ricerca_progetto, realta_aumentata), `trackError(viewer, e, ext)` = "viewer|NomeErrore|ext"
+  (mai il messaggio). MAI posta/PEC, cloud, Google (Limited Use), nomi file, percorsi. Chiavi nuove: rispettare le regex di stats.py e
+  server/src/stats.js (altrimenti vengono scartate) e aggiungere l'etichetta in U_FN delle due Admin.
+- Installabile: task "statistiche" non spuntato; `SaveStatsChoice` scrive HKCU\Software\MB Visual\Statistiche\Consenso (mai in modalita'
+  silenziosa; casella vuota non revoca un si' dato nell'app); l'app lo applica e cancella il valore. Testi StatCasella/StatGruppo da make_setup_art.
+- Server: `server/src/stats.js` (tabella usage_days una riga per installazione e giorno, nessun IP; chiavi filtrate con regex; giorno
+  rimandato = sostituito), cron `purgeStats` (oltre 13 mesi), `GET /admin/usage?giorni=N` -> scheda "Utilizzo" in admin/ui e
+  server/adminapp (rigenerare adminui.js con tools/build_admin_mobile.py). Online: `d1 execute --command` con il contenuto di
+  `server/migrations/005_statistiche.sql`, poi deploy.
+- Collaudo: `node server/test/harness.mjs` (11 prove "statistiche"), `python tests/test_stats.py` (22 prove con server finto).
+- Informativa = BOZZA da far rivedere a un consulente privacy (titolare indicato: MB Engineering srl; contatti non indicati).

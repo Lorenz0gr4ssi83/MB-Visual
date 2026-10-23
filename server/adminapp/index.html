@@ -44,13 +44,23 @@
   .iconbtn { width: 38px; height: 38px; border-radius: 10px; border: 0; background: var(--panel2); display: inline-grid; place-items: center; }
   .iconbtn svg, nav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   main { padding: 14px 14px calc(86px + var(--bottom)); display: grid; gap: 12px; }
-  nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(4, 1fr); padding: 6px 6px calc(6px + var(--bottom));
+  nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: grid; grid-template-columns: repeat(5, 1fr); padding: 6px 6px calc(6px + var(--bottom));
     background: rgba(26, 29, 32, .97); border-top: 1px solid var(--line); }
   nav button { position: relative; display: grid; justify-items: center; gap: 2px; padding: 6px 0; border: 0; background: none; color: var(--muted); font-size: 11.5px; }
   nav button.on { color: var(--accent); }
   nav .badge { position: absolute; top: 2px; left: calc(50% + 6px); }
   .badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--bad); color: #fff; font-size: 11px; font-weight: 700; display: inline-grid; place-items: center; }
   .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .u-note { margin: 12px 0; font-size: 13px; } .u-cards { margin-bottom: 12px; }
+  .u-grid { display: grid; gap: 10px; }
+  .u-box { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; min-width: 0; } .u-box h3 { margin: 0 0 8px; font-size: 15px; }
+  .u-row { display: grid; grid-template-columns: minmax(0, 1.3fr) 1fr auto; gap: 8px; align-items: center; padding: 3px 0; font-size: 13.5px; }
+  .u-lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .u-bar { height: 7px; background: var(--panel2); border-radius: 4px; overflow: hidden; } .u-bar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+  .u-n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; } .u-sub { color: var(--muted); font-size: 11px; }
+  .u-cols { display: flex; align-items: flex-end; gap: 2px; height: 110px; } .u-cols div { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+  .u-cols i { display: block; width: 100%; background: var(--accent); border-radius: 2px 2px 0 0; }
+  .u-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 4px; }
   .tile { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; }
   .tile .n { font-size: 26px; font-weight: 700; } .tile .l { color: var(--muted); font-size: 13px; }
   .tile.alert .n { color: var(--accent); }
@@ -153,6 +163,7 @@
     <button data-v="panoramica" class="on"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 8h6V4h-6z"/></svg>Panoramica</button>
     <button data-v="licenze"><svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg>Licenze</button>
     <button data-v="richieste"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>Richieste<span class="badge hide" id="nreq"></span></button>
+    <button data-v="utilizzo"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Utilizzo</button>
     <button data-v="impostazioni"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Impostazioni</button>
   </nav>
 </div>
@@ -256,6 +267,65 @@ async function doUnlock() {
 $("lock-go").onclick = doUnlock;
 $("lock-out").onclick = async () => { try { await api("POST", "logout", {}); } catch {} show("login"); };
 
+// ------------------------------------------------------------ Utilizzo: statistiche d'uso anonime (solo installazioni con consenso; server/src/stats.js)
+const U_FN = { "stampa": "Stampa", "stampa_lotti": "Stampa a lotti", "crea_nuovo": "Crea nuovo", "salva": "Salva", "salva_con_nome": "Salva con nome", "palette": "Palette dei comandi",
+  "conversione_lotti": "Conversione a lotti", "firma": "Firma digitale", "converti_disegno": "Converti in disegno", "realta_aumentata": "Realtà aumentata", "misure": "Misure",
+  "nav.clash": "Interferenze", "nav.views": "Viste salvate", "nav.qto": "Computo", "bcf": "Segnalazioni BCF", "editor_pdf": "Editor PDF (modifiche)", "ricerca_progetto": "Ricerca nel progetto" };
+const U_V = { pdf: "PDF", cad2d: "CAD 2D", model3d: "3D / BIM", image: "Immagini", oo: "Office (ONLYOFFICE)", docx: "Word", sheet: "Excel", pptx: "PowerPoint", compare: "Confronto revisioni",
+  gis: "Mappa GIS", recover: "Recupero file", text: "Testo / codice", hex: "Esadecimale", archive: "Archivi", email: "Email", media: "Audio / video", publisher: "Pubblicazioni",
+  video: "Montaggio video", visio: "Visio", dwf: "DWF", solidcad: "SolidWorks / Solid Edge", inventor: "Inventor", pratica: "Pratiche edilizie", bcf: "BCF",
+  calendar: "Calendari", contacts: "Contatti", cert: "Certificati", dicom: "DICOM", signed: "File firmati", sqlite: "SQLite", svg: "SVG", font: "Caratteri", epub: "EPUB",
+  html: "HTML", markdown: "Markdown", hpgl: "HP-GL", iwork: "Apple iWork", revit: "Revit", scidata: "Dati scientifici", office: "Office (LibreOffice)", external: "Programmi esterni" };
+const U_COMP = { bim: "BIM e coordinamento", cad: "CAD 2D", gis: "Mappe e GIS", graphics: "Grafica", mail: "Posta e PEC", measure: "Misure ed estrazioni", mech: "Meccanica", office: "Office",
+  pratiche: "Pratiche edilizie", sign: "Firma digitale", special: "Formati specialistici", survey: "Rilievi", tools: "Strumenti di ufficio", video: "Video" };
+const uName = k => U_FN[k] || (k.startsWith("v.") ? "Visualizzatore: " + (U_V[k.slice(2)] || k.slice(2)) : k.startsWith("converti.") ? "Salva con nome in ." + k.slice(9) : k);
+const uErr = k => { const [v, tp, x] = k.split("|"); return `${U_V[v] || v} · ${tp}${x ? " · ." + x : ""}`; };
+const uNum = n => Number(n || 0).toLocaleString("it-IT");
+function uBars(title, rows, label = r => r.k, extra = r => (r.inst != null ? ` <span class="u-sub">${uNum(r.inst)} inst.</span>` : "")) {
+  const max = Math.max(1, ...rows.map(r => r.n));
+  return `<section class="u-box"><h3>${title}</h3>${rows.length ? rows.map(r => `<div class="u-row"><div class="u-lab">${esc(label(r) || "—")}</div>
+    <div class="u-bar"><i style="width:${Math.max(2, (r.n / max) * 100)}%"></i></div><div class="u-n">${uNum(r.n)}${extra(r)}</div></div>`).join("") : `<p class="muted">Nessun dato</p>`}</section>`;
+}
+function uCols(title, rows, label) {
+  const max = Math.max(1, ...rows.map(r => r.n));
+  return `<section class="u-box"><h3>${title}</h3>${rows.length ? `<div class="u-cols">${rows.map(r => `<div title="${esc(label(r.k))}: ${uNum(r.n)}"><i style="height:${Math.max(3, (r.n / max) * 100)}%"></i></div>`).join("")}</div>
+    <div class="u-axis"><span>${esc(label(rows[0].k))}</span><span>${esc(label(rows.at(-1).k))}</span></div>` : `<p class="muted">Nessun dato</p>`}</section>`;
+}
+function usageHtml(u) {
+  const day = k => new Date(k + "T12:00:00").toLocaleDateString("it-IT", { day: "numeric", month: "short" });
+  const mon = k => new Date(k + "-15T12:00:00").toLocaleDateString("it-IT", { month: "short", year: "2-digit" });
+  return `<p class="muted u-note">Solo le installazioni che hanno acconsentito alle statistiche anonime. Dati dal ${esc(new Date(u.dal + "T12:00:00").toLocaleDateString("it-IT"))}; conservati al massimo 13 mesi.</p>
+    <div class="cards u-cards">${[["Installazioni attive nel periodo", u.attivi], ["Installazioni in 13 mesi", u.installazioni], ["Avvii", u.avvii], ["Ore d'uso", u.ore], ["Minuti per avvio", u.minuti_sessione]]
+      .map(([l, n]) => `<div class="tile"><div class="n">${uNum(n)}</div><div class="l">${l}</div></div>`).join("")}</div>
+    <div class="u-grid">
+      ${uCols("Installazioni attive al giorno", u.per_giorno, day)}
+      ${uCols("Installazioni attive al mese", u.per_mese, mon)}
+      ${uBars("Formati più aperti", u.formati, r => "." + r.k)}
+      ${uBars("Funzioni più usate", u.funzioni, r => uName(r.k))}
+      ${uBars("Errori più frequenti", u.errori, r => uErr(r.k))}
+      ${uBars("Versioni in uso", u.versioni, r => r.k, () => "")}
+      ${uBars("Sistemi", u.sistemi, r => r.k, () => "")}
+      ${uBars("App", u.app, r => ({ pc: "Windows", mac: "Mac" })[r.k] || r.k, () => "")}
+      ${uBars("Lingue", u.lingue, r => (r.k || "—").toUpperCase(), () => "")}
+      ${uBars("Componenti attivi", u.componenti, r => U_COMP[r.k] || r.k, () => "")}
+    </div>`;
+}
+let uDays = pref("utilizzo", 30), uData = null;
+async function renderUsage(m) {
+  const head = `<div class="bar"><div class="seg">${[[7, "7 g"], [30, "30 g"], [90, "3 mesi"], [365, "12 mesi"]].map(([k, l]) => `<button data-d="${k}" class="${uDays === k ? "on" : ""}">${l}</button>`).join("")}</div></div>`;
+  const wire = () => m.querySelectorAll("[data-d]").forEach(b => b.onclick = () => { uDays = +b.dataset.d; setPref("utilizzo", uDays); uData = null; renderUsage(m); });
+  // l'aggiornamento automatico (ogni 60 s) ridisegna senza chiedere di nuovo il riepilogo; il pulsante Aggiorna lo richiede
+  if (uData && uData.giorni === uDays && Date.now() - uData._t < 300000) { m.innerHTML = head + usageHtml(uData); wire(); return; }
+  m.innerHTML = head + `<div class="empty">Caricamento...</div>`;
+  wire();
+  try {
+    uData = { ...(await api("GET", "admin/usage?giorni=" + uDays)), _t: Date.now() };
+    if (view !== "utilizzo") return;
+    m.innerHTML = head + usageHtml(uData);
+    wire();
+  } catch (e) { m.innerHTML = head + `<div class="empty err">${esc(e.message)}</div>`; wire(); }
+}
+
 // ------------------------------------------------------------ app
 let timer = 0;
 function openApp() { show("app"); setView(view); refresh(); clearInterval(timer); timer = setInterval(() => { if (!document.hidden) refresh(true); }, 60000); }
@@ -263,7 +333,7 @@ document.querySelectorAll("nav button").forEach(b => b.onclick = () => setView(b
 function setView(v) {
   view = v; history.replaceState(null, "", `${BASE}/#${v}`);
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
-  $("title").textContent = { panoramica: "Panoramica", licenze: "Licenze", richieste: "Richieste", impostazioni: "Impostazioni" }[v];
+  $("title").textContent = { panoramica: "Panoramica", licenze: "Licenze", richieste: "Richieste", utilizzo: "Utilizzo", impostazioni: "Impostazioni" }[v];
   $("fab").classList.toggle("hide", v !== "licenze");
   scrollTo(0, 0); render();
 }
@@ -293,6 +363,7 @@ navigator.serviceWorker?.addEventListener("message", e => { if (e.data?.vista) s
 function render() {
   const m = $("main");
   if (view === "impostazioni") return renderSettings(m);
+  if (view === "utilizzo") return renderUsage(m);
   if (!data) { m.innerHTML = `<div class="empty">Collegamento al server delle licenze...</div>`; return; }
   if (view === "panoramica") {
     const s = data.s, hint = standalone || localStorage.getItem("mbva-noinstalla") === "1" ? "" : `<div class="banner"><b>Installa l'app sulla schermata Home</b>
