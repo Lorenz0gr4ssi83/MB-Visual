@@ -1204,6 +1204,14 @@ Scheda "Posta" (pulsante busta nella barra laterale, `MB.openMail()`; percorso v
   msgid ricordati in settings "mdn_inviati"). File .eml PEC aperti dal disco (viewers/email.js + misc.read_email): si
   mostra postacert.eml con i dati del gestore o l'esito della ricevuta. Campioni `python tools/make_pec_samples.py` ->
   tests/samples/pec. Collaudo `python tests/test_mail_bigfile.py` (8 prove: link OneDrive anonimo/organizzazione, Dropbox, MDN).
+- Aggiungi account in un passo (23/10/2026, richiesta dell'utente "semplice e intuitivo, anche la posta aziendale"):
+  `ui/js/mail/mailadd.js` (finestra a una colonna: solo indirizzo + Continua; poi password, accesso nel browser, "Fatto";
+  le vecchie schede sono `manualAccount` in mailsettings.js dietro "Impostazioni manuali") + `mbvisual/mail/wizard.py`
+  (`detect`: preset PEC -> password; gmail/googlemail o MX/autoconfig Google -> "google"; outlook/hotmail/live o MX
+  outlook.com / server office365 -> "microsoft"; senza ID applicazione si ripiega su IMAP con password e nota;
+  `quick_add`: prova IMAP (anche nome utente senza dominio) e SMTP, salva, nome dalla parte prima della @, errori con
+  codice password / password_google (link myaccount.google.com/apppasswords + 3 passi) / password_microsoft / rete / server).
+  API `w_detect`, `w_add` (lavori), `oauth_cancel`. Testi `mail.w_*`. Prove in test_mail_oauth.py (40).
 - Da provare con l'utente: account veri (registrazioni in ui/guide/posta.md cap. 6), firma degli allegati con il suo
   dispositivo, invii come link con il suo OneDrive/Dropbox (per Dropbox rifare l'accesso: nuovo ambito sharing.write).
 

@@ -155,7 +155,8 @@ def save_account(body: dict) -> dict:
             if k in body:
                 acc[k] = body[k]
         if not acc.get("nome"):
-            acc["nome"] = acc.get("email", "")
+            from .wizard import display_name
+            acc["nome"] = display_name(acc.get("email", "")) if acc.get("email") else ""
         _save(d)
     if body.get("password") is not None:
         set_secret(aid, password=body["password"] or None)
