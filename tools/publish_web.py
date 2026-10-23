@@ -28,6 +28,7 @@ def git(*args, cwd=ROOT) -> str:
 
 
 def main() -> int:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # l'uscita di wrangler ha simboli che la console cp1252 non stampa
     commit = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("-") else git("rev-parse", "HEAD")
     if not (HOME / "licenze" / "chiavi.json").exists():
         print("publish_web: mancano le chiavi del server (%USERPROFILE%\\.mbvisual\\licenze): app per telefono non pubblicata")
