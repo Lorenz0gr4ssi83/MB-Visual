@@ -37,6 +37,7 @@ const nameOf = path => (path.startsWith("download://") ? path.slice(11) : entry(
 const toBlob = b => (b instanceof Blob ? b : new Blob([b]));
 
 function download(name, data) {
+  if (window.MBPhoneDeliver?.(name || "file", toBlob(data))) return; // telefono: Condividi (Salva in File) o Scarica
   const a = document.createElement("a");
   a.href = URL.createObjectURL(toBlob(data));
   a.download = name || "file";
@@ -50,6 +51,7 @@ async function writeOut(path, data) {
   const blob = toBlob(data);
   if (path.startsWith("download://")) { download(path.slice(11), blob); return path; }
   replace(path, blob);
+  window.MBPhoneSaved?.(path, blob); // telefono: la copia nei recenti prende il contenuto salvato
   download(nameOf(path), blob);
   return path;
 }
@@ -469,6 +471,7 @@ async function handle(route, p = {}, opts = {}) {
 
 window.MBV_API = {
   handle, urlFor, register, pickFiles,
+  blobOf: path => entry(path)[1].blob, // senza attese: la condivisione del telefono deve partire nello stesso tocco
   readBytes: bytesOf,
   readRange: async (path, s, e) => new Uint8Array(await entry(path)[1].blob.slice(s, e + 1).arrayBuffer()),
 };

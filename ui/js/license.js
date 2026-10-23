@@ -124,6 +124,12 @@ export async function showAccount() {
   if (v === "key") return MOBILE() ? toActivation(tr("license.inserisci_chiave_nuova_2")) : showGate({ stato: "da_attivare" });
 }
 
+// app per telefono (ui/js/phone.js): dati e comandi dell'account mostrati nella scheda Account
+export const accountInfo = () => remote("account");
+export const licenseReport = () => report();
+export const licenseChange = () => changeFromAccount();
+export const licenseNewKey = () => (MOBILE() ? toActivation(tr("license.inserisci_chiave_nuova_2")) : showGate({ stato: "da_attivare" }));
+
 async function report() {
   const ta = el("textarea", { rows: 6, class: "field", style: { width: "100%" }, placeholder: tr("license.descrivi_problema_richiesta") });
   if (!(await modal(tr("license.segnalazione"), el("div", { style: { minWidth: "420px" } }, ta), [{ label: tr("common.annulla"), value: false }, { label: tr("license.invia"), value: true, primary: true }]))) return;

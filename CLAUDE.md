@@ -162,6 +162,41 @@ graphics (Photoshop/Publisher/Visio: anche le immagini), video, sign, mail, prat
   lo chiama `tools/build_setup.py` (`--out <cartella>` per le prove senza sovrascrivere il setup da pubblicare). Il setup scrive
   componenti.json e il registro a fine installazione; aggiornando (anche /VERYSILENT di update.py) riprende la scelta dal registro.
 
+## Interfaccia per telefono in stile app (23/10/2026) - FATTO (prova su telefoni veri: la fa l'utente)
+Sui telefoni (lato corto sotto i 600 px, nella web app o con il dito come puntatore; decisione in uno script di `ui/index.html`
+prima del primo disegno, che aggiunge `html.phone` e carica `css/phone.css`) la cornice del PC sparisce e c'e' un guscio da
+app mobile: `ui/js/phone.js` (caricato da app.js solo in quel caso) + `ui/css/phone.css` + `ui/js/phonestore.js`.
+Tablet (768+) e PC NON cambiano (schermate prima/dopo identiche al pixel). Testi: chiavi `ph.*` (5 lingue).
+- Barra in basso grafite con 5 schede: Home, File, Scansiona (pulsante arancione al centro = scanner), Strumenti, Account.
+  Schermate con titolo grande che si riduce scorrendo (`ph-scrolled`). Home: logo, "Apri file" (selettore del sistema), Scansiona,
+  Crea nuovo, documenti aperti, recenti con miniatura/tipo/data, "Apri per tipo" (accept del selettore; su iOS niente accept per
+  dwg/ifc... che iOS spegnerebbe). File: sfoglia/foto/fotocamera, file salvati con ricerca e ordinamento, spazio usato, Svuota.
+  Strumenti: Scansiona, Confronta revisioni (due file), Unisci PDF (pdf-lib), Formati, Crea nuovo. Account: licenza (license.js
+  `accountInfo`/`licenseReport`/`licenseChange`/`licenseNewKey`), tema Automatico/Chiaro/Scuro, lingua, spazio, versione
+  (`window.MBV_BUILD` scritto da build_web.py).
+- Recenti: copia del file in IndexedDB "mbv-telefono" (max 150 MB per file, 600 MB e 60 file in tutto) + miniatura JPEG presa dal
+  disegno del visualizzatore (canvas, pagine di pdf.js, three.js con preserveDrawingBuffer) o dall'immagine. Un file salvato
+  aggiorna la copia (`MBPhoneSaved` da webapi.js); licenza non valida = database cancellato (mlicenza.js).
+- Documento aperto a tutto schermo: barra in alto (indietro, nome, condividi = Web Share con il file nello stesso tocco tramite
+  `MBV_API.blobOf`, altro = foglio di azioni Salva/Salva con nome/Condividi/Apri come/Confronta/Proprieta'/Chiudi). Tocco singolo
+  sul documento o scorrimento verso il basso = barre nascoste (`ph-imm`); doppio tocco = zoom (4 scatti di rotella simulata con
+  Ctrl sui canvas: CAD, DWF, HP-GL, confronto, immagini, 3D; nei PDF zoom pdf.js / larghezza pagina; le mappe hanno il loro).
+  La barra `.tb` di OGNI visualizzatore diventa il foglio "Strumenti" (stessa DOM, solo CSS: griglia di riquadri con icona e
+  nome; i pulsanti con sola icona prendono il nome dal title); il pannello `.side > :first-child`, `.gis-left`, `.cmp-side`
+  diventa un foglio trascinabile (chiuso/meta'/pieno; in orizzontale pannello a sinistra) con il pulsante "Pannello".
+  PDF (adattatore in phone.js): barra di pdf.js nascosta, pagina "n / N" (tocco = vai alla pagina), Cerca (barra sopra il
+  documento), Evidenzia/Testo/Disegno/Immagine (modi editor di pdf.js con il pulsante arancione per uscire), foglio "Pagine e
+  segnalibri" con miniature e struttura.
+- Menu di tutti gli editor (.menu, .ps-menu, .cad-menu, .pb-pop, .vs-pop...) come fogli in basso via CSS; `core.js modal`
+  sul telefono: avvisi brevi = foglio in basso con pulsanti impilati, le altre finestre a tutta altezza con Annulla a sinistra
+  e l'azione (o "Fine") a destra; `loading()` = scheletro della pagina; avvisi in basso; scaricamenti della web app = foglio
+  "Condividi o Salva in File / Scarica" (`MBPhoneDeliver`). Tasto/gesto indietro: fogli -> menu -> pannello -> barre nascoste ->
+  chiude il documento (`phoneUi.back` in goBack). Vibrazione leggera (navigator.vibrate, Android) su schede, menu, fogli.
+- Editor di immagini sul telefono: strumenti in una striscia in basso, opzioni in alto, pannelli come foglio.
+- Prove: Edge senza finestra via DevTools (Node, WebSocket) con emulazione iPhone 15 / SE, Pixel 8, Android 360x740, verticale e
+  orizzontale, tema chiaro e scuro; server di prova = ui/ con l'intestazione della web app (MBV_WEB) e vendor della copia
+  pubblicata. NB: il profilo di Edge di prova deve stare in un percorso corto, altrimenti IndexedDB da' "Internal error".
+
 ## Editor di immagini in stile Photoshop (21/10/2026) - FATTO
 Le immagini si aprono in `ui/js/imgedit.js` (da `ui/js/viewers/image.js`): menu Modifica/Immagine/Livello/Seleziona/Filtro/
 Visualizza/Finestra nella barra del visualizzatore, barra opzioni dello strumento, barra strumenti verticale con gli stessi gruppi,

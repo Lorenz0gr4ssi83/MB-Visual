@@ -9,6 +9,19 @@
 <link rel="preload" href="fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="css/components.css">
+<script>
+// telefono (lato corto sotto i 600 px, nella web app o con il dito come puntatore): interfaccia da app mobile (js/phone.js).
+// Si decide qui, prima del primo disegno, per non mostrare la cornice del PC nemmeno per un attimo.
+(function () {
+  var d = document.documentElement, s = Math.min(screen.width || 9999, screen.height || 9999, innerWidth, innerHeight);
+  var coarse = window.matchMedia && matchMedia("(pointer: coarse)").matches;
+  if (s < 600 && (window.MBV_WEB || coarse)) {
+    d.classList.add("phone");
+    document.write('<link rel="stylesheet" href="css/phone.css">');
+    setTimeout(function () { d.classList.add("ph-ready"); }, 6000); // mai una pagina vuota, anche se qualcosa va storto
+  }
+})();
+</script>
 </head>
 <body>
 <!-- barra del titolo: schede dei documenti (il logo resta solo nella cornice della finestra), ricerca dei comandi (Ctrl+K) -->

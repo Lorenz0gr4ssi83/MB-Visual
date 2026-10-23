@@ -169,7 +169,7 @@ HEAD = """<meta name="theme-color" content="#0f1114">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="MB Visual">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-__SPLASH__<script>window.MBV_WEB = true; window.MBV_ROOT = new URL(".", location.href).href;
+__SPLASH__<script>window.MBV_WEB = true; window.MBV_BUILD = "__VERSION__"; window.MBV_ROOT = new URL(".", location.href).href;
 if ("serviceWorker" in navigator) {
   addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
   // versione nuova appena installata: si ricarica una volta per usare i file nuovi (non alla prima installazione)
@@ -192,7 +192,7 @@ MANIFEST = {
 
 SW = r"""// Service worker di MB Visual: uso offline (cache) e ricezione dei file condivisi da altre app
 const VERSION = "__VERSION__";
-const CORE = ["./", "index.html", "css/app.css", "js/app.js", "js/core.js", "js/webapi.js", "formats.json", "img/logo.png", "img/icon-192.png", "manifest.webmanifest"];
+const CORE = ["./", "index.html", "css/app.css", "css/phone.css", "js/app.js", "js/core.js", "js/webapi.js", "js/phone.js", "js/phonestore.js", "formats.json", "img/logo.png", "img/logo-512.png", "img/icon-192.png", "manifest.webmanifest"];
 self.addEventListener("install", e => { e.waitUntil(caches.open("mbv-" + VERSION).then(c => c.addAll(CORE)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith("mbv-") && k !== "mbv-" + VERSION && k !== "mbv-condivisi").map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -306,7 +306,7 @@ def main() -> None:
     for js in (OUT / "js").rglob("*.js"):
         js.write_text(patch_js(js.read_text(encoding="utf-8")), encoding="utf-8")
     html = (OUT / "index.html").read_text(encoding="utf-8")
-    html = html.replace('<link rel="icon" href="img/logo.png">', '<link rel="icon" href="img/logo.png">\n' + HEAD.replace("__SPLASH__", splash_tags()))
+    html = html.replace('<link rel="icon" href="img/logo.png">', '<link rel="icon" href="img/logo.png">\n' + HEAD.replace("__SPLASH__", splash_tags()).replace("__VERSION__", VERSION))
     html = html.replace('"/vendor/', '"./vendor/')
     html = html.replace('<script type="module" src="js/app.js"></script>', '<script type="module" src="js/webapi.js"></script>\n<script type="module" src="js/app.js"></script>')
     html = html.replace('<html lang="it">', '<html lang="it" class="web">')

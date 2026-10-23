@@ -126,8 +126,17 @@ export function button(label, icon, onclick, opts = {}) {
   return b;
 }
 
+const PHONE = () => document.documentElement.classList.contains("phone");
 export function loading(container, text = tr("core.apertura_corso")) {
   container.innerHTML = "";
+  if (PHONE()) {
+    // telefono: scheletro della pagina al posto della rotella, avanzamento sotto
+    const bar = el("div", { class: "progress" }, el("span"));
+    const msg = el("div", {}, text);
+    container.append(el("div", { class: "ph-skeleton" }, el("div", { class: "ph-sk-page" }, el("i", { class: "h" }), el("i"), el("i"), el("i", { class: "s" }), el("i", { class: "b" }), el("i"), el("i", { class: "s" })),
+      el("div", { class: "ph-sk-msg" }, msg, bar)));
+    return { set(p, m) { bar.firstChild.style.width = Math.round((p || 0) * 100) + "%"; if (m) msg.textContent = m; } };
+  }
   const bar = el("div", { class: "progress" }, el("span"));
   const msg = el("div", {}, text);
   container.append(el("div", { class: "center" }, el("div", {}, el("div", { class: "spinner" }), msg, bar)));
@@ -151,15 +160,32 @@ export function modal(title, content, buttons = [{ label: "OK", value: true, pri
     const back = document.getElementById("modal");
     const body = document.getElementById("modal-body");
     body.innerHTML = "";
-    body.append(el("h3", {}, title));
-    if (typeof content === "string") body.append(el("div", { html: content }));
-    else if (content) body.append(content);
-    const row = el("div", { class: "row" });
+    body.className = "modal";
     const close = v => { back.hidden = true; document.removeEventListener("keydown", onKey); resolve(v); };
-    for (const b of buttons) {
-      row.append(el("button", { class: "btn" + (b.primary ? " primary" : "") + (b.danger ? " danger" : ""), onclick: () => close(typeof b.value === "function" ? b.value() : b.value) }, b.label));
+    const mk = (b, extra = "", label = b.label) => el("button", { class: "btn" + (b.primary ? " primary" : "") + (b.danger ? " danger" : "") + extra, onclick: () => close(typeof b.value === "function" ? b.value() : b.value) }, label);
+    const node = typeof content === "string" ? el("div", { html: content }) : content || null;
+    // telefono: avvisi brevi come foglio in basso con i pulsanti uno sotto l'altro; le altre finestre a tutta altezza con
+    // Annulla a sinistra e l'azione principale (o "Fine") a destra, come nelle app del sistema
+    const short = node && !node.querySelector?.("input, select, textarea, table, canvas, ul, ol, dl, details, img") && (node.textContent || "").length < 420;
+    if (PHONE() && !short) {
+      const prim = buttons.find(b => b.primary) || buttons[buttons.length - 1];
+      const cancel = buttons.find(b => b !== prim && (b.value === null || b.value === false));
+      const rest = buttons.filter(b => b !== prim && b !== cancel);
+      const single = buttons.length === 1;
+      body.classList.add("ph-full");
+      body.append(el("div", { class: "ph-mhead" }, cancel ? mk(cancel, " ph-mleft") : el("span"), el("h3", {}, title),
+        prim ? mk(prim, " ph-mright" + (single ? " primary" : ""), single && (prim.value === true || prim.value === false) ? tr("ph.fine") : prim.label) : el("span")),
+      el("div", { class: "ph-mbody" }, node, rest.length ? el("div", { class: "row ph-mrest" }, ...rest.map(b => mk(b))) : null));
+    } else {
+      if (PHONE()) body.classList.add("ph-alert");
+      body.append(el("h3", {}, title));
+      if (node) body.append(node);
+      const row = el("div", { class: "row" });
+      // sul telefono l'azione principale in alto, Annulla in fondo
+      const order = PHONE() ? [...buttons.filter(b => b.primary || b.danger), ...buttons.filter(b => !b.primary && !b.danger && b.value !== null && b.value !== false), ...buttons.filter(b => !b.primary && !b.danger && (b.value === null || b.value === false))] : buttons;
+      for (const b of order) row.append(mk(b));
+      body.append(row);
     }
-    body.append(row);
     const onKey = e => { if (e.key === "Escape") close(null); };
     document.addEventListener("keydown", onKey);
     back.hidden = false;

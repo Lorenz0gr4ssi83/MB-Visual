@@ -3,13 +3,16 @@ import {
   api, baseName, button, confirmBox, dirName, el, extOf, fmtSize, isDesktop, modal, pickFiles, pickFolder,
   pickSavePath, readRange, toast, waitJob, WEB,
 } from "./core.js";
-import { licenseGate, showAccount } from "./license.js";
+import { licenseGate, showAccount, accountInfo, licenseReport, licenseChange, licenseNewKey } from "./license.js";
 import { setupMobileQr } from "./mobileqr.js";
 import { initTouch, afterMount } from "./touch.js";
 import { initComponents, isOn, compFor, inviteChip, needComp, showComponents, needsFirstRun, ICON as COMP_ICON } from "./components.js";
 import { t as tr, tn, has as trHas, LANG, LANGS, LOCALE, MANUAL, keyName, setLanguage } from "./i18n.js";
 
 const $ = id => document.getElementById(id);
+// telefono (lato corto sotto i 600 px, classe decisa in index.html): guscio da app mobile in ui/js/phone.js
+const PHONE = document.documentElement.classList.contains("phone");
+let phoneUi = null;
 
 // Mac: le scorciatoie si fanno con Cmd. I gestori dell'app guardano ctrlKey: prima di loro (fase di cattura) un Cmd
 // premuto vale come Ctrl. Le funzioni native di WebKit (copia, incolla nei campi di testo) restano quelle del Mac.
@@ -145,6 +148,7 @@ function renderTabs() {
   $("btn-mail")?.classList.toggle("on", !!active && active.viewer === "mail" && !fmtOpen);
   updateStatus();
   try { window.pywebview?.api?.set_dirty?.(tabs.filter(t => t.dirty).length); } catch { /* */ } // per la domanda alla chiusura
+  if (phoneUi) window.dispatchEvent(new Event("mbv-tabs")); // telefono: barra del documento e schermate
 }
 
 function updateStatus() {
@@ -584,6 +588,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
     addDrawingButton(tab, tb);
     lockIfNeeded(tab, ext, tb);
     afterMount(ctx); // tablet: pannello laterale a scomparsa
+    phoneUi?.afterMount(ctx); // telefono: strumenti e pannello in fogli dal basso, recenti
     if (extraCtx.untitled) { tab.untitled = true; tab.dirty = true; renderTabs(); } // file nuovo: si salva quando e dove si vuole
   } catch (e) {
     console.error(e);
@@ -1010,7 +1015,7 @@ function toggleFormats() {
     f.hidden = false;
     $("btn-formats").classList.add("on");
     renderTabs(); // scheda "Formati" accanto ai file aperti
-    $("fmt-search").focus();
+    if (!PHONE) $("fmt-search").focus(); // sul telefono la tastiera coprirebbe l'elenco
   } else {
     f.hidden = true;
     $("btn-formats").classList.remove("on");
@@ -1024,6 +1029,7 @@ function toggleFormats() {
 function goBack() {
   if (window.MBV_BACK?.()) return; // schermate a tutto schermo (scanner, realta' aumentata) gestiscono da sole il tasto indietro
   if (!$("modal").hidden) return document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+  if (phoneUi?.back()) return; // telefono: fogli, pannelli, barre nascoste, schede della barra in basso
   if (!$("menu-open").hidden || !$("menu-as").hidden || !$("menu-file").hidden || !$("menu-pratiche").hidden) return closeMenus();
   if (!$("dragover").hidden) { $("dragover").hidden = true; document.body.classList.remove("dragging"); return; }
   if (document.fullscreenElement) return document.exitFullscreen?.();
@@ -1183,6 +1189,13 @@ async function boot() {
   setupTheme();
   setupBack();
   initTouch();
+  if (PHONE) {
+    phoneUi = await import("./phone.js");
+    phoneUi.initPhone({
+      goBack, doOpen, doNew, doScan, save, compareWith, showProperties, compatibleViewers, toggleFormats, openCompare, badgeFor,
+      viewerName: v => VIEWER_NAMES[v] || "", accountInfo, licenseReport, licenseChange, licenseNewKey,
+    });
+  }
   if (!WEB) import("./cloud.js").then(m => m.setupCloud()).catch(e => console.error(e)); // archivi cloud (SharePoint, Drive, Dropbox, Autodesk)
   startMailBadge(); // posta in background (solo con il componente Posta e PEC)
   window.addEventListener("mbv-components", componentsChanged);

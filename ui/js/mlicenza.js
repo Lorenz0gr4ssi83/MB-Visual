@@ -8,6 +8,7 @@ async function wipeAndLeave(reason) {
   try { for (const k of await caches.keys()) await caches.delete(k); } catch { /* */ }
   try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch { /* */ }
   localStorage.removeItem(EXP);
+  try { await (await import("./phonestore.js")).wipe(); } catch { /* */ } // file recenti salvati nel telefono
   location.replace("/attiva?motivo=" + encodeURIComponent(reason));
 }
 
