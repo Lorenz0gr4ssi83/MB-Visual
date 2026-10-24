@@ -8,6 +8,7 @@
 //            POST /v1/request   {token | key+device, type:"change"|"report", message, name}
 //            POST /v1/mlink     {token del PC} -> link monouso per il QR (liberi, attesa_fino)   GET /l/<link> pagina del telefono
 //            POST /v1/mlink/claim {link, device, name}   POST /v1/mlink/pair {code, device, name}
+//            POST /v1/link/ticket {token|cookie, room, name}   GET /v1/link/ws?room&tk   collegamento PC-telefono (src/link.js)
 //            POST /v1/stats {inst, days}   POST /v1/stats/forget {inst}   statistiche d'uso anonime con consenso (src/stats.js)
 // Gestione (Authorization: Bearer ADMIN_TOKEN):
 //            GET  /admin/summary, /admin/licenses, /admin/requests, /admin/events?after=ID, /admin/usage?giorni=30   POST /admin/usage/forget {inst}
@@ -18,6 +19,9 @@
 import { adminApp, adminPath, newPairCode, notifyAdmins, pushFor } from "./adminapp.js";
 import { postStats, forgetStats, usageSummary } from "./stats.js";
 import { presentationPage, privacyPage } from "./pages.js";
+import { linkTicket, linkSocket, LinkRoom } from "./link.js";
+
+export { LinkRoom }; // Durable Object del collegamento PC-telefono (wrangler.toml)
 
 const TOKEN_DAYS = 30;           // validita' offline di un'attivazione
 const CHANGES_PER_YEAR = 3;      // cambi dispositivo automatici; oltre servono l'approvazione del proprietario
@@ -50,11 +54,13 @@ async function publicKey(env) {
   if (!_pk) _pk = await crypto.subtle.importKey("raw", unb64u(env.PUBLIC_KEY), { name: "Ed25519" }, false, ["verify"]);
   return _pk;
 }
-async function makeToken(env, lic, dev) {
-  const payload = { k: lic.key, d: dev.device, t: dev.kind, c: lic.customer, iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + TOKEN_DAYS * 86400 };
+async function signPayload(env, payload) {
   const body = b64u(enc.encode(JSON.stringify(payload)));
   const sig = await crypto.subtle.sign({ name: "Ed25519" }, await signingKey(env), enc.encode(body));
   return `${body}.${b64u(sig)}`;
+}
+async function makeToken(env, lic, dev) {
+  return signPayload(env, { k: lic.key, d: dev.device, t: dev.kind, c: lic.customer, iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + TOKEN_DAYS * 86400 });
 }
 // token firmato da noi, anche scaduto (serve a riconoscere il dispositivo quando torna online)
 async function readToken(env, token) {
@@ -149,7 +155,7 @@ async function activate(env, b) {
 
 async function deviceFromToken(env, token) {
   const t = await readToken(env, token);
-  if (!t) return [null, null, fail(401, "Attivazione non valida")];
+  if (!t || t.x) return [null, null, fail(401, "Attivazione non valida")]; // x = ticket di servizio (collegamento), non un'attivazione
   const lic = await getLicense(env, t.k);
   const p = licenseProblem(lic);
   if (p) return [lic, null, fail(p[0], p[1], p[2])];
@@ -495,7 +501,7 @@ const setCookie = (res, token) => {
 };
 async function mobileToken(env, req) {
   const t = await readToken(env, getCookie(req, COOKIE));
-  return t && t.t === "mobile" && t.exp > Date.now() / 1000 ? t : null;
+  return t && !t.x && t.t === "mobile" && t.exp > Date.now() / 1000 ? t : null;
 }
 async function serveApp(env, req, url) {
   if (PUBLIC.test(url.pathname)) return env.ASSETS.fetch(req);
@@ -576,6 +582,7 @@ export default {
       if (P && (url.pathname === "/" + P || url.pathname.startsWith("/" + P + "/"))) return await adminApp(env, req, url, { admin, json, fail, event });
       if (url.pathname.startsWith("/admin")) return await admin(env, req, url);
       if (url.pathname === "/scarica" && req.method === "GET") return await setupDownload(env, req);
+      if (url.pathname === "/v1/link/ws") return await linkSocket(env, req, url, { readToken, fail });
       // pagine pubbliche (anche per la verifica dell'app OAuth di Google): presentazione e informativa (src/pages.js)
       if ((url.pathname === "/mbvisual" || url.pathname === "/privacy") && (req.method === "GET" || req.method === "HEAD"))
         return new Response((url.pathname === "/privacy" ? privacyPage : presentationPage)(env), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=600" } });
@@ -606,6 +613,7 @@ export default {
       else if (url.pathname === "/v1/mlink") res = await mobileLink(env, b, url.origin);
       else if (url.pathname === "/v1/mlink/claim") res = await claimLink(env, b, req.headers.get("user-agent") || "");
       else if (url.pathname === "/v1/mlink/pair") res = await pairCode(env, b);
+      else if (url.pathname === "/v1/link/ticket") res = await linkTicket(env, b, { deviceFromToken, sign: p => signPayload(env, p), json, fail });
       else return fail(404, "Percorso sconosciuto");
       // telefono attivato dal codice QR o dal codice di 6 cifre: attivazione nel cookie
       if (url.pathname === "/v1/mlink/claim" || url.pathname === "/v1/mlink/pair") {

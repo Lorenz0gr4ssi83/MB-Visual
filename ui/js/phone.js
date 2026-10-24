@@ -434,6 +434,7 @@ function moreMenu() {
     cmp ? { label: t("app.confronta_con"), icon: "compare", run: () => UI.compareWith() } : null,
     { label: t("idx.proprieta"), icon: "info", run: () => UI.showProperties() },
     WEB && tab.path.startsWith("web://") ? { label: t("mm.invia_email"), icon: "mail", run: () => mailFile(tab) } : null,
+    WEB && tab.path.startsWith("web://") && window.MBLinkPhone?.online ? { label: t("link.invia_al_pc"), icon: "share", run: () => window.MBLinkPhone.sendTab(tab) } : null,
     "sep",
     { label: t("ph.chiudi_file"), icon: "x", danger: true, run: () => window.MB.closeTab(tab) },
   ] });
@@ -699,6 +700,8 @@ function buildHome(s) {
     el("div", { class: "ph-actions2" },
       btn("ph-act", "scan", t("scanner.home"), () => { haptic(); UI.doScan(); }),
       btn("ph-act", "newdoc", t("idx.crea_nuovo"), () => { haptic(); UI.doNew(); }))));
+  // PC collegato (ui/js/link/linkphone.js)
+  if (window.MBLinkPhone) b.append(sectionHead(t("link.pc")), window.MBLinkPhone.homeSection());
   // documenti aperti in questo momento
   const open = (window.MB?.tabs || []).filter(x => !x.path.startsWith("mail://"));
   if (open.length) {
@@ -785,7 +788,8 @@ function toolTiles() {
     tile("scan", t("scanner.home"), t("ph.scansiona_sub"), () => UI.doScan(), "--t-img"),
     tile("compare", t("ph.confronta"), t("ph.confronta_sub"), compareTwo, "--t-cad"),
     tile("merge", t("ph.unisci_pdf"), t("ph.unisci_pdf_sub"), mergePdf, "--t-pdf"),
-    tile("formats", t("idx.formati"), t("ph.formati_sub"), () => UI.toggleFormats(), "--t-code"));
+    tile("formats", t("idx.formati"), t("ph.formati_sub"), () => UI.toggleFormats(), "--t-code"),
+    window.MBLinkPhone ? tile("open", t("link.pc"), t("link.tile_sub"), () => window.MBLinkPhone.openPc(), "--t-doc") : null);
 }
 async function compareTwo() {
   const ps = await pick({ multiple: true });
@@ -962,6 +966,8 @@ export function initPhone(ui) {
   S.home.refresh();
   sync();
   requestAnimationFrame(() => root.classList.add("ph-ready"));
+  // collegamento con il PC (QR del pannello "Telefono" dell'app per PC)
+  if (window.MBV_MOBILE || window.MBV_LINK_TOKEN) import("./link/linkphone.js").then(m => { m.initLinkPhone({ actionSheet, pushView, haptic, pick, store, UI }); S.home.refresh(); }).catch(e => console.error(e));
   updates();
   if (window.MBV_MOBILE || window.MBV_MAIL) {
     const poll = () => import("./mmail.js").then(m => { m.badgeOnly(mailHelpers()); return m.background(); }).catch(() => {});

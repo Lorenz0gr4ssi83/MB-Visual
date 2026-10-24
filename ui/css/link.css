@@ -1,0 +1,74 @@
+/* Collegamento PC <-> telefono (ui/js/link/): pannello "Telefono" del PC e viste del telefono. Solo token dell'app. */
+
+/* ---- PC: pulsante della barra laterale con lo stato */
+#btn-link { position: relative; }
+#btn-link .lk-dot { position: absolute; top: 7px; right: 9px; width: 8px; height: 8px; border-radius: 50%; background: transparent; }
+#btn-link.lk-paired .lk-dot { background: var(--faint); }
+#btn-link.lk-on .lk-dot { background: var(--ok); box-shadow: 0 0 0 2px var(--chrome, #0f1114); }
+
+/* ---- PC: pannello */
+.lk-panel { position: fixed; top: 88px; right: 14px; z-index: 60; width: 380px; max-width: calc(100vw - 28px); max-height: calc(100vh - 120px); overflow: auto;
+  background: var(--panel-2); color: var(--fg); border-radius: var(--r-lg); box-shadow: var(--sh-3); padding: 0 0 8px; font-size: 13px; }
+.lk-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 6px; position: sticky; top: 0; background: var(--panel-2); z-index: 1; }
+.lk-head b { font: 600 15px var(--display); }
+.lk-sec { padding: 8px 14px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.lk-sec h4 { margin: 2px 0 0; font: 600 11px var(--ui); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.lk-state { display: flex; align-items: center; gap: 8px; margin: 2px 14px 8px; padding: 8px 10px; border-radius: var(--r-md); background: var(--hover); }
+.lk-state i { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--faint); }
+.lk-state.lk-on i { background: var(--ok); }
+.lk-state.lk-wait i, .lk-state.lk-conn i { background: var(--warn); }
+.lk-state.lk-err i, .lk-state.lk-off i { background: var(--bad); }
+.lk-qrbox { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; }
+.lk-qr svg { display: block; border-radius: var(--r-sm); }
+.lk-qrbox ol { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--muted); }
+.lk-note { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+.lk-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.lk-chk { display: flex; align-items: center; gap: 8px; }
+.lk-dir { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.lk-dir span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px var(--mono); color: var(--muted); direction: rtl; text-align: left; }
+.lk-list { display: grid; gap: 2px; }
+.lk-item { display: flex; align-items: center; gap: 8px; justify-content: space-between; padding: 6px 8px; border-radius: var(--r-sm); border: 0; background: none; color: inherit; text-align: left; font: inherit; min-width: 0; }
+button.lk-item:hover { background: var(--hover); }
+.lk-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lk-item small { color: var(--faint); flex: none; }
+.lk-tr { display: grid; gap: 3px; font-size: 12px; }
+.lk-panel .btn.danger { color: var(--bad); }
+
+/* ---- telefono */
+.lk-home .ph-row { position: relative; }
+.lk-home .lk-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; }
+.lk-home .lk-on .lk-dot { background: var(--ok); }
+.lk-home .lk-off .lk-dot { background: var(--faint); }
+.ph-pvbody .lk-state { margin: 0 0 12px; }
+.lk-tile[disabled] { opacity: .45; }
+.lk-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 9px 14px; border-radius: var(--r-lg); border: 1px solid var(--line-strong);
+  background: var(--panel-2); color: var(--fg); font: 500 15px var(--ui); }
+.lk-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+.lk-btn.danger { color: var(--bad); width: 100%; margin-top: 18px; }
+.lk-sec { display: grid; gap: 10px; }
+.lk-ta { width: 100%; box-sizing: border-box; min-height: 110px; padding: 10px; border-radius: var(--r-md); border: 1px solid var(--line-strong); background: var(--panel); color: var(--fg); font: 16px var(--ui); resize: vertical; }
+.lk-clips { display: grid; gap: 8px; }
+.lk-clip { display: flex; gap: 10px; align-items: center; padding: 10px; border-radius: var(--r-md); background: var(--panel-2); border: 1px solid var(--line); }
+.lk-clip span { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 14px; }
+.lk-scan { position: relative; border-radius: var(--r-lg); overflow: hidden; background: #000; aspect-ratio: 3 / 4; max-height: 62vh; margin: 0 auto 12px; }
+.lk-scan video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lk-scanframe { position: absolute; inset: 18%; border: 3px solid rgba(255, 255, 255, .9); border-radius: 14px; box-shadow: 0 0 0 999px rgba(0, 0, 0, .35); }
+.lk-banner { position: fixed; left: 10px; right: 10px; top: calc(10px + env(safe-area-inset-top)); z-index: 400; display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 14px;
+  border-radius: var(--r-lg); background: var(--panel-2); color: var(--fg); box-shadow: var(--sh-3); }
+.lk-bt { flex: 1; min-width: 0; display: grid; gap: 2px; font-size: 13px; }
+.lk-bt span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.lk-x { border: 0; background: none; color: var(--muted); width: 36px; height: 36px; padding: 6px; }
+.lk-x svg, .lk-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.lk-toastbar { position: fixed; left: 12px; right: 12px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 390; padding: 10px 12px; border-radius: var(--r-md); background: var(--panel-2);
+  box-shadow: var(--sh-3); display: grid; gap: 6px; font-size: 13px; color: var(--fg); }
+.lk-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; }
+.lk-chip { flex: none; max-width: 70vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 8px 12px; border-radius: 16px; border: 1px solid var(--line-strong); background: var(--panel-2); color: var(--fg); font: 13px var(--ui); }
+.lk-chip.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-ink); }
+.lk-rinfo { font-size: 13px; color: var(--muted); margin: 2px 0 8px; }
+.lk-pad { position: relative; display: grid; place-items: center; min-height: 240px; aspect-ratio: 4 / 3; border-radius: var(--r-lg); background: var(--panel); border: 1px solid var(--line);
+  overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+.lk-shot { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
+.lk-padhint { position: absolute; left: 8px; bottom: 8px; font-size: 11.5px; color: var(--muted); background: var(--panel-2); padding: 3px 8px; border-radius: 10px; opacity: .9; pointer-events: none; }
+.lk-seg { margin: 10px 0; }
+.lk-seg[hidden] { display: none; }
+.lk-rbtns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }

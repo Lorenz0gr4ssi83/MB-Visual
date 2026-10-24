@@ -888,6 +888,7 @@ export async function openScanner({ openPdf } = {}) {
           canShare ? btn(tr("scanner.condividi"), async () => { try { await navigator.share({ files: [file], title: file.name }); } catch (e) { if (e.name !== "AbortError") toast(tr("scanner.condivisione_non_riuscita") + e.message, true); } }, "primary", "M4 12v8h16v-8M12 3v13M7 8l5-5 5 5") : el("span"),
           btn(tr("scanner.salva_dispositivo"), save, canShare ? "" : "primary", "M12 3v12M7 10l5 5 5-5M4 21h16"),
           openPdf ? btn(tr("scanner.apri_mb_visual"), () => { close(true); openPdf(file); }, "", "M3 7h6l2 2h10v10H3z") : el("span"),
+          window.MBLinkPhone?.online ? btn(tr("link.invia_al_pc"), () => window.MBLinkPhone.sendBlob(file, { kind: "scan", name: file.name }), "", "M3 5h18v11H3zM8 20h8M12 16v4") : el("span"),
           ocr && text.trim() ? btn(tr("scanner.copia_testo"), async () => { try { await navigator.clipboard.writeText(text); toast(tr("scanner.testo_copiato")); } catch { toast(tr("scanner.copia_non_riuscita"), true); } }, "", "M8 8h12v12H8zM4 16V4h12") : el("span"),
           btn(tr("scanner.nuova_scansione"), () => { pages.length = 0; showCamera(); }, "", "M12 5v14M5 12h14"),
           btn(tr("common.chiudi"), () => close(true), "", "M6 6l12 12M18 6L6 18"))));

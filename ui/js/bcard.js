@@ -285,6 +285,7 @@ export async function openCardReview({ sides, cv, show, busy, again, close }) {
       el("p", {}, t("bcard.contatto_pronto_desc")),
       mk(t("bcard.apri_contatti"), ICON.open, () => openFile(file)),
       canShare(file) ? mk(t("bcard.condividi_vcf"), ICON.share, () => shareFile(file)) : null,
+      window.MBLinkPhone?.online ? mk(t("link.invia_al_pc"), ICON.share, () => window.MBLinkPhone.sendBlob(file, { kind: "contact", name: file.name, contact: current() })) : null,
       mk(t("bcard.altro_biglietto"), ICON.again, () => again(), "primary"),
       mk(t("bcard.modifica_ancora"), ICON.contact, () => back.remove()),
       mk(t("common.chiudi"), ICON.x, () => close())));

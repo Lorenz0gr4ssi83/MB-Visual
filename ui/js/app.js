@@ -299,6 +299,7 @@ function fileMenu(anchor) {
     ...(WEB ? [] : gated("pratiche", item(ICON_PRATICA, tr("pratiche.nuova"), "", newPratica))),
     item(ICON_SAVE, tr("common.salva"), "Ctrl+S", () => save(false), !active),
     item(ICON_SAVEAS, tr("app.salva_nome"), keysText("Ctrl+Shift+S"), () => save(true), !active),
+    ...(WEB ? [] : [item(ICON_PHONE, tr("link.invia_telefono"), "", () => window.MBLink?.sendTab(active), !active || !window.MBLink)]),
     ...(window.MBCloud && isOn("tools") ? [item('<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/></svg>', tr("cloud.salva_nel_cloud"), "", () => window.MBCloud.saveToCloud(), !active)] : []), // ui/js/cloud.js
     ...(WEB ? [] : [item(ICON_PRINT, tr("app.stampa"), "Ctrl+P", () => doPrint(), !active), ...gated("cad", item(ICON_PRINT, tr("app.stampa_lotti"), keysText("Ctrl+Shift+P"), () => doPrint(true)))]),
     item('<svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM6 9h2M10 9h2M14 9h2M18 9h0M6 13h12"/></svg>', tr("app.scorciatoie_tastiera"), "F1", showShortcuts),
@@ -428,6 +429,7 @@ async function doNew(ext) {
 }
 
 // app per telefono: scansione di documenti con la fotocamera -> PDF (ui/js/scanner.js)
+const ICON_PHONE = '<svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/></svg>';
 const ICON_SCAN = '<svg viewBox="0 0 24 24"><path d="M3 8V4h4M17 4h4v4M21 16v4h-4M7 20H3v-4M7 9h10M7 12h10M7 15h6"/></svg>';
 async function doScan() {
   const { openScanner } = await import("./scanner.js");
@@ -1203,11 +1205,12 @@ async function boot() {
   if (PHONE) {
     phoneUi = await import("./phone.js");
     phoneUi.initPhone({
-      goBack, doOpen, doNew, doScan, save, compareWith, showProperties, compatibleViewers, toggleFormats, openCompare, badgeFor,
+      goBack, doOpen, doNew, doScan, save, compareWith, openFile, showProperties, compatibleViewers, toggleFormats, openCompare, badgeFor,
       viewerName: v => VIEWER_NAMES[v] || "", accountInfo, licenseReport, licenseChange, licenseNewKey,
     });
   }
   if (!WEB) import("./cloud.js").then(m => m.setupCloud()).catch(e => console.error(e)); // archivi cloud (SharePoint, Drive, Dropbox, Autodesk)
+  if (!WEB) import("./link/linkpc.js").then(m => m.setupLinkPc()).catch(e => console.error(e)); // collegamento con il telefono (QR, file, appunti, telecomando)
   startMailBadge(); // posta in background (solo con il componente Posta e PEC)
   window.addEventListener("mbv-components", componentsChanged);
   if (!WEB) licenseGate(); // licenza dell'app per PC: senza attivazione copre l'app con la schermata della chiave
@@ -1264,5 +1267,5 @@ async function boot() {
   if (needsFirstRun()) showComponents({ welcome: true }); // Mac: il .dmg non ha pagine di installazione, si sceglie al primo avvio
 }
 
-window.MB = { openPaths, openFile, openMail, openComponents, mountPreview, closeTab, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, get exDir() { return exDir; }, activate, modal, askQuit, print: doPrint, save: asNew => save(!!asNew) };
+window.MB = { openPaths, openFile, reloadTab, openMail, openComponents, mountPreview, closeTab, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, get exDir() { return exDir; }, activate, modal, askQuit, print: doPrint, save: asNew => save(!!asNew) };
 const READY = boot();

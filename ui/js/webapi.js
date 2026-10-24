@@ -52,6 +52,7 @@ async function writeOut(path, data) {
   if (path.startsWith("download://")) { download(path.slice(11), blob); return path; }
   replace(path, blob);
   window.MBPhoneSaved?.(path, blob); // telefono: la copia nei recenti prende il contenuto salvato
+  if (window.MBLinkSaved?.(path, blob)) return path; // documento arrivato dal PC collegato: la versione torna al PC (ui/js/link/linkphone.js)
   download(nameOf(path), blob);
   return path;
 }
@@ -470,7 +471,7 @@ async function handle(route, p = {}, opts = {}) {
 }
 
 window.MBV_API = {
-  handle, urlFor, register, pickFiles,
+  handle, urlFor, register, replace, pickFiles,
   blobOf: path => entry(path)[1].blob, // senza attese: la condivisione del telefono deve partire nello stesso tocco
   readBytes: bytesOf,
   readRange: async (path, s, e) => new Uint8Array(await entry(path)[1].blob.slice(s, e + 1).arrayBuffer()),

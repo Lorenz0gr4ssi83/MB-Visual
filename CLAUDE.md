@@ -162,6 +162,31 @@ graphics (Photoshop/Publisher/Visio: anche le immagini), video, sign, mail, prat
   lo chiama `tools/build_setup.py` (`--out <cartella>` per le prove senza sovrascrivere il setup da pubblicare). Il setup scrive
   componenti.json e il registro a fine installazione; aggiornando (anche /VERYSILENT di update.py) riprende la scelta dal registro.
 
+## Collegamento PC <-> telefono in tempo reale (24/10/2026) - FATTO (prova su telefoni veri: la fa l'utente)
+Abbinamento con un QR mostrato dal PC (pulsante "Telefono" nella barra laterale, `ui/js/link/linkpc.js`) e letto dall'app del
+telefono (Home -> "Collega al PC", lettore QR interno con jsQR, `ui/js/link/linkphone.js`). Il QR e' l'indirizzo dell'app per telefono
+con `#mbvlink=<stanza>.<chiave>.<nome PC>` (il frammento non arriva al server; se lo apre la fotocamera del sistema l'app lo legge).
+- Server `server/src/link.js`: Durable Object `LinkRoom` (SQLite, piano gratuito, WebSocket in ibernazione, binding LINK + migrazione v1
+  in wrangler.toml) = stanza "<licenza>/<stanza>" che INOLTRA soltanto; `POST /v1/link/ticket` (attivazione del PC nel corpo o cookie
+  del telefono -> ticket Ed25519 di 5 min con `x:"link"`, che non vale come attivazione) e `GET /v1/link/ws?room&tk`. Solo dispositivi
+  della stessa licenza; stesso dispositivo ricollegato = la vecchia connessione si chiude (4000). Presenza: JSON dal server.
+- `ui/js/link/linkcore.js` (comune): AES-GCM con chiave di 32 byte che sta solo nel QR (il server non legge nulla), saluto cifrato
+  per riconoscere i dispositivi con la chiave giusta, file a pezzi da 256 KB con avanzamento, richieste con risposta, riconnessione.
+- Funzioni: file dal telefono (scansioni, foto, biglietti = .vcf + rubrica della Posta del PC) salvati in `Documenti\MB Visual\Dal
+  telefono` (cartella a scelta) e aperti; "Invia al telefono" (menu File e pannello) e "File del PC" dal telefono (SOLO schede aperte,
+  recenti e condivisi) = DOCUMENTI CONDIVISI: salvataggio sul telefono -> originale del PC (se intanto e' cambiato o e' aperto con
+  modifiche: copia "nome (dal telefono data).ext" accanto), salvataggio sul PC -> versione nuova al telefono (controllo ogni 3 s);
+  appunti nei due versi (anche automatici dal PC; `mbvisual/link.py` con pywin32/pbcopy); telecomando (`ui/js/link/remote.js`: gesti =
+  eventi puntatore/rotella sul canvas piu' grande della scheda, PDF via PDFViewerApplication, anteprima JPEG dello schermo).
+- PC: `mbvisual/link.py` (API `api/link?op=load|save|ticket|put|conflict|clip_get|clip_set`), abbinamento e impostazioni cifrati
+  (DPAPI) in DATA_DIR/collegamento.bin (`MBV_COLLEGAMENTO` = file di prova). Telefono: abbinamenti in localStorage "mbv-link";
+  webapi.js `writeOut` chiama `MBLinkSaved` (documento del PC: la versione va al PC invece del foglio Condividi/Scarica).
+- Testi `link.*`, `srv_link.*` (5 lingue). Collaudo: `node server/test/link.mjs` (28 prove: ticket, controlli, stanza, cifratura, file,
+  richieste) e prova completa PC+telefono con `node server/test/linkserve.mjs 8799` (Worker + WebSocket minimo in Node) piu' due Edge
+  senza finestra (27 prove: abbinamento, file nei due versi, documento condiviso con conflitto, appunti, file del PC, telecomando).
+  Online provato: ticket e WebSocket verso la stanza vera. Limiti: niente funziona con l'app chiusa; il server inoltra (nessun
+  passaggio diretto fra i dispositivi); il telecomando non fa misure ne' selezioni.
+
 ## Interfaccia per telefono in stile app (23/10/2026) - FATTO (prova su telefoni veri: la fa l'utente)
 Sui telefoni (lato corto sotto i 600 px, nella web app o con il dito come puntatore; decisione in uno script di `ui/index.html`
 prima del primo disegno, che aggiunge `html.phone` e carica `css/phone.css`) la cornice del PC sparisce e c'e' un guscio da

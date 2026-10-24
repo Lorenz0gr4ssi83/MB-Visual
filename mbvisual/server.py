@@ -219,6 +219,12 @@ class Handler(BaseHTTPRequestHandler):
         self._json(stats.status())
 
     # ------------------------------------------------------------ API: lingua (ui/js/i18n.js)
+    def api_link(self, qs):
+        # collegamento PC-telefono (mbvisual/link.py): abbinamento, ticket, file ricevuti, appunti
+        from . import link
+        q = {k: v[0] for k, v in qs.items()}
+        self._json(link.handle(q.get("op", ""), q, self._body() if self.command == "POST" else b""))
+
     def api_lang(self, qs):
         self._json({"ok": True, "windows": i18n.windows_language(), "lingua": i18n.language()})
 

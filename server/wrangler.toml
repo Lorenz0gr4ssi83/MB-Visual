@@ -24,3 +24,12 @@ RELEASES_REPO = "Lorenz0gr4ssi83/MB-Visual-Rilasci"
 binding = "DB"
 database_name = "mbvisual-licenze"
 database_id = "__DATABASE_ID__"
+
+# collegamento PC-telefono in tempo reale (src/link.js): una stanza per PC, WebSocket in ibernazione, nessun dato salvato
+[[durable_objects.bindings]]
+name = "LINK"
+class_name = "LinkRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LinkRoom"]
