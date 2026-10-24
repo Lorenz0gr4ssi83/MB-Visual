@@ -461,6 +461,30 @@ Solo nella web app (window.MBV_WEB), tutto nel dispositivo, senza l'app per PC.
   Tasto indietro: `window.MBV_BACK` (app.js goBack lo chiama per primo).
 - NON provati su telefono veri: fotocamera reale, sessione WebXR e Quick Look (vanno provati dall'utente).
 
+
+## Biglietti da visita dal telefono (24/10/2026) - FATTO (prova su telefoni veri: la fa l'utente)
+Solo web app. Nella fotocamera dello scanner scelta "Documento / Biglietto da visita" sopra lo scatto (localStorage `mbv-scan-mode`) e,
+per i biglietti, chip "Fronte e retro" PRIMA dello scatto (`mbv-bcard-fr`): dopo il fronte l'app chiede di girare il biglietto e
+scatta il retro (stesso scatto automatico: aspetta che il biglietto sparisca o si sposti). `detectQuad(cv, canvas, { card: true })`
+= area minima 4% e proporzioni 1,3-2,0 (85x55 = 1,55). Importa in modo biglietto: prima foto fronte, seconda retro.
+- `ui/js/bcardparse.js` (puro, provato in Node): `parseText` (righe { text, h, conf } dell'OCR: email, siti, social, P.IVA/CF, telefoni
+  con etichette it/en/de/fr e tipo dal numero se manca, indirizzo con CAP/citta'/provincia anche su una riga o con "Sede legale",
+  nome con titolo Ing./Arch./Geom..., cognome in maiuscolo, particelle De/Di/Van; azienda da forma societaria o dominio dell'email;
+  ruolo da parole chiave; righe illeggibili scartate), `parseQr` (vCard 2.1-4.0, MECARD, BIZCARD, link), `merge` (QR, fronte, retro
+  senza doppioni), `buildVcard` (3.0 UTF-8, righe piegate a 75 byte, PHOTO base64, P.IVA/CF nella NOTE).
+- `ui/js/bcard.js`: QR con jsQR (biglietto raddrizzato, poi foto intera; la zona del QR si copre di bianco prima dell'OCR), OCR
+  Tesseract "ita+eng" (worker separato da quello dei PDF: `getOcr(langs)` di scanner.js), biglietti scuri invertiti, orientamento
+  provato (0/180 o 90/270 per i verticali) finche' la confidenza non supera 62. Scheda di revisione (colori dell'app, chiaro/scuro)
+  con foto fronte/retro, campi modificabili, righe non assegnate da toccare per inserirle nel campo attivo, "Salva nei contatti":
+  Android = Web Share del file .vcf, iPhone/iPad (o senza condivisione di file) = apertura del file; il telefono mostra "Nuovo
+  contatto" e conferma l'utente (una web app non puo' scrivere nei contatti). Foglio "Contatto pronto" con Apri/Condividi di nuovo.
+  "Aggiungi anche alla rubrica della Posta" (solo con un account della posta del telefono): kv "indirizzi" (suggerimenti del campo A)
+  e kv "rubrica" in IndexedDB "mbv-posta". Nessun dato al server.
+- Librerie in build_web.py WEB_LIBS: eng.traineddata (best_int, Apache 2.0), jsQR 1.4.0 (Apache 2.0). Testi `bcard.*` (5 lingue).
+- Collaudo: `python tools/make_bcard_samples.py` -> tests/samples/biglietti (fronte/retro, QR vCard, MECARD, bilingue con fronte scuro;
+  attesi.json) poi `node tests/test_bcard.mjs` (77 prove). Interfaccia provata in Edge senza finestra (fotocamera simulata con
+  canvas.captureStream sulle foto *_foto.jpg, navigator.share sostituito): lettura 2-7 s per biglietto, campi esatti sui 4 campioni.
+  Prove dalla console: `window.MB_BCARD` (res, current(), makeFile()), `MB_SCAN.cardSides`.
 ## Confronto tra revisioni (22/10/2026) - FATTO
 Avvio: File -> "Confronta con..." (file PDF/DWG/DXF/IFC aperto, si sceglie il secondo) oppure trascinando insieme due file
 dello stesso tipo (domanda "Confronta / Apri separatamente"). Visualizzatore `compare` (`ui/js/viewers/compare.js`, scheda

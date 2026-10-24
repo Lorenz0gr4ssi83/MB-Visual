@@ -57,8 +57,15 @@ function convex(q) {
 // Bordi del foglio in un'immagine piccola (lato lungo ~500 px): due strade (contorni di Canny e soglia di Otsu,
 // il foglio di solito e' piu' chiaro del piano) e si sceglie il quadrilatero convesso piu' grande.
 // Restituisce i 4 angoli nelle coordinate dell'immagine o null.
-export function detectQuad(cv, canvas) {
-  const W = canvas.width, H = canvas.height, minArea = W * H * 0.12;
+// opts.card: biglietto da visita (85 x 55 mm): piu' piccolo nell'inquadratura e con le proporzioni del biglietto
+export function detectQuad(cv, canvas, opts = {}) {
+  const W = canvas.width, H = canvas.height, minArea = W * H * (opts.card ? 0.04 : 0.12);
+  const shapeOk = q => {
+    if (!opts.card) return true;
+    const a = (dist(q[0], q[1]) + dist(q[3], q[2])) / 2, b = (dist(q[0], q[3]) + dist(q[1], q[2])) / 2;
+    const r = Math.max(a, b) / Math.max(1, Math.min(a, b));
+    return r > 1.3 && r < 2.0; // 85/55 = 1,55 con un margine per la prospettiva
+  };
   const mats = [];
   const M = m => (mats.push(m), m);
   const best = { q: null, a: 0 };
@@ -86,7 +93,7 @@ export function detectQuad(cv, canvas) {
             const q = orderQuad([[d[0], d[1]], [d[2], d[3]], [d[4], d[5]], [d[6], d[7]]]);
             const a = q ? polyArea(q) : 0;
             // un foglio non occupa tutta l'inquadratura fino ai bordi esatti (sarebbe il contorno dell'immagine)
-            if (q && convex(q) && a > best.a && a < W * H * 0.985) { best.q = q; best.a = a; }
+            if (q && convex(q) && shapeOk(q) && a > best.a && a < W * H * 0.985) { best.q = q; best.a = a; }
           }
           hull.delete(); ap.delete();
         }
@@ -175,10 +182,10 @@ export function applyFilter(cv, rgba, mode) {
   return bw;
 }
 
-// ---------------------------------------------------------------- utilita' immagini
-const canvasOf = (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; };
-const toBlob = (c, type = "image/jpeg", q = 0.88) => new Promise((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error(tr("scanner.immagine_non_creata")))), type, q));
-async function blobToCanvas(blob, maxSide = Infinity) {
+// ---------------------------------------------------------------- utilita' immagini (usate anche da bcard.js)
+export const canvasOf = (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; };
+export const toBlob = (c, type = "image/jpeg", q = 0.88) => new Promise((res, rej) => c.toBlob(b => (b ? res(b) : rej(new Error(tr("scanner.immagine_non_creata")))), type, q));
+export async function blobToCanvas(blob, maxSide = Infinity) {
   const bmp = await createImageBitmap(blob);
   const k = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
   const c = canvasOf(Math.round(bmp.width * k), Math.round(bmp.height * k));
@@ -186,14 +193,14 @@ async function blobToCanvas(blob, maxSide = Infinity) {
   bmp.close?.();
   return c;
 }
-function scaled(src, maxSide) {
+export function scaled(src, maxSide) {
   const w = src.videoWidth || src.width, h = src.videoHeight || src.height; // anche un <video>
   const k = Math.min(1, maxSide / Math.max(w, h));
   const c = canvasOf(Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k)));
   c.getContext("2d").drawImage(src, 0, 0, c.width, c.height);
   return [c, k];
 }
-function rotated(src, rot) {
+export function rotated(src, rot) {
   if (!rot) return src;
   const swap = rot % 180 !== 0;
   const c = canvasOf(swap ? src.height : src.width, swap ? src.width : src.height);
@@ -206,21 +213,23 @@ function rotated(src, rot) {
 const fullQuad = (w, h) => { const m = Math.round(Math.min(w, h) * 0.02); return [[m, m], [w - m, m], [w - m, h - m], [m, h - m]]; };
 const stamp = () => { const d = new Date(), p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}.${p(d.getMinutes())}`; };
 
-// ---------------------------------------------------------------- OCR (Tesseract.js, italiano)
-let ocrWorker = null;
-async function getOcr(onProgress) {
-  if (!ocrWorker) {
-    ocrWorker = (async () => {
+// ---------------------------------------------------------------- OCR (Tesseract.js: "ita" per i documenti, "ita+eng" per i biglietti)
+const ocrWorkers = {};
+let ocrLog = null; // avanzamento della lettura in corso (il logger del worker e' fissato alla creazione)
+export async function getOcr(langs, onProgress) {
+  ocrLog = onProgress || null;
+  if (!ocrWorkers[langs]) {
+    ocrWorkers[langs] = (async () => {
       await loadScript(V("tesseract/tesseract.min.js"));
-      return window.Tesseract.createWorker("ita", 1, {
+      return window.Tesseract.createWorker(langs, 1, {
         workerPath: V("tesseract/worker.min.js"), corePath: V("tesseract/"), langPath: V("tesseract/"),
         gzip: true, workerBlobURL: false, cacheMethod: "none",
-        logger: m => onProgress?.(m),
+        logger: m => ocrLog?.(m),
       });
     })();
-    ocrWorker.catch(() => { ocrWorker = null; });
+    ocrWorkers[langs].catch(() => { delete ocrWorkers[langs]; });
   }
-  return ocrWorker;
+  return ocrWorkers[langs];
 }
 
 // ---------------------------------------------------------------- PDF (pdf-lib) con testo invisibile sotto le immagini
@@ -234,7 +243,7 @@ async function buildPdf(pages, { size, ocr, title }, progress) {
   if (ocr) {
     progress(0, tr("scanner.preparazione_riconoscimento_testo_prima_volta"));
     let cur = 0;
-    worker = await getOcr(m => { if (m.status === "recognizing text") progress((cur + m.progress) / pages.length, tr("scanner.riconoscimento_testo_pagina_0_1", cur + 1, pages.length)); });
+    worker = await getOcr("ita", m => { if (m.status === "recognizing text") progress((cur + m.progress) / pages.length, tr("scanner.riconoscimento_testo_pagina_0_1", cur + 1, pages.length)); });
     for (; cur < pages.length; cur++) {
       progress(cur / pages.length, tr("scanner.riconoscimento_testo_pagina_0_1", cur + 1, pages.length));
       const r = await worker.recognize(await pages[cur].final(), {}, { blocks: true, text: true });
@@ -280,7 +289,7 @@ async function buildPdf(pages, { size, ocr, title }, progress) {
 
 // ---------------------------------------------------------------- pagina scansionata
 // src: Blob JPEG della foto (lato lungo <= MAX_SRC); quad: angoli nella foto; filter; rot (gradi); out: Blob elaborato
-class Page {
+export class Page {
   constructor(src, w, h, quad) { Object.assign(this, { src, w, h, quad, filter: "color", rot: 0, out: null, thumb: "" }); }
   async process(cv) {
     const c = await blobToCanvas(this.src);
@@ -314,6 +323,10 @@ export async function openScanner({ openPdf } = {}) {
   document.body.append(root);
   document.documentElement.classList.add("scn-open");
   const pages = [];
+  // modo: "doc" = documenti (PDF), "card" = biglietti da visita (contatto); fronte e retro si sceglie prima dello scatto
+  let mode = "doc", both = false;
+  try { mode = localStorage.getItem("mbv-scan-mode") === "card" ? "card" : "doc"; both = localStorage.getItem("mbv-bcard-fr") === "1"; } catch { /* */ }
+  const cardSides = [];
   let cv = null, stream = null, screen = null, closed = false;
   const cvReady = loadCV().then(c => (cv = c));
   cvReady.catch(e => toast(tr("scanner.motore_scansione_non_caricato") + e.message, true, 8000));
@@ -348,6 +361,8 @@ export async function openScanner({ openPdf } = {}) {
     if (screen === "camera") return pages.length ? (showPages(), true) : close();
     if (screen === "crop" || screen === "filter") return (pages.length ? showPages() : showCamera()), true;
     if (screen === "result") return showPages(), true;
+    if (screen === "card") { cardSides.length = 0; return showCamera(), true; }
+    if (screen === "card-done") return close(true);
     return close();
   }
   window.MBV_BACK = back;
@@ -376,6 +391,25 @@ export async function openScanner({ openPdf } = {}) {
     const count = el("span", { class: "scn-count" });
     const thumbBtn = el("button", { type: "button", class: "scn-thumb", title: tr("scanner.pagine_acquisite"), onclick: () => pages.length && showPages() }, count);
     const flash = el("div", { class: "scn-flash" });
+    const isCard = mode === "card";
+    const sideLbl = el("div", { class: "scn-side", hidden: !isCard || !both });
+    const updSide = () => { sideLbl.textContent = cardSides.length ? tr("bcard.retro") : tr("bcard.fronte"); sideLbl.hidden = !isCard || !both; };
+    updSide();
+    const bothBtn = btn(tr("bcard.fronte_retro"), () => {
+      both = !both; bothBtn.classList.toggle("on", both);
+      try { localStorage.setItem("mbv-bcard-fr", both ? "1" : "0"); } catch { /* */ }
+      if (!both && cardSides.length) return cardDone();
+      updSide();
+    }, "chip" + (both ? " on" : ""), "M4 7h11v10H4zM9 4h11v10");
+    bothBtn.title = tr("bcard.fronte_retro_desc");
+    bothBtn.hidden = !isCard;
+    const modeBtn = (id, label) => btn(label, () => {
+      if (mode === id) return;
+      mode = id; cardSides.length = 0;
+      try { localStorage.setItem("mbv-scan-mode", id); } catch { /* */ }
+      showCamera();
+    }, "mode" + (mode === id ? " on" : ""));
+    const modes = el("div", { class: "scn-modes" }, modeBtn("doc", tr("bcard.modo_documento")), modeBtn("card", tr("bcard.modo_biglietto")));
     const autoBtn = btn(tr("scanner.auto"), () => { auto = !auto; autoBtn.classList.toggle("on", auto); try { localStorage.setItem("mbv-scan-auto", auto ? "1" : "0"); } catch { /* */ } stable = 0; }, "chip" + (auto ? " on" : ""));
     autoBtn.title = tr("scanner.scatto_automatico_quando_foglio_fermo");
     let torch = false;
@@ -390,8 +424,8 @@ export async function openScanner({ openPdf } = {}) {
     const shutter = el("button", { type: "button", class: "scn-shutter", title: tr("scanner.scatta"), onclick: () => capture(false) });
     const node = el("div", { class: "scn-camera" },
       el("div", { class: "scn-view" }, video, svg, flash),
-      el("div", { class: "scn-top" }, btn("", () => back(), "round", "M6 6l12 12M18 6L6 18"), el("span", { class: "grow" }), autoBtn, torchBtn),
-      hint,
+      el("div", { class: "scn-top" }, btn("", () => back(), "round", "M6 6l12 12M18 6L6 18"), el("span", { class: "grow" }), bothBtn, autoBtn, torchBtn),
+      sideLbl, hint, modes,
       el("div", { class: "scn-bottom" },
         btn(tr("scanner.importa"), () => fileInp.click(), "side", "M4 5h16v14H4zM4 15l5-5 4 4 3-3 4 4M15 9h.01"),
         shutter, thumbBtn, fileInp));
@@ -409,11 +443,13 @@ export async function openScanner({ openPdf } = {}) {
       return;
     }
     try { torchBtn.hidden = !stream.getVideoTracks()[0].getCapabilities?.().torch; } catch { /* */ }
-    hint.textContent = tr("scanner.inquadra_foglio_piano_colore_diverso");
+    const H_FIND = isCard ? (cardSides.length ? tr("bcard.gira_biglietto") : tr("bcard.inquadra_biglietto")) : tr("scanner.inquadra_foglio_piano_colore_diverso");
+    hint.textContent = H_FIND;
     await cvReady.catch(() => {});
 
     // rilevamento in tempo reale su una copia piccola del fotogramma (circa 7 volte al secondo)
     let quad = null, prev = null, stable = 0, waitChange = false, lastRun = 0, capturing = false;
+    const qopt = { card: isCard };
     const small = canvasOf(1, 1), sg = small.getContext("2d", { willReadFrequently: true });
     const toView = q => {
       const vw = video.videoWidth, vh = video.videoHeight, r = video.getBoundingClientRect();
@@ -430,7 +466,7 @@ export async function openScanner({ openPdf } = {}) {
       if (small.width !== Math.round(vw * k)) { small.width = Math.round(vw * k); small.height = Math.round(vh * k); }
       sg.drawImage(video, 0, 0, small.width, small.height);
       let q = null;
-      try { q = detectQuad(cv, small); } catch { /* fotogramma non valido */ }
+      try { q = detectQuad(cv, small, qopt); } catch { /* fotogramma non valido */ }
       q = q && q.map(p => [p[0] / k, p[1] / k]);
       const diag = Math.hypot(vw, vh);
       if (q && quad) q = q.map((p, i) => [quad[i][0] * 0.4 + p[0] * 0.6, quad[i][1] * 0.4 + p[1] * 0.6]); // movimento piu' morbido
@@ -441,8 +477,9 @@ export async function openScanner({ openPdf } = {}) {
       quad = q;
       poly.setAttribute("points", q ? toView(q) : "");
       svg.classList.toggle("ok", !!q && stable >= 3);
-      if (!q) hint.textContent = tr("scanner.inquadra_foglio_piano_colore_diverso");
-      else if (auto && !waitChange) hint.textContent = stable >= 3 ? tr("scanner.tieni_fermo") : tr("scanner.foglio_trovato");
+      if (!q) hint.textContent = waitChange && isCard ? tr("bcard.gira_biglietto") : H_FIND;
+      else if (auto && !waitChange) hint.textContent = stable >= 3 ? tr("scanner.tieni_fermo") : isCard ? tr("bcard.biglietto_trovato") : tr("scanner.foglio_trovato");
+      else if (isCard) hint.textContent = waitChange ? tr("bcard.gira_biglietto") : tr("bcard.biglietto_trovato_scatta");
       else hint.textContent = waitChange ? tr("scanner.pagina_acquisita_inquadra_successiva") : tr("scanner.foglio_trovato_scatta");
       if (auto && !waitChange && stable >= 8) { waitChange = true; stable = 0; capture(true); }
     };
@@ -459,11 +496,17 @@ export async function openScanner({ openPdf } = {}) {
         let q = null;
         if (cv) {
           const [d, kd] = scaled(c, 800);
-          q = detectQuad(cv, d);
+          q = detectQuad(cv, d, qopt);
           q = q && q.map(p => [p[0] / kd, p[1] / kd]);
         }
         if (!q && quad) q = quad.map(p => [p[0] * k, p[1] * k]);
         const page = new Page(blob, c.width, c.height, q || fullQuad(c.width, c.height));
+        if (isCard) {
+          page.filter = "orig"; // colori veri: servono per la foto del contatto (l'OCR lavora su una copia)
+          if (isAuto && cv) { await page.process(cv); if (navigator.vibrate) navigator.vibrate(40); cardShot(page); }
+          else showCrop(page, true, c, cardShot);
+          return;
+        }
         if (isAuto && cv) {
           await page.process(cv);
           pages.push(page);
@@ -473,11 +516,50 @@ export async function openScanner({ openPdf } = {}) {
       } catch (e) { toast(tr("scanner.scatto_non_riuscito") + e.message, true); }
       finally { capturing = false; }
     }
+    // biglietto acquisito: con fronte e retro si aspetta che venga girato, poi si legge
+    function cardShot(page) {
+      cardSides.push(page);
+      if (both && cardSides.length === 1) {
+        if (screen !== "camera" || !node.isConnected) return showCamera(); // dal ritaglio manuale
+        waitChange = true; stable = 0; updSide();
+        hint.textContent = tr("bcard.gira_biglietto");
+        return;
+      }
+      cardDone();
+    }
+  }
+
+  async function cardDone() {
+    stopCamera();
+    const b = busy(tr("bcard.preparazione"));
+    try {
+      const { openCardReview } = await import("./bcard.js");
+      b.done();
+      openCardReview({ sides: cardSides.slice(0, 2), cv: await cvReady, show, btn, busy,
+        again: () => { cardSides.length = 0; showCamera(); }, close: () => close(true) });
+    } catch (e) { b.done(); toast(e.message, true, 6000); }
   }
 
   async function importFiles(files) {
     if (!files.length) return;
     const b = busy(tr("scanner.lettura_foto"));
+    if (mode === "card") { // biglietto: la prima foto e' il fronte, la seconda (se c'e') il retro
+      try {
+        const c0 = await cvReady;
+        cardSides.length = 0;
+        for (const f of files.slice(0, 2)) {
+          const c = await blobToCanvas(f, MAX_SRC);
+          const [d, kd] = scaled(c, 800);
+          const q = detectQuad(c0, d, { card: true });
+          const page = new Page(await toBlob(c, "image/jpeg", 0.92), c.width, c.height, q ? q.map(p => [p[0] / kd, p[1] / kd]) : fullQuad(c.width, c.height));
+          page.filter = "orig";
+          await page.process(c0);
+          cardSides.push(page);
+        }
+        b.done();
+        return cardDone();
+      } catch (e) { b.done(); toast(tr("scanner.importazione_non_riuscita") + e.message, true, 6000); return; }
+    }
     try {
       const c0 = await cvReady;
       const added = [];
@@ -499,7 +581,7 @@ export async function openScanner({ openPdf } = {}) {
   }
 
   // ------------------------------------------------ ritaglio con i 4 angoli (lente d'ingrandimento durante il trascinamento)
-  async function showCrop(page, isNew, srcCanvas = null) {
+  async function showCrop(page, isNew, srcCanvas = null, onDone = null) {
     stopCamera();
     const src = srcCanvas || await blobToCanvas(page.src);
     const [view] = scaled(src, 1400);
@@ -562,6 +644,7 @@ export async function openScanner({ openPdf } = {}) {
       const b = busy(tr("scanner.raddrizzamento_foglio"));
       try { const c = await cvReady; await page.process(c); } catch (e) { b.done(); return toast(tr("scanner.elaborazione_non_riuscita") + e.message, true, 6000); }
       b.done();
+      if (onDone) return onDone(page);
       showFilter(page, isNew);
     }, "primary", "M5 12h14M13 6l6 6-6 6");
     const node = el("div", { class: "scn-crop" },
@@ -570,7 +653,7 @@ export async function openScanner({ openPdf } = {}) {
       box,
       el("div", { class: "scn-bar" },
         btn(tr("scanner.rileva"), async () => {
-          const c = await cvReady; const [d, kd] = scaled(src, 800); const r = detectQuad(c, d);
+          const c = await cvReady; const [d, kd] = scaled(src, 800); const r = detectQuad(c, d, { card: !!onDone });
           if (r) { q = r.map(p => [p[0] / kd * kv, p[1] / kd * kv]); draw(); } else toast(tr("scanner.bordi_foglio_non_trovati_regola"));
         }, "", "M3 8V3h5M16 3h5v5M21 16v5h-5M8 21H3v-5"),
         btn(tr("scanner.tutta"), () => { q = [[0, 0], [view.width, 0], [view.width, view.height], [0, view.height]]; draw(); }, "", "M4 4h16v16H4z"),
@@ -739,6 +822,6 @@ export async function openScanner({ openPdf } = {}) {
   }
 
   // per le prove dalla console: MB_SCAN.pages, MB_SCAN.importFiles([...])
-  window.MB_SCAN = { pages, importFiles, showPages, get screen() { return screen; } };
+  window.MB_SCAN = { pages, cardSides, importFiles, showPages, get screen() { return screen; }, get mode() { return mode; } };
   showCamera();
 }

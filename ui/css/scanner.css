@@ -92,3 +92,67 @@ html.scn-open, html.scn-open body { overflow: hidden; }
 .scn-done p { margin: 0; color: #a5aaa4; font-size: 13px; }
 .scn-actions { display: grid; gap: 10px; width: min(360px, 100%); margin-top: 10px; }
 .scn-actions .scn-btn { justify-content: center; padding: 12px; }
+
+/* modo di scansione (sopra lo scatto) e lato del biglietto */
+.scn-modes { position: absolute; left: 50%; bottom: calc(108px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 3; display: flex; gap: 4px;
+  padding: 4px; border-radius: 20px; background: rgba(0, 0, 0, .55); }
+.scn-btn.mode { border: 0; background: transparent; padding: 7px 14px; font-size: 13px; letter-spacing: .02em; color: #d6dad5; }
+.scn-btn.mode.on { background: rgba(255, 255, 255, .16); color: #ffb37a; }
+.scn-camera .scn-hint { bottom: calc(160px + env(safe-area-inset-bottom)); }
+.scn-side { position: absolute; left: 50%; top: calc(66px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 2; padding: 5px 14px; border-radius: 14px;
+  background: var(--accent); color: var(--accent-fg); font: 600 13px var(--ui); }
+.scn-side[hidden] { display: none; }
+
+/* biglietto da visita: scheda di revisione (colori dell'app, chiaro o scuro) */
+.bc-review { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--fg); user-select: text; -webkit-user-select: text;
+  animation: bc-up .22s ease-out; }
+@keyframes bc-up { from { transform: translateY(24px); opacity: .4; } to { transform: none; opacity: 1; } }
+.bc-review svg { width: 18px; height: 18px; }
+.bc-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: calc(8px + env(safe-area-inset-top)) 8px 8px;
+  background: var(--panel); border-bottom: 1px solid var(--line); }
+.bc-head h2 { margin: 0; font: 600 17px var(--display); }
+.bc-hbtn { justify-self: start; border: 0; background: none; color: var(--accent-ink); font: 500 16px var(--ui); padding: 8px 10px; min-height: 44px; }
+.bc-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px 24px; display: flex; flex-direction: column; gap: 14px; -webkit-overflow-scrolling: touch; }
+.bc-body > * { flex: none; }
+.bc-photos { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
+.bc-photos figure { margin: 0; flex: 0 0 auto; width: min(46%, 220px); display: grid; gap: 4px; }
+.bc-photos img { width: 100%; border-radius: var(--r-sm); box-shadow: var(--sh-2); background: #fff; display: block; }
+.bc-photos figcaption { font-size: 12px; color: var(--muted); text-align: center; }
+.bc-zoom { position: absolute; inset: 0; z-index: 6; background: rgba(0, 0, 0, .85); display: grid; place-items: center; padding: 16px; }
+.bc-zoom img { max-width: 100%; max-height: 100%; border-radius: var(--r-sm); }
+.bc-src { margin: 0; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: var(--r-md); background: var(--accent-soft); color: var(--fg); font-size: 13px; }
+.bc-src.ok { background: color-mix(in srgb, var(--ok) 16%, transparent); }
+.bc-group { display: grid; gap: 8px; padding: 12px; border-radius: var(--r-lg); background: var(--panel-2); box-shadow: var(--sh-1); border: 1px solid var(--line); }
+.bc-group h3 { margin: 0; font: 600 12px var(--ui); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.bc-f { display: grid; gap: 3px; min-width: 0; }
+.bc-f > span { font-size: 12px; color: var(--muted); }
+.bc-review input, .bc-review select, .bc-review textarea { width: 100%; min-width: 0; box-sizing: border-box; min-height: 42px; padding: 9px 10px; border-radius: var(--r-sm);
+  border: 1px solid var(--line-strong); background: var(--panel); color: var(--fg); font: 16px var(--ui); }
+.bc-review textarea { resize: vertical; }
+.bc-review input:focus, .bc-review select:focus, .bc-review textarea:focus { outline: 2px solid var(--accent-line); outline-offset: 0; border-color: var(--accent); }
+.bc-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 8px; }
+.bc-two.half { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.bc-list { display: grid; gap: 8px; }
+.bc-row { display: flex; gap: 6px; align-items: center; }
+.bc-row select { flex: 0 0 auto; width: auto; max-width: 42%; }
+.bc-row input { flex: 1; }
+.bc-rm { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--hover); color: var(--bad); display: grid; place-items: center; padding: 0; }
+.bc-add { justify-self: start; display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: var(--accent-ink); font: 500 14px var(--ui); padding: 8px 2px; min-height: 40px; }
+.bc-hint { margin: 0; font-size: 12.5px; color: var(--muted); }
+.bc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.bc-chip { border: 1px dashed var(--line-strong); background: var(--panel); color: var(--fg); border-radius: 16px; padding: 7px 12px; font: 13px var(--ui); max-width: 100%; text-align: left; }
+.bc-chk { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; }
+.bc-chk input { width: 22px; height: 22px; min-height: 0; flex: none; margin: 0; accent-color: var(--accent); }
+.bc-foot { display: flex; gap: 10px; padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--line); }
+.bc-foot .bc-btn { flex: 1; }
+.bc-foot .bc-btn.primary { flex: 1.35; }
+.bc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 10px 14px; border-radius: var(--r-lg);
+  border: 1px solid var(--line-strong); background: var(--panel-2); color: var(--fg); font: 500 15px var(--ui); }
+.bc-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+.bc-sheetback { position: absolute; inset: 0; z-index: 5; background: rgba(0, 0, 0, .45); display: flex; align-items: flex-end; justify-content: center; animation: bc-fade .18s; }
+@keyframes bc-fade { from { opacity: 0; } }
+.bc-sheet { width: min(520px, 100%); box-sizing: border-box; background: var(--panel-2); color: var(--fg); border-radius: var(--r-xl) var(--r-xl) 0 0; padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
+  display: grid; gap: 10px; box-shadow: var(--sh-3); animation: bc-up .22s ease-out; }
+.bc-grab { justify-self: center; width: 40px; height: 5px; border-radius: 3px; background: var(--line-strong); margin-bottom: 4px; }
+.bc-sheet h3 { margin: 0; font: 600 18px var(--display); }
+.bc-sheet p { margin: 0 0 4px; font-size: 14px; color: var(--muted); }

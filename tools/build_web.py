@@ -54,6 +54,9 @@ WEB_LIBS = [
     ("tesseract", "https://registry.npmjs.org/tesseract.js-core/-/tesseract.js-core-6.0.0.tgz",
      {"package/tesseract-core-lstm.wasm.js": "tesseract-core-lstm.wasm.js", "package/tesseract-core-simd-lstm.wasm.js": "tesseract-core-simd-lstm.wasm.js"}),
     ("tesseract", "https://registry.npmjs.org/@tesseract.js-data/ita/-/ita-1.0.0.tgz", {"package/4.0.0_best_int/ita.traineddata.gz": "ita.traineddata.gz"}),
+    # biglietti da visita (ui/js/bcard.js): dati "eng" di tessdata Apache 2.0, jsQR Apache 2.0 (QR con vCard/MECARD)
+    ("tesseract", "https://registry.npmjs.org/@tesseract.js-data/eng/-/eng-1.0.0.tgz", {"package/4.0.0_best_int/eng.traineddata.gz": "eng.traineddata.gz"}),
+    ("jsqr", "https://registry.npmjs.org/jsqr/-/jsqr-1.4.0.tgz", {"package/dist/jsQR.js": "jsQR.js", "package/LICENSE": "LICENSE"}),
 ]
 
 # estensioni che la web app apre davvero (per categoria del registro); le categorie assenti non sono disponibili

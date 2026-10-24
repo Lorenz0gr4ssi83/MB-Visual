@@ -1,0 +1,112 @@
+{
+ "nota": "Generato da tools/make_bcard_samples.py: persone, aziende e numeri inventati.",
+ "biglietti": [
+  {
+   "id": "it_fronte_retro",
+   "lati": [
+    {
+     "file": "it_fronte_retro_fronte.png",
+     "foto": "it_fronte_retro_fronte_foto.jpg",
+     "testo": "Ing. Marco Bellini\nDirettore tecnico\nBellini Progetti S.r.l."
+    },
+    {
+     "file": "it_fronte_retro_retro.png",
+     "foto": "it_fronte_retro_retro_foto.jpg",
+     "testo": "Via Giuseppe Mazzini, 48\n40121 Bologna (BO)\nTel. +39 051 234 5678\nCell. 348 765 4321\nm.bellini@belliniprogetti.it\nwww.belliniprogetti.it\nP.IVA 03456789012"
+    }
+   ],
+   "qr": null,
+   "atteso": {
+    "given": "Marco",
+    "family": "Bellini",
+    "org": "Bellini Progetti S.r.l.",
+    "title": "Direttore tecnico",
+    "emails": [
+     "m.bellini@belliniprogetti.it"
+    ],
+    "phones": [
+     "work 0512345678",
+     "cell 3487654321"
+    ],
+    "city": "Bologna"
+   }
+  },
+  {
+   "id": "qr_vcard",
+   "lati": [
+    {
+     "file": "qr_vcard_fronte.png",
+     "foto": "qr_vcard_fronte_foto.jpg",
+     "testo": "Arch. Chiara Ferraris\nArchitetto\nStudio Ferraris Architetti\nCorso Francia 120 - 10143 Torino\nTel. 011 445 5667\nchiara@studioferraris.it"
+    }
+   ],
+   "qr": "BEGIN:VCARD\nVERSION:3.0\nN:Ferraris;Chiara Maria;;Arch.;\nFN:Arch. Chiara Maria Ferraris\nORG:Studio Ferraris Architetti\nTITLE:Architetto\nTEL;TYPE=CELL:+39 339 112 2334\nTEL;TYPE=WORK:+39 011 445 5667\nEMAIL:chiara@studioferraris.it\nURL:https://studioferraris.it\nADR;TYPE=WORK:;;Corso Francia 120;Torino;TO;10143;Italia\nEND:VCARD",
+   "atteso": {
+    "given": "Chiara Maria",
+    "family": "Ferraris",
+    "org": "Studio Ferraris Architetti",
+    "title": "Architetto",
+    "emails": [
+     "chiara@studioferraris.it"
+    ],
+    "phones": [
+     "cell 3391122334",
+     "work 0114455667"
+    ],
+    "city": "Torino"
+   }
+  },
+  {
+   "id": "bilingue",
+   "lati": [
+    {
+     "file": "bilingue_fronte.png",
+     "foto": "bilingue_fronte_foto.jpg",
+     "testo": "Elena Moretti\nResponsabile commerciale\nMoretti Impianti S.p.A.\nCell. +39 335 246 8100\ne.moretti@morettimpianti.com"
+    },
+    {
+     "file": "bilingue_retro.png",
+     "foto": "bilingue_retro_foto.jpg",
+     "testo": "Elena Moretti\nSales Manager\nMoretti Impianti S.p.A.\nVia dell'Industria 7, 25125 Brescia BS, Italy\nMobile +39 335 246 8100\nOffice +39 030 998 7766\ne.moretti@morettimpianti.com\nlinkedin.com/in/elenamoretti"
+    }
+   ],
+   "qr": null,
+   "atteso": {
+    "given": "Elena",
+    "family": "Moretti",
+    "org": "Moretti Impianti S.p.A.",
+    "title": "Responsabile commerciale",
+    "emails": [
+     "e.moretti@morettimpianti.com"
+    ],
+    "phones": [
+     "cell 3352468100",
+     "work 0309987766"
+    ],
+    "city": "Brescia"
+   }
+  },
+  {
+   "id": "en_mecard",
+   "lati": [
+    {
+     "file": "en_mecard_fronte.png",
+     "foto": "en_mecard_fronte_foto.jpg",
+     "testo": "James WALKER\nChartered Surveyor\nNorthbridge Surveys Ltd\nM: +44 7700 900456\nj.walker@northbridgesurveys.co.uk"
+    }
+   ],
+   "qr": "MECARD:N:Walker,James;ORG:Northbridge Surveys Ltd;TEL:+447700900456;EMAIL:j.walker@northbridgesurveys.co.uk;URL:https://northbridgesurveys.co.uk;;",
+   "atteso": {
+    "given": "James",
+    "family": "Walker",
+    "org": "Northbridge Surveys Ltd",
+    "emails": [
+     "j.walker@northbridgesurveys.co.uk"
+    ],
+    "phones": [
+     "cell 447700900456"
+    ]
+   }
+  }
+ ]
+}
