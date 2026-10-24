@@ -31,7 +31,11 @@ OUT = Path.home() / ".mbvisual" / "webbuild"
 CACHE = Path.home() / ".mbvisual" / "webvendor"
 # versione del service worker: cambia a ogni build, cosi' i telefoni scaricano davvero i file nuovi (cache per versione)
 import time as _time
-VERSION = _time.strftime("%Y.%m.%d-%H%M%S")
+# MBV_VERSIONE = versione dell'app per PC (tools/publish_web.py): l'app per telefono la mostra e la usa come nome della versione
+import os as _os
+import re as _re
+APP_VERSION = _os.environ.get("MBV_VERSIONE") or _re.search(r'^VERSION = "([^"]+)"', (Path(__file__).resolve().parent.parent / "app.py").read_text(encoding="utf-8"), _re.M).group(1)
+VERSION = APP_VERSION + "-" + _time.strftime("%Y.%m.%d-%H%M%S")
 
 # librerie usate solo dalla web app: (cartella, tarball npm, {file nel pacchetto: destinazione})
 WEB_LIBS = [
@@ -169,12 +173,24 @@ HEAD = """<meta name="theme-color" content="#0f1114">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="MB Visual">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-__SPLASH__<script>window.MBV_WEB = true; window.MBV_BUILD = "__VERSION__"; window.MBV_ROOT = new URL(".", location.href).href;
+__SPLASH__<script>window.MBV_WEB = true; window.MBV_BUILD = "__VERSION__"; window.MBV_VERSION = "__APPVER__"; window.MBV_ROOT = new URL(".", location.href).href;
 if ("serviceWorker" in navigator) {
-  addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
-  // versione nuova appena installata: si ricarica una volta per usare i file nuovi (non alla prima installazione)
+  // aggiornamento automatico insieme all'app per PC (tools/publish_web.py): controllo all'apertura, ogni 30 minuti,
+  // quando l'app torna in primo piano e quando torna la rete
+  addEventListener("load", () => navigator.serviceWorker.register("sw.js").then(reg => {
+    const check = () => reg.update().catch(() => {});
+    setInterval(check, 30 * 60000);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+    addEventListener("online", check);
+  }));
+  // versione nuova installata: si ricarica per usare i file nuovi (non alla prima installazione); con file modificati
+  // non salvati si aspetta: l'app mostra "Aggiornamento pronto" con il pulsante per ricaricare (ui/js/phone.js)
   const had = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.addEventListener("controllerchange", () => { if (had && !window.__mbvReload) { window.__mbvReload = true; location.reload(); } });
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!had || window.__mbvReload) return;
+    if ((window.MB?.tabs || []).some(t => t.dirty)) { window.MBV_UPDATE_READY = true; dispatchEvent(new Event("mbv-update")); return; }
+    window.__mbvReload = true; location.reload();
+  });
 }</script>
 """
 
@@ -306,7 +322,7 @@ def main() -> None:
     for js in (OUT / "js").rglob("*.js"):
         js.write_text(patch_js(js.read_text(encoding="utf-8")), encoding="utf-8")
     html = (OUT / "index.html").read_text(encoding="utf-8")
-    html = html.replace('<link rel="icon" href="img/logo.png">', '<link rel="icon" href="img/logo.png">\n' + HEAD.replace("__SPLASH__", splash_tags()).replace("__VERSION__", VERSION))
+    html = html.replace('<link rel="icon" href="img/logo.png">', '<link rel="icon" href="img/logo.png">\n' + HEAD.replace("__SPLASH__", splash_tags()).replace("__VERSION__", VERSION).replace("__APPVER__", APP_VERSION))
     html = html.replace('"/vendor/', '"./vendor/')
     html = html.replace('<script type="module" src="js/app.js"></script>', '<script type="module" src="js/webapi.js"></script>\n<script type="module" src="js/app.js"></script>')
     html = html.replace('<html lang="it">', '<html lang="it" class="web">')
@@ -321,7 +337,7 @@ def main() -> None:
     (OUT / "index.html").write_text(html, encoding="utf-8")
     (OUT / "formats.json").write_text(json.dumps(web_registry(), ensure_ascii=False, indent=1), encoding="utf-8")
     (OUT / "manifest.webmanifest").write_text(json.dumps(MANIFEST, ensure_ascii=False, indent=1), encoding="utf-8")
-    (OUT / "sw.js").write_text(SW.replace("__VERSION__", VERSION), encoding="utf-8")
+    (OUT / "sw.js").write_text(SW.replace("__VERSION__", VERSION).replace("__APPVER__", APP_VERSION), encoding="utf-8")
     icons(OUT / "img")
     (OUT / ".nojekyll").write_text("", encoding="utf-8")
     n = len({e for c in json.loads((OUT / "formats.json").read_text(encoding="utf-8"))["categories"] for e in c["exts"]})

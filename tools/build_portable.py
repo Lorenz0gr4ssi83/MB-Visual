@@ -33,6 +33,11 @@ def publish(final: Path, info: dict) -> None:
     print("Copia in App per PC:", st)
     (PUBLISH / "versione.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
     print("Pubblicata in", PUBLISH, info)
+    # app per telefono della stessa versione sul server delle licenze (tools/publish_web.py): i telefoni si aggiornano con i PC
+    if "--no-web" not in sys.argv:
+        r = subprocess.run([sys.executable, str(ROOT / "tools" / "publish_web.py")], cwd=ROOT)
+        if r.returncode:
+            print("ATTENZIONE: app per telefono NON pubblicata: rilanciare python tools/publish_web.py")
 
 
 def main() -> int:

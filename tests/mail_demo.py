@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 os.environ["MBV_MAIL_DIR"] = tempfile.mkdtemp(prefix="mbv-posta-demo-")
+os.environ.setdefault("MBV_CLOUD_DIR", os.path.join(os.environ["MBV_MAIL_DIR"], "cloud"))  # niente ID applicazione dell'utente
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 import davserver  # noqa: E402

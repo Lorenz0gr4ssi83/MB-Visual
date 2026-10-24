@@ -750,6 +750,15 @@ def handle(op: str, q: dict, b: dict):
     if op == "oauth_login":
         from . import oauth
         return oauth.login_start(b)
+    if op == "w_detect":
+        from . import wizard
+        return {"ok": True, "job": jobs.start(lambda update: wizard.detect(b["email"], update))}
+    if op == "w_add":
+        from . import wizard
+        return {"ok": True, "job": jobs.start(wizard.quick_add, b)}
+    if op == "oauth_cancel":
+        from .. import cloud
+        return cloud.login_cancel("mail-" + (b.get("provider") or ""))
     if op == "oauth_status":
         from . import oauth
         return oauth.status()

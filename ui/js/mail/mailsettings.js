@@ -3,6 +3,9 @@
 import { el, modal, pickFolder, toast, waitJob } from "../core.js";
 import { t as tr } from "../i18n.js";
 import { afterAccountsChanged, ap, call, icon } from "./mailapp.js";
+import { addAccount } from "./mailadd.js";
+
+export { addAccount };
 import { IC } from "./mailicons.js";
 
 const OAUTH_READY = true;
@@ -79,7 +82,7 @@ async function renderAccounts(main) {
 }
 const confirmDel = text => modal(tr("mail.conferma"), el("p", {}, text), [{ label: tr("common.annulla"), value: false }, { label: tr("mail.rimuovi"), value: true, danger: true }]);
 
-export async function addAccount(opts = {}) {
+export async function manualAccount(opts = {}) {
   if (!W) win(tr("mail.impostazioni_posta"), TABS(), "account");
   const main = W.main;
   W.gen++;
@@ -99,7 +102,7 @@ export async function addAccount(opts = {}) {
     cards.innerHTML = "";
     for (const [k, l, n, ic] of kinds) cards.append(el("button", { class: "ml-kind" + (k === kind ? " on" : ""), onclick: () => { kind = k; drawKinds(); drawForm(); } }, icon(ic), el("b", {}, l), el("span", {}, n)));
   };
-  const email = inp("", "email", "nome@dominio.it"), pw = inp("", "password"), name = inp("", "text", tr("mail.nome_visualizzato_ph"));
+  const email = inp(opts.email || "", "email", "nome@dominio.it"), pw = inp("", "password"), name = inp("", "text", tr("mail.nome_visualizzato_ph"));
   const pecSel = sel("", [["", tr("mail.gestore_auto")], ...preset.pec.map(p => [p.id, p.nome])]);
   email.addEventListener("change", () => {
     const d = email.value.split("@")[1]?.toLowerCase();
@@ -205,7 +208,7 @@ export async function editAccount(a) {
     field(tr("mail.alias"), f.alias, tr("mail.alias_hint")),
     pecRow, graph ? null : saveRow, st,
     el("div", { class: "ml-row-btns" },
-      el("button", { class: "btn", onclick: () => (isNew ? addAccount() : W.show("account")) }, tr("common.annulla")),
+      el("button", { class: "btn", onclick: () => (isNew ? manualAccount({ email: a.email }) : W.show("account")) }, tr("common.annulla")),
       graph ? null : el("button", { class: "btn", onclick: () => test(false) }, tr("mail.prova")),
       el("button", { class: "btn primary", onclick: () => test(true) }, isNew ? tr("mail.prova_e_salva") : tr("common.salva"))));
   const body = () => {

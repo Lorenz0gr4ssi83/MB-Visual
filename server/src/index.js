@@ -591,6 +591,13 @@ export default {
       // statistiche d'uso anonime: senza token, cookie o dati della licenza
       if (url.pathname === "/v1/stats") return await postStats(env, b, json, fail);
       if (url.pathname === "/v1/stats/forget") return await forgetStats(env, b, json, fail);
+      // posta dell'app per telefono: passaggio IMAP/SMTP senza memoria, solo per telefoni attivati (server/src/mailgw.js)
+      if (url.pathname === "/v1/mail/imap" || url.pathname === "/v1/mail/smtp") {
+        if (!(await mobileToken(env, req))) return fail(401, "App non attivata");
+        const { mailGateway } = await import("./mailgw.js");
+        const connect = env._connect || (await import("cloudflare:sockets")).connect; // _connect: prove senza Cloudflare
+        return await mailGateway(env, url.pathname, b, connect);
+      }
       let res;
       if (url.pathname === "/v1/activate") res = await activate(env, b);
       else if (url.pathname === "/v1/check") res = await check(env, b);

@@ -193,6 +193,26 @@ Tablet (768+) e PC NON cambiano (schermate prima/dopo identiche al pixel). Testi
   "Condividi o Salva in File / Scarica" (`MBPhoneDeliver`). Tasto/gesto indietro: fogli -> menu -> pannello -> barre nascoste ->
   chiude il documento (`phoneUi.back` in goBack). Vibrazione leggera (navigator.vibrate, Android) su schede, menu, fogli.
 - Editor di immagini sul telefono: strumenti in una striscia in basso, opzioni in alto, pannelli come foglio.
+- Revisione 2 (24/10/2026). Barra in basso: Home, File, Scansiona, POSTA, Account (gli Strumenti sono una sezione della Home).
+  * Aggiornamento in parallelo all'app per PC: `tools/build_portable.py` (pubblicazione in App per PC, salvo `--no-web`) lancia
+    `tools/publish_web.py [commit]` = wt-web sullo STESSO commit + ui/vendor allineata, license_setup.py server, build_web.py
+    --mobile con `MBV_VERSIONE` (= VERSION di app.py), wrangler deploy (Node x64). Si puo' lanciare anche da solo. Nella web app
+    `window.MBV_VERSION` (numero dell'app per PC) e `MBV_BUILD` (numero + data); service worker controllato all'apertura, ogni
+    30 min, al ritorno in primo piano e con la rete; versione nuova = ricarica da sola, ma con file modificati non salvati
+    chiede prima (`mbv-update` -> foglio "Aggiornamento pronto"); dopo l'aggiornamento avviso "Aggiornata alla versione X".
+  * Posta sul telefono: il browser non apre connessioni TCP, quindi `server/src/mailgw.js` = passaggio IMAP/SMTP SENZA memoria
+    (POST /v1/mail/imap e /v1/mail/smtp, solo con il cookie di un telefono attivato; porte 993/143 e 465/587; TLS o STARTTLS
+    con `connect` di cloudflare:sockets importato dinamicamente in index.js; `env._connect` per le prove). Il Worker esegue i
+    comandi e restituisce le risposte GREZZE (intestazione JSON + byte), saltando i letterali senza esaminarli: poca CPU.
+    Telefono: `ui/js/mmailcore.js` (gestori preimpostati PEC/comuni come accounts.py, IndexedDB "mbv-posta", password cifrate
+    AES-GCM con chiave non esportabile, analisi delle risposte IMAP, MIME con postal-mime, MIME in uscita, PEC: X-Ricevuta,
+    X-Trasporto, postacert.eml, daticert.xml) + `ui/js/mmail.js` (elenco con i non letti, cartelle, lettura in iframe senza
+    script con immagini remote a richiesta, allegati aperti in MB Visual, rispondi/a tutti/inoltra, scrivi con allegati,
+    sposta/elimina/contrassegna, aggiungi account con riconoscimento del gestore). Numero dei non letti sulla scheda (STATUS
+    UNSEEN ogni 3 min con l'app aperta; niente notifiche ad app chiusa: servirebbe tenere le password sul server). "Invia per
+    email" nel menu del documento aperto. Outlook.com/Microsoft 365 (solo OAuth) non ancora: messaggio che rimanda all'app per PC.
+    Collaudo: `python tests/mailserver.py --imap 11143 --smtp 11025` poi `node server/test/mailgw.mjs` (10 prove; `nodesockets.mjs`
+    imita cloudflare:sockets). Testi `mm.*` (5 lingue). Licenza non valida = anche la posta del telefono cancellata (mlicenza.js).
 - Prove: Edge senza finestra via DevTools (Node, WebSocket) con emulazione iPhone 15 / SE, Pixel 8, Android 360x740, verticale e
   orizzontale, tema chiaro e scuro; server di prova = ui/ con l'intestazione della web app (MBV_WEB) e vendor della copia
   pubblicata. NB: il profilo di Edge di prova deve stare in un percorso corto, altrimenti IndexedDB da' "Internal error".
@@ -1204,6 +1224,14 @@ Scheda "Posta" (pulsante busta nella barra laterale, `MB.openMail()`; percorso v
   msgid ricordati in settings "mdn_inviati"). File .eml PEC aperti dal disco (viewers/email.js + misc.read_email): si
   mostra postacert.eml con i dati del gestore o l'esito della ricevuta. Campioni `python tools/make_pec_samples.py` ->
   tests/samples/pec. Collaudo `python tests/test_mail_bigfile.py` (8 prove: link OneDrive anonimo/organizzazione, Dropbox, MDN).
+- Aggiungi account in un passo (23/10/2026, richiesta dell'utente "semplice e intuitivo, anche la posta aziendale"):
+  `ui/js/mail/mailadd.js` (finestra a una colonna: solo indirizzo + Continua; poi password, accesso nel browser, "Fatto";
+  le vecchie schede sono `manualAccount` in mailsettings.js dietro "Impostazioni manuali") + `mbvisual/mail/wizard.py`
+  (`detect`: preset PEC -> password; gmail/googlemail o MX/autoconfig Google -> "google"; outlook/hotmail/live o MX
+  outlook.com / server office365 -> "microsoft"; senza ID applicazione si ripiega su IMAP con password e nota;
+  `quick_add`: prova IMAP (anche nome utente senza dominio) e SMTP, salva, nome dalla parte prima della @, errori con
+  codice password / password_google (link myaccount.google.com/apppasswords + 3 passi) / password_microsoft / rete / server).
+  API `w_detect`, `w_add` (lavori), `oauth_cancel`. Testi `mail.w_*`. Prove in test_mail_oauth.py (40).
 - Da provare con l'utente: account veri (registrazioni in ui/guide/posta.md cap. 6), firma degli allegati con il suo
   dispositivo, invii come link con il suo OneDrive/Dropbox (per Dropbox rifare l'accesso: nuovo ambito sharing.write).
 
