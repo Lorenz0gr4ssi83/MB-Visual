@@ -38,6 +38,16 @@ def publish(final: Path, info: dict) -> None:
         r = subprocess.run([sys.executable, str(ROOT / "tools" / "publish_web.py")], cwd=ROOT)
         if r.returncode:
             print("ATTENZIONE: app per telefono NON pubblicata: rilanciare python tools/publish_web.py")
+    # setup della stessa versione nella cartella Google Drive di distribuzione, i precedenti in "Old" (tools/publish_drive.py)
+    if "--no-drive" not in sys.argv:
+        ver = info.get("versione", "")
+        files = [f for f in (DIST / f"MBVisual-Setup-{ver}.exe", DIST / f"MBVisual-{ver}-mac.dmg",
+                             Path.home() / "OneDrive" / "Desktop" / "MB Visual" / f"MBVisual-{ver}-mac.dmg") if f.is_file()]
+        files = list({f.name: f for f in files}.values())
+        if not files:
+            print("ATTENZIONE: nessun setup", ver, "da caricare su Google Drive (prima tools/build_setup.py)")
+        elif subprocess.run([sys.executable, str(ROOT / "tools" / "publish_drive.py"), *map(str, files)], cwd=ROOT).returncode:
+            print("ATTENZIONE: setup NON caricato su Google Drive: rilanciare python tools/publish_drive.py", *[f.name for f in files])
 
 
 def main() -> int:
