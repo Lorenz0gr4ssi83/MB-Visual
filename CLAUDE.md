@@ -297,6 +297,12 @@ ode-x64 e wrangler installato in
 - Setup: `tools/build_setup.py` (Inno Setup 6 in %LOCALAPPDATA%\Programs\Inno Setup 6) -> MBVisual-Setup-<ver>.exe; release
   pubblicate con gh (account Lorenz0gr4ssi83) su https://github.com/Lorenz0gr4ssi83/MB-Visual-Rilasci (v1.4.2):
   `gh release create v<ver> <setup> --repo Lorenz0gr4ssi83/MB-Visual-Rilasci`. L'app senza OneDrive si aggiorna da li'.
+- Cartella Google Drive di distribuzione (24/10/2026, richiesta dell'utente): a ogni rilascio setup Windows e .dmg Mac vanno in
+  https://drive.google.com/drive/folders/1g0K6LkMuwgx4O1s1Pul32pgVDmpjNO1e e le versioni precedenti nella sottocartella "Old"
+  (creata una volta sola). `tools/publish_drive.py <file>...` (token in %USERPROFILE%\.mbvisual\licenze\drive_token.json, rifare
+  con --login se scade); lo chiama da solo build_portable.py --solo-pubblica / publish (salvo --no-drive). Il .dmg arrivato dopo:
+  `python tools/publish_drive.py <dmg>` (non sposta il setup della stessa versione). MAI MB Visual Admin in quella cartella.
+  Copia per l'utente in C:\Users\loren\OneDrive\Desktop\MB Visual (mai sul Desktop).
 - DA FARE (decisione dell'utente): attivare l'obbligo di licenza = `server_url.txt` gia' scritto; lanciare
   `tools/license_setup.py chiavi` (scrive LICENSE_URL in license_pub.py) e fare una build SOLO quando l'utente ha creato le
   licenze per se' e i colleghi con MB Visual Admin. Poi rendere privato il repository MB-Visual (lo fa l'utente; prima
