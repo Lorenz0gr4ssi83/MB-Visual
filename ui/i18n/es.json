@@ -6652,6 +6652,7 @@
  "srv_mail.mittente_rifiutato": "Remitente rechazado por el servidor: {0}",
  "srv_mail.nessun_destinatario": "Sin destinatarios",
  "srv_mail.oauth_accedi_di_nuovo": "El acceso de {0} caducó: abre la configuración de la cuenta y pulsa \"Iniciar sesión de nuevo\"",
+ "srv_mail.oauth_altro_account": "Escribiste {0} pero en el navegador iniciaste sesión con {1}. Inténtalo de nuevo eligiendo la cuenta {0} (o \"Usar otra cuenta\").",
  "srv_mail.oauth_non_configurato": "El acceso con {0} no está configurado: introduce el ID de aplicación en Nube -> Configurar (ver la guía del correo)",
  "srv_mail.oauth_senza_email": "El servicio no devolvió la dirección de correo de la cuenta",
  "srv_mail.operazione_sconosciuta": "Operación desconocida",

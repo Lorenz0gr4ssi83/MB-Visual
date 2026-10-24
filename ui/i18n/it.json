@@ -6652,6 +6652,7 @@
  "srv_mail.mittente_rifiutato": "Mittente rifiutato dal server: {0}",
  "srv_mail.nessun_destinatario": "Nessun destinatario",
  "srv_mail.oauth_accedi_di_nuovo": "Accesso scaduto per {0}: apri le impostazioni dell'account e premi \"Accedi di nuovo\"",
+ "srv_mail.oauth_altro_account": "Hai scritto {0} ma nel browser hai fatto l'accesso con {1}. Riprova scegliendo l'account {0} (o \"Usa un altro account\").",
  "srv_mail.oauth_non_configurato": "Accesso con {0} non configurato: inserisci l'ID applicazione in Cloud -> Configura (vedi la guida della posta)",
  "srv_mail.oauth_senza_email": "Il servizio non ha comunicato l'indirizzo e-mail dell'account",
  "srv_mail.operazione_sconosciuta": "Operazione sconosciuta",

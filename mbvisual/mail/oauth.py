@@ -73,7 +73,8 @@ def login_start(b: dict, open_browser=True) -> dict:
     if b.get("email"):
         params["login_hint"] = b["email"]
     if provider == "google":
-        params.update(access_type="offline", prompt="consent")
+        # select_account: senza, Google entra con l'account gia' aperto nel browser e un secondo Gmail non si aggiunge mai
+        params.update(access_type="offline", prompt="select_account consent")
     else:
         params["prompt"] = "select_account"
     url = _url(provider, "auth", c) + "?" + urlencode(params)
@@ -106,6 +107,9 @@ def _wait(state, provider, b, update):
         tok = _token_request(provider, c, form)
         me = _profile(provider, tok["access_token"])
         email = (me.get("email") or b.get("email") or "").lower()
+        asked = (b.get("email") or "").strip().lower()
+        if asked and email and email != asked:  # entrato con un altro account: non si tocca l'account che c'e' gia'
+            raise OAuthError(t("srv_mail.oauth_altro_account", asked, email))
         if not email:
             raise OAuthError(t("srv_mail.oauth_senza_email"))
         acc = _make_account(provider, email, b.get("nome") or me.get("nome") or email, b.get("id"))

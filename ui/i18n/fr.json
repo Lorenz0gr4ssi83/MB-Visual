@@ -6652,6 +6652,7 @@
  "srv_mail.mittente_rifiutato": "Expéditeur refusé par le serveur : {0}",
  "srv_mail.nessun_destinatario": "Aucun destinataire",
  "srv_mail.oauth_accedi_di_nuovo": "Connexion expirée pour {0} : ouvrez les paramètres du compte et cliquez sur « Se reconnecter »",
+ "srv_mail.oauth_altro_account": "Vous avez saisi {0} mais vous vous êtes connecté avec {1} dans le navigateur. Réessayez en choisissant le compte {0} (ou « Utiliser un autre compte »).",
  "srv_mail.oauth_non_configurato": "La connexion avec {0} n'est pas configurée : saisissez l'ID d'application dans Cloud -> Configurer (voir le guide du courrier)",
  "srv_mail.oauth_senza_email": "Le service n'a pas renvoyé l'adresse e-mail du compte",
  "srv_mail.operazione_sconosciuta": "Opération inconnue",

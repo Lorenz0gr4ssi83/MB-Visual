@@ -6652,6 +6652,7 @@
  "srv_mail.mittente_rifiutato": "Absender vom Server abgelehnt: {0}",
  "srv_mail.nessun_destinatario": "Keine Empfänger",
  "srv_mail.oauth_accedi_di_nuovo": "Anmeldung für {0} abgelaufen: Kontoeinstellungen öffnen und „Erneut anmelden\" klicken",
+ "srv_mail.oauth_altro_account": "Sie haben {0} eingegeben, sich im Browser aber mit {1} angemeldet. Versuchen Sie es erneut und wählen Sie das Konto {0} (oder „Anderes Konto verwenden“).",
  "srv_mail.oauth_non_configurato": "Anmeldung mit {0} nicht eingerichtet: App-ID unter Cloud -> Konfigurieren eingeben (siehe E-Mail-Anleitung)",
  "srv_mail.oauth_senza_email": "Der Dienst hat die E-Mail-Adresse des Kontos nicht übermittelt",
  "srv_mail.operazione_sconosciuta": "Unbekannter Vorgang",

@@ -398,9 +398,21 @@ check("refresh token revocato: chiede un nuovo accesso", st.get("stato") == "err
 print("Gmail con OAuth (IMAP e SMTP XOAUTH2)")
 mailserver.seed()
 ip, sp, _ = mailserver.start()
+# indirizzo scritto diverso da quello con cui si entra nel browser: errore chiaro, nessun account toccato
+n_prima = len(accounts.all_accounts())
 r = oauth.login_start({"provider": "google", "email": "mario@studio.prova.it"}, open_browser=False)
+browser(r["url"])
+try:
+    wait(r["job"])
+    altro = None
+except RuntimeError as e:
+    altro = str(e)
+check("Google: account diverso da quello scritto = errore, nessun account nuovo o sovrascritto",
+      altro and "studio.gmail@prova.it" in altro and len(accounts.all_accounts()) == n_prima, altro)
+r = oauth.login_start({"provider": "google", "email": "studio.gmail@prova.it"}, open_browser=False)
 q = browser(r["url"])
-check("Google: offline + consent, ritorno su 127.0.0.1", q.get("access_type") == "offline" and q.get("prompt") == "consent"
+check("Google: offline + scelta dell'account + consent, ritorno su 127.0.0.1", q.get("access_type") == "offline"
+      and set(q.get("prompt", "").split()) == {"select_account", "consent"}
       and q["redirect_uri"].startswith("http://127.0.0.1:") and "https://mail.google.com/" in q["scope"])
 res = wait(r["job"])
 Gm = res["id"]
