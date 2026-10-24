@@ -104,7 +104,9 @@ export class Link extends EventTarget {
     ws.binaryType = "arraybuffer";
     this.ws = ws;
     ws.onopen = () => { this.retry = 0; this.setState("online"); clearInterval(this._ping); this._ping = setInterval(() => { try { ws.send("ping"); } catch { /* */ } }, 25000); };
-    ws.onmessage = e => this.receive(e.data);
+    // decifrare e' asincrono: i messaggi si elaborano uno alla volta, nell'ordine di arrivo (pezzi di un file prima della fine)
+    let queue = Promise.resolve();
+    ws.onmessage = e => { queue = queue.then(() => this.receive(e.data)).catch(() => {}); };
     ws.onclose = e => {
       if (this.ws !== ws) return;
       clearInterval(this._ping);
