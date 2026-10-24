@@ -177,6 +177,37 @@ HEAD = """<meta name="theme-color" content="#0f1114">
 <meta name="apple-mobile-web-app-title" content="MB Visual">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 __SPLASH__<script>window.MBV_WEB = true; window.MBV_BUILD = "__VERSION__"; window.MBV_VERSION = "__APPVER__"; window.MBV_ROOT = new URL(".", location.href).href;
+// ricarica con la versione nuova: la memoria dei file dell'app (cache del service worker) si svuota prima, altrimenti
+// l'app potrebbe ripartire con i file vecchi (succedeva sugli iPhone, dove il service worker nuovo spesso non subentra)
+window.MBV_HARD_RELOAD = async () => {
+  try { for (const k of await caches.keys()) if (k.startsWith("mbv-") && k !== "mbv-condivisi") await caches.delete(k); } catch (e) {}
+  window.__mbvReload = true; location.reload();
+};
+// controllo della versione indipendente dal service worker: version.json (mai dalla cache) all'apertura, al ritorno in
+// primo piano, con la rete e ogni 30 minuti; versione diversa = ricarica (con file modificati non salvati si chiede prima)
+(function () {
+  let busy = false;
+  const check = async () => {
+    if (busy || document.visibilityState !== "visible") return;
+    busy = true;
+    try {
+      const j = await (await fetch("version.json?t=" + Date.now(), { cache: "no-store" })).json();
+      if (j.v && j.v !== "__VERSION__") {
+        navigator.serviceWorker?.getRegistration().then(r => r && r.update()).catch(() => {});
+        let last = 0; try { last = +sessionStorage.getItem("mbv-ricarica") || 0; } catch (e) {}
+        if (Date.now() - last < 60000) return; // una sola ricarica al minuto: niente cicli se qualcosa va storto
+        try { sessionStorage.setItem("mbv-ricarica", String(Date.now())); } catch (e) {}
+        if ((window.MB?.tabs || []).some(t => t.dirty)) { window.MBV_UPDATE_READY = true; dispatchEvent(new Event("mbv-update")); }
+        else window.MBV_HARD_RELOAD();
+      }
+    } catch (e) { /* senza rete o pagina di attivazione */ } finally { busy = false; }
+  };
+  addEventListener("load", () => setTimeout(check, 1500));
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+  addEventListener("pageshow", e => { if (e.persisted) check(); });
+  addEventListener("online", check);
+  setInterval(check, 30 * 60000);
+})();
 if ("serviceWorker" in navigator) {
   // aggiornamento automatico insieme all'app per PC (tools/publish_web.py): controllo all'apertura, ogni 30 minuti,
   // quando l'app torna in primo piano e quando torna la rete
@@ -231,6 +262,7 @@ self.addEventListener("fetch", e => {
     return;
   }
   if (e.request.method !== "GET" || url.origin !== location.origin) return;
+  if (url.pathname.endsWith("/version.json")) return; // controllo della versione: sempre dalla rete
   // prima la cache (le librerie pesanti vengono salvate al primo uso), poi la rete
   e.respondWith(caches.open("mbv-" + VERSION).then(async c => {
     const hit = await c.match(e.request, { ignoreSearch: url.pathname.endsWith(".html") || url.pathname.endsWith("/") });
@@ -341,6 +373,7 @@ def main() -> None:
     (OUT / "formats.json").write_text(json.dumps(web_registry(), ensure_ascii=False, indent=1), encoding="utf-8")
     (OUT / "manifest.webmanifest").write_text(json.dumps(MANIFEST, ensure_ascii=False, indent=1), encoding="utf-8")
     (OUT / "sw.js").write_text(SW.replace("__VERSION__", VERSION).replace("__APPVER__", APP_VERSION), encoding="utf-8")
+    (OUT / "version.json").write_text(json.dumps({"v": VERSION, "app": APP_VERSION}), encoding="utf-8")  # controllo della versione (index.html)
     icons(OUT / "img")
     (OUT / ".nojekyll").write_text("", encoding="utf-8")
     n = len({e for c in json.loads((OUT / "formats.json").read_text(encoding="utf-8"))["categories"] for e in c["exts"]})

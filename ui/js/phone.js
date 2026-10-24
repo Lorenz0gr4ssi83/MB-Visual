@@ -986,6 +986,7 @@ function updates() {
   const ask = () => actionSheet({ title: t("ph.agg_pronto"), sub: t("ph.agg_testo"), items: [
     { label: t("ph.ricarica"), icon: "download", run: async () => {
       for (const tab of (window.MB?.tabs || []).filter(x => x.dirty)) { window.MB.activate(tab); if (!(await window.MB.modal(t("ph.agg_pronto"), el("p", {}, t("ph.agg_perdi", tab.name)), [{ label: t("common.annulla"), value: false }, { label: t("ph.ricarica"), value: true, danger: true }]))) return; }
+      if (window.MBV_HARD_RELOAD) return window.MBV_HARD_RELOAD();
       window.__mbvReload = true; location.reload();
     } }] });
   addEventListener("mbv-update", ask);
