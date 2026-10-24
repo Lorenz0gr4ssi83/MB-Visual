@@ -399,8 +399,9 @@ export async function openScanner({ openPdf } = {}) {
     await video.play().catch(() => {});
   }
 
-  let auto = true;
-  try { auto = localStorage.getItem("mbv-scan-auto") !== "0"; } catch { /* */ }
+  // scatto manuale se non si sceglie Automatico (chiave nuova: la vecchia "mbv-scan-auto" valeva "acceso" per difetto)
+  let auto = false;
+  try { auto = localStorage.getItem("mbv-scan-scatto") === "auto"; } catch { /* */ }
 
   async function showCamera() {
     const video = el("video", { playsinline: "", muted: "", autoplay: "" });
@@ -439,7 +440,7 @@ export async function openScanner({ openPdf } = {}) {
     const setAuto = v => {
       auto = v; stable = 0;
       autoOn.classList.toggle("on", v); autoOff.classList.toggle("on", !v);
-      try { localStorage.setItem("mbv-scan-auto", v ? "1" : "0"); } catch { /* */ }
+      try { localStorage.setItem("mbv-scan-scatto", v ? "auto" : "manuale"); } catch { /* */ }
     };
     const autoOn = btn(tr("scanner.automatico"), () => setAuto(true), "seg" + (auto ? " on" : ""));
     const autoOff = btn(tr("scanner.manuale"), () => setAuto(false), "seg" + (auto ? "" : " on"));

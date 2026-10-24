@@ -484,7 +484,7 @@ scatta il retro (stesso scatto automatico: aspetta che il biglietto sparisca o s
 - Revisione 24/10/2026 (richieste dell'utente): (1) biglietto su un piano di colore simile: terza strada in `detectQuad` solo per i
   biglietti (Canny a soglie basse su L equalizzata e sui canali a/b di Lab, bordi richiusi) + riquadro guida tratteggiato 85x55 quando
   i bordi non si trovano (lo scatto ritaglia quella zona, poi si regolano gli angoli). (2) Scatto "Automatico / Manuale" (scelta in
-  alto, `mbv-scan-auto`, anche per i documenti). (3) Niente raffica: dopo uno scatto automatico si aspetta un foglio NUOVO = spostato
+  alto, `mbv-scan-scatto` = auto|manuale, MANUALE predefinito per richiesta dell'utente, anche per i documenti). (3) Niente raffica: dopo uno scatto automatico si aspetta un foglio NUOVO = spostato
   oltre il 15% della diagonale, oppure sparito e ricomparso con contenuto diverso (impronta 16x16 normalizzata, correlazione <= 0,7);
   una mano che passa o un fotogramma senza bordi non bastano piu'. Dopo "Altro biglietto" il primo biglietto visto e' quello appena
   letto. Prova: piano quasi bianco senza ombra `it_fronte_retro_fronte_foto_chiaro.jpg`.
