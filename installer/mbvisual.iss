@@ -94,7 +94,7 @@ Type: filesandordirs; Name: "{app}\_internal"
 
 [Icons]
 Name: "{autoprograms}\MB Visual"; Filename: "{app}\MBVisual.exe"; IconFilename: "{app}\_internal\app.ico"; Comment: "MB Visual"
-Name: "{autodesktop}\MB Visual"; Filename: "{app}\MBVisual.exe"; IconFilename: "{app}\_internal\app.ico"; Tasks: desktopicon
+Name: "{autodesktop}\MB Visual"; Filename: "{app}\MBVisual.exe"; IconFilename: "{app}\_internal\app.ico"; Tasks: desktopicon; Check: not DesktopLinkMoved
 
 [Run]
 ; miniature/anteprime in Esplora, "Apri con", icone e menu del tasto destro (mbvisual/shellint.py, solo per l'utente): componente sempre incluso
@@ -109,6 +109,27 @@ Filename: "{app}\MBVisual.exe"; Parameters: "--integrazione rimuovi"; Flags: run
 Type: filesandordirs; Name: "{app}\_internal"
 
 [Code]
+// collegamento spostato dall'utente in una cartella del Desktop: l'aggiornamento non ne rimette uno sul Desktop
+function DesktopLinkMoved: Boolean;
+var R: TFindRec;
+begin
+  Result := False;
+  if FileExists(ExpandConstant('{autodesktop}\MB Visual.lnk')) then Exit;
+  if FindFirst(ExpandConstant('{autodesktop}\*'), R) then
+  try
+    repeat
+      if (R.Attributes and FILE_ATTRIBUTE_DIRECTORY <> 0) and (R.Name <> '.') and (R.Name <> '..') and
+         FileExists(ExpandConstant('{autodesktop}\') + R.Name + '\MB Visual.lnk') then
+      begin
+        Result := True;
+        Exit;
+      end;
+    until not FindNext(R);
+  finally
+    FindClose(R);
+  end;
+end;
+
 const
   RegKey = 'Software\MB Visual\Componenti';
 var

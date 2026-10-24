@@ -229,6 +229,19 @@ def _copy_app(src: Path, dst: Path, update=None) -> None:
                     pass
 
 
+def _desktop_link(desktop) -> Path:
+    """Collegamento "MB Visual" del Desktop: se l'utente l'ha spostato in una cartella del Desktop si usa quello, e non se
+    ne crea uno nuovo sul Desktop (prima a ogni avvio ricompariva dove l'utente l'aveva tolto)."""
+    top = Path(desktop) / "MB Visual.lnk"
+    if top.is_file():
+        return top
+    try:
+        moved = sorted(Path(desktop).glob("*/MB Visual.lnk"))
+    except OSError:
+        moved = []
+    return moved[0] if moved else top
+
+
 def _shortcuts(exe: Path) -> None:
     """Collegamenti "MB Visual" sul Desktop e nel menu Start (senza script PowerShell)."""
     import pythoncom
@@ -236,8 +249,8 @@ def _shortcuts(exe: Path) -> None:
     pythoncom.CoInitialize()
     try:
         sh = win32com.client.Dispatch("WScript.Shell")
-        for folder in (sh.SpecialFolders("Desktop"), sh.SpecialFolders("Programs")):
-            lnk = sh.CreateShortcut(str(Path(folder) / "MB Visual.lnk"))
+        for path in (_desktop_link(sh.SpecialFolders("Desktop")), Path(sh.SpecialFolders("Programs")) / "MB Visual.lnk"):
+            lnk = sh.CreateShortcut(str(path))
             lnk.TargetPath = str(exe)
             lnk.WorkingDirectory = str(exe.parent)
             # icona da file .ico locale (se l'exe fosse un file OneDrive "solo online" Windows mostrerebbe un riquadro vuoto)
@@ -265,8 +278,7 @@ def repair_shortcuts() -> dict:
         sh = win32com.client.Dispatch("WScript.Shell")
         ico = INSTALL_DIR / "_internal" / "app.ico"
         want_icon = f"{ico},0" if ico.is_file() else f"{exe},0"
-        for folder in (sh.SpecialFolders("Desktop"), sh.SpecialFolders("Programs")):
-            path = Path(folder) / "MB Visual.lnk"
+        for path in (_desktop_link(sh.SpecialFolders("Desktop")), Path(sh.SpecialFolders("Programs")) / "MB Visual.lnk"):
             ok = False
             if path.is_file():
                 try:
