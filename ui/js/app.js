@@ -1269,3 +1269,4 @@ async function boot() {
 
 window.MB = { openPaths, openFile, reloadTab, openMail, openComponents, mountPreview, closeTab, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, get exDir() { return exDir; }, activate, modal, askQuit, print: doPrint, save: asNew => save(!!asNew) };
 const READY = boot();
+READY.then(() => { window.MBV_READY = true; }, e => { (window.MBV_BOOT_ERRS || []).push(String((e && (e.stack || e.message)) || e)); console.error(e); }); // guardia d'avvio della web app (tools/build_web.py)

@@ -457,7 +457,9 @@ button,.btn{display:block;margin-top:14px;width:100%;padding:12px;border:0;borde
 <p id="pair" class="hide">Se l'app installata chiede di nuovo l'attivazione, inserisci questo codice (valido <span id="min"></span> minuti):</p><div class="code" id="code"></div></div></div>
 <script>
 const $ = id => document.getElementById(id), ipad = /ipad/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1), ios = /iphone|ipod/i.test(navigator.userAgent) || ipad;
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+// iPhone/iPad: niente service worker prima dell'attivazione (installazione fallita = richieste della pagina dopo ferme in Safari:
+// schermo bianco); serve solo ad Android per proporre "Installa app". L'app attivata lo registra da se'.
+if (!ios && "serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 let prompt = null;
 addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; $("inst").classList.remove("hide"); });
 $("inst").onclick = () => prompt && prompt.prompt();
@@ -537,7 +539,9 @@ const standalone = matchMedia("(display-mode: standalone)").matches || navigator
 const ipad = /ipad/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 const ios = /iphone|ipod/i.test(navigator.userAgent) || ipad;
 const $ = id => document.getElementById(id);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+// iPhone/iPad: niente service worker prima dell'attivazione (installazione fallita = richieste della pagina dopo ferme in Safari:
+// schermo bianco); serve solo ad Android per proporre "Installa app". L'app attivata lo registra da se'.
+if (!ios && "serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 const why = new URLSearchParams(location.search).get("motivo");
 if (why) $("msg").textContent = why;
 if (standalone) { $("browser").classList.add("hide"); $("app").classList.remove("hide"); }

@@ -208,15 +208,58 @@ window.MBV_HARD_RELOAD = async () => {
   addEventListener("online", check);
   setInterval(check, 30 * 60000);
 })();
+// guardia d'avvio: se l'app non e' pronta dopo 15 s (richiesta rimasta appesa, file vecchi del service worker, errore) la
+// prima volta si svuotano cache e service worker e si ricarica da soli; se non basta si mostra il motivo con "Riprova"
+// al posto di una pagina vuota. Testi qui dentro: i18n.js puo' essere proprio la parte che non parte.
+(function () {
+  const errs = [];
+  addEventListener("error", e => errs.push(String(e.message || (e.target && (e.target.src || e.target.href)) || "error")), true);
+  addEventListener("unhandledrejection", e => errs.push(String((e.reason && (e.reason.stack || e.reason.message)) || e.reason)));
+  window.MBV_BOOT_ERRS = errs;
+  const L = { it: ["MB Visual non si e' avviata.", "Riprova", "Controlla la connessione a internet e riprova."],
+    en: ["MB Visual did not start.", "Try again", "Check your internet connection and try again."],
+    es: ["MB Visual no se ha iniciado.", "Reintentar", "Comprueba la conexion a internet y vuelve a intentarlo."],
+    fr: ["MB Visual n'a pas demarre.", "Reessayer", "Verifiez la connexion internet et reessayez."],
+    de: ["MB Visual wurde nicht gestartet.", "Erneut versuchen", "Pruefen Sie die Internetverbindung und versuchen Sie es erneut."] };
+  let lang = "it"; try { lang = (localStorage.getItem("mbv-lang") || navigator.language || "it").slice(0, 2); } catch (e) {}
+  const T = L[lang] || L.en;
+  const clean = async () => {
+    try { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); } catch (e) {}
+    try { for (const k of await caches.keys()) if (k.startsWith("mbv-") && k !== "mbv-condivisi") await caches.delete(k); } catch (e) {}
+    window.__mbvReload = true; location.reload();
+  };
+  const ss = (k, v) => { try { if (v === undefined) return sessionStorage.getItem(k); if (v === null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) {} };
+  setTimeout(() => {
+    if (window.MBV_READY) return ss("mbv-avvio", null);
+    if (!ss("mbv-avvio") && navigator.onLine !== false) { ss("mbv-avvio", "1"); return clean(); }
+    const box = document.createElement("div");
+    box.id = "mbv-avvio";
+    box.style.cssText = "position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;padding:24px;background:#17191b;color:#e6e8e5;font:15px system-ui,sans-serif;text-align:center;cursor:default";
+    box.innerHTML = '<div style="max-width:440px"><img src="img/logo-512.png" alt="" style="width:96px;height:96px"><h2 style="font-size:20px;margin:12px 0 6px"></h2><p style="color:#9ea29b"></p>'
+      + '<button style="margin-top:12px;width:100%;padding:12px;border:0;border-radius:8px;background:#f07d2e;color:#16110c;font:600 16px system-ui;cursor:default"></button>'
+      + '<pre style="margin-top:16px;text-align:left;white-space:pre-wrap;word-break:break-word;font:11px ui-monospace,monospace;color:#8a8c89;max-height:30vh;overflow:auto"></pre></div>';
+    box.querySelector("h2").textContent = T[0];
+    box.querySelector("p").textContent = T[2];
+    box.querySelector("button").textContent = T[1];
+    box.querySelector("button").onclick = clean;
+    const NL = String.fromCharCode(10);
+    box.querySelector("pre").textContent = (window.MBV_BUILD || "") + " · " + navigator.userAgent + (errs.length ? NL + NL + errs.slice(-6).join(NL) : "");
+    document.documentElement.classList.add("ph-ready");
+    document.body.appendChild(box);
+    const wait = setInterval(() => { if (window.MBV_READY) { clearInterval(wait); box.remove(); ss("mbv-avvio", null); } }, 1000);
+  }, 15000);
+})();
 if ("serviceWorker" in navigator) {
   // aggiornamento automatico insieme all'app per PC (tools/publish_web.py): controllo all'apertura, ogni 30 minuti,
   // quando l'app torna in primo piano e quando torna la rete
-  addEventListener("load", () => navigator.serviceWorker.register("sw.js").then(reg => {
+  // registrazione qualche secondo DOPO l'avvio: su iPhone/iPad, se il service worker si installa mentre l'app carica
+  // formats.json, lingue e moduli, Safari lascia appese le richieste della pagina (schermo bianco alla prima apertura)
+  addEventListener("load", () => setTimeout(() => navigator.serviceWorker.register("sw.js").then(reg => {
     const check = () => reg.update().catch(() => {});
     setInterval(check, 30 * 60000);
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
     addEventListener("online", check);
-  }));
+  }).catch(() => {}), 6000));
   // versione nuova installata: si ricarica per usare i file nuovi (non alla prima installazione); con file modificati
   // non salvati si aspetta: l'app mostra "Aggiornamento pronto" con il pulsante per ricaricare (ui/js/phone.js)
   const had = !!navigator.serviceWorker.controller;
