@@ -334,8 +334,9 @@ Autodesk Construction Cloud/BIM 360 (APS Data Management), senza sincronizzare l
   (anche in un altro formato via api convert). app.js: solo import all'avvio e la voce di menu.
 - Guida per l'utente (registrazioni Entra, Google Cloud, Dropbox, APS + integrazione personalizzata ACC): `ui/guide/archivi-cloud.md`.
 - Google REGISTRATO (23/10/2026): progetto Google Cloud "mb-visual" (account dell'utente), Gmail/Calendar/People/Drive API attive,
-  schermata di consenso "MB Visual" Esterna in stato TEST (max 100 utenti di prova, aggiunti a mano in Google Auth Platform ->
-  Pubblico; accesso che scade ogni 7 giorni e avviso "app non verificata"), client "Applicazione desktop". ID e segreto NON nel repo
+  schermata di consenso "MB Visual" Esterna IN PRODUZIONE non verificata dal 24/10/2026 (chiunque si collega da solo, accesso che
+  NON scade ogni 7 giorni; restano l'avviso "app non verificata" e il tetto di 100 utenti per tutta la vita del progetto),
+  home page /mbvisual e privacy /privacy del Worker, dominio autorizzato mb-group.workers.dev, client "Applicazione desktop". ID e segreto NON nel repo
   (la protezione push di GitHub li rifiuta): `%USERPROFILE%\.mbvisual\licenze\cloud_ids.json` + secret MBV_CLOUD_IDS del repo;
   `tools/cloud_secrets.py` scrive `mbvisual/cloud_ids_build.py` (gitignore) a ogni build. Per i clienti: pubblicare l'app (home page,
   informativa privacy, verifica Google e valutazione di sicurezza annuale CASA per l'ambito mail.google.com).
