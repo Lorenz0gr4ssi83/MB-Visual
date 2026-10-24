@@ -481,6 +481,13 @@ scatta il retro (stesso scatto automatico: aspetta che il biglietto sparisca o s
   "Aggiungi anche alla rubrica della Posta" (solo con un account della posta del telefono): kv "indirizzi" (suggerimenti del campo A)
   e kv "rubrica" in IndexedDB "mbv-posta". Nessun dato al server.
 - Librerie in build_web.py WEB_LIBS: eng.traineddata (best_int, Apache 2.0), jsQR 1.4.0 (Apache 2.0). Testi `bcard.*` (5 lingue).
+- Revisione 24/10/2026 (richieste dell'utente): (1) biglietto su un piano di colore simile: terza strada in `detectQuad` solo per i
+  biglietti (Canny a soglie basse su L equalizzata e sui canali a/b di Lab, bordi richiusi) + riquadro guida tratteggiato 85x55 quando
+  i bordi non si trovano (lo scatto ritaglia quella zona, poi si regolano gli angoli). (2) Scatto "Automatico / Manuale" (scelta in
+  alto, `mbv-scan-auto`, anche per i documenti). (3) Niente raffica: dopo uno scatto automatico si aspetta un foglio NUOVO = spostato
+  oltre il 15% della diagonale, oppure sparito e ricomparso con contenuto diverso (impronta 16x16 normalizzata, correlazione <= 0,7);
+  una mano che passa o un fotogramma senza bordi non bastano piu'. Dopo "Altro biglietto" il primo biglietto visto e' quello appena
+  letto. Prova: piano quasi bianco senza ombra `it_fronte_retro_fronte_foto_chiaro.jpg`.
 - Collaudo: `python tools/make_bcard_samples.py` -> tests/samples/biglietti (fronte/retro, QR vCard, MECARD, bilingue con fronte scuro;
   attesi.json) poi `node tests/test_bcard.mjs` (77 prove). Interfaccia provata in Edge senza finestra (fotocamera simulata con
   canvas.captureStream sulle foto *_foto.jpg, navigator.share sostituito): lettura 2-7 s per biglietto, campi esatti sui 4 campioni.

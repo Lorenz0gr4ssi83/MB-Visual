@@ -15,6 +15,10 @@ html.scn-open, html.scn-open body { overflow: hidden; }
 .scn-btn.on { background: #eef0ed; color: #15181a; border-color: #eef0ed; }
 .scn-btn.danger { color: #ff8a80; }
 .scn-btn[hidden] { display: none; }
+.scn-seg { display: flex; padding: 3px; gap: 2px; border-radius: 20px; background: rgba(0, 0, 0, .5); border: 1px solid rgba(255, 255, 255, .18); }
+.scn-btn.seg { border: 0; background: transparent; padding: 6px 11px; font-size: 13px; }
+.scn-btn.seg.on { background: #eef0ed; color: #15181a; }
+.scn-btn.seg:focus { outline: none; }
 
 .scn-top { display: flex; align-items: center; gap: 8px; padding: calc(10px + env(safe-area-inset-top)) 12px 10px; z-index: 2; }
 .scn-camera .scn-top { position: absolute; left: 0; right: 0; top: 0; }
@@ -29,6 +33,7 @@ html.scn-open, html.scn-open body { overflow: hidden; }
 .scn-live { position: absolute; inset: 0; width: 100% !important; height: 100% !important; pointer-events: none; }
 .scn-live polygon { fill: rgba(44, 155, 240, .18); stroke: #2c9bf0; stroke-width: 3; stroke-linejoin: round; transition: fill .2s; }
 .scn-live.ok polygon { fill: rgba(70, 200, 120, .25); stroke: #46c878; }
+.scn-live polygon.guide { fill: none; stroke: rgba(255, 255, 255, .9); stroke-width: 2.5; stroke-dasharray: 12 8; }
 .scn-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
 .scn-flash.go { animation: scn-flash .35s ease-out; }
 @keyframes scn-flash { from { opacity: .8; } to { opacity: 0; } }

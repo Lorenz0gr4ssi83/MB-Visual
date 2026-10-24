@@ -115,6 +115,27 @@ export function detectQuad(cv, canvas, opts = {}) {
     cv.threshold(gray, th, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
     cv.morphologyEx(th, th, cv.MORPH_OPEN, kernel, new cv.Point(-1, -1), 2);
     look(th);
+    // 3) biglietti su un piano di colore simile: bordi deboli cercati sulla luminosita' equalizzata e sui canali di colore
+    //    (Lab: a e b separano carta e piani che in grigio sono quasi uguali), con soglie basse e bordi richiusi
+    if (opts.card && !best.q) {
+      const rgb = M(new cv.Mat()), lab = M(new cv.Mat()), acc = M(cv.Mat.zeros(H, W, cv.CV_8UC1));
+      cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
+      cv.cvtColor(rgb, lab, cv.COLOR_RGB2Lab);
+      const chs = new cv.MatVector();
+      cv.split(lab, chs);
+      for (let k = 0; k < 3; k++) {
+        const ch = chs.get(k), e = new cv.Mat();
+        if (k === 0) cv.equalizeHist(ch, ch);
+        else cv.normalize(ch, ch, 0, 255, cv.NORM_MINMAX);
+        cv.GaussianBlur(ch, ch, new cv.Size(5, 5), 0);
+        cv.Canny(ch, e, k ? 10 : 18, k ? 30 : 54);
+        cv.bitwise_or(acc, e, acc);
+        e.delete(); ch.delete();
+      }
+      chs.delete();
+      cv.morphologyEx(acc, acc, cv.MORPH_CLOSE, kernel, new cv.Point(-1, -1), 2);
+      look(acc);
+    }
   } finally { mats.forEach(m => m.delete()); }
   return best.q;
 }
@@ -327,6 +348,7 @@ export async function openScanner({ openPdf } = {}) {
   let mode = "doc", both = false;
   try { mode = localStorage.getItem("mbv-scan-mode") === "card" ? "card" : "doc"; both = localStorage.getItem("mbv-bcard-fr") === "1"; } catch { /* */ }
   const cardSides = [];
+  let resumeWait = false; // "Altro biglietto": il biglietto appena letto puo' essere ancora davanti alla fotocamera
   let cv = null, stream = null, screen = null, closed = false;
   const cvReady = loadCV().then(c => (cv = c));
   cvReady.catch(e => toast(tr("scanner.motore_scansione_non_caricato") + e.message, true, 8000));
@@ -386,7 +408,10 @@ export async function openScanner({ openPdf } = {}) {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("class", "scn-live");
     const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    svg.append(poly);
+    // riquadro guida dei biglietti (proporzioni 85 x 55): se i bordi non si trovano, lo scatto ritaglia questa zona
+    const guide = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    guide.setAttribute("class", "guide");
+    svg.append(guide, poly);
     const hint = el("div", { class: "scn-hint" }, tr("scanner.avvio_fotocamera"));
     const count = el("span", { class: "scn-count" });
     const thumbBtn = el("button", { type: "button", class: "scn-thumb", title: tr("scanner.pagine_acquisite"), onclick: () => pages.length && showPages() }, count);
@@ -410,8 +435,17 @@ export async function openScanner({ openPdf } = {}) {
       showCamera();
     }, "mode" + (mode === id ? " on" : ""));
     const modes = el("div", { class: "scn-modes" }, modeBtn("doc", tr("bcard.modo_documento")), modeBtn("card", tr("bcard.modo_biglietto")));
-    const autoBtn = btn(tr("scanner.auto"), () => { auto = !auto; autoBtn.classList.toggle("on", auto); try { localStorage.setItem("mbv-scan-auto", auto ? "1" : "0"); } catch { /* */ } stable = 0; }, "chip" + (auto ? " on" : ""));
-    autoBtn.title = tr("scanner.scatto_automatico_quando_foglio_fermo");
+    // scatto Automatico / Manuale (scelta ricordata)
+    const setAuto = v => {
+      auto = v; stable = 0;
+      autoOn.classList.toggle("on", v); autoOff.classList.toggle("on", !v);
+      try { localStorage.setItem("mbv-scan-auto", v ? "1" : "0"); } catch { /* */ }
+    };
+    const autoOn = btn(tr("scanner.automatico"), () => setAuto(true), "seg" + (auto ? " on" : ""));
+    const autoOff = btn(tr("scanner.manuale"), () => setAuto(false), "seg" + (auto ? "" : " on"));
+    autoOn.title = tr("scanner.scatto_automatico_quando_foglio_fermo");
+    autoOff.title = tr("scanner.scatto_manuale_desc");
+    const autoBtn = el("div", { class: "scn-seg" }, autoOn, autoOff);
     let torch = false;
     const torchBtn = btn("", async () => {
       torch = !torch;
@@ -443,12 +477,36 @@ export async function openScanner({ openPdf } = {}) {
       return;
     }
     try { torchBtn.hidden = !stream.getVideoTracks()[0].getCapabilities?.().torch; } catch { /* */ }
-    const H_FIND = isCard ? (cardSides.length ? tr("bcard.gira_biglietto") : tr("bcard.inquadra_biglietto")) : tr("scanner.inquadra_foglio_piano_colore_diverso");
+    const H_FIND = isCard ? (cardSides.length ? tr("bcard.gira_biglietto_riquadro") : tr("bcard.allinea_riquadro")) : tr("scanner.inquadra_foglio_piano_colore_diverso");
+    const guideQuad = () => {
+      const vw = video.videoWidth, vh = video.videoHeight, r = 85 / 55;
+      const gw = Math.min(vw * 0.84, vh * 0.84 * r), gh = gw / r, x = (vw - gw) / 2, y = (vh - gh) / 2;
+      return [[x, y], [x + gw, y], [x + gw, y + gh], [x, y + gh]];
+    };
     hint.textContent = H_FIND;
     await cvReady.catch(() => {});
 
     // rilevamento in tempo reale su una copia piccola del fotogramma (circa 7 volte al secondo)
-    let quad = null, prev = null, stable = 0, waitChange = false, lastRun = 0, capturing = false;
+    // dopo uno scatto automatico si aspetta un foglio/biglietto NUOVO: quello scattato deve sparire per qualche
+    // fotogramma di seguito o spostarsi parecchio (un solo fotogramma senza bordi non basta: prima scattava a raffica)
+    let quad = null, prev = null, stable = 0, waitChange = resumeWait, lastRun = 0, capturing = false, capQ = null, capSig = null, gone = 0, lastShot = 0;
+    // impronta del contenuto (16 x 16 grigi della parte interna del foglio): stesso posto ma contenuto diverso = foglio nuovo
+    const SG = 16, sigC = canvasOf(SG, SG), sigG = sigC.getContext("2d", { willReadFrequently: true });
+    const sigOf = (q, k) => {
+      const xs = q.map(p => p[0] * k), ys = q.map(p => p[1] * k);
+      const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), mx = (x1 - x0) * 0.12, my = (y1 - y0) * 0.12;
+      sigG.drawImage(small, x0 + mx, y0 + my, Math.max(1, x1 - x0 - 2 * mx), Math.max(1, y1 - y0 - 2 * my), 0, 0, SG, SG);
+      const n = SG * SG, d = sigG.getImageData(0, 0, SG, SG).data, out = new Float32Array(n);
+      let m = 0, v = 0;
+      for (let i = 0; i < n; i++) { out[i] = d[i * 4] * 0.3 + d[i * 4 + 1] * 0.59 + d[i * 4 + 2] * 0.11; m += out[i]; }
+      m /= n;
+      for (let i = 0; i < n; i++) { out[i] -= m; v += out[i] * out[i]; }
+      v = Math.sqrt(v) || 1;
+      for (let i = 0; i < n; i++) out[i] /= v; // luce e contrasto non contano: si confronta la disposizione di testo e disegni
+      return out;
+    };
+    const sameContent = (a, b) => { let c = 0; for (let i = 0; i < a.length; i++) c += a[i] * b[i]; window.__scanCorr?.push(c); return c > 0.7; };
+    resumeWait = false;
     const qopt = { card: isCard };
     const small = canvasOf(1, 1), sg = small.getContext("2d", { willReadFrequently: true });
     const toView = q => {
@@ -471,17 +529,30 @@ export async function openScanner({ openPdf } = {}) {
       const diag = Math.hypot(vw, vh);
       if (q && quad) q = q.map((p, i) => [quad[i][0] * 0.4 + p[0] * 0.6, quad[i][1] * 0.4 + p[1] * 0.6]); // movimento piu' morbido
       const moved = q && prev ? Math.max(...q.map((p, i) => dist(p, prev[i]))) / diag : 1;
-      if (waitChange && (!q || moved > 0.08)) waitChange = false;
+      if (waitChange) {
+        if (!q) gone++;
+        else if (!capSig) { capSig = sigOf(q, k); capQ = q; gone = 0; } // dopo "Altro biglietto": il primo che si vede e' quello appena letto
+        else {
+          const far = capQ ? Math.max(...q.map((p, i) => dist(p, capQ[i]))) / diag : 1;
+          // spostato parecchio, oppure ricomparso dopo essere sparito con un contenuto diverso (pagina nuova, biglietto girato);
+          // se ricompare uguale (una mano passata davanti, bordi persi per un attimo) si continua ad aspettare
+          if (far > 0.15 || (gone >= 1 && (!capSig || !sameContent(sigOf(q, k), capSig)))) waitChange = false;
+          gone = 0;
+        }
+      }
       stable = q && moved < 0.012 ? stable + 1 : 0;
       prev = q || prev;
       quad = q;
       poly.setAttribute("points", q ? toView(q) : "");
+      guide.setAttribute("points", isCard && !q ? toView(guideQuad()) : "");
       svg.classList.toggle("ok", !!q && stable >= 3);
-      if (!q) hint.textContent = waitChange && isCard ? tr("bcard.gira_biglietto") : H_FIND;
+      const wait = auto && waitChange, next = both && cardSides.length === 1 ? tr("bcard.gira_biglietto") : tr("bcard.biglietto_successivo");
+      if (isCard) hint.textContent = !q ? (wait ? next : H_FIND) : !auto ? tr("bcard.biglietto_trovato_scatta") : wait ? next : stable >= 3 ? tr("scanner.tieni_fermo") : tr("bcard.biglietto_trovato");
+      else if (!q) hint.textContent = H_FIND;
       else if (auto && !waitChange) hint.textContent = stable >= 3 ? tr("scanner.tieni_fermo") : isCard ? tr("bcard.biglietto_trovato") : tr("scanner.foglio_trovato");
       else if (isCard) hint.textContent = waitChange ? tr("bcard.gira_biglietto") : tr("bcard.biglietto_trovato_scatta");
       else hint.textContent = waitChange ? tr("scanner.pagina_acquisita_inquadra_successiva") : tr("scanner.foglio_trovato_scatta");
-      if (auto && !waitChange && stable >= 8) { waitChange = true; stable = 0; capture(true); }
+      if (auto && !waitChange && stable >= 8 && t - lastShot > 1500) { waitChange = true; stable = 0; capQ = q; capSig = sigOf(q, k); gone = 0; lastShot = t; capture(true); }
     };
     requestAnimationFrame(loop);
 
@@ -500,6 +571,7 @@ export async function openScanner({ openPdf } = {}) {
           q = q && q.map(p => [p[0] / kd, p[1] / kd]);
         }
         if (!q && quad) q = quad.map(p => [p[0] * k, p[1] * k]);
+        if (!q && isCard) q = guideQuad().map(p => [p[0] * k, p[1] * k]);
         const page = new Page(blob, c.width, c.height, q || fullQuad(c.width, c.height));
         if (isCard) {
           page.filter = "orig"; // colori veri: servono per la foto del contatto (l'OCR lavora su una copia)
@@ -536,7 +608,7 @@ export async function openScanner({ openPdf } = {}) {
       const { openCardReview } = await import("./bcard.js");
       b.done();
       openCardReview({ sides: cardSides.slice(0, 2), cv: await cvReady, show, btn, busy,
-        again: () => { cardSides.length = 0; showCamera(); }, close: () => close(true) });
+        again: () => { cardSides.length = 0; resumeWait = true; showCamera(); }, close: () => close(true) });
     } catch (e) { b.done(); toast(e.message, true, 6000); }
   }
 

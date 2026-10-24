@@ -68,7 +68,7 @@ def text_lines(img, items, x, y, color="#1b1d1f"):
     return y
 
 
-def photo(front, seed, table=(52, 40, 30)):
+def photo(front, seed, table=(52, 40, 30), shadow=True):
     """il biglietto fotografato su un piano: prospettiva, rotazione, ombra, luce non uniforme"""
     rnd = random.Random(seed)
     PW, PH = 2400, 1800
@@ -91,7 +91,7 @@ def photo(front, seed, table=(52, 40, 30)):
         pts.append((cx + px * math.cos(ang) - py * math.sin(ang), cy + px * math.sin(ang) + py * math.cos(ang)))
     # ombra
     sh = Image.new("L", (PW, PH), 0)
-    ImageDraw.Draw(sh).polygon([(x + 18, y + 26) for x, y in pts], fill=150)
+    ImageDraw.Draw(sh).polygon([(x + 18, y + 26) for x, y in pts], fill=150 if shadow else 0)
     sh = sh.filter(ImageFilter.GaussianBlur(22))
     base.paste(Image.new("RGB", (PW, PH), (10, 8, 6)), (0, 0), sh)
     # trasformazione prospettica: coefficienti che portano i punti della foto ai punti del biglietto
@@ -194,6 +194,8 @@ def main():
             fn = f"{cid}_{name}.png"
             img.save(OUT / fn, dpi=(DPI, DPI))
             photo(img, i * 10 + len(lati), TABLES.get(f"{cid}_{name}", (52, 40, 30))).save(OUT / f"{cid}_{name}_foto.jpg", quality=90)
+            if (cid, name) == ("it_fronte_retro", "fronte"):  # biglietto bianco su un piano quasi bianco: bordi deboli
+                photo(img, 99, (232, 230, 224), shadow=False).save(OUT / f"{cid}_{name}_foto_chiaro.jpg", quality=90)
             lati.append({"file": fn, "foto": f"{cid}_{name}_foto.jpg", "testo": "\n".join(testo)})
         att["biglietti"].append({"id": cid, "lati": lati, "qr": qr, "atteso": exp})
     (OUT / "attesi.json").write_bytes(json.dumps(att, ensure_ascii=False, indent=1).encode("utf-8") + b"\n")
