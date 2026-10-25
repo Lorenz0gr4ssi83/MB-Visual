@@ -203,7 +203,7 @@ function buildShell() {
     b.append(el("span", { class: "ph-ti", html: ICON[icon] }, id === "mail" ? el("i", { class: "ph-badge", hidden: true }) : null), el("span", { class: "ph-tl" }, label));
     nav.append(b);
   }
-  S.home = makeScreen("home", "MB Visual", buildHome);
+  S.home = makeScreen("home", "MB Desk", buildHome);
   S.files = makeScreen("files", t("ph.file"), buildFiles);
   S.mail = makeScreen("mail", t("mail.posta"), s => import("./mmail.js").then(m => m.buildMail(s, mailHelpers())));
   S.account = makeScreen("account", t("ph.account"), buildAccount);
@@ -692,7 +692,7 @@ function buildHome(s) {
   const b = s.body;
   b.innerHTML = "";
   s.large.classList.add("ph-brand");
-  if (!s.large.querySelector("img")) { s.large.textContent = ""; s.large.append(el("img", { src: "img/logo-512.png", alt: "MB Visual" })); }
+  if (!s.large.querySelector("img")) { s.large.textContent = ""; s.large.append(el("img", { src: "img/logo-512.png", alt: "MB Desk" })); }
   // azioni principali
   b.append(el("div", { class: "ph-actions" },
     ap(el("button", { type: "button", class: "ph-open", onclick: () => { haptic(); UI.doOpen(); } }), el("span", { class: "ph-oi", html: ICON.open }),

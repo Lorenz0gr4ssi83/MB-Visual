@@ -296,7 +296,7 @@ export async function writeMbpub(doc, thumbPng) {
     zip.file(file, im.bytes);
     images[id] = { file, mime: im.mime, w: im.w, h: im.h, name: im.name || "" };
   }
-  const json = { ...doc, stories, images, cs, ps, app: "MB Visual", format: "mbpub", v: 1 };
+  const json = { ...doc, stories, images, cs, ps, app: "MB Desk", format: "mbpub", v: 1 };
   zip.file("mimetype", "application/x-mbvisual-publication", { compression: "STORE" });
   zip.file("document.json", JSON.stringify(json));
   if (thumbPng) zip.file("anteprima.png", thumbPng);

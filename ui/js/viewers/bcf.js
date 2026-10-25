@@ -25,7 +25,7 @@ export async function mount(ctx) {
       preview.append(shownUrl ? el("img", { src: shownUrl, alt: tr("v_bcf.istantanea") }) : el("span", {}, tr("v_bcf.punto_vista_senza_istantanea")));
     },
     async onSaved(target) {
-      // salvato da MB Visual: non deve sembrare una modifica fatta da un altro programma
+      // salvato da MB Desk: non deve sembrare una modifica fatta da un altro programma
       if (target !== ctx.path || WEB) return;
       try { const s = await api("stat", { path: target }); ctx.info.modificato = s.modificato; ctx.info.size = s.size; } catch { /* */ }
     },

@@ -222,7 +222,7 @@ export async function sheetsToPdf(sheets, opts = {}) {
   }
   objs[pagesId - 1] = enc.encode(`<< /Type /Pages /Kids [${pageIds.map(i => i + " 0 R").join(" ")}] /Count ${pageIds.length} >>`);
   const title = opts.title ? `/Title ${pdfStr(opts.title)} ` : "";
-  const infoId = add(enc.encode(`<< ${title}/Producer (MB Visual) >>`));
+  const infoId = add(enc.encode(`<< ${title}/Producer (MB Desk) >>`));
   const catId = add(enc.encode(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`));
   // file
   const parts = [enc.encode("%PDF-1.5\n%\xe2\xe3\xcf\xd3\n")];

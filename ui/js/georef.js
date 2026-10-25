@@ -167,7 +167,7 @@ export function geodataTransform(g, refXY) {
 export const MBGEO_VERSION = 1;
 export function toMbgeo(file, g) {
   return {
-    format: "MB Visual georef", version: MBGEO_VERSION, file,
+    format: "MB Desk georef", version: MBGEO_VERSION, file,
     crs: g.crs, method: g.method, unit: g.unit, transform: g.T.map(v => +v.toPrecision(15)),
     points: (g.points || []).map(p => ({ x: p.x, y: p.y, X: p.X, Y: p.Y, ...(p.off ? { off: true } : {}) })),
     rms: g.rms ?? null, page: g.page ?? null, pdfScale: g.pdfScale ?? null, rot0: g.rot0 || 0,

@@ -1,4 +1,4 @@
-"""Scrive mbvisual/cloud_ids_build.py (escluso da git) con gli ID dei client OAuth registrati per MB Visual.
+"""Scrive mbvisual/cloud_ids_build.py (escluso da git) con gli ID dei client OAuth registrati per MB Desk.
 
 Fonte: variabile MBV_CLOUD_IDS (JSON, secret del workflow Mac) oppure %USERPROFILE%\\.mbvisual\\licenze\\cloud_ids.json,
 nel formato di mbvisual/cloud_ids.py IDS, es. {"gdrive": {"client_id": "...", "client_secret": "..."}}.

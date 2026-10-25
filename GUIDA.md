@@ -1,7 +1,7 @@
-# MB Visual - guida rapida
+# MB Desk - guida rapida
 
 ## Avvio
-- **Versione portatile**: estrai `MB Visual - portatile.zip` (per esempio sul Desktop) e avvia `MB Visual\MBVisual.exe`. Non serve installare nulla.
+- **Versione portatile**: estrai `MB Desk - portatile.zip` (per esempio sul Desktop) e avvia `MB Desk\MBVisual.exe`. Non serve installare nulla.
 - Puoi anche trascinare un file sopra `MBVisual.exe` per aprirlo subito.
 
 ## Aprire i file
@@ -16,7 +16,7 @@
 ## Salvare
 - **Salva** (Ctrl+S) scrive sul file originale quando il formato lo permette.
 - **Salva con nome** (Ctrl+Maiusc+S) crea un nuovo file. Per Word, RAW, CAD e video il salvataggio crea sempre un nuovo file, cosi' l'originale non si perde.
-- Prima di sovrascrivere, MB Visual tiene una copia di sicurezza in `%TEMP%\MBVisual\backup`.
+- Prima di sovrascrivere, MB Desk tiene una copia di sicurezza in `%TEMP%\MBVisual\backup`.
 
 ## Cosa si puo' fare per tipo di file
 | Tipo | Vista | Modifica |

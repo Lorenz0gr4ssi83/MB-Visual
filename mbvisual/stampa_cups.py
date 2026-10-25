@@ -149,7 +149,7 @@ def print_pdf(pdf: str, pages: list[dict], name: str, copies: int, collate: bool
             groups.append([m, i + 1, i + 1])
     for n, (media, a, b) in enumerate(groups):
         update(progress=n / len(groups), message=t("srv_stampa.invio_stampante_pagina_0_1", a, len(pages)))
-        args = ["lp", "-d", name, "-n", str(max(1, copies)), "-t", title or "MB Visual", "-o", f"media={media}",
+        args = ["lp", "-d", name, "-n", str(max(1, copies)), "-t", title or "MB Desk", "-o", f"media={media}",
                 "-o", "collate=" + ("true" if collate else "false"), "-o", "fit-to-page=false"]
         if not color:
             args += ["-o", "print-color-mode=monochrome", "-o", "ColorModel=Gray"]

@@ -1,6 +1,6 @@
 // Posta dell'app per telefono - interfaccia (scheda "Posta" della barra in basso di ui/js/phone.js).
 // Account IMAP/SMTP (anche PEC: ricevute e buste certificate riconosciute), cartelle, elenco con i non letti, lettura sicura
-// (niente script, immagini remote solo a richiesta), allegati aperti nei visualizzatori di MB Visual, risposta, inoltro,
+// (niente script, immagini remote solo a richiesta), allegati aperti nei visualizzatori di MB Desk, risposta, inoltro,
 // nuovo messaggio con allegati, sposta/elimina/contrassegna. Motore in ui/js/mmailcore.js.
 import { el, fmtSize, toast } from "./core.js";
 import { t, LOCALE } from "./i18n.js";

@@ -1,4 +1,4 @@
-"""Miniature e anteprime per Esplora risorse, disegnate dai visualizzatori di MB Visual in una finestra nascosta.
+"""Miniature e anteprime per Esplora risorse, disegnate dai visualizzatori di MB Desk in una finestra nascosta.
 
 La DLL della shell (tools/mbvshell) prova prima le immagini gia' contenute nei file (DWG, Revit, SketchUp...);
 per gli altri lancia:   MBVisual.exe --miniatura <file> <uscita.png> <lato>
@@ -222,7 +222,7 @@ def _serve(first):
     except OSError:
         pass
     # finestra fuori dallo schermo e senza barra delle applicazioni: WebView2 disegna solo se la finestra e' "visibile"
-    title = f"MB Visual - miniature {os.getpid()}"
+    title = f"MB Desk - miniature {os.getpid()}"
     svc.window = webview.create_window(title, f"http://127.0.0.1:{port}/?t={TOKEN}&miniatura=1",
                                        width=900, height=900, x=-32000, y=-32000, frameless=True, focus=False)
 

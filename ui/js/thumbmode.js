@@ -1,4 +1,4 @@
-// Modalita' miniatura: la usa la finestra nascosta di MB Visual che prepara miniature e anteprime per Esplora risorse
+// Modalita' miniatura: la usa la finestra nascosta di MB Desk che prepara miniature e anteprime per Esplora risorse
 // (mbvisual/miniature.py). Apre il file con il visualizzatore normale, aspetta che il disegno sia stabile e salva un PNG
 // del canvas principale; poi chiude la scheda. Non modifica nulla dell'interfaccia.
 import { api } from "./core.js";

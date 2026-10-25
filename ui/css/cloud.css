@@ -1,4 +1,4 @@
-/* MB Visual - pannello Archivi cloud (ui/js/cloud.js) */
+/* MB Desk - pannello Archivi cloud (ui/js/cloud.js) */
 .explorer.cloud { grid-template-rows: auto auto auto auto auto 1fr auto auto; }
 .cl-svcs { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 10px 6px; }
 .cl-svc { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--panel-2); font-size: 11.5px; cursor: pointer; }

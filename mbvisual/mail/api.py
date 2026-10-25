@@ -300,7 +300,7 @@ def part(b):
 
 
 def att_file(b) -> dict:
-    """Allegato in un file temporaneo (per aprirlo in una scheda di MB Visual o con un altro programma)."""
+    """Allegato in un file temporaneo (per aprirlo in una scheda di MB Desk o con un altro programma)."""
     _cleanup()
     mid = int(b["id"])
     raw = engine.raw_of(mid)
@@ -844,7 +844,7 @@ def send_mdn(b) -> dict:
     m.attach(MIMEText(t("mail.letto_testo", h["subject"], datetime.now().strftime("%d/%m/%Y %H:%M")), "plain", "utf-8"))
     rep = MIMEBase("message", "disposition-notification")
     crlf = "\r\n"
-    rep.set_payload(crlf.join([f"Reporting-UA: MB Visual", f"Original-Recipient: rfc822;{acc['email']}", f"Final-Recipient: rfc822;{acc['email']}",
+    rep.set_payload(crlf.join([f"Reporting-UA: MB Desk", f"Original-Recipient: rfc822;{acc['email']}", f"Final-Recipient: rfc822;{acc['email']}",
                                f"Original-Message-ID: {h['msgid']}", "Disposition: manual-action/MDN-sent-manually; displayed"]) + crlf)
     m.attach(rep)
     engine.queue_send(acc["id"], m.as_bytes(), {"msgid": m["Message-ID"], "rcpt": [to[0]["a"]], "from": acc["email"]})

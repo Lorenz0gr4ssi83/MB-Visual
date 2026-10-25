@@ -214,7 +214,7 @@ def write_gpx(places):
     pts = "".join(f'<trkseg>{"".join(f"<trkpt lat=\"{y:.6f}\" lon=\"{x:.6f}\"/>" for x, y in s)}</trkseg>' for s in segs)
     wpt = "".join(f'<wpt lat="{y:.6f}" lon="{x:.6f}"><name>{a["nome"]}</name><desc>{a["regione"]}</desc></wpt>'
                   for (x, y), a in places if a["nome"] in ("Turin", "Torino", "Piacenza", "Cremona", "Ferrara", "Pavia"))
-    gpx = ('<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="MB Visual - dati Natural Earth" xmlns="http://www.topografix.com/GPX/1/1">'
+    gpx = ('<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="MB Desk - dati Natural Earth" xmlns="http://www.topografix.com/GPX/1/1">'
            f'<metadata><name>Fiume Po (Natural Earth)</name></metadata>{wpt}<trk><name>Po</name>{pts}</trk></gpx>')
     (OUT / "fiume_po.gpx").write_text(gpx, encoding="utf-8")
 

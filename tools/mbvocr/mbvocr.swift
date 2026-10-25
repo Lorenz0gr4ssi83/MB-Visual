@@ -1,4 +1,4 @@
-// mbvocr - riconoscimento del testo per MB Visual su macOS (framework Vision di Apple, nessuna libreria esterna).
+// mbvocr - riconoscimento del testo per MB Desk su macOS (framework Vision di Apple, nessuna libreria esterna).
 // Uso:  mbvocr <immagine> [lingua, es. it-IT]
 // Uscita (stdout, UTF-8): la stessa di mbvisual/ocr.ps1 su Windows, cioe' un JSON
 //   [[["parola", x, y, larghezza, altezza], ...], ...]   una lista per riga, coordinate in pixel con origine in alto a sinistra.

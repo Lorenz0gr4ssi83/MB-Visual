@@ -405,7 +405,7 @@ function buildPanel(M) {
     const ws2 = X.utils.aoa_to_sheet(sh);
     ws2["!cols"] = sh[0].map((_, i) => ({ wch: i < 2 ? 24 : 14 }));
     const wb = X.utils.book_new();
-    wb.Props = { Title: tr("mis.misure"), Author: "MB Visual" };
+    wb.Props = { Title: tr("mis.misure"), Author: "MB Desk" };
     X.utils.book_append_sheet(wb, ws2, tr("mis.foglio_riepilogo").slice(0, 31));
     X.utils.book_append_sheet(wb, ws, tr("mis.foglio_misure").slice(0, 31));
     if (lastExtract) { const e = extractSheet(lastExtract); X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(e), tr("mis.foglio_estrazioni").slice(0, 31)); }

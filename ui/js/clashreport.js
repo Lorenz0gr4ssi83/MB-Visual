@@ -109,7 +109,7 @@ dl{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:8px 0 0}dt{co
 <dt>${esc(tr("clash.trovata"))}</dt><dd>${c.found ? esc(fmtDateTime(c.found)) : "—"}</dd>${c.assigned ? `<dt>${esc(tr("clashrep.assegnato"))}</dt><dd>${esc(c.assigned)}</dd>` : ""}${c.note ? `<dt>${esc(tr("clashrep.nota"))}</dt><dd>${esc(c.note)}</dd>` : ""}</dl></div></div>`);
     }
   }
-  out.push(`<p class="muted">MB Visual · ${esc(tr("clashrep.colori_legenda"))}</p></body></html>`);
+  out.push(`<p class="muted">MB Desk · ${esc(tr("clashrep.colori_legenda"))}</p></body></html>`);
   return new Blob([out.join("\n")], { type: "text/html" });
 }
 
@@ -188,7 +188,7 @@ async function pdf(N, sets, shots) {
   d.pages.forEach((p, i) => {
     d.page = p;
     d.line(M, d.H - 28, W - M, d.H - 28);
-    d.text(M, d.H - 24, `MB Visual · ${title} · ${ellipsis(h.ctx.name, 7.5, false, 240)}`, 7.5, { color: "#8a8c89" });
+    d.text(M, d.H - 24, `MB Desk · ${title} · ${ellipsis(h.ctx.name, 7.5, false, 240)}`, 7.5, { color: "#8a8c89" });
     const pg = tr("bcfreport.pagina_0_1", i + 1, d.pages.length);
     d.text(W - M - textW(pg, 7.5), d.H - 24, pg, 7.5, { color: "#8a8c89" });
   });

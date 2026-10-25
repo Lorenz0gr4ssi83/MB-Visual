@@ -1,11 +1,11 @@
-﻿; Programma di installazione di MB Visual (Inno Setup 6.7). Si compila con tools/build_setup.py, che passa
-; versione, cartella dell'app (%USERPROFILE%\.mbvisual\dist\MB Visual, creata da tools/build_portable.py) e la cartella
+﻿; Programma di installazione di MB Desk (Inno Setup 6.7). Si compila con tools/build_setup.py, che passa
+; versione, cartella dell'app (%USERPROFILE%\.mbvisual\dist\MB Desk, creata da tools/build_portable.py) e la cartella
 ; ArtDir con icone, immagini e testi dei componenti generati da tools/make_setup_art.py (registro ui/components.json).
 ; Installazione per l'utente, senza diritti di amministratore, nella stessa cartella usata da "Installa su questo PC"
-; (%LOCALAPPDATA%\Programs\MB Visual): gli aggiornamenti automatici dell'app continuano a funzionare.
+; (%LOCALAPPDATA%\Programs\MB Desk): gli aggiornamenti automatici dell'app continuano a funzionare.
 ; Componenti: si installano sempre tutti i file; la scelta (profilo + componenti) accende e spegne le funzioni dell'app
 ; e si cambia anche dopo da File > Componenti... (mbvisual/components.py). Si salva in %LOCALAPPDATA%\MBVisual\componenti.json
-; e in HKCU\Software\MB Visual\Componenti: aggiornando (anche con /SILENT) la scelta precedente viene ripresa.
+; e in HKCU\Software\MB Visual\Componenti (chiave tecnica: nome storico): aggiornando (anche con /SILENT) la scelta precedente viene ripresa.
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -22,24 +22,24 @@
 
 [Setup]
 AppId={{6E3B8C51-2F4A-4D7B-9A61-3C5D7E9F1A20}
-AppName=MB Visual
+AppName=MB Desk
 AppVersion={#AppVersion}
-AppVerName=MB Visual {#AppVersion}
+AppVerName=MB Desk {#AppVersion}
 AppPublisher=MB Engineering srl
 AppComments=Visualizzatore e editor di documenti, disegni CAD, modelli 3D e BIM
-DefaultDirName={localappdata}\Programs\MB Visual
+DefaultDirName={localappdata}\Programs\MB Desk
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 ; niente pagine con percorsi o nomi utente: si vede solo cosa sta accadendo (richiesta dell'utente)
 DisableReadyPage=yes
 DisableWelcomePage=yes
-DefaultGroupName=MB Visual
+DefaultGroupName=MB Desk
 PrivilegesRequired=lowest
 OutputDir={#OutDir}
-OutputBaseFilename=MBVisual-Setup-{#AppVersion}
+OutputBaseFilename=MBDesk-Setup-{#AppVersion}
 SetupIconFile={#SourceDir}\_internal\app.ico
-UninstallDisplayIcon={app}\MBVisual.exe
-UninstallDisplayName=MB Visual
+UninstallDisplayIcon={app}\MB Desk.exe
+UninstallDisplayName=MB Desk
 Compression=lzma2/normal
 SolidCompression=yes
 LZMANumBlockThreads=4
@@ -65,10 +65,10 @@ Name: "en"; MessagesFile: "compiler:Default.isl"
 [Messages]
 it.SelectComponentsLabel2=Scegli il profilo più vicino al tuo lavoro oppure i singoli componenti, poi fai clic su Avanti. Puoi aggiungere o togliere componenti quando vuoi da File › Componenti..., senza reinstallare.
 en.SelectComponentsLabel2=Choose the profile closest to your work or individual components, then click Next. You can add or remove components at any time from File › Components..., without reinstalling.
-it.WizardSelectComponents=Componenti di MB Visual
-en.WizardSelectComponents=MB Visual components
-it.SelectComponentsDesc=Cosa vuoi fare con MB Visual?
-en.SelectComponentsDesc=What do you want to do with MB Visual?
+it.WizardSelectComponents=Componenti di MB Desk
+en.WizardSelectComponents=MB Desk components
+it.SelectComponentsDesc=Cosa vuoi fare con MB Desk?
+en.SelectComponentsDesc=What do you want to do with MB Desk?
 
 #include AddBackslash(ArtDir) + "componenti.iss"
 
@@ -79,49 +79,61 @@ it.Shortcuts=Collegamenti:
 en.Shortcuts=Shortcuts:
 it.ShellStatus=Integrazione con Esplora risorse...
 en.ShellStatus=Integrating with File Explorer...
-it.Launch=Avvia MB Visual
+it.Launch=Avvia MB Desk
 it.SelAll=Seleziona tutto
 en.SelAll=Select all
-en.Launch=Launch MB Visual
+en.Launch=Launch MB Desk
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:DesktopIcon}"; GroupDescription: "{cm:Shortcuts}"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; ponte per gli aggiornamenti da una copia precedente al cambio di nome: quella riapre "MBVisual.exe" (stesso eseguibile);
+; al primo avvio l'app rifa' i collegamenti su "MB Desk.exe" e poi toglie questo file (update.migrate_exe_name)
+Source: "{#SourceDir}\MB Desk.exe"; DestDir: "{app}"; DestName: "MBVisual.exe"; Flags: ignoreversion; Check: OldExeExists
 
 [InstallDelete]
 ; versione precedente: si tolgono i file vecchi di _internal (come fa l'aggiornamento automatico)
 Type: filesandordirs; Name: "{app}\_internal"
+; collegamenti con il nome precedente dell'app (quelli spostati in una cartella li rinomina l'app al primo avvio)
+Type: files; Name: "{autoprograms}\MB Visual.lnk"
+Type: files; Name: "{autodesktop}\MB Visual.lnk"
 
 [Icons]
-Name: "{autoprograms}\MB Visual"; Filename: "{app}\MBVisual.exe"; IconFilename: "{app}\_internal\app.ico"; Comment: "MB Visual"
-Name: "{autodesktop}\MB Visual"; Filename: "{app}\MBVisual.exe"; IconFilename: "{app}\_internal\app.ico"; Tasks: desktopicon; Check: not DesktopLinkMoved
+Name: "{autoprograms}\MB Desk"; Filename: "{app}\MB Desk.exe"; IconFilename: "{app}\_internal\app.ico"; Comment: "MB Desk"
+Name: "{autodesktop}\MB Desk"; Filename: "{app}\MB Desk.exe"; IconFilename: "{app}\_internal\app.ico"; Tasks: desktopicon; Check: not DesktopLinkMoved
 
 [Run]
 ; miniature/anteprime in Esplora, "Apri con", icone e menu del tasto destro (mbvisual/shellint.py, solo per l'utente): componente sempre incluso
-Filename: "{app}\MBVisual.exe"; Parameters: "--integrazione attiva"; StatusMsg: "{cm:ShellStatus}"; Flags: runhidden waituntilterminated; Components: shell
-Filename: "{app}\MBVisual.exe"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\MB Desk.exe"; Parameters: "--integrazione attiva"; StatusMsg: "{cm:ShellStatus}"; Flags: runhidden waituntilterminated; Components: shell
+Filename: "{app}\MB Desk.exe"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 ; toglie tutte le voci di Esplora (registro dell'utente, icone, cache delle miniature)
-Filename: "{app}\MBVisual.exe"; Parameters: "--integrazione rimuovi"; Flags: runhidden waituntilterminated; RunOnceId: "MBVisualIntegrazione"
+Filename: "{app}\MB Desk.exe"; Parameters: "--integrazione rimuovi"; Flags: runhidden waituntilterminated; RunOnceId: "MBVisualIntegrazione"
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\_internal"
 
 [Code]
+function OldExeExists: Boolean;
+begin
+  Result := FileExists(ExpandConstant('{app}\MBVisual.exe'));
+end;
+
 // collegamento spostato dall'utente in una cartella del Desktop: l'aggiornamento non ne rimette uno sul Desktop
 function DesktopLinkMoved: Boolean;
 var R: TFindRec;
 begin
   Result := False;
-  if FileExists(ExpandConstant('{autodesktop}\MB Visual.lnk')) then Exit;
+  if FileExists(ExpandConstant('{autodesktop}\MB Desk.lnk')) or FileExists(ExpandConstant('{autodesktop}\MB Visual.lnk')) then Exit;
   if FindFirst(ExpandConstant('{autodesktop}\*'), R) then
   try
     repeat
       if (R.Attributes and FILE_ATTRIBUTE_DIRECTORY <> 0) and (R.Name <> '.') and (R.Name <> '..') and
-         FileExists(ExpandConstant('{autodesktop}\') + R.Name + '\MB Visual.lnk') then
+         (FileExists(ExpandConstant('{autodesktop}\') + R.Name + '\MB Desk.lnk') or
+          FileExists(ExpandConstant('{autodesktop}\') + R.Name + '\MB Visual.lnk')) then
       begin
         Result := True;
         Exit;
@@ -133,7 +145,7 @@ begin
 end;
 
 const
-  RegKey = 'Software\MB Visual\Componenti';
+  RegKey = 'Software\MB Visual\Componenti';  // chiave tecnica: nome storico, non visibile
 var
   SelAll: TNewCheckBox;
   SelAllBusy: Boolean;

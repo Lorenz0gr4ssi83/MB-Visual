@@ -1,10 +1,10 @@
-// Statistiche d'uso anonime di MB Visual (solo con il consenso esplicito dell'utente nell'app per PC/Mac).
+// Statistiche d'uso anonime di MB Desk (solo con il consenso esplicito dell'utente nell'app per PC/Mac).
 // L'app manda i giorni conclusi in un pacchetto: identificativo casuale dell'installazione (non legato a licenza, PC o
 // persona), versione, sistema, lingua, avvii, secondi d'uso, componenti attivi, estensioni aperte, funzioni usate ed
 // errori dei visualizzatori (solo tipo ed estensione). Non si salvano IP, nomi di file, percorsi o contenuti.
 //   POST /v1/stats         {inst, days: [{day, app, version, os, arch, lang, launches, seconds, comps, exts, funcs, errors}]}
 //   POST /v1/stats/forget  {inst}   revoca del consenso: cancella tutte le righe di quell'identificativo
-//   GET  /admin/usage?giorni=30     riepilogo per MB Visual Admin (PC e telefono)
+//   GET  /admin/usage?giorni=30     riepilogo per MB Desk Admin (PC e telefono)
 //   POST /admin/usage/forget {inst} cancellazione su richiesta (l'utente legge l'identificativo in File > Impostazioni)
 // Conservazione: nessuna scadenza automatica (scelta del proprietario); i dati restano finche' servono e si cancellano alla
 // revoca del consenso o su richiesta. L'informativa nell'app dice esattamente questo: non aggiungere scadenze non applicate.

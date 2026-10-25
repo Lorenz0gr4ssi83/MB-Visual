@@ -1,4 +1,4 @@
-// MB Visual - Archivi cloud (solo app per PC): pannello accanto a Esplora con SharePoint/OneDrive, Google Drive, Dropbox,
+// MB Desk - Archivi cloud (solo app per PC): pannello accanto a Esplora con SharePoint/OneDrive, Google Drive, Dropbox,
 // Autodesk Construction Cloud / BIM 360. I file si aprono senza sincronizzare le cartelle (download temporaneo) e ogni
 // salvataggio torna sul cloud con il controllo della versione. Motore: mbvisual/cloud.py (API /api/cloud?op=...).
 import { api, el, extOf, fmtSize, loadCss, modal, toast, waitJob } from "./core.js";

@@ -1,4 +1,4 @@
-/* MB Visual - Posta (ui/js/mail). Solo token di app.css ("Grafite di precisione"). */
+/* MB Desk - Posta (ui/js/mail). Solo token di app.css ("Grafite di precisione"). */
 .ml-root { position: absolute; inset: 0; display: grid; grid-template-columns: var(--nav-w, 250px) 1px var(--list-w, 400px) 1px minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr); grid-template-areas: "nav g1 list g2 read"; background: var(--bg); }
 .ml-root.lay-sotto { grid-template-columns: var(--nav-w, 250px) 1px minmax(0, 1fr); grid-template-rows: minmax(0, 45%) 1px minmax(0, 1fr);

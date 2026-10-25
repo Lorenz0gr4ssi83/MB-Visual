@@ -66,7 +66,7 @@ class _Blob(ctypes.Structure):
     _fields_ = [("cbData", ctypes.c_uint32), ("pbData", ctypes.POINTER(ctypes.c_char))]
 
 
-_ENTROPY = b"MB Visual - archivi cloud"
+_ENTROPY = b"MB Desk - archivi cloud"
 
 
 def _dpapi(data: bytes, protect: bool) -> bytes:
@@ -81,7 +81,7 @@ def _dpapi(data: bytes, protect: bool) -> bytes:
     eb = _Blob(len(_ENTROPY), ctypes.cast(ent, ctypes.POINTER(ctypes.c_char)))
     out = _Blob()
     if protect:
-        ok = crypt32.CryptProtectData(ctypes.byref(inp), ctypes.c_wchar_p("MB Visual"), ctypes.byref(eb), None, None, 1, ctypes.byref(out))
+        ok = crypt32.CryptProtectData(ctypes.byref(inp), ctypes.c_wchar_p("MB Desk"), ctypes.byref(eb), None, None, 1, ctypes.byref(out))
     else:
         ok = crypt32.CryptUnprotectData(ctypes.byref(inp), None, ctypes.byref(eb), None, None, 1, ctypes.byref(out))
     if not ok:
@@ -983,7 +983,7 @@ PROVIDERS = {p.key: p for p in (Graph(), GDrive(), Dropbox(), Autodesk())}
 # ------------------------------------------------------------------ accesso OAuth 2.0 + PKCE
 _PENDING: dict[str, dict] = {}   # state -> accesso in corso
 _LISTENERS: list = []
-_PAGE = """<!doctype html><html lang="it"><meta charset="utf-8"><title>MB Visual</title>
+_PAGE = """<!doctype html><html lang="it"><meta charset="utf-8"><title>MB Desk</title>
 <style>body{font:15px Segoe UI,system-ui,sans-serif;background:#f3f4f6;color:#1f2937;display:grid;place-items:center;height:100vh;margin:0;cursor:default}
 div{background:#fff;border:1px solid #d1d5db;border-radius:10px;padding:28px 36px;max-width:440px;text-align:center}
 h1{font-size:19px;margin:0 0 10px;color:%s}</style><div><h1>%s</h1><p>%s</p></div>

@@ -1,5 +1,5 @@
 """Calendari e rubriche degli account: CalDAV/CardDAV (RFC 4791/6352, anche Google con OAuth), Microsoft Graph
-(Microsoft 365 / Outlook.com) o solo locali. Le modifiche fatte in MB Visual sono "dirty" e salgono al giro successivo.
+(Microsoft 365 / Outlook.com) o solo locali. Le modifiche fatte in MB Desk sono "dirty" e salgono al giro successivo.
 
 Tabelle (store.py): calendars (kind "cal" = calendario, "book" = rubrica; href = URL CalDAV/CardDAV o id di Graph o
 "locale"), events (uid, href, etag, ics, start/end, rrule; dirty/deleted da caricare), contacts (book_id, vcf, nome,
@@ -49,7 +49,7 @@ def vcard_parse(text: str) -> dict:
 
 
 def vcard_build(c: dict, old: str = "") -> str:
-    """vCard 3.0; le proprieta' del vecchio vCard che MB Visual non gestisce restano com'erano."""
+    """vCard 3.0; le proprieta' del vecchio vCard che MB Desk non gestisce restano com'erano."""
     keep = []
     if old:
         for line in ical.unfold(old):
@@ -58,7 +58,7 @@ def vcard_build(c: dict, old: str = "") -> str:
                 keep.append(line)
     name = c.get("name") or ""
     parts = name.rsplit(" ", 1)
-    lines = ["BEGIN:VCARD", "VERSION:3.0", "PRODID:-//MB Visual//Contatti//IT", f"UID:{c.get('uid') or uuid.uuid4().hex}",
+    lines = ["BEGIN:VCARD", "VERSION:3.0", "PRODID:-//MB Desk//Contatti//IT", f"UID:{c.get('uid') or uuid.uuid4().hex}",
              "FN:" + ical.esc(name), "N:" + (ical.esc(parts[-1]) + ";" + ical.esc(parts[0]) if len(parts) > 1 else ical.esc(name)) + ";;;"]
     if c.get("org"):
         lines.append("ORG:" + ical.esc(c["org"]))

@@ -65,7 +65,7 @@ function showGate(st) {
   go.addEventListener("click", activate);
   input.addEventListener("keydown", e => { if (e.key === "Enter") activate(); });
   const box = el("div", { style: { width: "min(520px, 92vw)", background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: "12px", padding: "28px 30px", boxShadow: "var(--shadow)", textAlign: "center" } },
-    el("img", { src: "img/logo-512.png", alt: "MB Visual", style: { width: "96px", height: "96px", marginBottom: "10px" } }),
+    el("img", { src: "img/logo-512.png", alt: "MB Desk", style: { width: "96px", height: "96px", marginBottom: "10px" } }),
     el("h2", { style: { margin: "0 0 8px", fontFamily: "var(--display)" } }, tr("license.attivazione_mb_visual")), msg, input, err,
     el("div", { style: { marginTop: "14px" } }, go), extra,
     el("p", { class: "note", style: { marginTop: "18px", fontSize: "12px" } }, tr("license.licenza_vale_1_pc_2")));

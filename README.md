@@ -1,14 +1,14 @@
-# MB Visual
+# MB Desk
 
 Visualizzatore e editor di documenti, disegni CAD, modelli 3D e BIM, firme digitali, immagini, audio/video e archivi, sviluppato per MB Engineering.
 
 ## Web app (telefono, tablet, qualsiasi PC)
 Aprire **https://mbvisual.mb-group.workers.dev** con Chrome, Edge o Safari e scegliere *Installa app* / *Aggiungi a schermata Home*.
-I file aperti restano sul dispositivo: nessun invio a server. Sul telefono si possono anche condividere i file da altre app verso MB Visual.
+I file aperti restano sul dispositivo: nessun invio a server. Sul telefono si possono anche condividere i file da altre app verso MB Desk.
 Formati disponibili nella web app: pagina *Formati* dell'app (circa 530 estensioni).
 
 ## App per PC (Windows, tutti i formati)
-Versione portatile senza installazione: estrarre `MB Visual - portatile.zip` (si crea con `python tools/build_portable.py`) e avviare `MBVisual.exe`.
+Versione portatile senza installazione: estrarre `MB Desk - portatile.zip` (si crea con `python tools/build_portable.py`) e avviare `MBVisual.exe`.
 Oltre 900 estensioni, comprese foto RAW, conversione di qualsiasi video, Office con LibreOffice, Navisworks tramite i modelli sorgente.
 
 ## Struttura

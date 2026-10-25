@@ -1,11 +1,11 @@
-"""Chiavi del sistema di licenze di MB Visual.
+"""Chiavi del sistema di licenze di MB Desk.
 
   python tools/license_setup.py chiavi      crea (una volta sola) la coppia di chiavi di firma e il codice di accesso
                                             dell'app di gestione in %USERPROFILE%\\.mbvisual\\licenze (FUORI da OneDrive)
                                             e scrive la chiave pubblica in mbvisual/license_pub.py
   python tools/license_setup.py server      prepara la copia di lavoro del server in %USERPROFILE%\\.mbvisual\\server
                                             (wrangler.toml con chiave pubblica, .dev.vars con i segreti per le prove locali)
-  python tools/license_setup.py telefono    app per telefono di MB Visual Admin: crea (una volta sola) il percorso segreto
+  python tools/license_setup.py telefono    app per telefono di MB Desk Admin: crea (una volta sola) il percorso segreto
                                             dell'app e le chiavi VAPID delle notifiche in chiavi.json e li carica come
                                             segreti del Worker (ADMIN_PATH, VAPID_JWK) con wrangler
 
@@ -89,8 +89,23 @@ def telefono() -> None:
     for name, value in (("ADMIN_PATH", data["admin_path"]), ("VAPID_JWK", json.dumps(data["vapid_jwk"]))):
         subprocess.run([str(node / "npx.cmd"), "wrangler", "secret", "put", name], input=value.encode(), cwd=SERVER_WORK, env=env, check=True)
     url = (VAULT / "server_url.txt").read_text().strip() if (VAULT / "server_url.txt").exists() else "<server>"
-    print("App per telefono di MB Visual Admin:", f"{url}/{data['admin_path']}/", "(indirizzo da non diffondere)")
+    print("App per telefono di MB Desk Admin:", f"{url}/{data['admin_path']}/", "(indirizzo da non diffondere)")
+
+
+def segreti() -> None:
+    """Carica TUTTI i segreti nel Worker di wrangler.toml (serve per un Worker nuovo, es. il cambio di nome in MB Desk)."""
+    import os
+    import subprocess
+    data = json.loads((VAULT / "chiavi.json").read_text(encoding="utf-8"))
+    node = Path.home() / ".mbvisual" / "node-x64"
+    env = {**os.environ, "PATH": f"{node}{os.pathsep}{os.environ.get('PATH', '')}"}
+    vals = [("SIGNING_KEY", data["private_pkcs8"]), ("ADMIN_TOKEN", data["admin_token"])]
+    if data.get("admin_path"):
+        vals += [("ADMIN_PATH", data["admin_path"]), ("VAPID_JWK", json.dumps(data["vapid_jwk"]))]
+    for name, value in vals:
+        subprocess.run([str(node / "npx.cmd"), "wrangler", "secret", "put", name], input=value.encode(), cwd=SERVER_WORK, env=env, check=True)
+    print("Segreti caricati:", ", ".join(n for n, _ in vals))
 
 
 if __name__ == "__main__":
-    {"chiavi": keys, "server": server, "telefono": telefono}[sys.argv[1] if len(sys.argv) > 1 else "chiavi"]()
+    {"chiavi": keys, "server": server, "telefono": telefono, "segreti": segreti}[sys.argv[1] if len(sys.argv) > 1 else "chiavi"]()

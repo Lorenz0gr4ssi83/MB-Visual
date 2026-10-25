@@ -324,7 +324,7 @@ def redact_search(doc, o, info):
                 rects += hits
         for r in rects:
             a = page.add_redact_annot(r, fill=_rgb(o.get("fill") or "#000000"))
-            a.set_info(title=o.get("author") or "MB Visual")
+            a.set_info(title=o.get("author") or "MB Desk")
             a.update()
         count += len(rects)
     info["trovati"] = info.get("trovati", 0) + count
@@ -348,7 +348,7 @@ def redact_apply(doc, o, info):
 def metadata(doc, o, info):
     meta = doc.metadata or {}
     meta.update({key: o.get(key, "") for key in ("title", "author", "subject", "keywords") if key in o})
-    meta["producer"] = "MB Visual"
+    meta["producer"] = "MB Desk"
     doc.set_metadata(meta)
 
 

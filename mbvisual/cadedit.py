@@ -1,4 +1,4 @@
-"""Salvataggio dei disegni CAD modificati in MB Visual (ezdxf).
+"""Salvataggio dei disegni CAD modificati in MB Desk (ezdxf).
 
 - File DXF: si riapre l'originale e si applicano solo le modifiche (per handle): tutto il resto resta identico.
 - File DWG: il disegno si ricostruisce in DXF dalle entita' lette (layer, tipi linea, blocchi, entita', quote).

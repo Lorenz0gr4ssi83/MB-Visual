@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parent.parent
 reg = json.loads((ROOT / "ui" / "formats.json").read_text(encoding="utf-8"))
 all_exts = sorted({e for c in reg["categories"] for e in c["exts"]})
 
-out = ["# MB Visual - elenco completo dei formati", "",
+out = ["# MB Desk - elenco completo dei formati", "",
        f"**{len(all_exts)} estensioni** in {len(reg['categories'])} categorie si aprono con un visualizzatore dedicato.",
        "Questo elenco e' generato automaticamente dallo stesso registro (`ui/formats.json`) che l'app usa per decidere come aprire un file:",
        "**se un'estensione non compare qui, il file si apre solo come byte grezzi nell'editor esadecimale.**", "",

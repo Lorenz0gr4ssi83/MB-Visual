@@ -146,7 +146,7 @@ export function pdfDoc() {
       }
       obj(pagesId, `<< /Type /Pages /Kids [${kids.join(" ")}] /Count ${kids.length} >>`);
       obj(cat, `<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
-      obj(info, `<< /Title <FEFF${[...title].map(c => c.charCodeAt(0).toString(16).padStart(4, "0")).join("")}> /Producer (MB Visual) >>`);
+      obj(info, `<< /Title <FEFF${[...title].map(c => c.charCodeAt(0).toString(16).padStart(4, "0")).join("")}> /Producer (MB Desk) >>`);
       push(enc("%PDF-1.4\n%\xe2\xe3\xcf\xd3\n"));
       objs.sort((a, b) => a.id - b.id);
       for (const o of objs) {

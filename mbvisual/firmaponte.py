@@ -2,9 +2,9 @@
 
 Serve per firmare senza lettore di smart card: con la CIE e l'app ufficiale CieSign del Poligrafico (NFC del telefono,
 firma elettronica avanzata) o con l'app di firma remota del certificatore (ArubaSign, GoSign, Namirial...).
-Queste app non hanno un'interfaccia per altri programmi, quindi: MB Visual copia il documento nella cartella di
+Queste app non hanno un'interfaccia per altri programmi, quindi: MB Desk copia il documento nella cartella di
 scambio, sul telefono lo si apre (app OneDrive / File), lo si firma nell'app e si salva il file firmato nella stessa
-cartella; MB Visual lo trova, lo verifica (firme valide e stesso documento) e lo salva accanto all'originale.
+cartella; MB Desk lo trova, lo verifica (firme valide e stesso documento) e lo salva accanto all'originale.
 Nessun server raggiungibile dalla rete: passa tutto dalla sincronizzazione del servizio cloud scelto dall'utente.
 """
 import json
@@ -19,7 +19,7 @@ from .i18n import t
 from .paths import DATA_DIR
 
 SETTINGS = DATA_DIR / "firma.json"
-NOME_CARTELLA = "MB Visual - Firma"
+NOME_CARTELLA = "MB Desk - Firma"
 SIGNED_EXT = (".pdf", ".p7m", ".p7s")
 _S: dict = {}  # sessioni attive: id -> stato
 

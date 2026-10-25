@@ -1,4 +1,4 @@
-// MB Visual - guscio dell'applicazione: schede, apertura file, trascinamento, scelta del visualizzatore, pagina formati.
+// MB Desk - guscio dell'applicazione: schede, apertura file, trascinamento, scelta del visualizzatore, pagina formati.
 import {
   api, baseName, button, confirmBox, dirName, el, extOf, fmtSize, isDesktop, modal, pickFiles, pickFolder,
   pickSavePath, readRange, toast, waitJob, WEB,
@@ -165,7 +165,7 @@ function updateStatus() {
   const fmt = !$("formats").hidden;
   const parts = t && !fmt && !virt && !t.untitled ? t.path.split(/[\\/]/).filter(Boolean) : [];
   const segs = parts.length ? parts.slice(-3) : [fmt ? tr("idx.formati") : t ? t.name : tr("app.home")];
-  if (!parts.length) segs.unshift("MB Visual");
+  if (!parts.length) segs.unshift("MB Desk");
   segs.forEach((s, i) => {
     if (i) cr.insertAdjacentHTML("beforeend", '<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>');
     cr.append(el(i === segs.length - 1 ? "b" : "i", {}, s));
@@ -180,7 +180,7 @@ function activate(t) {
   for (const x of tabs) x.view.hidden = x !== t;
   renderTabs();
   if (t?.api?.onShow) try { t.api.onShow(); } catch { /* */ }
-  document.title = t ? t.name + " - MB Visual" : "MB Visual";
+  document.title = t ? t.name + " - MB Desk" : "MB Desk";
 }
 
 // "Vuoi salvare?" per un file modificato (o nuovo mai salvato): true = si puo' chiudere
@@ -350,9 +350,9 @@ const fmtVer = v => v ? `${v.versione}${v.build && v.build !== "sviluppo" ? " de
 async function checkUpdates(manual = false) {
   let r;
   try { r = updInfo = await api("update_check"); } catch (e) { if (manual) toast(tr("app.controllo_non_riuscito") + e.message, true); return; }
-  updInfo.installata = !r.da_onedrive && r.stato !== "sviluppo" && /\\Programs\\MB Visual\\?$/i.test(r.cartella || "");
+  updInfo.installata = !r.da_onedrive && r.stato !== "sviluppo" && /\\Programs\\MB Desk\\?$/i.test(r.cartella || "");
   $("st-version").textContent = "v" + r.attuale.versione;
-  $("st-version").title = "MB Visual " + fmtVer(r.attuale);
+  $("st-version").title = "MB Desk " + fmtVer(r.attuale);
   if (r.stato === "nuova") {
     const ok = await modal(tr("app.aggiornamento_disponibile"), el("div", {},
       el("p", {}, tr("app.disponibile_mb_visual_0", fmtVer(r.disponibile))), el("p", { class: "note" }, tr("app.uso_0_l_app_si", fmtVer(r.attuale)))),
@@ -758,7 +758,7 @@ async function doSave(t, a, target) {
   try {
     const res = (await a.save(target)) || {};
     t.dirty = false;
-    await syncStat(t); // il salvataggio fatto da MB Visual non deve sembrare una modifica esterna
+    await syncStat(t); // il salvataggio fatto da MB Desk non deve sembrare una modifica esterna
     if (target !== t.path && res.switchTo !== false && extOf(target) === extOf(t.path) && !target.startsWith("download://")) {
       t.path = target;
       t.name = baseName(target);
@@ -1053,10 +1053,10 @@ function showShortcuts() {
   if (sc?.list?.length) box.append(el("p", { class: "note", style: { margin: "0 0 4px" } }, tr("app.tasti_come_0_1", sc.program, active ? " · " + active.name : "")), table(sc.list));
   else box.append(el("p", { class: "note" }, active ? tr("app.questo_visualizzatore_non_ha_scorciatoie") : tr("app.apri_file_vedere_scorciatoie_suo")));
   box.append(el("hr", { style: { border: 0, borderTop: "1px solid var(--line)", margin: "12px 0 0" } }), table([
-    { group: "MB Visual", keys: "Ctrl+O", desc: tr("app.apri_file_2") }, { group: "MB Visual", keys: "Ctrl+N", desc: tr("app.crea_nuovo_2") },
-    { group: "MB Visual", keys: "Ctrl+S", desc: tr("common.salva") }, { group: "MB Visual", keys: "Ctrl+Shift+S", desc: tr("app.salva_nome_anche_altri_formati") },
-    { group: "MB Visual", keys: "Ctrl+P", desc: tr("app.stampa_desc") }, { group: "MB Visual", keys: "Ctrl+Shift+P", desc: tr("app.stampa_lotti_desc") },
-    { group: "MB Visual", keys: "Ctrl+W", desc: tr("app.chiudi_file") }, { group: "MB Visual", keys: "Ctrl+Shift+F", desc: tr("search.scorciatoia") }, { group: "MB Visual", keys: "Ctrl+Tab", desc: tr("app.file_successivo") }, { group: "MB Visual", keys: "F1", desc: tr("app.questo_elenco") },
+    { group: "MB Desk", keys: "Ctrl+O", desc: tr("app.apri_file_2") }, { group: "MB Desk", keys: "Ctrl+N", desc: tr("app.crea_nuovo_2") },
+    { group: "MB Desk", keys: "Ctrl+S", desc: tr("common.salva") }, { group: "MB Desk", keys: "Ctrl+Shift+S", desc: tr("app.salva_nome_anche_altri_formati") },
+    { group: "MB Desk", keys: "Ctrl+P", desc: tr("app.stampa_desc") }, { group: "MB Desk", keys: "Ctrl+Shift+P", desc: tr("app.stampa_lotti_desc") },
+    { group: "MB Desk", keys: "Ctrl+W", desc: tr("app.chiudi_file") }, { group: "MB Desk", keys: "Ctrl+Shift+F", desc: tr("search.scorciatoia") }, { group: "MB Desk", keys: "Ctrl+Tab", desc: tr("app.file_successivo") }, { group: "MB Desk", keys: "F1", desc: tr("app.questo_elenco") },
   ]));
   modal(tr("app.scorciatoie_tastiera"), box);
 }

@@ -1,1 +1,1 @@
-"""Posta elettronica di MB Visual (stile Outlook, con PEC, commesse e allegati aperti nell'app). Ingresso: api.handle."""
+"""Posta elettronica di MB Desk (stile Outlook, con PEC, commesse e allegati aperti nell'app). Ingresso: api.handle."""

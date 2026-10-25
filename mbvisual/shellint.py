@@ -1,10 +1,10 @@
 """Integrazione con Esplora risorse, solo per l'utente corrente (HKCU, senza diritti di amministratore).
 
 - "Apri con": un ProgID MBVisual.<ext> per ogni estensione di ui/formats.json (icona col colore del tipo, come i badge
-  dell'app) + OpenWithProgids + Capabilities in RegisteredApplications (MB Visual compare in App predefinite).
-  I programmi predefiniti esistenti NON si toccano: MB Visual diventa predefinito solo per le estensioni che non hanno
+  dell'app) + OpenWithProgids + Capabilities in RegisteredApplications (MB Desk compare in App predefinite).
+  I programmi predefiniti esistenti NON si toccano: MB Desk diventa predefinito solo per le estensioni che non hanno
   alcun programma (opzione "libere"); per le altre lo sceglie l'utente da Windows (Impostazioni > App predefinite).
-- Voce "Apri con MB Visual" nel menu del tasto destro (in Windows 11 sotto "Mostra altre opzioni").
+- Voce "Apri con MB Desk" nel menu del tasto destro (in Windows 11 sotto "Mostra altre opzioni").
 - Miniature e riquadro di anteprima per i formati tecnici: mbvshell.dll (tools/mbvshell, ARM64 o x64 secondo il PC),
   registrata sotto SystemFileAssociations: se un altro programma (AutoCAD, SolidWorks...) ha gia' un suo gestore,
   quello resta prioritario. La DLL si copia in %LOCALAPPDATA%\\MBVisual\\shell con un nome che cambia a ogni versione,
@@ -29,7 +29,7 @@ from .i18n import t
 
 HKCU = winreg.HKEY_CURRENT_USER if winreg else None
 CLASSES = r"Software\Classes"
-STATE = r"Software\MB Visual\Integrazione"
+STATE = r"Software\MB Visual\Integrazione"  # chiavi tecniche: nome storico (la DLL di Esplora legge qui), non visibili
 CAPS = r"Software\MB Visual\Capabilities"
 CLSID_THUMB = "{6F1D8E2A-5C4F-4E3B-9A1D-2F6C8B0E4A11}"
 CLSID_PREVIEW = "{6F1D8E2A-5C4F-4E3B-9A1D-2F6C8B0E4A12}"
@@ -286,16 +286,16 @@ def enable(anteprime=True, libere=True, update=None) -> dict:
     dll = None
     if th_exts:
         dll = _install_dll()
-        for clsid, name in ((CLSID_THUMB, "MB Visual - miniature"), (CLSID_PREVIEW, "MB Visual - anteprima")):
+        for clsid, name in ((CLSID_THUMB, "MB Desk - miniature"), (CLSID_PREVIEW, "MB Desk - anteprima")):
             base = rf"{CLASSES}\CLSID\{clsid}"
             _set(base, "", name)
             _set(base + r"\InprocServer32", "", str(dll))
             _set(base + r"\InprocServer32", "ThreadingModel", "Apartment")
         base = rf"{CLASSES}\CLSID\{CLSID_PREVIEW}"
         _set(base, "AppID", PREVHOST_APPID)
-        _set(base, "DisplayName", "Anteprima di MB Visual")
-        _set(base, "DisableLowILProcessIsolation", 1, winreg.REG_DWORD)  # deve poter avviare MB Visual e scrivere la cache
-        _set(r"Software\Microsoft\Windows\CurrentVersion\PreviewHandlers", CLSID_PREVIEW, "Anteprima di MB Visual")
+        _set(base, "DisplayName", "Anteprima di MB Desk")
+        _set(base, "DisableLowILProcessIsolation", 1, winreg.REG_DWORD)  # deve poter avviare MB Desk e scrivere la cache
+        _set(r"Software\Microsoft\Windows\CurrentVersion\PreviewHandlers", CLSID_PREVIEW, "Anteprima di MB Desk")
     _set(STATE, "Comando", thumb_cmd)
     _set(STATE, "Apri", open_cmd)
     others, thumbs, defaults = [], [], []
@@ -311,7 +311,7 @@ def enable(anteprime=True, libere=True, update=None) -> dict:
             _set(pk + r"\DefaultIcon", "", str(_icon(ext, cat)))
         except Exception:  # noqa: BLE001  (Pillow assente: icona dell'app)
             _set(pk + r"\DefaultIcon", "", app_icon)
-        _set(pk + r"\shell\open", "FriendlyAppName", "MB Visual")
+        _set(pk + r"\shell\open", "FriendlyAppName", "MB Desk")
         _set(pk + r"\shell\open\command", "", f'{open_cmd} "%1"')
         _set(rf"{CLASSES}\.{ext}\OpenWithProgids", progid, b"", winreg.REG_NONE)
         _set(CAPS + r"\FileAssociations", f".{ext}", progid)
@@ -333,15 +333,16 @@ def enable(anteprime=True, libere=True, update=None) -> dict:
                 _set(rf"{CLASSES}\SystemFileAssociations\.{ext}\ShellEx\{SHELLEX_PREVIEW}", "", CLSID_PREVIEW)
     if exe:
         ap = rf"{CLASSES}\Applications\{exe.name}"
-        _set(ap, "FriendlyAppName", "MB Visual")
+        _set(ap, "FriendlyAppName", "MB Desk")
         _set(ap + r"\DefaultIcon", "", app_icon)
         _set(ap + r"\shell\open\command", "", f'{open_cmd} "%1"')
         for ext in exts:
             _set(ap + r"\SupportedTypes", f".{ext}", "")
-    _set(CAPS, "ApplicationName", "MB Visual")
+    _set(CAPS, "ApplicationName", "MB Desk")
     _set(CAPS, "ApplicationDescription", t("srv_shellint.visualizzatore_editor_documenti_disegni_cad"))
     _set(CAPS, "ApplicationIcon", app_icon)
-    _set(r"Software\RegisteredApplications", "MB Visual", CAPS)
+    _set(r"Software\RegisteredApplications", "MB Desk", CAPS)
+    _delete_value(r"Software\RegisteredApplications", "MB Visual")  # nome precedente dell'app
     _set(STATE, "Attiva", 1, winreg.REG_DWORD)
     _set(STATE, "Anteprime", int(bool(anteprime)), winreg.REG_DWORD)
     _set(STATE, "Libere", int(bool(libere)), winreg.REG_DWORD)
@@ -359,7 +360,7 @@ def enable(anteprime=True, libere=True, update=None) -> dict:
 
 
 def disable(keep_state=False) -> dict:
-    """Toglie tutto cio' che enable() ha scritto (solo le voci di MB Visual)."""
+    """Toglie tutto cio' che enable() ha scritto (solo le voci di MB Desk)."""
     if winreg is None:
         return status()
     root = CLASSES
@@ -410,8 +411,9 @@ def disable(keep_state=False) -> dict:
     for clsid in (CLSID_THUMB, CLSID_PREVIEW):
         _delete_tree(rf"{root}\CLSID\{clsid}")
     _delete_value(r"Software\Microsoft\Windows\CurrentVersion\PreviewHandlers", CLSID_PREVIEW)
-    for exe in ("MBVisual.exe",):
+    for exe in ("MB Desk.exe", "MBVisual.exe"):
         _delete_tree(rf"{root}\Applications\{exe}")
+    _delete_value(r"Software\RegisteredApplications", "MB Desk")
     _delete_value(r"Software\RegisteredApplications", "MB Visual")
     _delete_tree(CAPS)
     if not keep_state:

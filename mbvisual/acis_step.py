@@ -129,8 +129,8 @@ class StepWriter:
 
     def text(self, name: str) -> str:
         now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-        head = ["ISO-10303-21;", "HEADER;", "FILE_DESCRIPTION(('MB Visual: conversione da Autodesk Inventor'),'2;1');",
-                f"FILE_NAME('{_str(name)}.stp','{now}',(''),(''),'MB Visual','MB Visual','');",
+        head = ["ISO-10303-21;", "HEADER;", "FILE_DESCRIPTION(('MB Desk: conversione da Autodesk Inventor'),'2;1');",
+                f"FILE_NAME('{_str(name)}.stp','{now}',(''),(''),'MB Desk','MB Desk','');",
                 "FILE_SCHEMA(('AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }'));", "ENDSEC;", "DATA;"]
         return "\n".join(head + self.lines + ["ENDSEC;", "END-ISO-10303-21;", ""])
 

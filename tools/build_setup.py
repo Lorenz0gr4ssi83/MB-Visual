@@ -1,7 +1,8 @@
-"""Crea MBVisual-Setup-<versione>.exe dall'app gia' costruita (tools/build_portable.py) con Inno Setup 6.
+"""Crea MBDesk-Setup-<versione>.exe dall'app gia' costruita (tools/build_portable.py) con Inno Setup 6.
 
 Uso: %USERPROFILE%\\.mbvisual\\venv\\Scripts\\python.exe tools\\build_setup.py
-Risultato: %USERPROFILE%\\.mbvisual\\dist\\MBVisual-Setup-<versione>.exe (fuori da OneDrive)
+Risultato: %USERPROFILE%\\.mbvisual\\dist\\MBDesk-Setup-<versione>.exe (fuori da OneDrive) + la stessa copia con il nome
+vecchio MBVisual-Setup-<versione>.exe, da caricare SOLO nella release GitHub (le copie precedenti al cambio di nome cercano quello)
 Con --out <cartella> il setup va li' (prove delle pagine senza toccare quello da pubblicare).
 """
 import json
@@ -12,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DIST = Path.home() / ".mbvisual" / "dist"
-APP = DIST / "MB Visual"
+APP = DIST / "MB Desk"
 
 
 def iscc() -> Path:
@@ -36,7 +37,7 @@ def main() -> int:
     dest = Path(sys.argv[sys.argv.index("--out") + 1]) if "--out" in sys.argv else DIST
     cmd = [str(iscc()), f"/DAppVersion={ver}", f"/DSourceDir={APP}", f"/DArtDir={art}", f"/DOutDir={dest}", "/Q", str(ROOT / "installer" / "mbvisual.iss")]
     subprocess.run(cmd, check=True)
-    out = dest / f"MBVisual-Setup-{ver}.exe"
+    out = dest / f"MBDesk-Setup-{ver}.exe"
     print(f"Pronto: {out} ({out.stat().st_size / 1048576:.0f} MB)")
     return 0
 

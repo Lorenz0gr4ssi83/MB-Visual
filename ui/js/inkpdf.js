@@ -42,7 +42,7 @@ export async function addInkAnnots(bytes, strokes) {
       Type: "Annot", Subtype: "Ink", Rect: box, InkList: [P.flatMap(p => [p[0], p[1]])], C: [r, g, b], CA: st.o, F: 4,
       BS: { Type: "Border", W: hl ? st.w : avg, S: "S" }, AP: { N: ap }, P: page.ref,
       NM: PDFString.of(`mbv-ink-${now.getTime().toString(36)}-${k++}`), M: PDFString.fromDate(now),
-      T: PDFHexString.fromText("MB Visual"), Subj: PDFHexString.fromText(hl ? t("ink.evidenziatore") : t("ink.penna")),
+      T: PDFHexString.fromText("MB Desk"), Subj: PDFHexString.fromText(hl ? t("ink.evidenziatore") : t("ink.penna")),
     });
     page.node.addAnnot(ctx.register(annot));
   }

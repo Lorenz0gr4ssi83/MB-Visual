@@ -7,7 +7,7 @@ export async function mount(ctx) {
   const face = new FontFace(family, `url("${fileUrl(ctx.path)}")`);
   await face.load();
   document.fonts.add(face);
-  const sample = el("input", { type: "text", id: "fnt-" + ctx.tab.name, value: "Ingegneria MB Visual 0123456789 àèéìòù €", class: "field", style: { width: "min(600px, 100%)" } });
+  const sample = el("input", { type: "text", id: "fnt-" + ctx.tab.name, value: "Ingegneria MB Desk 0123456789 àèéìòù €", class: "field", style: { width: "min(600px, 100%)" } });
   const box = el("div", { style: { padding: "20px 26px", display: "grid", gap: "14px" } });
   const sizes = [12, 16, 24, 36, 54, 80];
   const lines = sizes.map(s => el("div", { style: { fontFamily: `"${family}"`, fontSize: s + "px", lineHeight: 1.2, overflowWrap: "anywhere" } }));

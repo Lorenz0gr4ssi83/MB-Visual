@@ -1,4 +1,4 @@
-# Posta elettronica in MB Visual
+# Posta elettronica in MB Desk
 
 La scheda **Posta** (icona della busta nella barra laterale) raccoglie in un solo posto la posta dello studio, le
 caselle PEC, il calendario e i contatti. I messaggi restano sul PC in un archivio **cifrato** (leggibile solo dal tuo
@@ -9,13 +9,13 @@ utente di Windows): si leggono anche senza rete e gli invii partono da soli quan
 Posta → **Aggiungi account** (in basso a sinistra, o ⚙ Impostazioni → Account). Come in Outlook:
 
 1. Scrivi **solo l'indirizzo e-mail** e premi **Continua**.
-2. MB Visual capisce da solo come collegarlo:
+2. MB Desk capisce da solo come collegarlo:
    - **PEC** (Aruba, Legalmail, Namirial, Poste, Register, Actalis, Libero, TIM): chiede solo la password della PEC.
-   - **Gmail** e posta aziendale su **Google Workspace**: si apre il browser con l'accesso Google, nessuna password in MB Visual.
+   - **Gmail** e posta aziendale su **Google Workspace**: si apre il browser con l'accesso Google, nessuna password in MB Desk.
    - **Outlook.com / Hotmail** e posta aziendale su **Microsoft 365**: si apre l'accesso Microsoft nel browser.
    - **Tutte le altre caselle** (Libero, Aruba, Register, dominio dello studio...): trova da solo i server (banche dati dei
      gestori, configurazione pubblicata dal dominio, server di posta del dominio) e chiede solo la password.
-3. MB Visual prova ricezione e invio e salva l'account da solo. Il nome che vedono i destinatari si ricava dall'account
+3. MB Desk prova ricezione e invio e salva l'account da solo. Il nome che vedono i destinatari si ricava dall'account
    (profilo Google/Microsoft o la parte prima della @) e si cambia in Impostazioni → Account.
 
 Se qualcosa non va il messaggio dice cosa fare in parole semplici (password errata, password per le app, rete assente,
@@ -26,12 +26,12 @@ indicati dall'amministratore, CalDAV/CardDAV.
 ### Gmail con la password (senza l'accesso Google)
 Google non accetta la password normale nei programmi di posta. Serve una **password per le app**:
 1. apri https://myaccount.google.com/apppasswords (se la pagina non c'e', attiva prima la Verifica in due passaggi);
-2. scrivi un nome (es. "MB Visual") e premi Crea: Google mostra una password di 16 lettere;
-3. incollala in MB Visual al posto della password normale.
+2. scrivi un nome (es. "MB Desk") e premi Crea: Google mostra una password di 16 lettere;
+3. incollala in MB Desk al posto della password normale.
 
 ### Microsoft 365 aziendale con la password
 Molte aziende hanno disattivato l'accesso con password per le caselle Microsoft 365: in quel caso serve l'accesso Microsoft
-(il pulsante si apre da solo quando la versione di MB Visual lo include) oppure l'amministratore deve abilitare IMAP per la casella.
+(il pulsante si apre da solo quando la versione di MB Desk lo include) oppure l'amministratore deve abilitare IMAP per la casella.
 
 ## 2. Uso quotidiano
 
@@ -94,31 +94,31 @@ Molte aziende hanno disattivato l'accesso con password per le caselle Microsoft 
 
 ## 4. Allegati e commesse
 
-- Un clic su un allegato lo mostra **dentro la lettura** con il visualizzatore di MB Visual (DWG, DXF, IFC, PDF, p7m,
+- Un clic su un allegato lo mostra **dentro la lettura** con il visualizzatore di MB Desk (DWG, DXF, IFC, PDF, p7m,
   Office, immagini, modelli 3D...). Doppio clic = scheda a parte. Clic destro: salva, salva nella commessa, firma
   digitalmente e inoltra.
 - **Commesse** (⚙ → Commesse o il + accanto a "Commesse"): nome, codice, cartella di progetto, parole chiave e
   indirizzi dei referenti. Un messaggio si collega a una commessa e si **archivia nella sua cartella**
   (`<cartella>/Posta/<data> <oggetto>/`) come .eml con gli allegati; le PEC inviate anche con le ricevute, quelle
   ricevute con `daticert.xml`. La vista "posta per commessa" è nella barra a sinistra.
-- MB Visual propone la commessa giusta (codice nell'oggetto, conversazione già collegata, referenti, parole chiave) e
+- MB Desk propone la commessa giusta (codice nell'oggetto, conversazione già collegata, referenti, parole chiave) e
   con il codice nell'oggetto la collega da sola.
 
 ## 5. Invio: firma digitale e file pesanti
 
 - Nel messaggio, clic su un allegato → **Firma digitalmente prima dell'invio** (smart card, CNS, firma remota, .p12:
   la stessa firma di File → Firma digitale). L'allegato viene sostituito dalla versione firmata (.p7m o PDF firmato).
-- Allegati oltre la soglia (20 MB, modificabile in ⚙ → Opzioni): MB Visual propone di **inviarli come link**. Il file
+- Allegati oltre la soglia (20 MB, modificabile in ⚙ → Opzioni): MB Desk propone di **inviarli come link**. Il file
   va in OneDrive/SharePoint, Google Drive o Dropbox (collegati dal pannello Cloud) nella cartella
-  "MB Visual - Invii" e nel messaggio compare il link di download in sola lettura (OneDrive: scadenza 30 giorni dove
+  "MB Desk - Invii" e nel messaggio compare il link di download in sola lettura (OneDrive: scadenza 30 giorni dove
   il piano lo permette). Per Dropbox, dopo l'aggiornamento rifai l'accesso dal pannello Cloud (serve il permesso di
   condivisione).
 
 ## 6. Microsoft 365 e Google: cosa registrare (una volta per lo studio)
 
-Le versioni distribuite di MB Visual includono gia' il client Google (accesso Google per Gmail, Workspace e Drive) e, quando
+Le versioni distribuite di MB Desk includono gia' il client Google (accesso Google per Gmail, Workspace e Drive) e, quando
 registrato, quello Microsoft: in quel caso non serve fare nulla. Le istruzioni qui sotto servono solo per usare una
-registrazione propria (es. un'azienda che vuole la sua app in Entra). MB Visual usa gli stessi ID applicazione degli
+registrazione propria (es. un'azienda che vuole la sua app in Entra). MB Desk usa gli stessi ID applicazione degli
 **Archivi cloud** (vedi la guida `archivi-cloud.md`), con permessi in piu' per posta, calendario e contatti; un ID scritto
 in Cloud → Configura ha la precedenza su quello incluso.
 
@@ -132,7 +132,7 @@ in Cloud → Configura ha la precedenza su quello incluso.
    `Mail.Send`, `Calendars.ReadWrite`, `Contacts.ReadWrite` (più `Files.ReadWrite.All` e `Sites.ReadWrite.All` per gli
    archivi cloud e gli invii come link). Se richiesto, **Concedi consenso amministratore** per l'organizzazione.
 5. **Autenticazione → Consenti flussi client pubblici: Sì**.
-6. Copia l'**ID applicazione (client)** e incollalo in MB Visual: Cloud → Configura → OneDrive / SharePoint
+6. Copia l'**ID applicazione (client)** e incollalo in MB Desk: Cloud → Configura → OneDrive / SharePoint
    (lo stesso ID vale per la posta). Tenant: `common` oppure l'ID della directory per limitarlo allo studio.
 
 ### Google Cloud (Gmail / Google Workspace)
@@ -145,7 +145,7 @@ in Cloud → Configura ha la precedenza su quello incluso.
    Nota: `https://mail.google.com/` è un ambito "riservato": con tipo Esterno in produzione Google chiede una verifica;
    con *Interno* o con utenti di test non serve.
 4. **Credenziali → Crea credenziali → ID client OAuth → App desktop**. Copia ID client e segreto client in
-   MB Visual: Cloud → Configura → Google Drive (lo stesso ID vale per Gmail).
+   MB Desk: Cloud → Configura → Google Drive (lo stesso ID vale per Gmail).
 
 In alternativa senza registrazione: Gmail con **password per le app** come casella IMAP (serve la verifica in due
 passaggi attiva sull'account Google).

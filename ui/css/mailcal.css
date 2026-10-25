@@ -1,4 +1,4 @@
-/* MB Visual - Posta: calendario (mailcal.js) e contatti (mailpeople.js). Solo token di app.css. */
+/* MB Desk - Posta: calendario (mailcal.js) e contatti (mailpeople.js). Solo token di app.css. */
 .cl-root { position: absolute; inset: 0; display: grid; grid-template-columns: 250px minmax(0, 1fr); background: var(--bg); }
 .cl-side { background: var(--panel); border-right: 1px solid var(--line); overflow: auto; padding: 12px; display: grid; align-content: start; gap: 8px; }
 .cl-new { width: 100%; justify-content: center; }

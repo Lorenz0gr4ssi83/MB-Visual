@@ -1,8 +1,8 @@
-"""App per telefono di MB Visual Admin: impacchetta pagina, service worker e icone in server/src/adminui.js.
+"""App per telefono di MB Desk Admin: impacchetta pagina, service worker e icone in server/src/adminui.js.
 
 Uso:  python tools/build_admin_mobile.py
 Sorgenti: server/adminapp/index.html e sw.js; icone generate dal logo (ui/img/logo-512.png) con un tondo arancione con la
-chiave, per distinguerla dall'app MB Visual sulla schermata Home. Il modulo generato si pubblica con il Worker
+chiave, per distinguerla dall'app MB Desk sulla schermata Home. Il modulo generato si pubblica con il Worker
 (tools/license_setup.py server, poi wrangler deploy).
 """
 import base64

@@ -12,7 +12,7 @@ carta, contenuto vettoriale posato con show_pdf_page) -> anteprima (le stesse pa
   DEVMODE preparato con DocumentPropertiesW (formato, orientamento, copie, colore, formati personalizzati / rotoli),
   CreateDCW, ResetDCW quando cambia il formato tra una pagina e l'altra (stampa a lotti), pagine rasterizzate da
   PyMuPDF alla risoluzione della stampante e inviate a bande con StretchDIBits (mai una pagina A0 intera in memoria).
-- "PDF vettoriale (MB Visual)": stampante virtuale che salva il PDF di stampa (vettoriale, dimensioni esatte).
+- "PDF vettoriale (MB Desk)": stampante virtuale che salva il PDF di stampa (vettoriale, dimensioni esatte).
 """
 from __future__ import annotations
 
@@ -851,7 +851,7 @@ def _print_cups(job: dict, st: dict, name: str, update) -> dict:
         info = printer_info(name)
         color = (st.get("style") or "color") == "color" and info.get("color", True)
         stampa_cups.print_pdf(tmp, job["pages"], name, int(st.get("copies") or 1), bool(st.get("collate", True)), color,
-                              st.get("title") or "MB Visual", update)
+                              st.get("title") or "MB Desk", update)
     finally:
         try:
             os.remove(tmp)
@@ -915,7 +915,7 @@ def _print_gdi(job: dict, st: dict, name: str, update) -> dict:
     if not hdc:
         raise RuntimeError(t("srv_stampa.impossibile_aprire_stampante_0_errore", name, ctypes.get_last_error()))
     warnings = []
-    di = DOCINFOW(ctypes.sizeof(DOCINFOW), st.get("title") or "MB Visual", st.get("output") or None, None, 0)
+    di = DOCINFOW(ctypes.sizeof(DOCINFOW), st.get("title") or "MB Desk", st.get("output") or None, None, 0)
     started = False
     try:
         if _gdi.StartDocW(hdc, ctypes.byref(di)) <= 0:

@@ -1,5 +1,5 @@
 # Lettore del formato binario ShapeManager/ACIS ("ASM BinaryFile4" / "ACIS BinaryFile"), scritto da zero
-# per MB Visual a partire dalla descrizione pubblica del formato SAT/SAB e dall'analisi dei file.
+# per MB Desk a partire dalla descrizione pubblica del formato SAT/SAB e dall'analisi dei file.
 # Ogni record e' una sequenza di valori con un byte di tipo davanti; il record finisce con 0x11.
 # Il risultato e' un elenco di Record (tipo, valori) con i puntatori come indici nell'elenco.
 from __future__ import annotations

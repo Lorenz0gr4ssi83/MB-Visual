@@ -236,7 +236,7 @@ def make_ifc(path: Path, rev: str):
 
     head = (
         "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('ViewDefinition [CoordinationView]'),'2;1');\n"
-        f"FILE_NAME('capannone_rev{rev}.ifc','2026-10-22T10:00:00',('MB Visual'),('MB Engineering'),'','make_compare_samples','');\n"
+        f"FILE_NAME('capannone_rev{rev}.ifc','2026-10-22T10:00:00',('MB Desk'),('MB Engineering'),'','make_compare_samples','');\n"
         "FILE_SCHEMA(('IFC4'));\nENDSEC;\nDATA;\n"
     )
     path.write_text(head + "\n".join(L) + "\nENDSEC;\nEND-ISO-10303-21;\n", encoding="utf-8")

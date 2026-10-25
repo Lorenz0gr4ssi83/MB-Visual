@@ -124,7 +124,7 @@ export function qtoPane(N, box) {
     we["!cols"] = eh.map((_, i) => ({ wch: i < 7 ? (i === 6 ? 24 : 18) : 14 }));
     we["!autofilter"] = { ref: X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: er.length, c: eh.length - 1 } }) };
     const wb = X.utils.book_new();
-    wb.Props = { Title: tr("qto.computo_quantita"), Author: "MB Visual" };
+    wb.Props = { Title: tr("qto.computo_quantita"), Author: "MB Desk" };
     X.utils.book_append_sheet(wb, ws, tr("qto.foglio_riepilogo").slice(0, 31));
     X.utils.book_append_sheet(wb, we, tr("qto.foglio_elementi").slice(0, 31));
     const out = X.write(wb, { bookType: "xlsx", type: "array" });

@@ -1,5 +1,5 @@
 // Pagine pubbliche del server (GET, senza cookie ne' licenza), richieste anche da Google per l'app OAuth di Gmail e Drive:
-//   /mbvisual  presentazione di MB Visual          /privacy  informativa unica (licenza, statistiche, posta e archivi cloud)
+//   /mbvisual  presentazione di MB Desk          /privacy  informativa unica (licenza, statistiche, posta e archivi cloud)
 // Testo in italiano con l'inglese sotto. BOZZA legale da far rivedere. Mai il nome del proprietario: contatto = segnalazione
 // dall'app e, se configurata, la variabile SUPPORT_EMAIL (indirizzo neutro di assistenza) in wrangler.toml.
 // Le affermazioni devono restare vere rispetto al codice: statistiche (src/stats.js, mbvisual/stats.py), posta (mbvisual/mail:
@@ -17,7 +17,7 @@ footer{margin-top:40px;text-align:center}`;
 function page(title, body, lang = "it") {
   return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title><link rel="icon" href="/img/icon-192.png"><style>${CSS}</style></head><body><main>
-<header><img src="/img/logo-512.png" alt="MB Visual"><h1>MB Visual</h1><p class="by">Powered by MB Group</p></header>
+<header><img src="/img/logo-512.png" alt="MB Desk"><h1>MB Desk</h1><p class="by">Powered by MB Group</p></header>
 ${body}</main></body></html>`;
 }
 const contact = (env, en) => {
@@ -27,28 +27,28 @@ const contact = (env, en) => {
 };
 
 export function presentationPage(env) {
-  return page("MB Visual", `
-<p>MB Visual è un'applicazione per aprire, consultare e modificare file tecnici e documenti: PDF, disegni CAD (DWG, DXF), modelli 3D e BIM (IFC e altri),
+  return page("MB Desk", `
+<p>MB Desk è un'applicazione per aprire, consultare e modificare file tecnici e documenti: PDF, disegni CAD (DWG, DXF), modelli 3D e BIM (IFC e altri),
 documenti Office, immagini, video, archivi, file firmati digitalmente e molti altri formati. Funziona su PC Windows, su Mac e sul telefono.</p>
 <p>È distribuita da MB Group a clienti selezionati, con una licenza personale. I file aperti restano sul dispositivo dell'utente.</p>
-<p>Con il consenso dell'utente MB Visual può collegarsi alla sua casella di posta (anche Gmail) e ai suoi archivi cloud (anche Google Drive) per aprire e salvare
+<p>Con il consenso dell'utente MB Desk può collegarsi alla sua casella di posta (anche Gmail) e ai suoi archivi cloud (anche Google Drive) per aprire e salvare
 i file e leggere e inviare i messaggi direttamente dall'app. Questi dati restano sul dispositivo dell'utente.</p>
 <p><a class="btn p" href="/privacy">Informativa sulla privacy</a></p>
 <section class="en"><h2>English</h2>
-<p>MB Visual is an application to open, view and edit technical files and documents: PDF, CAD drawings (DWG, DXF), 3D and BIM models (IFC and more), Office documents,
+<p>MB Desk is an application to open, view and edit technical files and documents: PDF, CAD drawings (DWG, DXF), 3D and BIM models (IFC and more), Office documents,
 images, video, archives, digitally signed files and many other formats. It runs on Windows PCs, on Macs and on phones.</p>
 <p>It is distributed by MB Group to selected customers under a personal license. Opened files stay on the user's device.</p>
-<p>With the user's permission MB Visual can connect to the user's mailbox (including Gmail) and cloud storage (including Google Drive) to open and save files and to read and
+<p>With the user's permission MB Desk can connect to the user's mailbox (including Gmail) and cloud storage (including Google Drive) to open and save files and to read and
 send messages directly in the app. This data stays on the user's device.</p>
 <p><a class="btn p" href="/privacy">Privacy policy</a></p></section>
-<footer class="muted">MB Visual · MB Group</footer>`);
+<footer class="muted">MB Desk · MB Group</footer>`);
 }
 
 export function privacyPage(env) {
-  return page("MB Visual - Privacy", `
+  return page("MB Desk - Privacy", `
 <h2 style="margin-top:0">Informativa sulla privacy</h2>
 <p class="muted">Ultimo aggiornamento: 23 ottobre 2026</p>
-<p>Questa informativa descrive quali dati tratta MB Visual (app per PC, Mac e telefono) e questo server. Titolare del trattamento: MB Engineering srl (MB Group).</p>
+<p>Questa informativa descrive quali dati tratta MB Desk (app per PC, Mac e telefono) e questo server. Titolare del trattamento: MB Engineering srl (MB Group).</p>
 
 <h3>1. Licenza</h3>
 <p>Per attivare e rinnovare la licenza l'app invia a questo server: la chiave di licenza, un'impronta del dispositivo (codice ricavato dall'identificativo del
@@ -63,11 +63,11 @@ una volta al giorno l'app invia: un identificativo casuale dell'installazione (n
 lingua, numero di avvii e tempo d'uso, componenti attivi, estensioni dei file aperti (solo l'estensione), funzioni usate e tipo di errori dei visualizzatori.
 Mai nomi di file, percorsi, contenuti, posta, contatti, calendari o dati degli account collegati; l'indirizzo IP non viene salvato con le statistiche.
 Finalità: capire quali formati e funzioni migliorare. Base giuridica: consenso (art. 6.1.a GDPR e art. 122 del Codice privacy), revocabile in ogni momento da
-File › Impostazioni › Statistiche d'uso. Conservazione: poiché i dati sono anonimi, si conservano finché servono a migliorare MB Visual; si cancellano quando
+File › Impostazioni › Statistiche d'uso. Conservazione: poiché i dati sono anonimi, si conservano finché servono a migliorare MB Desk; si cancellano quando
 l'utente revoca il consenso (l'app lo chiede automaticamente al server) o su richiesta, comunicando l'identificativo mostrato nella stessa finestra.</p>
 
 <h3>3. Posta e archivi cloud collegati (Gmail, Google Drive, Microsoft, Dropbox, Autodesk)</h3>
-<p>L'utente può collegare a MB Visual la propria casella di posta e i propri archivi cloud. L'accesso avviene con l'autorizzazione del fornitore (OAuth) e
+<p>L'utente può collegare a MB Desk la propria casella di posta e i propri archivi cloud. L'accesso avviene con l'autorizzazione del fornitore (OAuth) e
 serve solo alle funzioni richieste dall'utente: leggere, scrivere, organizzare e inviare la posta, gestire calendario e contatti, aprire e salvare i file.</p>
 <ul>
 <li>I token di accesso, i messaggi e i file scaricati restano solo sul dispositivo dell'utente, cifrati (Windows: protezione dati dell'utente; Mac: Portachiavi),
@@ -76,7 +76,7 @@ e non arrivano mai ai server di MB Group. Le richieste partono dall'app direttam
 letti da persone, salvo richiesta esplicita dell'utente per assistenza o obblighi di legge.</li>
 <li>Quando l'utente invia un file grande come collegamento, il collegamento viene creato nel suo archivio cloud.</li>
 </ul>
-<blockquote>MB Visual's use and transfer to any other app of information received from Google APIs will adhere to the
+<blockquote>MB Desk's use and transfer to any other app of information received from Google APIs will adhere to the
 <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</blockquote>
 <p>Revoca dell'accesso: dall'app (eliminando l'account nelle impostazioni della posta, che cancella dal dispositivo token e messaggi salvati, oppure con Esci nel pannello Cloud, che cancella i token) oppure dal fornitore:
 Google <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>, Microsoft
@@ -84,7 +84,7 @@ Google <a href="https://myaccount.google.com/permissions">myaccount.google.com/p
 Dropbox Impostazioni › App collegate.</p>
 
 <h3>4. File dell'utente</h3>
-<p>I documenti aperti con MB Visual restano sul dispositivo: l'app non li invia a MB Group.</p>
+<p>I documenti aperti con MB Desk restano sul dispositivo: l'app non li invia a MB Group.</p>
 
 <h3>5. Fornitori e luogo del trattamento</h3>
 <p>Questo server funziona sulla piattaforma Cloudflare, con il database collocato in Europa. Gli aggiornamenti dell'app vengono scaricati da GitHub.</p>
@@ -95,7 +95,7 @@ Dropbox Impostazioni › App collegate.</p>
 
 <section class="en"><h2>Privacy policy (English)</h2>
 <p class="muted">Last updated: 23 October 2026</p>
-<p>This policy describes the data processed by MB Visual (app for PC, Mac and phone) and by this server. Data controller: MB Engineering srl (MB Group).</p>
+<p>This policy describes the data processed by MB Desk (app for PC, Mac and phone) and by this server. Data controller: MB Engineering srl (MB Group).</p>
 <h3>1. License</h3>
 <p>To activate and renew the license the app sends this server: the license key, a device fingerprint (a non-reversible code derived from the system identifier;
 on phones a random code), the device name, the device type (PC or phone) and the app version. The server also keeps the customer's name and email entered by
@@ -108,10 +108,10 @@ the app sends: a random installation identifier (not linked to the license or th
 time of use, active components, extensions of opened files (the extension only), features used and the type of viewer errors. Never file names, paths, contents,
 email, contacts, calendars or data from connected accounts; the IP address is not stored with the statistics. Purpose: understanding which formats and features to
 improve. Legal basis: consent (Art. 6(1)(a) GDPR and Art. 122 of the Italian Privacy Code), which can be withdrawn at any time in File › Settings › Usage statistics.
-Retention: as the data is anonymous, it is kept for as long as it is useful to improve MB Visual; it is deleted when the user withdraws consent (the app asks the
+Retention: as the data is anonymous, it is kept for as long as it is useful to improve MB Desk; it is deleted when the user withdraws consent (the app asks the
 server automatically) or on request, quoting the identifier shown in the same window.</p>
 <h3>3. Connected email and cloud storage (Gmail, Google Drive, Microsoft, Dropbox, Autodesk)</h3>
-<p>Users can connect their mailbox and cloud storage to MB Visual. Access is granted through the provider's authorization (OAuth) and is used only for the features
+<p>Users can connect their mailbox and cloud storage to MB Desk. Access is granted through the provider's authorization (OAuth) and is used only for the features
 the user requests: reading, writing, organizing and sending email, managing calendar and contacts, opening and saving files.</p>
 <ul>
 <li>Access tokens, messages and downloaded files stay only on the user's device, encrypted (Windows: user data protection; Mac: Keychain), and never reach
@@ -120,17 +120,17 @@ MB Group's servers. Requests go from the app directly to Google, Microsoft, Drop
 read by humans, except at the user's explicit request for support or where required by law.</li>
 <li>When the user sends a large file as a link, the link is created in the user's own cloud storage.</li>
 </ul>
-<blockquote>MB Visual's use and transfer to any other app of information received from Google APIs will adhere to the
+<blockquote>MB Desk's use and transfer to any other app of information received from Google APIs will adhere to the
 <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</blockquote>
 <p>Revoking access: in the app (removing the account in the mail settings, which deletes the tokens and saved messages from the device, or signing out in the Cloud panel, which deletes the tokens) or at the provider: Google
 <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>, Microsoft <a href="https://myapps.microsoft.com">myapps.microsoft.com</a> or
 <a href="https://account.live.com/consent/Manage">account.live.com/consent/Manage</a>, Dropbox Settings › Connected apps.</p>
 <h3>4. User files</h3>
-<p>Documents opened with MB Visual stay on the device: the app does not send them to MB Group.</p>
+<p>Documents opened with MB Desk stay on the device: the app does not send them to MB Group.</p>
 <h3>5. Providers and location</h3>
 <p>This server runs on the Cloudflare platform, with the database located in Europe. App updates are downloaded from GitHub.</p>
 <h3>6. Rights and contact</h3>
 <p>You can request access, rectification, erasure, restriction and objection, and lodge a complaint with the Italian Data Protection Authority
 (<a href="https://www.garanteprivacy.it">garanteprivacy.it</a>). Contact: ${contact(env, true)}.</p></section>
-<footer class="muted"><a href="/mbvisual">MB Visual</a> · MB Group</footer>`);
+<footer class="muted"><a href="/mbvisual">MB Desk</a> · MB Group</footer>`);
 }

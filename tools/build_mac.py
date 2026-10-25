@@ -1,4 +1,4 @@
-"""Crea l'app per Mac: "MB Visual.app" (PyInstaller) e il disco "MBVisual-<versione>-mac.dmg".
+"""Crea l'app per Mac: "MB Desk.app" (PyInstaller) e il disco "MBDesk-<versione>-mac.dmg".
 
 Uso (solo su macOS, Apple Silicon):  python3 tools/build_mac.py [--out CARTELLA] [--no-dmg]
 Su GitHub lo esegue il workflow .github/workflows/build-mac.yml (runner macos-14, arm64).
@@ -28,7 +28,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))  # per controllare i moduli mbvisual.* (find_spec)
-NAME = "MB Visual"
+NAME = "MB Desk"
 BUNDLE_ID = "it.mbengineering.mbvisual"
 # 7-Zip per macOS (universale arm64/x64), licenza LGPL + restrizione unRAR: si distribuisce il solo eseguibile
 SEVENZIP = "https://www.7-zip.org/a/7z2501-mac.tar.xz"
@@ -189,7 +189,7 @@ def main() -> int:
     run(["ditto", app, final])
     print("App:", final)
     # riserva se il .dmg non si crea: zip con ditto (conserva permessi, collegamenti e firma del pacchetto)
-    zpath = out_dir / f"MBVisual-{version}-mac.zip"
+    zpath = out_dir / f"MBDesk-{version}-mac.zip"
     zpath.unlink(missing_ok=True)
     run(["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", app, zpath])
     print(f"Zip: {zpath}  ({zpath.stat().st_size / 1048576:.0f} MB)")
@@ -203,13 +203,13 @@ def main() -> int:
     run(["ditto", app, dmg_src / f"{NAME}.app"])
     (dmg_src / "Applications").symlink_to("/Applications")
     (dmg_src / "LEGGIMI.txt").write_text(
-        f"MB Visual {version} per Mac (Apple Silicon)\n\n"
-        "1. Trascina 'MB Visual' nella cartella Applications.\n"
-        "2. Primo avvio: in Applicazioni fai clic destro su 'MB Visual' -> Apri -> Apri.\n"
+        f"MB Desk {version} per Mac (Apple Silicon)\n\n"
+        "1. Trascina 'MB Desk' nella cartella Applications.\n"
+        "2. Primo avvio: in Applicazioni fai clic destro su 'MB Desk' -> Apri -> Apri.\n"
         "   (Questa versione non e' ancora firmata da Apple: macOS chiede conferma una volta sola.)\n"
         "3. Trascina i file nella finestra, oppure usa 'Apri'.\n\n"
         "Opzionale: LibreOffice per Mac (formati Office meno comuni e conversioni).\n", encoding="utf-8")
-    dmg = out_dir / f"MBVisual-{version}-mac.dmg"
+    dmg = out_dir / f"MBDesk-{version}-mac.dmg"
     dmg.unlink(missing_ok=True)
     run(["hdiutil", "create", "-volname", f"{NAME} {version}", "-srcfolder", dmg_src, "-ov", "-format", "UDZO", dmg])
     print(f"Disco: {dmg}  ({dmg.stat().st_size / 1048576:.0f} MB)")

@@ -31,7 +31,7 @@ def default_dir() -> str:
         if ctypes.windll.shell32.SHGetFolderPathW(None, 5, None, 0, buf) == 0:  # CSIDL_PERSONAL = Documenti (anche se spostati in OneDrive)
             docs = Path(buf.value)
     docs = docs or Path.home() / "Documents"
-    return str(docs / "MB Visual" / "Dal telefono")
+    return str(docs / "MB Desk" / "Dal telefono")
 
 
 def load() -> dict:

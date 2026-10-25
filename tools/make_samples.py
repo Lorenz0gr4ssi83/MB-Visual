@@ -1,4 +1,4 @@
-"""Crea file di esempio in tests/samples per collaudare ogni categoria di MB Visual."""
+"""Crea file di esempio in tests/samples per collaudare ogni categoria di MB Desk."""
 import datetime
 import io
 import json
@@ -34,7 +34,7 @@ def make_p7m():
         x509.NameAttribute(NameOID.SERIAL_NUMBER, "TINIT-RSSMRA80A01H501U"),
         x509.NameAttribute(NameOID.COMMON_NAME, "ROSSI MARIO"),
     ])
-    issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "CA DI PROVA MB VISUAL"),
+    issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "CA DI PROVA MB DESK"),
                         x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Certificatore di prova")])
     now = datetime.datetime.now(datetime.timezone.utc)
     cert = (x509.CertificateBuilder().subject_name(name).issuer_name(issuer).public_key(key.public_key())
@@ -54,7 +54,7 @@ def make_office():
     from docx import Document
     d = Document()
     d.add_heading("Relazione tecnica di prova", 0)
-    d.add_paragraph("Documento di esempio generato per il collaudo di MB Visual.")
+    d.add_paragraph("Documento di esempio generato per il collaudo di MB Desk.")
     p = d.add_paragraph()
     p.add_run("Testo in grassetto ").bold = True
     p.add_run("e testo in corsivo.").italic = True
@@ -72,7 +72,7 @@ def make_office():
     prs = Presentation()
     s = prs.slides.add_slide(prs.slide_layouts[0])
     s.shapes.title.text = "Presentazione di prova"
-    s.placeholders[1].text = "MB Visual - collaudo PowerPoint"
+    s.placeholders[1].text = "MB Desk - collaudo PowerPoint"
     s2 = prs.slides.add_slide(prs.slide_layouts[1])
     s2.shapes.title.text = "Punti principali"
     tf = s2.placeholders[1].text_frame
@@ -213,7 +213,7 @@ def make_misc():
     im.save(OUT / "immagine.tif")
     im.save(OUT / "immagine.tga")
     with zipfile.ZipFile(OUT / "archivio.zip", "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("leggimi.txt", "Archivio di prova MB Visual\n")
+        z.writestr("leggimi.txt", "Archivio di prova MB Desk\n")
         z.writestr("cartella/dati.json", json.dumps({"a": 1, "b": [1, 2, 3]}, indent=2))
         z.write(OUT / "immagine.png", "cartella/immagine.png")
     eml = ("From: Ufficio Tecnico <tecnico@example.com>\r\nTo: Cliente <cliente@example.com>\r\nSubject: Invio elaborati\r\n"
@@ -232,7 +232,7 @@ def make_misc():
     con.close()
     (OUT / "note.md").write_text("# Note di progetto\n\n- **Fase 1**: rilievo\n- Fase 2: progetto\n\n| Voce | Stato |\n|---|---|\n| Rilievo | fatto |\n", encoding="utf-8")
     (OUT / "pagina.html").write_text("<!doctype html><html><body><h1>Pagina di prova</h1><p>Testo</p></body></html>", encoding="utf-8")
-    (OUT / "disegno.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="120"><rect x="10" y="10" width="180" height="100" fill="#8a8c89"/><text x="30" y="70" fill="#fff" font-size="24">MB Visual</text></svg>', encoding="utf-8")
+    (OUT / "disegno.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="120"><rect x="10" y="10" width="180" height="100" fill="#8a8c89"/><text x="30" y="70" fill="#fff" font-size="24">MB Desk</text></svg>', encoding="utf-8")
     (OUT / "sconosciuto.xyz").write_bytes(bytes(range(256)) * 4)
 
 

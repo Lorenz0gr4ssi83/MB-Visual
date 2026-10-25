@@ -64,7 +64,7 @@ export async function mount(ctx) {
     // puntatore sempre a freccia anche dentro il visualizzatore PDF (richiesta dell'utente)
     // con l'editor dell'app per PC la barra e i pulsanti di annotazione di pdf.js si nascondono: li sostituisce la riga dell'editor
     try { const s = frame.contentDocument.createElement("style"); s.textContent = "*, *::before, *::after { cursor: default !important; }" + (ed ? PDFJS_HIDE + PDFJS_CHROME : ""); frame.contentDocument.head.append(s); } catch { /* */ }
-    // colori di pdf.js presi dai token dell'app (tema chiaro/scuro scelto in MB Visual, non quello di Windows)
+    // colori di pdf.js presi dai token dell'app (tema chiaro/scuro scelto in MB Desk, non quello di Windows)
     const theme = frame.contentDocument?.createElement("style");
     const paint = () => {
       const v = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -84,7 +84,7 @@ export async function mount(ctx) {
     const a = app();
     if (!a) return;
     await a.initializedPromise;
-    // pulsante Stampa e Ctrl+P di pdf.js -> finestra Stampa di MB Visual (ui/js/print.js)
+    // pulsante Stampa e Ctrl+P di pdf.js -> finestra Stampa di MB Desk (ui/js/print.js)
     if (!WEB) try { frame.contentWindow.print = () => window.MB?.print?.(); } catch { /* */ }
     bar?.hookNav();
     a.eventBus.on("documentloaded", () => {

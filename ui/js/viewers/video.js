@@ -1,4 +1,4 @@
-// Progetto di montaggio video MB Visual (.mbvid): si apre nell'editor in stile Premiere Pro (ui/js/videdit.js).
+// Progetto di montaggio video MB Desk (.mbvid): si apre nell'editor in stile Premiere Pro (ui/js/videdit.js).
 // I file multimediali sono riferiti per percorso; se la cartella e' stata spostata si cercano col percorso relativo.
 import { api, dirName, loading, readBytes } from "../core.js";
 import { createVideoEditor } from "../videdit.js";

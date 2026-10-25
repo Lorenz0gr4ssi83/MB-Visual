@@ -1053,8 +1053,8 @@ def transform_matrix(tf):
 def _header(name):
     import time
     ts = time.strftime("%Y-%m-%dT%H:%M:%S")
-    return ("ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('MB Visual: modello convertito da Parasolid'),'2;1');\n"
-            f"FILE_NAME({_str(name)},'{ts}',(''),(''),'MB Visual','MB Visual','');\n"
+    return ("ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('MB Desk: modello convertito da Parasolid'),'2;1');\n"
+            f"FILE_NAME({_str(name)},'{ts}',(''),(''),'MB Desk','MB Desk','');\n"
             "FILE_SCHEMA(('AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }'));\nENDSEC;\nDATA;\n")
 
 

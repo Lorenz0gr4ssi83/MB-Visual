@@ -1,4 +1,4 @@
-// Pubblicazioni (.mbpub, formato proprio di MB Visual) nell'editor in stile Publisher (ui/js/pubedit.js).
+// Pubblicazioni (.mbpub, formato proprio di MB Desk) nell'editor in stile Publisher (ui/js/pubedit.js).
 // I file di Microsoft Publisher (.pub) si importano (mbvisual/publisher.py): con Publisher installato tutta
 // l'impaginazione, altrimenti solo testo e immagini; si salvano poi come .mbpub o si esportano in PDF.
 import { t } from "../i18n.js";

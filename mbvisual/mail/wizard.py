@@ -1,4 +1,4 @@
-"""Aggiunta di un account come in Outlook: si scrive solo l'indirizzo, MB Visual capisce da solo come collegarlo.
+"""Aggiunta di un account come in Outlook: si scrive solo l'indirizzo, MB Desk capisce da solo come collegarlo.
 
 - `detect(email)`: PEC preimpostata -> password PEC; Gmail o dominio con posta Google (Workspace) -> accesso Google;
   Outlook.com/Hotmail o dominio con posta Microsoft 365 -> accesso Microsoft; tutto il resto -> configurazione automatica

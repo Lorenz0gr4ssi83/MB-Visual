@@ -147,7 +147,7 @@ def stamp(ts=None) -> str:
 def reply(ev: dict, me: str, my_name: str, partstat: str) -> str:
     """METHOD:REPLY per l'organizzatore: stesse proprieta' chiave dell'invito, un solo ATTENDEE (io) con la risposta."""
     keep = {"UID", "DTSTART", "DTEND", "DURATION", "SUMMARY", "LOCATION", "SEQUENCE", "ORGANIZER", "RECURRENCE-ID", "RRULE"}
-    lines = ["BEGIN:VCALENDAR", "PRODID:-//MB Visual//Posta//IT", "VERSION:2.0", "METHOD:REPLY", "BEGIN:VEVENT"]
+    lines = ["BEGIN:VCALENDAR", "PRODID:-//MB Desk//Posta//IT", "VERSION:2.0", "METHOD:REPLY", "BEGIN:VEVENT"]
     for name, params, value in ev["props"]:
         if name in keep:
             p = "".join(f";{k}={v}" if not re.search(r"[:;,\s]", v) else f';{k}="{v}"' for k, v in params.items())
@@ -167,7 +167,7 @@ def fmt_dt(ts: float, allday=False) -> str:
 
 def make_event(e: dict, method: str = "", organizer: dict | None = None) -> str:
     """Evento -> VCALENDAR (per CalDAV o per un invito con METHOD:REQUEST/CANCEL)."""
-    lines = ["BEGIN:VCALENDAR", "PRODID:-//MB Visual//Posta//IT", "VERSION:2.0"]
+    lines = ["BEGIN:VCALENDAR", "PRODID:-//MB Desk//Posta//IT", "VERSION:2.0"]
     if method:
         lines.append("METHOD:" + method)
     lines += ["BEGIN:VEVENT", f"UID:{e.get('uid') or uuid.uuid4().hex + '@mbvisual'}", f"DTSTAMP:{stamp()}",

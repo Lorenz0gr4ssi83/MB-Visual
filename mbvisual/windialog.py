@@ -1,6 +1,6 @@
 """Finestre di Windows Apri / Salva con nome / Scegli cartella chiamate direttamente (ctypes, comdlg32 e shell32).
 
-Servono quando MB Visual non ha la sua finestra (pythonnet bloccato da criteri aziendali o antivirus) e gira nel ripiego
+Servono quando MB Desk non ha la sua finestra (pythonnet bloccato da criteri aziendali o antivirus) e gira nel ripiego
 in Edge: senza queste l'interfaccia poteva solo chiedere di scrivere il percorso a mano. Ogni chiamata blocca finche'
 l'utente chiude la finestra; la finestra si aggancia a quella in primo piano (Edge) per restarle sopra.
 Sul Mac (app nel browser) le stesse finestre sono quelle del Finder, aperte con AppleScript (osascript).

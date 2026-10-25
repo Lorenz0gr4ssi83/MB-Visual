@@ -1,4 +1,4 @@
-# App per Mac (Apple Silicon), NON firmata: "MB Visual.app" in un .dmg caricato come artefatto del workflow.
+# App per Mac (Apple Silicon), NON firmata: "MB Desk.app" in un .dmg caricato come artefatto del workflow.
 # Parte con un push su main o mac-build (non per le sole modifiche ai .md) oppure a mano: Actions -> Build Mac -> Run workflow.
 # Una build nuova annulla quella in corso sullo stesso ramo. Attenzione: se il repository diventa privato i minuti
 # dei runner macOS costano 10 volte quelli Linux.
@@ -105,7 +105,7 @@ jobs:
 
       - name: Prova di avvio (server locale, /api/update_check e /api/license/status)
         run: |
-          APP="dist-mac/MB Visual.app/Contents/MacOS/MB Visual"
+          APP="dist-mac/MB Desk.app/Contents/MacOS/MB Desk"
           "$APP" --browser --no-open > dist-mac/avvio.log 2>&1 &
           for i in $(seq 1 90); do URL=$(grep -m1 '^http' dist-mac/avvio.log || true); [ -n "$URL" ] && break; sleep 1; done
           cat dist-mac/avvio.log
@@ -120,7 +120,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MBVisual-mac-dmg
+          name: MBDesk-mac-dmg
           path: dist-mac/*.dmg
           if-no-files-found: warn
           compression-level: 0
@@ -129,7 +129,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: MBVisual-mac-zip
+          name: MBDesk-mac-zip
           path: dist-mac/*.zip
           if-no-files-found: warn
           compression-level: 0

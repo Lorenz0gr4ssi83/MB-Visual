@@ -222,8 +222,8 @@ export function toSTEP(elements, name = "modello") {
     styled.push(A(`STYLED_ITEM('color',(#${psa}),#${brep})`));
   }
   if (styled.length) A(`MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION('',(${styled.map(i => "#" + i).join(",")}),#${gctx})`);
-  return ["ISO-10303-21;", "HEADER;", "FILE_DESCRIPTION(('MB Visual - assieme a facce piane'),'2;1');",
-    `FILE_NAME(${stepStr(name + ".stp")},'${today()}',('MB Visual'),('MB Engineering'),'MB Visual','MB Visual','');`,
+  return ["ISO-10303-21;", "HEADER;", "FILE_DESCRIPTION(('MB Desk - assieme a facce piane'),'2;1');",
+    `FILE_NAME(${stepStr(name + ".stp")},'${today()}',('MB Desk'),('MB Engineering'),'MB Desk','MB Desk','');`,
     "FILE_SCHEMA(('AUTOMOTIVE_DESIGN { 1 0 10303 214 1 1 1 1 }'));", "ENDSEC;", "DATA;", ...w.lines, "ENDSEC;", "END-ISO-10303-21;", ""].join("\n");
 }
 
@@ -244,8 +244,8 @@ const IFC_TYPES = new Set(["IFCWALL", "IFCWALLSTANDARDCASE", "IFCSLAB", "IFCBEAM
 export function toIFC(elements, name = "modello") {
   const w = stepWriter(), A = s => w.add(s);
   const org = A("IFCORGANIZATION($,'MB Engineering',$,$,$)");
-  const app = A(`IFCAPPLICATION(#${org},'1','MB Visual','MBVisual')`);
-  const per = A("IFCPERSON($,$,'MB Visual',$,$,$,$,$)");
+  const app = A(`IFCAPPLICATION(#${org},'1','MB Desk','MBVisual')`);
+  const per = A("IFCPERSON($,$,'MB Desk',$,$,$,$,$)");
   const pao = A(`IFCPERSONANDORGANIZATION(#${per},#${org},$)`);
   const own = A(`IFCOWNERHISTORY(#${pao},#${app},$,.ADDED.,$,$,$,${Math.floor(Date.now() / 1000)})`);
   const o = A("IFCCARTESIANPOINT((0.,0.,0.))"), z = A("IFCDIRECTION((0.,0.,1.))"), x = A("IFCDIRECTION((1.,0.,0.))");
@@ -292,7 +292,7 @@ export function toIFC(elements, name = "modello") {
   for (let i = 0; i < items.length; i += 5000)
     A(`IFCRELCONTAINEDINSPATIALSTRUCTURE('${guid()}',#${own},$,$,(${items.slice(i, i + 5000).map(n => "#" + n).join(",")}),#${storey})`);
   return ["ISO-10303-21;", "HEADER;", "FILE_DESCRIPTION(('ViewDefinition [ReferenceView_V1.2]'),'2;1');",
-    `FILE_NAME(${stepStr(name + ".ifc")},'${today()}',('MB Visual'),('MB Engineering'),'MB Visual','MB Visual','');`,
+    `FILE_NAME(${stepStr(name + ".ifc")},'${today()}',('MB Desk'),('MB Engineering'),'MB Desk','MB Desk','');`,
     "FILE_SCHEMA(('IFC4'));", "ENDSEC;", "DATA;", ...w.lines, "ENDSEC;", "END-ISO-10303-21;", ""].join("\n");
 }
 
@@ -344,7 +344,7 @@ export function toDXF(elements) {
 
 // ---------------------------------------------------------------- VRML 2.0 (metri)
 export function toVRML(elements) {
-  const out = ["#VRML V2.0 utf8", "# MB Visual"];
+  const out = ["#VRML V2.0 utf8", "# MB Desk"];
   for (const el of elements) {
     const t = tris(el);
     if (!t.length) continue;

@@ -1,4 +1,4 @@
-// MB Visual web app: motore nel browser al posto del motore Python del PC.
+// MB Desk web app: motore nel browser al posto del motore Python del PC.
 // I file aperti restano nella memoria del dispositivo (nessun invio a server); il salvataggio avviene scaricando il file.
 // Espone window.MBV_API, usato da core.js quando window.MBV_WEB e' attivo.
 import { loadScript } from "./core.js";
@@ -477,7 +477,7 @@ window.MBV_API = {
   readRange: async (path, s, e) => new Uint8Array(await entry(path)[1].blob.slice(s, e + 1).arrayBuffer()),
 };
 
-// file condivisi da altre app del telefono ("Condividi > MB Visual"), messi in attesa dal service worker
+// file condivisi da altre app del telefono ("Condividi > MB Desk"), messi in attesa dal service worker
 async function sharedFiles() {
   if (!new URLSearchParams(location.search).has("condivisi") || !("caches" in window)) return;
   const cache = await caches.open("mbv-condivisi");
@@ -493,7 +493,7 @@ async function sharedFiles() {
   const wait = () => (window.MB ? window.MB.openPaths(paths) : setTimeout(wait, 100));
   if (paths.length) wait();
 }
-// file aperti dal sistema (Chrome su PC: "Apri con MB Visual")
+// file aperti dal sistema (Chrome su PC: "Apri con MB Desk")
 if ("launchQueue" in window) {
   window.launchQueue.setConsumer(async params => {
     const paths = [];

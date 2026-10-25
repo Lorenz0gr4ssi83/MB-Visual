@@ -1,7 +1,9 @@
-# Server delle licenze MB Visual su Cloudflare Workers (piano gratuito)
+# Server delle licenze MB Desk su Cloudflare Workers (piano gratuito)
 # Messa online:  npx wrangler@4 deploy   (dalla copia in %USERPROFILE%\.mbvisual\server, vedi tools/license_setup.py)
 # Segreti (mai nel repository): SIGNING_KEY (chiave privata Ed25519), ADMIN_TOKEN (accesso dell'app di gestione)
-name = "mbvisual"
+# indirizzo https://mbdesk.mb-group.workers.dev (dal 25/10/2026). Il Worker con il nome precedente "mbvisual" resta acceso
+# per i telefoni gia' installati su quell'indirizzo: tools/publish_web.py pubblica lo stesso codice anche li', senza cron.
+name = "mbdesk"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
 

@@ -1,4 +1,4 @@
-"""MB Visual Admin - gestione delle licenze di MB Visual (server in server/).
+"""MB Desk Admin - gestione delle licenze di MB Desk (server in server/).
 
 Finestra: riepilogo, licenze con i loro dispositivi, richieste e segnalazioni, avvisi. Crea, revoca, riattiva e
 sostituisce licenze, libera dispositivi, approva i cambi dispositivo in attesa.
@@ -102,7 +102,7 @@ class Api:
         return self.config()
 
     def pair(self):
-        """Codice di 6 cifre (10 minuti, una volta sola) e link per il QR: collega l'app per telefono di MB Visual Admin."""
+        """Codice di 6 cifre (10 minuti, una volta sola) e link per il QR: collega l'app per telefono di MB Desk Admin."""
         return call("POST", "/admin/pair", {})
 
     def qr_lib(self):
@@ -137,7 +137,7 @@ class Api:
 
     def mail_test(self):
         c = _mail_load()
-        return _mail_send(c.get("mittente", ""), "Prova da MB Visual Admin", "Se leggi questa email, l'invio delle chiavi da MB Visual Admin funziona.")
+        return _mail_send(c.get("mittente", ""), "Prova da MB Desk Admin", "Se leggi questa email, l'invio delle chiavi da MB Desk Admin funziona.")
 
     def open_mail(self, to, subject, body):
         """Mail pronta nel programma di posta predefinito (mailto)."""
@@ -157,7 +157,7 @@ MAIL_CFG = VAULT / "admin_email.json"
 def _protect(text: str) -> str:
     import base64
     import win32crypt
-    return base64.b64encode(win32crypt.CryptProtectData(text.encode("utf-8"), "MB Visual Admin", None, None, None, 0)).decode()
+    return base64.b64encode(win32crypt.CryptProtectData(text.encode("utf-8"), "MB Desk Admin", None, None, None, 0)).decode()
 
 
 def _unprotect(blob: str) -> str:
@@ -205,7 +205,7 @@ def _mail_send(to: str, subject: str, body: str) -> dict:
 
 
 def _autostart_path() -> Path:
-    return Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup" / "MB Visual Admin.lnk"
+    return Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup" / "MB Desk Admin.lnk"
 
 
 # ---------------------------------------------------------------- avvisi in sottofondo + area di notifica
@@ -219,8 +219,8 @@ class Notifier:
         import pystray
         from PIL import Image
         img = Image.open(HERE / "admin.ico") if (HERE / "admin.ico").exists() else Image.new("RGB", (64, 64), (138, 140, 137))
-        menu = pystray.Menu(pystray.MenuItem("Apri MB Visual Admin", lambda: show(), default=True), pystray.MenuItem("Esci", lambda: quit_()))
-        self.icon = pystray.Icon("mbvisual-admin", img, "MB Visual Admin", menu)
+        menu = pystray.Menu(pystray.MenuItem("Apri MB Desk Admin", lambda: show(), default=True), pystray.MenuItem("Esci", lambda: quit_()))
+        self.icon = pystray.Icon("mbvisual-admin", img, "MB Desk Admin", menu)
         self.icon.run_detached()
 
     def notify(self, title, text):
@@ -244,9 +244,9 @@ class Notifier:
                 _save_state(st)
                 if new and (not first or len(new) <= 5):
                     for ev in new[-5:]:
-                        self.notify(TITLES.get(ev["kind"], "MB Visual"), ev["text"])
+                        self.notify(TITLES.get(ev["kind"], "MB Desk"), ev["text"])
                 elif new:
-                    self.notify("MB Visual Admin", f"{len(new)} nuovi avvisi dall'ultima apertura")
+                    self.notify("MB Desk Admin", f"{len(new)} nuovi avvisi dall'ultima apertura")
                 if self.api._window:
                     try:
                         self.api._window.run_js("window.adminRefresh && setTimeout(adminRefresh, 0)")  # senza attendere risposta
@@ -259,8 +259,16 @@ class Notifier:
 def main():
     import webview
     api = Api()
+    # avvio con Windows impostato col nome precedente ("MB Visual Admin"): si rifa' con il nome nuovo
+    old = _autostart_path().with_name("MB Visual Admin.lnk")
+    if old.exists():
+        try:
+            old.unlink()
+            api.set_autostart(True)
+        except Exception:  # noqa: BLE001
+            pass
     hidden = "--nascosta" in sys.argv
-    win = webview.create_window("MB Visual Admin", str(HERE / "ui" / "index.html"), js_api=api, width=1200, height=800,
+    win = webview.create_window("MB Desk Admin", str(HERE / "ui" / "index.html"), js_api=api, width=1200, height=800,
                                 min_size=(900, 560), hidden=hidden, background_color="#1f2120")
     api._window = win
     quitting = {"v": False}

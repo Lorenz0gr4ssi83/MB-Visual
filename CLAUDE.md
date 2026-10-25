@@ -1,4 +1,22 @@
-# MB Visual - note per riprendere il lavoro
+# MB Desk (prima MB Visual) - note per riprendere il lavoro
+
+## NOME DELL'APP: MB Desk (dal 25/10/2026) - REGOLA PER TUTTE LE SESSIONI
+L'utente ha rinominato l'app: OGNI cosa visibile dice "MB Desk" (logo con DESK al posto di GROUP da tools/make_logo.py, finestre,
+installabile, collegamenti "MB Desk.lnk", eseguibile "MB Desk.exe", setup MBDesk-Setup-<ver>.exe, MBDesk-<ver>-mac.dmg, "MB Desk.app",
+"MB Desk Admin", app per telefono, pagine web, testi in 5 lingue). La parola "Visual" non deve comparire da nessuna parte visibile.
+Restano col nome storico SOLO cose tecniche invisibili, per non perdere dati e licenze: cartelle dati %LOCALAPPDATA%\MBVisual e
+%TEMP%\MBVisual, chiavi HKCU\Software\MB Visual\*, ProgID MBVisual.<ext>, pacchetto Python mbvisual/, cartella del progetto e
+"App per PC", installazioni gia' esistenti in %LOCALAPPDATA%\Programs\MB Visual (le nuove vanno in ...\Programs\MB Desk).
+Ponte per gli aggiornamenti delle copie precedenti (finche' ce ne sono in giro, almeno qualche versione):
+- release GitHub: oltre a MBDesk-Setup-<ver>.exe caricare la STESSA copia anche come MBVisual-Setup-<ver>.exe (le copie vecchie cercano
+  quel nome); su Drive e in Desktop\MB Desk SOLO i nomi nuovi. "App per PC" contiene anche MBVisual.exe (lo mette build_portable).
+- l'installabile lascia MBVisual.exe accanto a "MB Desk.exe" solo se c'era prima (OldExeExists): la copia vecchia riavvia quello;
+  update.migrate_exe_name (app.py) rifa' i collegamenti e lo toglie quando l'app gira come "MB Desk.exe".
+- Mac: l'aggiornamento rinomina "MB Visual.app" in "MB Desk.app" (MAC_OLD_INSTALL).
+- Server: Worker principale "mbdesk" (https://mbdesk.mb-group.workers.dev, LICENSE_URL); il Worker "mbvisual" resta acceso con lo
+  stesso codice e lo stesso database ma senza cron, per i telefoni installati sul vecchio indirizzo (tools/publish_web.py li pubblica
+  entrambi). Un Worker nuovo vuole i segreti: python tools/license_setup.py segreti.
+
 
 App desktop Windows (Python + pywebview/WebView2) che apre, visualizza e modifica il maggior numero possibile di formati.
 Interfaccia in italiano. Logo: `ui/img/logo.png` (marchio MB Group con "VISUAL" al posto di "GROUP", generato da `tools/make_logo.py`).
@@ -301,7 +319,7 @@ ode-x64 e wrangler installato in
   (creata una volta sola). `tools/publish_drive.py <file>...` (token in %USERPROFILE%\.mbvisual\licenze\drive_token.json, rifare
   con --login se scade); lo chiama da solo build_portable.py --solo-pubblica / publish (salvo --no-drive). Il .dmg arrivato dopo:
   `python tools/publish_drive.py <dmg>` (non sposta il setup della stessa versione). MAI MB Visual Admin in quella cartella.
-  Copia per l'utente in C:\Users\loren\OneDrive\Desktop\MB Visual (mai sul Desktop).
+  Copia per l'utente in C:\Users\loren\OneDrive\Desktop\MB Desk (mai sul Desktop).
 - DA FARE (decisione dell'utente): attivare l'obbligo di licenza = `server_url.txt` gia' scritto; lanciare
   `tools/license_setup.py chiavi` (scrive LICENSE_URL in license_pub.py) e fare una build SOLO quando l'utente ha creato le
   licenze per se' e i colleghi con MB Visual Admin. Poi rendere privato il repository MB-Visual (lo fa l'utente; prima

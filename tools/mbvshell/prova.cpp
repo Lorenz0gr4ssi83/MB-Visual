@@ -1,6 +1,6 @@
 // Prova di mbvshell.dll senza registrarla: carica la DLL, crea il fornitore di miniature con il flusso del file
 // (come fa Esplora) e salva il risultato in PNG.
-//   prova.exe <mbvshell.dll> <file> <uscita.png> [lato]        (comando di MB Visual in MBVSHELL_Comando)
+//   prova.exe <mbvshell.dll> <file> <uscita.png> [lato]        (comando di MB Desk in MBVSHELL_Comando)
 //   prova.exe --shell <file> <uscita.png> [lato]               miniatura chiesta a Windows (DLL gia' registrata)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>

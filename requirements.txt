@@ -19,7 +19,7 @@ openpyxl
 brotli
 ezdxf
 pyHanko==0.38.0  # firma digitale PAdES/CAdES (MIT; porta pyhanko-certvalidator MIT, aiohttp Apache-2.0, oscrypto MIT, uritools MIT) - mbvisual/firma.py
-pystray==0.19.5  # area di notifica e avvisi di MB Visual Admin (admin/)
+pystray==0.19.5  # area di notifica e avvisi di MB Desk Admin (admin/)
 laspy  # nuvole di punti LAS (BSD-2)
 lazrs  # LAZ compresso (MIT)
 pye57  # nuvole E57 (MIT; libE57Format BSL-1.0, Xerces-C Apache-2.0)

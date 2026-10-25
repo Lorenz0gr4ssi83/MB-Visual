@@ -1,4 +1,4 @@
-# MB Visual - elenco completo dei formati
+# MB Desk - elenco completo dei formati
 
 **1004 estensioni** in 44 categorie si aprono con un visualizzatore dedicato.
 Questo elenco e' generato automaticamente dallo stesso registro (`ui/formats.json`) che l'app usa per decidere come aprire un file:
@@ -201,7 +201,7 @@ Nell'app lo stesso elenco e' consultabile dal pulsante **Formati**, con la ricer
 
 > Richiede **Autodesk Navisworks Freedom** (gratuito) installato sul PC: https://www.autodesk.com/viewers
 
-- **Visualizza:** Formato proprietario Autodesk: si apre in Autodesk Navisworks Freedom (installato su questo PC) con un clic; in MB Visual: informazioni file e byte grezzi
+- **Visualizza:** Formato proprietario Autodesk: si apre in Autodesk Navisworks Freedom (installato su questo PC) con un clic; in MB Desk: informazioni file e byte grezzi
 - **Modifica:** Non modificabile fuori da Navisworks Manage/Simulate
 
 `.nwc` `.nwd` `.nwf`
@@ -217,14 +217,14 @@ Nell'app lo stesso elenco e' consultabile dal pulsante **Formati**, con la ricer
 
 > Richiede **7-Zip** (gratuito) installato sul PC: https://www.7-zip.org/
 
-- **Visualizza:** Contenuto ad albero; ogni file interno si apre direttamente in MB Visual
+- **Visualizza:** Contenuto ad albero; ogni file interno si apre direttamente in MB Desk
 - **Modifica:** Aggiunta (anche con trascinamento), eliminazione e rinomina di file per ZIP/7Z/TAR/WIM/JAR; estrazione di tutto o di singoli file per tutti
 
 `.001` `.7z` `.a` `.aab` `.apk` `.appx` `.appxbundle` `.ar` `.arj` `.bz2` `.bzip2` `.cab` `.cb7` `.cbr` `.cbz` `.chi` `.chm` `.cpio` `.cramfs` `.deb` `.dmg` `.ear` `.egg` `.esd` `.gz` `.gzip` `.hfs` `.hfsx` `.img` `.ipa` `.iso` `.jar` `.kmz` `.lha` `.lib` `.lit` `.lzh` `.lzma` `.lzma86` `.msi` `.msix` `.msp` `.msu` `.nsis` `.nupkg` `.ova` `.pkg` `.ppkg` `.qcow` `.qcow2` `.r00` `.rar` `.rpm` `.squashfs` `.swm` `.tar` `.taz` `.tbz` `.tbz2` `.tgz` `.tpz` `.txz` `.udf` `.vdi` `.vhd` `.vmdk` `.vsix` `.war` `.whl` `.wim` `.xapk` `.xar` `.xip` `.xpi` `.xz` `.z` `.z01` `.zip` `.zipx`
 
 ## Email (5)
 
-- **Visualizza:** Mittente, destinatari, data, corpo HTML/testo, allegati apribili direttamente in MB Visual
+- **Visualizza:** Mittente, destinatari, data, corpo HTML/testo, allegati apribili direttamente in MB Desk
 - **Modifica:** Estrazione e salvataggio degli allegati; il corpo si puo' esportare in HTML/TXT
 
 `.eml` `.emlx` `.mbox` `.mbx` `.msg`
@@ -313,7 +313,7 @@ Nell'app lo stesso elenco e' consultabile dal pulsante **Formati**, con la ricer
 
 `.rfa` `.rft` `.rte` `.rvt`
 
-## Pratiche edilizie (MB Visual) (1)
+## Pratiche edilizie (MB Desk) (1)
 
 - **Visualizza:** Anagrafica di commessa: committenti, immobile con dati catastali, tecnici, imprese, intervento; moduli generati e fascicolo
 - **Modifica:** Finestra guidata dei dati (anche dalla visura catastale PDF), moduli unificati compilati (CILA, CILA-Superbonus, SCIA, SCIA alternativa, inizio e fine lavori, soggetti coinvolti, procura, delega, relazione tecnica, dichiarazione di conformita'), firma digitale, fascicolo PDF con indice e segnalibri

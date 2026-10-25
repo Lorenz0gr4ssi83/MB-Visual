@@ -1,4 +1,4 @@
-// Modelli 3D dei DWF/DWFx (sezioni eModel, flussi W3D = HSF): scena three.js per il visualizzatore 3D di MB Visual.
+// Modelli 3D dei DWF/DWFx (sezioni eModel, flussi W3D = HSF): scena three.js per il visualizzatore 3D di MB Desk.
 // Albero dei segmenti con matrici, colori, inclusioni (istanze), shell (anche compresse edgebreaker), cilindri, sfere,
 // spigoli pubblicati; proprieta' degli oggetti dal content.xml / ObjectDefinition collegate tramite i numeri di nodo
 // (= indice di "tag" HSF del segmento).

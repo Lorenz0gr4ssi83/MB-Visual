@@ -1,5 +1,5 @@
 // Navisworks (nwd/nwc/nwf): formato chiuso Autodesk con geometria compressa proprietaria.
-// MB Visual offre: 1) il modello federato dai file sorgente (IFC/STEP/...) della stessa cartella, aperti insieme;
+// MB Desk offre: 1) il modello federato dai file sorgente (IFC/STEP/...) della stessa cartella, aperti insieme;
 // 2) l'apertura in Navisworks Freedom se presente; 3) informazioni sul file e byte grezzi.
 import { api, el, fmtSize, toast } from "../core.js";
 import { t, LOCALE } from "../i18n.js";

@@ -1,10 +1,10 @@
-// mbvshell.dll - miniature (IThumbnailProvider) e riquadro di anteprima (IPreviewHandler) di MB Visual per Esplora risorse.
+// mbvshell.dll - miniature (IThumbnailProvider) e riquadro di anteprima (IPreviewHandler) di MB Desk per Esplora risorse.
 //
 // 1. Immagini gia' contenute nel file (veloce, nessun processo): anteprima dei DWG, miniatura dei file OLE (Revit, Inventor,
 //    SolidWorks fino al 2014, ...: proprieta' Thumbnail o flussi "Preview"), PNG incorporato negli SketchUp.
-// 2. Altrimenti l'immagine la disegna MB Visual stesso: "<Comando> --miniatura <file> <uscita.png> <lato>"
+// 2. Altrimenti l'immagine la disegna MB Desk stesso: "<Comando> --miniatura <file> <uscita.png> <lato>"
 //    (mbvisual/miniature.py), con una cache in %LOCALAPPDATA%\MBVisual\miniature\cache.
-// Il comando e le opzioni li scrive mbvisual/shellint.py in HKCU\Software\MB Visual\Integrazione.
+// Il comando e le opzioni li scrive mbvisual/shellint.py in HKCU\Software\MB Desk\Integrazione.
 // Si compila con tools/mbvshell/build.cmd (MSVC, ARM64 e x64). Nessuna libreria esterna.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -37,7 +37,7 @@ static const CLSID CLSID_Preview = {0x6f1d8e2a, 0x5c4f, 0x4e3b, {0x9a, 0x1d, 0x2
 
 static HINSTANCE g_inst;
 static std::atomic<long> g_refs{0};
-static const wchar_t* REGKEY = L"Software\\MB Visual\\Integrazione";
+static const wchar_t* REGKEY = L"Software\\MB Visual\\Integrazione";  // chiave tecnica: nome storico
 
 typedef std::vector<BYTE> Bytes;
 
@@ -388,7 +388,7 @@ static Bytes Embedded(const Source& s) {
     return {};
 }
 
-// ------------------------------------------------------------------ immagine disegnata da MB Visual
+// ------------------------------------------------------------------ immagine disegnata da MB Desk
 static std::wstring CachePath(const Source& s, UINT side) {
     std::wstring key = s.name + L"|" + std::to_wstring(s.size) + L"|" + std::to_wstring(*(ULONGLONG*)&s.mtime);
     for (auto& c : key) c = (wchar_t)towlower(c);
@@ -448,7 +448,7 @@ static void RemoveTemp(const std::wstring& p) {
     RemoveDirectoryW(d.c_str());
 }
 
-// lancia MB Visual e aspetta il PNG (o la fine del processo, o il tempo massimo)
+// lancia MB Desk e aspetta il PNG (o la fine del processo, o il tempo massimo)
 static bool RunRenderer(const std::wstring& src, const std::wstring& out, UINT side, DWORD timeoutMs, const std::atomic<bool>* cancel) {
     std::wstring cmd = RegStr(L"Comando");
     if (cmd.empty()) return false;
@@ -523,7 +523,7 @@ public:
         FillSource(s, st);
         UINT side = cx <= 512 ? 512 : 1024;
         Bytes img = Embedded(s);
-        // anteprime incorporate molto piccole (DWG vecchi: 180x130): meglio il disegno di MB Visual se e' gia' pronto
+        // anteprime incorporate molto piccole (DWG vecchi: 180x130): meglio il disegno di MB Desk se e' gia' pronto
         UINT w = 0, h = 0;
         HBITMAP hb = img.empty() ? nullptr : Decode(img.data(), img.size(), cx, false, &w, &h);
         if (hb && std::max(w, h) < std::min(cx, 200u) && FileExists(CachePath(s, side))) { DeleteObject(hb); hb = nullptr; }
@@ -636,7 +636,7 @@ class PreviewHandler : public IInitializeWithFile, public IInitializeWithStream,
         ::SetTextColor(mem, fg);
         HGDIOBJ of = SelectObject(mem, font);
         RECT tr{r.left + 12, r.bottom - bottom, r.right - MulDiv(170, dpi, 96), r.bottom};
-        const wchar_t* msg = !done ? L"MB Visual: preparazione dell'anteprima..." : (bmp ? L"" : L"MB Visual: anteprima non disponibile per questo file");
+        const wchar_t* msg = !done ? L"MB Desk: preparazione dell'anteprima..." : (bmp ? L"" : L"MB Desk: anteprima non disponibile per questo file");
         DrawTextW(mem, msg, -1, &tr, DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS);
         SelectObject(mem, of);
         BitBlt(dc, 0, 0, r.right, r.bottom, mem, 0, 0, SRCCOPY);
@@ -746,7 +746,7 @@ public:
         SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0, dpi);
         font = CreateFontIndirectW(&ncm.lfMessageFont);
         if (!path.empty() && !RegStr(L"Apri").empty()) {
-            btn = CreateWindowExW(0, L"BUTTON", L"Apri in MB Visual", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 10, 10, hwnd, (HMENU)ID_OPEN, g_inst, nullptr);
+            btn = CreateWindowExW(0, L"BUTTON", L"Apri in MB Desk", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 10, 10, hwnd, (HMENU)ID_OPEN, g_inst, nullptr);
             SendMessageW(btn, WM_SETFONT, (WPARAM)font, TRUE);
             LayoutButton();
         }

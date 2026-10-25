@@ -1,4 +1,4 @@
-"""Web app installabile (PWA) di MB Visual per i cellulari.
+"""Web app installabile (PWA) di MB Desk per i cellulari.
 
 Uso:  python tools/build_web.py --mobile   app completa, protetta da licenza, in %USERPROFILE%/.mbvisual/server/public
                                           (poi `wrangler deploy` dalla copia di lavoro del server: vedi CLAUDE.md, Licenze)
@@ -6,7 +6,7 @@ Uso:  python tools/build_web.py --mobile   app completa, protetta da licenza, in
                                           worker toglie la vecchia app salvata nei telefoni e li porta all'indirizzo nuovo
 - usa la stessa interfaccia di ui/ con il motore nel browser (ui/js/webapi.js) al posto di quello Python
 - elenco formati ridotto a quelli che si aprono davvero nel browser (docs/formats.json)
-- manifest, service worker (uso offline, "Condividi > MB Visual" sul telefono), icone
+- manifest, service worker (uso offline, "Condividi > MB Desk" sul telefono), icone
 """
 import io
 import json
@@ -166,7 +166,7 @@ def splash_tags() -> str:
 
 
 HEAD = """<meta name="theme-color" content="#0f1114">
-<meta name="description" content="MB Visual - visualizzatore di documenti, disegni CAD, modelli 3D e BIM di MB Engineering">
+<meta name="description" content="MB Desk - visualizzatore di documenti, disegni CAD, modelli 3D e BIM di MB Engineering">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/apple-touch-icon-180.png">
 <link rel="apple-touch-icon" sizes="152x152" href="img/apple-touch-icon-152.png">
@@ -174,7 +174,7 @@ HEAD = """<meta name="theme-color" content="#0f1114">
 <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="MB Visual">
+<meta name="apple-mobile-web-app-title" content="MB Desk">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 __SPLASH__<script>window.MBV_WEB = true; window.MBV_BUILD = "__VERSION__"; window.MBV_VERSION = "__APPVER__"; window.MBV_ROOT = new URL(".", location.href).href;
 // ricarica con la versione nuova: la memoria dei file dell'app (cache del service worker) si svuota prima, altrimenti
@@ -216,11 +216,11 @@ window.MBV_HARD_RELOAD = async () => {
   addEventListener("error", e => errs.push(String(e.message || (e.target && (e.target.src || e.target.href)) || "error")), true);
   addEventListener("unhandledrejection", e => errs.push(String((e.reason && (e.reason.stack || e.reason.message)) || e.reason)));
   window.MBV_BOOT_ERRS = errs;
-  const L = { it: ["MB Visual non si e' avviata.", "Riprova", "Controlla la connessione a internet e riprova."],
-    en: ["MB Visual did not start.", "Try again", "Check your internet connection and try again."],
-    es: ["MB Visual no se ha iniciado.", "Reintentar", "Comprueba la conexion a internet y vuelve a intentarlo."],
-    fr: ["MB Visual n'a pas demarre.", "Reessayer", "Verifiez la connexion internet et reessayez."],
-    de: ["MB Visual wurde nicht gestartet.", "Erneut versuchen", "Pruefen Sie die Internetverbindung und versuchen Sie es erneut."] };
+  const L = { it: ["MB Desk non si e' avviata.", "Riprova", "Controlla la connessione a internet e riprova."],
+    en: ["MB Desk did not start.", "Try again", "Check your internet connection and try again."],
+    es: ["MB Desk no se ha iniciado.", "Reintentar", "Comprueba la conexion a internet y vuelve a intentarlo."],
+    fr: ["MB Desk n'a pas demarre.", "Reessayer", "Verifiez la connexion internet et reessayez."],
+    de: ["MB Desk wurde nicht gestartet.", "Erneut versuchen", "Pruefen Sie die Internetverbindung und versuchen Sie es erneut."] };
   let lang = "it"; try { lang = (localStorage.getItem("mbv-lang") || navigator.language || "it").slice(0, 2); } catch (e) {}
   const T = L[lang] || L.en;
   const clean = async () => {
@@ -272,7 +272,7 @@ if ("serviceWorker" in navigator) {
 """
 
 MANIFEST = {
-    "name": "MB Visual", "short_name": "MB Visual", "id": "./", "start_url": "./", "scope": "./", "display": "standalone",
+    "name": "MB Desk", "short_name": "MB Desk", "id": "./", "start_url": "./", "scope": "./", "display": "standalone",
     "orientation": "any", "background_color": "#0f1114", "theme_color": "#0f1114", "lang": "it",
     "description": "Powered by MB Group",
     "icons": [{"src": "img/icon-192.png", "sizes": "192x192", "type": "image/png"},
@@ -283,7 +283,7 @@ MANIFEST = {
                      "params": {"files": [{"name": "file", "accept": ["*/*"]}]}},
 }
 
-SW = r"""// Service worker di MB Visual: uso offline (cache) e ricezione dei file condivisi da altre app
+SW = r"""// Service worker di MB Desk: uso offline (cache) e ricezione dei file condivisi da altre app
 const VERSION = "__VERSION__";
 const CORE = ["./", "index.html", "css/app.css", "css/phone.css", "js/app.js", "js/core.js", "js/webapi.js", "js/phone.js", "js/phonestore.js", "formats.json", "img/logo.png", "img/logo-512.png", "img/icon-192.png", "manifest.webmanifest"];
 self.addEventListener("install", e => { e.waitUntil(caches.open("mbv-" + VERSION).then(c => c.addAll(CORE)).then(() => self.skipWaiting())); });
@@ -345,7 +345,7 @@ def icons(img_dir: Path) -> None:
 
 REDIRECT_HTML = """<!doctype html><html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MB Visual</title><meta http-equiv="refresh" content="0; url=__URL__/">
+<title>MB Desk</title><meta http-equiv="refresh" content="0; url=__URL__/">
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#17191b;color:#e6e8e5;font:15px system-ui,sans-serif;text-align:center;padding:20px}a{color:#f07d2e}</style>
 <script>
 // la web app si e' spostata sul server delle licenze: via la vecchia app salvata (service worker e cache), poi l'indirizzo nuovo
@@ -354,7 +354,7 @@ REDIRECT_HTML = """<!doctype html><html lang="it"><head><meta charset="utf-8">
   try { for (const k of await caches.keys()) await caches.delete(k); } catch (e) {}
   location.replace("__URL__/");
 })();
-</script></head><body><p>MB Visual si e' spostata a un nuovo indirizzo.<br><a href="__URL__/">__URL__</a></p></body></html>
+</script></head><body><p>MB Desk si e' spostata a un nuovo indirizzo.<br><a href="__URL__/">__URL__</a></p></body></html>
 """
 
 REDIRECT_SW = r"""// La web app si e' spostata sul server delle licenze: questo service worker sostituisce quello vecchio,

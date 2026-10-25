@@ -1,6 +1,6 @@
 """ID delle applicazioni registrate presso i servizi cloud, inclusi nelle versioni distribuite (vedi
 ui/guide/archivi-cloud.md). Vuoti = servizio nascosto finche' l'utente non lo configura da "Archivi cloud -> Configura".
-Gli ID dei client registrati per MB Visual NON stanno nel repository (GitHub li blocca): le build scrivono
+Gli ID dei client registrati per MB Desk NON stanno nel repository (GitHub li blocca): le build scrivono
 `cloud_ids_build.py` (escluso da git) con `tools/cloud_secrets.py`, da %USERPROFILE%\\.mbvisual\\licenze\\cloud_ids.json
 o dalla variabile MBV_CLOUD_IDS (secret del workflow Mac). Google: client "Applicazione desktop" del progetto mb-visual
 (Google Auth Platform), lo stesso per Google Drive e la posta Gmail (Gmail, Calendar, People, Drive API attive).

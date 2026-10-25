@@ -33,7 +33,7 @@ def _protect(text: str) -> str:
         from . import secret
         return secret.protect_text(text, "tsa")
     import win32crypt
-    return base64.b64encode(win32crypt.CryptProtectData(text.encode("utf-8"), "MB Visual TSA", None, None, None, 0)).decode()
+    return base64.b64encode(win32crypt.CryptProtectData(text.encode("utf-8"), "MB Desk TSA", None, None, None, 0)).decode()
 
 
 def _unprotect(blob: str) -> str:

@@ -1,6 +1,6 @@
 // Editor di immagini: file a livelli. PSD di Photoshop con ag-psd (livelli, opacita', metodi di fusione, maschere,
 // livelli di regolazione) e OpenRaster (.ora, letto anche da GIMP e Krita) con JSZip; nell'ORA restano anche
-// i dati propri di MB Visual (testi, forme, regolazioni, maschere) in attributi mbv:* che gli altri programmi ignorano.
+// i dati propri di MB Desk (testi, forme, regolazioni, maschere) in attributi mbv:* che gli altri programmi ignorano.
 import { t as tr } from "./i18n.js";
 import { loadScript } from "./core.js";
 import { mkCanvas } from "./imgadjust.js";
@@ -174,7 +174,7 @@ export async function writeOra(doc) {
     if (L.kind === "adjust") {
       const p = `data/layer${i}.png`; zip.file(p, await pngBytes(mkCanvas(1, 1))); Object.assign(a, { src: p, x: 0, y: 0 });
     } else if (L.mask) {
-      // per gli altri programmi il livello con la maschera gia' applicata, per MB Visual anche i pixel originali
+      // per gli altri programmi il livello con la maschera gia' applicata, per MB Desk anche i pixel originali
       const r = mkCanvas(L.c.width, L.c.height), g = r.getContext("2d"), p = `data/layer${i}.png`, q = `data/layer${i}-pixels.png`;
       g.drawImage(L.c, 0, 0);
       if (L.mask.on) { g.globalCompositeOperation = "destination-in"; g.drawImage(L.mask.c, L.mask.x - L.x, L.mask.y - L.y); }

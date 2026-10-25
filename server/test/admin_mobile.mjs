@@ -1,4 +1,4 @@
-// Collaudo dell'app per telefono di MB Visual Admin (src/adminapp.js) senza Cloudflare e senza telefono:
+// Collaudo dell'app per telefono di MB Desk Admin (src/adminapp.js) senza Cloudflare e senza telefono:
 // accesso con codice e con codice di 6 cifre, tentativi sbagliati, sessione nel cookie, impronta/PIN (WebAuthn) con un
 // autenticatore simulato (chiave P-256 come quelle di Android e iPhone), blocco e sblocco, notifiche push ricevute da un
 // finto servizio push locale che verifica la firma VAPID e decifra il messaggio (RFC 8291).
@@ -35,10 +35,10 @@ const api = (p, body, o = {}) => call(`${P}/api/${p}`, { body, ...o });
 
 // ---- pagine e indirizzo segreto
 const page = await call(`${P}/`);
-ok(page.status === 200 && page.text.includes("MB Visual Admin") && page.text.includes(`${P}/manifest.webmanifest`), "pagina dell'app all'indirizzo segreto");
+ok(page.status === 200 && page.text.includes("MB Desk Admin") && page.text.includes(`${P}/manifest.webmanifest`), "pagina dell'app all'indirizzo segreto");
 ok(/noindex/.test(page.headers.get("x-robots-tag") || "") && (page.headers.get("referrer-policy") || "") === "no-referrer", "pagina non indicizzabile e senza Referer");
 const other = await call("/percorso-sbagliato-di-prova/");
-ok(!other.text.includes("MB Visual Admin"), "un altro percorso non mostra l'app di gestione");
+ok(!other.text.includes("MB Desk Admin"), "un altro percorso non mostra l'app di gestione");
 const man = await call(`${P}/manifest.webmanifest`);
 ok(man.d.start_url === `${P}/` && man.d.scope === `${P}/` && man.d.display === "standalone", "manifest installabile (solo su questo percorso)");
 ok((await call(`${P}/icon-192.png`)).status === 200 && (await call(`${P}/sw.js`)).text.includes("showNotification"), "icone e service worker");
@@ -237,9 +237,9 @@ ok((await call(`/admin/events?after=${two[0] - 1}`, { bearer: env.ADMIN_TOKEN })
 // ---- testo dell'email con la chiave
 const em0 = (await api("admin/settings")).d;
 ok(em0.email.testo.includes("{chiave}") && em0.link_setup === `${ORIGIN}/scarica` && em0.link_telefono === `${ORIGIN}/` && !/lorenz/i.test(JSON.stringify(em0)), "email: testo preimpostato con chiave, link del setup e del telefono (senza nomi personali)");
-await api("admin/settings", { email: { oggetto: "Chiave MB Visual", testo: "Ciao {cliente}: {chiave}" } });
+await api("admin/settings", { email: { oggetto: "Chiave MB Desk", testo: "Ciao {cliente}: {chiave}" } });
 const em1 = (await api("admin/settings")).d;
-ok(em1.email.oggetto === "Chiave MB Visual" && em1.email.testo === "Ciao {cliente}: {chiave}" && em1.notifiche.activation_pc !== undefined, "email: testo modificato salvato (notifiche invariate)");
+ok(em1.email.oggetto === "Chiave MB Desk" && em1.email.testo === "Ciao {cliente}: {chiave}" && em1.notifiche.activation_pc !== undefined, "email: testo modificato salvato (notifiche invariate)");
 ok((await call("/scarica")).status === 404, "/scarica senza repository configurato: 404 chiaro");
 
 // ---- telefoni collegati, uscita

@@ -1,4 +1,4 @@
-"""Collaudo dell'invio delle chiavi per email di MB Visual Admin (admin.py) con un finto server SMTP locale.
+"""Collaudo dell'invio delle chiavi per email di MB Desk Admin (admin.py) con un finto server SMTP locale.
 
 Uso: python admin/test_mail.py   (non tocca la configurazione vera: usa una cartella temporanea)
 Controlla: password cifrata con DPAPI (mai in chiaro nel file), accesso AUTH PLAIN, mittente/destinatario/oggetto/testo
@@ -79,10 +79,10 @@ ok(r["ok"] and GOOD not in raw and json.loads(raw)["password"], "password salvat
 ok(api.mail_config()["pronto"] and api.mail_config()["password_salvata"], "account pronto")
 api.mail_set({"preset": "", "mittente": "gestione@azienda.it", "server": "127.0.0.1", "porta": port, "sicurezza": "nessuna", "utente": "gestione@azienda.it", "password": ""})
 ok(api.mail_config()["password_salvata"], "salvando senza password si tiene quella di prima")
-res = api.mail_send("cliente@esempio.it", "Licenza MB Visual", "Buongiorno Città & Co.,\necco la chiave:\n\nMBV-AAAAA-BBBBB-CCCCC-DDDDD\n")
+res = api.mail_send("cliente@esempio.it", "Licenza MB Desk", "Buongiorno Città & Co.,\necco la chiave:\n\nMBV-AAAAA-BBBBB-CCCCC-DDDDD\n")
 ok(res["ok"] and len(got) == 1, "email inviata")
 m = email.message_from_bytes(got[-1][1], policy=policy.default)
-ok(m["To"] == "cliente@esempio.it" and m["From"] == "gestione@azienda.it" and m["Subject"] == "Licenza MB Visual", "mittente, destinatario e oggetto")
+ok(m["To"] == "cliente@esempio.it" and m["From"] == "gestione@azienda.it" and m["Subject"] == "Licenza MB Desk", "mittente, destinatario e oggetto")
 ok("MBV-AAAAA-BBBBB-CCCCC-DDDDD" in m.get_content() and "Città" in m.get_content(), "testo con la chiave e lettere accentate")
 ok(api.mail_test()["ok"] and email.message_from_bytes(got[-1][1], policy=policy.default)["To"] == "gestione@azienda.it", "email di prova al mittente")
 cfg = json.loads(admin.MAIL_CFG.read_text(encoding="utf-8")); cfg["password"] = admin._protect("sbagliata"); admin.MAIL_CFG.write_text(json.dumps(cfg), encoding="utf-8")

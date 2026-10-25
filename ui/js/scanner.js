@@ -258,7 +258,7 @@ async function buildPdf(pages, { size, ocr, title }, progress) {
   await loadScript(V("pdf-lib/pdf-lib.min.js"));
   const { PDFDocument, StandardFonts, pushGraphicsState, popGraphicsState, setTextRenderingMode, TextRenderingMode } = window.PDFLib;
   const doc = await PDFDocument.create();
-  doc.setTitle(title); doc.setCreator("MB Visual"); doc.setProducer("MB Visual - scansione"); doc.setCreationDate(new Date());
+  doc.setTitle(title); doc.setCreator("MB Desk"); doc.setProducer("MB Desk - scansione"); doc.setCreationDate(new Date());
   const font = await doc.embedFont(StandardFonts.Helvetica);
   let worker = null, texts = [];
   if (ocr) {

@@ -43,7 +43,7 @@ def dicom():
         ds.PatientName, ds.PatientID, ds.PatientBirthDate, ds.PatientSex = "PROVA^FANTOCCIO", "MBV0001", "19800101", "O"
         ds.StudyInstanceUID, ds.SeriesInstanceUID, ds.FrameOfReferenceUID = study, series, frame
         ds.StudyDate, ds.StudyDescription, ds.SeriesDescription = "20261022", "TC torace (sintetica)", "Assiale 5 mm"
-        ds.Modality, ds.Manufacturer, ds.InstitutionName, ds.BodyPartExamined = "CT", "MB Visual", "Esempio generato", "CHEST"
+        ds.Modality, ds.Manufacturer, ds.InstitutionName, ds.BodyPartExamined = "CT", "MB Desk", "Esempio generato", "CHEST"
         ds.SeriesNumber, ds.InstanceNumber = 2, i + 1
         ds.ImagePositionPatient = [-64 * 0.8, -64 * 0.8, -60 + i * 5.0]
         ds.ImageOrientationPatient = [1, 0, 0, 0, 1, 0]
@@ -64,7 +64,7 @@ def dicom():
 
 ICS = """BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//MB Visual//Esempio//IT
+PRODID:-//MB Desk//Esempio//IT
 X-WR-CALNAME:Cantiere via Roma
 BEGIN:VTIMEZONE
 TZID:Europe/Rome
@@ -194,7 +194,7 @@ def certs():
     from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
     now = dt.datetime(2026, 1, 1, tzinfo=dt.timezone.utc)
 
-    def name(cn, o="MB Visual Esempi"):
+    def name(cn, o="MB Desk Esempi"):
         return x509.Name([x509.NameAttribute(NameOID.COUNTRY_NAME, "IT"), x509.NameAttribute(NameOID.ORGANIZATION_NAME, o),
                           x509.NameAttribute(NameOID.COMMON_NAME, cn)])
 
@@ -214,8 +214,8 @@ def certs():
     rk = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     ik = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     lk = ec.generate_private_key(ec.SECP256R1())
-    root = make(name("MB Visual Radice di Prova"), name("MB Visual Radice di Prova"), rk, rk, True, 20, path_len=1)
-    inter = make(name("MB Visual CA Intermedia di Prova"), root.subject, ik, rk, True, 10, path_len=0)
+    root = make(name("MB Desk Radice di Prova"), name("MB Desk Radice di Prova"), rk, rk, True, 20, path_len=1)
+    inter = make(name("MB Desk CA Intermedia di Prova"), root.subject, ik, rk, True, 10, path_len=0)
     leaf = make(name("prova.example.com", "Studio Tecnico di Prova"), inter.subject, lk, ik, False, 1,
                 eku=[ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH],
                 san=[x509.DNSName("prova.example.com"), x509.DNSName("www.prova.example.com"), x509.RFC822Name("info@example.com")])
@@ -248,7 +248,7 @@ def plotter():
          "SP4;PU2000,2000;AA2000,2000,90;",                                       # arco
          "PU9500,3000;PM0;PD10800,3000,10800,4300,9500,4300;PM2;FP;EP;",          # rettangolo pieno
          "SP1;SI0.25,0.35;PU11200,700;LBPIANTA PIANO TERRA - SCALA 1:100\x03",
-         "SI0.18,0.25;PU11200,1200;LBMB Visual - esempio HPGL\x03",
+         "SI0.18,0.25;PU11200,1200;LBMB Desk - esempio HPGL\x03",
          "DI0,1;PU1500,2500;LBQUOTA 7000\x03DI1,0;",
          "SP2;LT2,4;PU2000,8600;PD9000,8600;LT;",
          "PU0,0;SP0;", "\x1bE\x1b%-12345X"]

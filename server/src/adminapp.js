@@ -1,4 +1,4 @@
-// App per telefono di MB Visual Admin (solo per il proprietario): stesse funzioni dell'app per PC (licenze, dispositivi,
+// App per telefono di MB Desk Admin (solo per il proprietario): stesse funzioni dell'app per PC (licenze, dispositivi,
 // cambi, segnalazioni, approvazioni) con notifiche push.
 //
 // Indirizzo non pubblicizzato: https://<server>/<ADMIN_PATH>/ (segreto ADMIN_PATH, mai scritto in file pubblici; un percorso
@@ -52,7 +52,7 @@ export async function adminApp(env, req, url, deps) {
       "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'" }) });
   if (req.method === "GET" && sub === "sw.js") return new Response(ADMIN_SW, { headers: hdr("text/javascript; charset=utf-8", { "cache-control": "no-cache" }) });
   if (req.method === "GET" && sub === "manifest.webmanifest")
-    return new Response(JSON.stringify({ name: "MB Visual Admin", short_name: "MBV Admin", start_url: `${base}/`, scope: `${base}/`, display: "standalone",
+    return new Response(JSON.stringify({ name: "MB Desk Admin", short_name: "MBV Admin", start_url: `${base}/`, scope: `${base}/`, display: "standalone",
       background_color: "#17191b", theme_color: "#17191b", icons: [{ src: `${base}/icon-192.png`, sizes: "192x192", type: "image/png" }, { src: `${base}/icon-512.png`, sizes: "512x512", type: "image/png" },
         { src: `${base}/icon-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" }] }), { headers: hdr("application/manifest+json", { "cache-control": "no-cache" }) });
   if (req.method === "GET" && (sub === "icon-192.png" || sub === "icon-512.png"))
@@ -101,7 +101,7 @@ export async function adminApp(env, req, url, deps) {
   }
   if (api === "push/unsub") { const b = await req.json().catch(() => ({})); await env.DB.prepare("DELETE FROM admin_push WHERE endpoint = ?").bind(String(b.endpoint || "")).run(); return deps.json({ ok: true }); }
   if (api === "push/test") {
-    const r = await notifyAdmins(env, { title: "MB Visual Admin", body: "Le notifiche funzionano su questo telefono.", tag: "prova" }, ses.n);
+    const r = await notifyAdmins(env, { title: "MB Desk Admin", body: "Le notifiche funzionano su questo telefono.", tag: "prova" }, ses.n);
     return deps.json({ ok: true, ...r });
   }
   if (api.startsWith("admin/")) return deps.admin(env, req, url, api.slice(6));
@@ -160,8 +160,8 @@ async function useChallenge(env, ses, kind, c) {
   return r.meta.changes === 1;
 }
 async function regOptions(env, url, ses, deps) {
-  return deps.json({ ok: true, publicKey: { challenge: await challenge(env, ses, "reg"), rp: { id: url.hostname, name: "MB Visual Admin" },
-    user: { id: b64u(enc.encode("mbv-admin-" + ses.n)), name: "MB Visual Admin", displayName: "MB Visual Admin" },
+  return deps.json({ ok: true, publicKey: { challenge: await challenge(env, ses, "reg"), rp: { id: url.hostname, name: "MB Desk Admin" },
+    user: { id: b64u(enc.encode("mbv-admin-" + ses.n)), name: "MB Desk Admin", displayName: "MB Desk Admin" },
     pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }], timeout: 120000, attestation: "none",
     authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", residentKey: "discouraged" } } });
 }
@@ -306,5 +306,5 @@ export async function notifyAdmins(env, msg, onlySession = null) {
   }));
   return { inviate: sent, errori: errs };
 }
-export const pushFor = (kind, text, base) => ({ title: KIND[kind] || "MB Visual Admin", body: text, tag: kind + "-" + Date.now(),
+export const pushFor = (kind, text, base) => ({ title: KIND[kind] || "MB Desk Admin", body: text, tag: kind + "-" + Date.now(),
   url: `${base}/#${["change_pending", "report", "change"].includes(kind) ? "richieste" : "panoramica"}` });

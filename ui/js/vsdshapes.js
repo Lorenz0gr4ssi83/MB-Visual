@@ -1,5 +1,5 @@
 // Forme base dell'editor di diagrammi, come gli stencil "Forme di base", "Diagramma di flusso di base" e "Connettori"
-// di Visio. La geometria si scrive con le formule (Width, Height) come fa Visio: ridimensionando, Visio e MB Visual
+// di Visio. La geometria si scrive con le formule (Width, Height) come fa Visio: ridimensionando, Visio e MB Desk
 // ricalcolano le stesse coordinate. Dimensioni predefinite in pollici (unita' interne di Visio).
 import { t } from "./i18n.js";
 const MM = 1 / 25.4;

@@ -1,4 +1,4 @@
-﻿"""MB Visual - avvio dell'applicazione desktop.
+﻿"""MB Desk - avvio dell'applicazione desktop.
 
 Uso:  MBVisual.exe [file ...]       (oppure: python app.py [file ...])
       python app.py --browser       apre l'interfaccia nel browser (per sviluppo)
@@ -84,6 +84,11 @@ def _refresh_shell():
     if sys.platform != "win32":
         return
     try:
+        from mbvisual import update
+        update.migrate_exe_name()  # copie aggiornate da "MB Visual": eseguibile e collegamenti con il nome MB Desk
+    except Exception as e:  # noqa: BLE001
+        print("cambio di nome non completato:", e)
+    try:
         from mbvisual import shellint
         shellint.refresh_if_needed()
     except Exception as e:  # noqa: BLE001
@@ -136,7 +141,7 @@ def _unblock_files():
 def _close_old_edge_windows():
     """Finestre di Edge rimaste dal ripiego delle versioni fino alla 1.6.0 (che finivano sempre li'): chiudendo l'app
     per aggiornarla, la finestra di Edge restava aperta sull'avanzamento. Si chiudono solo i processi di Edge con il
-    profilo dedicato di MB Visual (--user-data-dir=.../MBVisual/edge-app), mai l'Edge normale dell'utente."""
+    profilo dedicato di MB Desk (--user-data-dir=.../MBVisual/edge-app), mai l'Edge normale dell'utente."""
     if sys.platform != "win32":
         return
     import subprocess
@@ -154,7 +159,7 @@ def _close_old_edge_windows():
 
 def _edge_app(url: str) -> bool:
     """Ripiego quando la finestra nativa non parte (pythonnet bloccato da criteri aziendali o antivirus):
-    MB Visual in una finestra di Microsoft Edge in modalita' app, con un profilo tutto suo. True se Edge si e' aperto."""
+    MB Desk in una finestra di Microsoft Edge in modalita' app, con un profilo tutto suo. True se Edge si e' aperto."""
     import subprocess
     cands = [os.path.join(os.environ.get(v, ""), "Microsoft", "Edge", "Application", "msedge.exe")
              for v in ("ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA")]
@@ -223,7 +228,7 @@ def main():
 
     threading.Thread(target=_close_old_edge_windows, daemon=True).start()
     api = Api()
-    window = webview.create_window("MB Visual", url, js_api=api, width=1400, height=900, min_size=(900, 600),
+    window = webview.create_window("MB Desk", url, js_api=api, width=1400, height=900, min_size=(900, 600),
                                    background_color="#0b0d10", text_select=True)
     api._window = window
 

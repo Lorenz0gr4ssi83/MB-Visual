@@ -4,7 +4,7 @@
 //   IFC: scena = C * N * mondo (C = matrice di coordinamento di web-ifc, spostamento verso l'origine; N = Z in alto -> Y in alto)
 //   altri modelli: scena = N * S(1/m) * mondo (m = metri per unita' del file; i CAD in mm, glTF/Navisworks in metri)
 // Per i modelli non IFC gli elementi si riconoscono con AuthoringToolId = posizione nell'albero della scena ("0/3/1").
-const ORIGIN = "MB Visual";
+const ORIGIN = "MB Desk";
 
 export function bridge(h) {
   const { THREE } = h;

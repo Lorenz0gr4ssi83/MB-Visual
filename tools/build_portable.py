@@ -1,7 +1,7 @@
-"""Crea la versione portatile di MB Visual (cartella con MBVisual.exe, nessuna installazione richiesta).
+"""Crea la versione portatile di MB Desk (cartella con "MB Desk.exe", nessuna installazione richiesta).
 
 Uso:  C:\\Users\\<utente>\\.mbvisual\\venv\\Scripts\\python.exe tools\\build_portable.py
-Risultato: C:\\Users\\<utente>\\.mbvisual\\dist\\MB Visual\\  +  "MB Visual - portatile.zip" (stessa cartella dist, fuori da OneDrive),
+Risultato: C:\\Users\\<utente>\\.mbvisual\\dist\\MB Desk\\  +  "MB Desk - portatile.zip" (stessa cartella dist, fuori da OneDrive),
 poi copia incrementale in "App per PC" (solo i file cambiati).
 La compilazione avviene fuori da OneDrive (migliaia di file); nel progetto finisce solo lo zip.
 """
@@ -18,7 +18,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 WORK = Path.home() / ".mbvisual"
 DIST = WORK / "dist"
-NAME = "MB Visual"
+NAME = "MB Desk"
+EXE = "MB Desk.exe"
+BRIDGE_EXE = "MBVisual.exe"  # nome dell'eseguibile prima del 25/10/2026 (solo in "App per PC", per gli aggiornamenti)
 PUBLISH = ROOT / "App per PC"  # cartella su OneDrive da cui gli altri PC si aggiornano (mbvisual/update.py)
 
 
@@ -29,7 +31,10 @@ def publish(final: Path, info: dict) -> None:
     PUBLISH.mkdir(exist_ok=True)
     (PUBLISH / "versione.json").unlink(missing_ok=True)
     # solo i file con contenuto cambiato: OneDrive ricarica pochi MB invece di 1 GB a ogni versione
-    st = sync_tree(final, PUBLISH, keep=("MBVisual.lnk",))
+    st = sync_tree(final, PUBLISH, keep=("MBVisual.lnk", BRIDGE_EXE))
+    # ponte per le copie precedenti al cambio di nome: il loro aggiornamento da OneDrive cerca e copia "MBVisual.exe"
+    # (lo stesso eseguibile; all'avvio l'app crea "MB Desk.exe" e rifa' i collegamenti, vedi update.migrate_exe_name)
+    shutil.copy2(final / EXE, PUBLISH / BRIDGE_EXE)
     print("Copia in App per PC:", st)
     (PUBLISH / "versione.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
     print("Pubblicata in", PUBLISH, info)
@@ -41,8 +46,8 @@ def publish(final: Path, info: dict) -> None:
     # setup della stessa versione nella cartella Google Drive di distribuzione, i precedenti in "Old" (tools/publish_drive.py)
     if "--no-drive" not in sys.argv:
         ver = info.get("versione", "")
-        files = [f for f in (DIST / f"MBVisual-Setup-{ver}.exe", DIST / f"MBVisual-{ver}-mac.dmg",
-                             Path.home() / "OneDrive" / "Desktop" / "MB Visual" / f"MBVisual-{ver}-mac.dmg") if f.is_file()]
+        files = [f for f in (DIST / f"MBDesk-Setup-{ver}.exe", DIST / f"MBDesk-{ver}-mac.dmg",
+                             Path.home() / "OneDrive" / "Desktop" / "MB Desk" / f"MBDesk-{ver}-mac.dmg") if f.is_file()]
         files = list({f.name: f for f in files}.values())
         if not files:
             print("ATTENZIONE: nessun setup", ver, "da caricare su Google Drive (prima tools/build_setup.py)")
@@ -67,8 +72,8 @@ def main() -> int:
     args = [
         sys.executable, "-m", "PyInstaller", str(ROOT / "app.py"),
         "--noconfirm", "--clean", "--windowed", "--onedir",
-        "--name", "MBVisual", "--icon", str(ROOT / "app.ico"),
-        "--distpath", str(DIST), "--workpath", str(WORK / "build"), "--specpath", str(WORK),
+        "--name", NAME, "--icon", str(ROOT / "app.ico"),
+        "--distpath", str(WORK / "pyi-dist"), "--workpath", str(WORK / "build"), "--specpath", str(WORK),
         "--add-data", f"{ROOT / 'ui'}{sep}ui",
         "--add-data", f"{ROOT / 'bin'}{sep}bin",
         "--add-data", f"{ROOT / 'app.ico'}{sep}.",
@@ -102,7 +107,7 @@ def main() -> int:
     ]
     print(" ".join(args))
     subprocess.run(args, check=True)
-    out = DIST / "MBVisual"
+    out = WORK / "pyi-dist" / NAME
     # ffmpeg con nome fisso, cercato da paths.find_ffmpeg
     internal_bin = out / "_internal" / "bin"
     for f in internal_bin.glob("ffmpeg-*.exe"):
@@ -126,9 +131,9 @@ def main() -> int:
         shutil.rmtree(final)
     out.rename(final)
     (final / "LEGGIMI.txt").write_text(
-        "MB Visual - versione portatile\r\n\r\n"
+        "MB Desk - versione portatile\r\n\r\n"
         "1. Copia questa cartella dove vuoi (per esempio sul Desktop).\r\n"
-        "2. Avvia MBVisual.exe con un doppio clic.\r\n"
+        "2. Avvia MB Desk.exe con un doppio clic.\r\n"
         "3. Trascina i file nella finestra, oppure usa 'Apri'.\r\n\r\n"
         "Non serve installare nulla. Opzionali, se presenti sul PC vengono usati in automatico:\r\n"
         "- LibreOffice (doc, ppt, odt, rtf e altri formati Office meno comuni)\r\n"

@@ -1,4 +1,4 @@
-// MB Visual - Posta (stile Outlook): cartelle e preferiti a sinistra, elenco a conversazioni, lettura a destra o sotto,
+// MB Desk - Posta (stile Outlook): cartelle e preferiti a sinistra, elenco a conversazioni, lettura a destra o sotto,
 // PEC con ricevute collegate, commesse, regole, categorie, promemoria, invio programmato, tasti di Outlook.
 // Motore: mbvisual/mail (API /api/mail?op=...). Lettura: mailread.js, composizione: compose.js, impostazioni: mailsettings.js,
 // calendario e contatti: mailcal.js / mailpeople.js.

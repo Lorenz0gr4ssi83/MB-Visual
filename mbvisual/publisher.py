@@ -90,7 +90,7 @@ def export_pdf(body: bytes, out: str) -> dict:
         doc.subset_fonts()
     except Exception:  # noqa: BLE001
         pass
-    doc.set_metadata({"title": spec.get("title") or Path(out).stem, "producer": "MB Visual", "creator": "MB Visual - Pubblicazioni"})
+    doc.set_metadata({"title": spec.get("title") or Path(out).stem, "producer": "MB Desk", "creator": "MB Desk - Pubblicazioni"})
     tmp = out + ".mbv-tmp"
     doc.save(tmp, garbage=3, deflate=True)
     doc.close()

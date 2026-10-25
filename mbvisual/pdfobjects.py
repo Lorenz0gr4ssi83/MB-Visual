@@ -976,7 +976,7 @@ def _now():
 
 def _annot_common(a, o):
     now = _now()
-    info = {"title": o.get("author") or "MB Visual", "creationDate": now, "modDate": now}
+    info = {"title": o.get("author") or "MB Desk", "creationDate": now, "modDate": now}
     if o.get("subject"):
         info["subject"] = o["subject"]
     if o.get("contents") is not None:
@@ -1193,7 +1193,7 @@ def _apply_ops(path: str, tmp: str, ops: list[dict], info: dict) -> int:
                 if par:
                     a = page.add_text_annot(par.rect.tl, o.get("text", ""), icon="Comment")
                     a.set_irt_xref(par.xref)
-                    a.set_info(title=o.get("author") or "MB Visual", content=o.get("text", ""), creationDate=_now(), modDate=_now())
+                    a.set_info(title=o.get("author") or "MB Desk", content=o.get("text", ""), creationDate=_now(), modDate=_now())
                     a.set_flags(pymupdf.PDF_ANNOT_IS_PRINT | pymupdf.PDF_ANNOT_IS_NO_ZOOM | pymupdf.PDF_ANNOT_IS_NO_ROTATE | pymupdf.PDF_ANNOT_IS_HIDDEN)
                     a.update()
             elif k == "annot_state":
@@ -1207,7 +1207,7 @@ def _apply_ops(path: str, tmp: str, ops: list[dict], info: dict) -> int:
                         par = _find_annot(page, o["xref"])
                         a = page.add_text_annot(par.rect.tl, "", icon="Comment")
                         a.set_irt_xref(par.xref)
-                        a.set_info(title=o.get("author") or "MB Visual", content=st, creationDate=_now(), modDate=_now())
+                        a.set_info(title=o.get("author") or "MB Desk", content=st, creationDate=_now(), modDate=_now())
                         a.set_flags(pymupdf.PDF_ANNOT_IS_HIDDEN)
                         a.update()
                         doc.xref_set_key(a.xref, "State", _pdf_str(st))
@@ -1288,7 +1288,7 @@ def _apply_ops(path: str, tmp: str, ops: list[dict], info: dict) -> int:
             elif k == "redact_mark":
                 # oscuramento segnato (riquadro rosso): diventa definitivo con redact_apply, come in Acrobat
                 a = page.add_redact_annot(r, text=o.get("overlay") or None, fill=_rgb(o.get("fill") or "#000000"))
-                a.set_info(title=o.get("author") or "MB Visual")
+                a.set_info(title=o.get("author") or "MB Desk")
                 a.update()
             else:
                 raise ValueError(tr("srv_pdfobjects.operazione_sconosciuta_0", k))

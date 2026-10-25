@@ -1,4 +1,4 @@
-// QR della home (solo app per PC con licenza): installa MB Visual sul cellulare senza scrivere la chiave.
+// QR della home (solo app per PC con licenza): installa MB Desk sul cellulare senza scrivere la chiave.
 // Il QR contiene un link monouso del server delle licenze (mbvisual/license.py mobile_link -> /v1/mlink). Sotto: quanti
 // cellulari si possono ancora attivare; a posti finiti il riquadro sparisce. Dopo ogni attivazione dal QR il server blocca
 // la licenza per un minuto: il QR si spegne e mostra il conto alla rovescia (il blocco vale anche sul server).

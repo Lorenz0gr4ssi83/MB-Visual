@@ -11,7 +11,7 @@
 <link rel="manifest" href="__BASE__/manifest.webmanifest">
 <link rel="icon" href="__BASE__/icon-192.png">
 <link rel="apple-touch-icon" href="__BASE__/icon-192.png">
-<title>MB Visual Admin</title>
+<title>MB Desk Admin</title>
 <style>
   :root { --bg: #111315; --panel: #1a1d20; --panel2: #23272b; --line: #2f3439; --fg: #eceeef; --muted: #9aa1a8; --faint: #6d747b;
     --accent: #f07d2e; --accent-fg: #1a1006; --ok: #5cb85c; --bad: #e0605a; --warn: #e3a33b; --r: 12px;
@@ -132,8 +132,8 @@
 <body>
 <!-- accesso -->
 <div class="screen hide" id="s-login"><div class="card-c">
-  <img src="__BASE__/icon-192.png" alt=""><h1>MB Visual Admin</h1>
-  <p>Inserisci il codice di 6 cifre mostrato da MB Visual Admin sul PC (Impostazioni → App per telefono) oppure il codice di gestione.</p>
+  <img src="__BASE__/icon-192.png" alt=""><h1>MB Desk Admin</h1>
+  <p>Inserisci il codice di 6 cifre mostrato da MB Desk Admin sul PC (Impostazioni → App per telefono) oppure il codice di gestione.</p>
   <input class="big mono" id="code" type="password" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Codice">
   <div class="err" id="login-err"></div>
   <button class="btn p w" id="login-go">Accedi</button>
@@ -309,7 +309,7 @@ function usageHtml(u) {
       ${uBars("App", u.app, r => ({ pc: "Windows", mac: "Mac" })[r.k] || r.k, () => "")}
       ${uBars("Lingue", u.lingue, r => (r.k || "—").toUpperCase(), () => "")}
       ${uBars("Componenti attivi", u.componenti, r => U_COMP[r.k] || r.k, () => "")}
-      <section class="u-box"><h3>Cancellazione su richiesta</h3><p class="muted u-note">L'utente trova l'identificativo in MB Visual, File › Impostazioni › Statistiche d'uso.</p>
+      <section class="u-box"><h3>Cancellazione su richiesta</h3><p class="muted u-note">L'utente trova l'identificativo in MB Desk, File › Impostazioni › Statistiche d'uso.</p>
         <div class="u-forget"><input id="u-inst" placeholder="Identificativo (32 caratteri)" maxlength="40" class="mono"><button class="btn s p" onclick="uForget()">Cancella i dati</button></div></section>
     </div>`;
 }
@@ -530,7 +530,7 @@ function sheet(html) {
 }
 async function copy(text, msg) { try { await navigator.clipboard.writeText(text); toast(msg || "Copiato"); } catch { toast("Copia non riuscita: tieni premuto sul testo per copiarlo", true); } }
 async function share(key, customer) {
-  const text = `Chiave di licenza MB Visual${customer ? " per " + customer : ""}: ${key}`;
+  const text = `Chiave di licenza MB Desk${customer ? " per " + customer : ""}: ${key}`;
   if (navigator.share) { try { await navigator.share({ text }); } catch {} } else copy(text);
 }
 function keySheet(title, key, customer) {
@@ -651,9 +651,9 @@ async function renderSettings(m) {
         : sub ? `<div>Attive su questo telefono, per i tipi scelti qui sotto.</div><div class="actions"><button class="btn s" id="p-test">Prova</button><button class="btn s d" id="p-off">Disattiva</button></div>`
         : `<div class="muted">${Notification.permission === "denied" ? "Le notifiche sono bloccate nelle impostazioni del telefono per questa app." : "Ricevi un avviso per ogni attivazione, richiesta o segnalazione."}</div>${Notification.permission === "denied" ? "" : `<div class="actions"><button class="btn s p" id="p-on">Attiva notifiche</button></div>`}`}
     </div></div>
-    <div class="sec"><h3>Notifiche da ricevere</h3></div><div class="note" style="margin:-4px 2px 0">Valgono per il telefono e per MB Visual Admin sul PC. Gli avvisi restano comunque nella Panoramica.</div>
+    <div class="sec"><h3>Notifiche da ricevere</h3></div><div class="note" style="margin:-4px 2px 0">Valgono per il telefono e per MB Desk Admin sul PC. Gli avvisi restano comunque nella Panoramica.</div>
     <div class="box" id="nsel"><div class="empty">...</div></div>
-    <div class="sec"><h3>Testo dell'email con la chiave</h3></div><div class="note" style="margin:-4px 2px 0">Uguale anche in MB Visual Admin sul PC.</div>
+    <div class="sec"><h3>Testo dell'email con la chiave</h3></div><div class="note" style="margin:-4px 2px 0">Uguale anche in MB Desk Admin sul PC.</div>
     <div class="box"><div class="row" id="mailtpl"><div class="empty">...</div></div></div>
     <div class="sec"><h3>Impronta / PIN</h3></div><div class="box"><div class="row">
       ${state.impronta ? `<div>L'app chiede l'impronta, il volto o il PIN a ogni apertura e dopo ${10} minuti senza operazioni.</div><div class="actions"><button class="btn s" id="w-lock">Blocca ora</button><button class="btn s d" id="w-off">Rimuovi</button></div>`
@@ -663,7 +663,7 @@ async function renderSettings(m) {
     <div class="sec"><h3>Telefoni collegati</h3></div><div class="box">${phones.map(p => `<div class="row"><div class="top"><b>${esc(p.nome)}${p.questo ? " (questo)" : ""}</b>${p.impronta ? `<span class="chip done">impronta</span>` : ""}</div>
       <div class="note">collegato ${fmt(p.creato)} · ultimo uso ${fmt(p.ultimo)}</div>${p.questo ? "" : `<div class="actions"><button class="btn s d" data-off="${p.n}">Scollega</button></div>`}</div>`).join("") || `<div class="empty">-</div>`}</div>
     <button class="btn w d" id="logout">Esci da questo telefono</button>
-    <div class="note" style="text-align:center">Per collegare un altro telefono: MB Visual Admin sul PC → Impostazioni → App per telefono.</div>`;
+    <div class="note" style="text-align:center">Per collegare un altro telefono: MB Desk Admin sul PC → Impostazioni → App per telefono.</div>`;
   api("GET", "admin/settings").then(st => {
     const box = $("nsel"); if (!box) return;
     box.innerHTML = st.tipi.map(k => `<label class="sw"><span>${esc(NOTIFY[k] || k)}</span><input type="checkbox" data-n="${k}" ${st.notifiche[k] ? "checked" : ""}></label>`).join("");

@@ -73,7 +73,7 @@ def build(d: dict, acc: dict) -> tuple[bytes, dict]:
         m["Disposition-Notification-To"] = sender
     if d.get("draft"):
         m["X-MBV-Draft"] = "1"
-    m["X-Mailer"] = "MB Visual"
+    m["X-Mailer"] = "MB Desk"
     htm, imgs = html_inline_images(d.get("html") or "")
     text = d.get("text") or (parse.html_to_text(htm) if htm else "")
     m.set_content(text or "")

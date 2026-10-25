@@ -1,13 +1,13 @@
 """Carica i setup di una versione nella cartella Google Drive di distribuzione e sposta quelli vecchi nella sottocartella "Old".
 
 Uso:  python tools/publish_drive.py --login                  (una volta sola: autorizza l'account Google nel browser)
-      python tools/publish_drive.py <file> [<file> ...]      (es. MBVisual-Setup-1.6.5.exe MBVisual-1.6.5-mac.dmg)
+      python tools/publish_drive.py <file> [<file> ...]      (es. MBDesk-Setup-1.6.6.exe MBDesk-1.6.6-mac.dmg)
 
 Cartella di destinazione: DRIVE_FOLDER (o variabile MBV_DRIVE_FOLDER). "Old" si crea solo se non esiste; si spostano li' solo
-i file di MB Visual gia' presenti nella cartella (MBVisual-Setup-*.exe, MBVisual-*-mac.dmg, MBVisual-*.zip) di una versione
+i file di MB Desk gia' presenti nella cartella (MBDesk-Setup-*.exe, MBDesk-*-mac.dmg, MBDesk-*.zip e gli stessi con il nome vecchio MBVisual-*) di una versione
 DIVERSA da quella caricata (il .dmg che arriva dopo non sposta il setup Windows della stessa versione) o con lo stesso nome
 (ricaricamento), mai altri file. Lo chiama da solo tools/build_portable.py quando pubblica in "App per PC" (salvo --no-drive).
-MB Visual Admin NON va caricato qui (e' solo per il proprietario).
+MB Desk Admin NON va caricato qui (e' solo per il proprietario).
 Client OAuth: quello "Applicazione desktop" del progetto Google mb-visual (%USERPROFILE%\\.mbvisual\\licenze\\cloud_ids.json,
 voce gdrive); token con rinnovo in %USERPROFILE%\\.mbvisual\\licenze\\drive_token.json (fuori da OneDrive e dal repository).
 """
@@ -33,7 +33,7 @@ TOKEN = SECRETS / "drive_token.json"
 SCOPE = "https://www.googleapis.com/auth/drive"  # serve per spostare file non creati da questo strumento
 API = "https://www.googleapis.com/drive/v3"
 UPLOAD = "https://www.googleapis.com/upload/drive/v3/files"
-OURS = re.compile(r"^MBVisual-(Setup-[\d.]+\.exe|[\d.]+-mac\.dmg|.*\.zip)$", re.I)
+OURS = re.compile(r"^MB(Desk|Visual)-(Setup-[\d.]+\.exe|[\d.]+-mac\.dmg|.*\.zip)$", re.I)  # anche i nomi di prima di MB Desk
 VER = re.compile(r"(\d+\.\d+\.\d+)")
 FOLDER_MIME = "application/vnd.google-apps.folder"
 CHUNK = 32 * 1024 * 1024  # multiplo di 256 KiB
@@ -65,7 +65,7 @@ def login() -> None:
             self.send_response(200)
             self.send_header("content-type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write("<p style='font-family:sans-serif'>MB Visual: autorizzazione ricevuta, puoi chiudere questa pagina.</p>".encode())
+            self.wfile.write("<p style='font-family:sans-serif'>MB Desk: autorizzazione ricevuta, puoi chiudere questa pagina.</p>".encode())
 
         def log_message(self, *a):
             pass
@@ -177,7 +177,7 @@ def publish(files: list) -> None:
         if not p.is_file():
             sys.exit("File non trovato: " + str(p))
         if "admin" in p.name.lower():
-            sys.exit("MB Visual Admin non va nella cartella di distribuzione: " + p.name)
+            sys.exit("MB Desk Admin non va nella cartella di distribuzione: " + p.name)
     names = {p.name for p in paths}
     versions = {m.group(1) for p in paths if (m := VER.search(p.name))}
     tok = _access()

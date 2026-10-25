@@ -2325,7 +2325,7 @@ export function createVideoEditor(ctx, P, opts = {}) {
     const dir = dirName(target);
     const out = JSON.parse(snapState());
     out.mbvid = 1;
-    out.app = "MB Visual";
+    out.app = "MB Desk";
     out.playhead = player.t; out.zoom = pps;
     for (const m of out.media) { delete m.offline; m.rel = relPath(dir, m.path); }
     return JSON.stringify(out, null, 1);

@@ -18,7 +18,7 @@ from .i18n import t
 from .paths import NO_WINDOW, TEMP_DIR, UI_DIR, find_navisworks, find_nwd2mbv, find_office, find_onlyoffice, find_trueview, open_default, open_with, reveal, tools_status
 
 TOKEN = secrets.token_urlsafe(24)
-COOKIE = "mbv"  # + porta: ogni copia aperta di MB Visual ha il suo (il cookie di 127.0.0.1 vale per tutte le porte)
+COOKIE = "mbv"  # + porta: ogni copia aperta di MB Desk ha il suo (il cookie di 127.0.0.1 vale per tutte le porte)
 mimetypes.add_type("application/wasm", ".wasm")
 mimetypes.add_type("text/javascript", ".mjs")
 mimetypes.add_type("application/json", ".json")
@@ -902,7 +902,7 @@ class Handler(BaseHTTPRequestHandler):
 
 # ---------------------------------------------------------------- ONLYOFFICE (editor Word/Excel/PowerPoint integrato)
 # Gira su un secondo server locale, con un indirizzo suo: il suo service worker e la sua cache restano separati da
-# MB Visual. Le intestazioni COOP/COEP/CORP permettono di incorporarlo nelle schede come pagina isolata.
+# MB Desk. Le intestazioni COOP/COEP/CORP permettono di incorporarlo nelle schede come pagina isolata.
 _OO = {"port": None, "lock": threading.Lock()}
 
 
@@ -933,7 +933,7 @@ class OOHandler(SimpleHTTPRequestHandler):
             return self._editor_page()
         return super().send_head()
 
-    # la pagina dell'editor riceve uno script di MB Visual: segnala le modifiche non salvate (l'indicatore interno
+    # la pagina dell'editor riceve uno script di MB Desk: segnala le modifiche non salvate (l'indicatore interno
     # dell'editor senza server non si aggiorna) e mantiene il puntatore a freccia
     _INJECT = b"""<style>*,*::before,*::after{cursor:default!important}</style><script>
 (function(){var last=null,base=null;function win(){try{var f=document.querySelector('iframe[name="frameEditor"]')||document.querySelector('iframe');return f&&f.contentWindow;}catch(e){return null;}}

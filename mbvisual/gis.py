@@ -42,7 +42,7 @@ def _user_agent() -> str:
             ver = update.current().get("versione", "?")
         except Exception:  # noqa: BLE001
             ver = "?"
-        _ua = f"MBVisual/{ver} (visualizzatore GIS; +https://github.com/Lorenz0gr4ssi83/MB-Visual-Rilasci)"
+        _ua = f"MBDesk/{ver} (visualizzatore GIS; +https://github.com/Lorenz0gr4ssi83/MB-Visual-Rilasci)"
     return _ua
 
 

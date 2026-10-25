@@ -57,6 +57,15 @@ def main() -> int:
     if r.returncode:
         print("publish_web: wrangler deploy non riuscito")
         return r.returncode
+    # stesso codice anche sul Worker con il nome precedente ("mbvisual"): telefoni installati sul vecchio indirizzo,
+    # stesso database e stessi segreti; senza cron (gli avvisi giornalieri li manda solo il Worker principale)
+    toml = (SERVER / "wrangler.toml").read_text(encoding="utf-8")
+    legacy = re.sub(r'(?m)^name = ".*"$', 'name = "mbvisual"', toml)
+    legacy = re.sub(r"(?m)^crons = \[.*\]$", "crons = []", legacy)
+    (SERVER / "wrangler.legacy.toml").write_text(legacy, encoding="utf-8")
+    r2 = subprocess.run([str(NODE / "npx.cmd"), "wrangler", "deploy", "-c", "wrangler.legacy.toml"], cwd=SERVER, env=denv,
+                        capture_output=True, text=True, encoding="utf-8", errors="replace")
+    print("Worker con il nome precedente:", "aggiornato" if not r2.returncode else "NON aggiornato: " + r2.stderr[-800:])
     vid = re.search(r"Current Version ID: (\S+)", r.stdout)
     print(f"App per telefono {version} pubblicata (commit {commit[:7]}, versione del Worker {vid.group(1) if vid else '?'})")
     return 0

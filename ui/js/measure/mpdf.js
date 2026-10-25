@@ -61,7 +61,7 @@ export async function attachPdf(ctx, ed, host) {
       }
       if (r.importate.length) toast(tr("mis.importate_n", r.importate.length));
     }
-    // le annotazioni scritte da MB Visual si tolgono dalla copia mostrata: le disegna lo strato delle misure
+    // le annotazioni scritte da MB Desk si tolgono dalla copia mostrata: le disegna lo strato delle misure
     if (r.nostre) M._needStrip = true;
   } catch (e) { console.warn(e); }
   if (!M.doc.scales.length) { // scala proposta dal cartiglio / dai riquadri /VP, senza chiedere

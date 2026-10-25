@@ -1,11 +1,11 @@
-// Word, Excel e PowerPoint nell'editor ONLYOFFICE integrato (gira dentro MB Visual, senza server esterni):
+// Word, Excel e PowerPoint nell'editor ONLYOFFICE integrato (gira dentro MB Desk, senza server esterni):
 // formattazione completa, formule con suggerimenti e selezione delle celle mentre si scrive la formula, revisioni.
 // Il file viene passato all'editor come byte e torna indietro come byte al salvataggio.
 import { t as tr } from "../i18n.js";
 import { api, el, extOf, readBytes, toast } from "../core.js";
 import { describeKeys } from "../shortcuts.js";
 
-// formati che l'editor scrive direttamente (gli altri passano dal convertitore di MB Visual)
+// formati che l'editor scrive direttamente (gli altri passano dal convertitore di MB Desk)
 const NATIVE = { word: ["docx", "odt", "rtf", "txt", "pdf"], cell: ["xlsx", "ods", "csv", "pdf"], slide: ["pptx", "odp", "pdf"] };
 const KIND = ext => (/^(xlsx|xlsm|xlsb|xls|xltx|xltm|xlt|ods|fods|csv|tsv)$/.test(ext) ? "cell" : /^(pptx|pptm|ppt|pps|ppsx|ppsm|potx|potm|pot|odp|otp|fodp)$/.test(ext) ? "slide" : "word");
 const MAIN = { word: "docx", cell: "xlsx", slide: "pptx" };

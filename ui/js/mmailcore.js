@@ -252,7 +252,7 @@ export function buildMime(msg) {
   const id = `<${Date.now().toString(36)}.${crypto.getRandomValues(new Uint32Array(2)).join("")}@${dom}>`;
   const H = [`From: ${addrHeader([msg.from])}`, msg.to.length ? `To: ${addrHeader(msg.to)}` : null, msg.cc?.length ? `Cc: ${addrHeader(msg.cc)}` : null,
     `Subject: ${encWord(msg.subject || "")}`, `Date: ${new Date().toUTCString().replace("GMT", "+0000")}`, `Message-ID: ${id}`,
-    msg.inReplyTo ? `In-Reply-To: ${msg.inReplyTo}` : null, msg.references ? `References: ${msg.references}` : null, "MIME-Version: 1.0", "X-Mailer: MB Visual"].filter(Boolean);
+    msg.inReplyTo ? `In-Reply-To: ${msg.inReplyTo}` : null, msg.references ? `References: ${msg.references}` : null, "MIME-Version: 1.0", "X-Mailer: MB Desk"].filter(Boolean);
   const alt = bnd();
   const textPart = `Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${wrap76(b64(enc.encode(msg.text || "")))}`;
   const htmlPart = `Content-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${wrap76(b64(enc.encode(msg.html || textToHtml(msg.text || ""))))}`;

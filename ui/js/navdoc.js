@@ -12,7 +12,7 @@ export const FORMAT = "mbvnav";
 const uid = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : Math.random().toString(16).slice(2) + Date.now().toString(16));
 
 export function newDoc(models = []) {
-  return { format: FORMAT, version: 1, app: "MB Visual", saved: "", models: [...models], views: [], clashTests: [], takeoff: { groupBy: "cls,type,level" } };
+  return { format: FORMAT, version: 1, app: "MB Desk", saved: "", models: [...models], views: [], clashTests: [], takeoff: { groupBy: "cls,type,level" } };
 }
 
 export function newTest(name, type = "hard", tolerance = 0.01) {

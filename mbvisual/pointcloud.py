@@ -834,7 +834,7 @@ def _write_las(out, meta, blocks, laz, update):
     sc = _scale_for(meta)
     hdr.offsets = np.floor(off)
     hdr.scales = np.array([sc, sc, sc])
-    hdr.generating_software = "MB Visual"
+    hdr.generating_software = "MB Desk"
     n = 0
     with laspy.open(str(out), mode="w", header=hdr, do_compress=laz, laz_backend=_laz_backends() if laz else None) as w:
         for b in blocks:
@@ -886,7 +886,7 @@ def _write_e57(out, meta, blocks, update):
     update(0.75, t("srv_pointcloud.scrittura_e57"))
     e = pye57.E57(str(out), mode="w")
     try:
-        e.write_scan_raw(data, name="MB Visual", rotation=np.array([1.0, 0, 0, 0]), translation=off)
+        e.write_scan_raw(data, name="MB Desk", rotation=np.array([1.0, 0, 0, 0]), translation=off)
     finally:
         e.close()
     return n
@@ -905,7 +905,7 @@ def _write_ply(out, meta, blocks, update):
     n = 0
     with open(out, "wb") as f:
         hdr_pos = None
-        head = lambda k: ("ply\nformat binary_little_endian 1.0\ncomment MB Visual\nelement vertex " + str(k).ljust(12) + "\n"  # noqa: E731
+        head = lambda k: ("ply\nformat binary_little_endian 1.0\ncomment MB Desk\nelement vertex " + str(k).ljust(12) + "\n"  # noqa: E731
                           + "".join(f"property {tnames[t]} {nm}\n" for nm, t in cols) + "end_header\n").encode("ascii")
         hdr_pos = len(head(0))
         f.write(head(0))

@@ -21,7 +21,7 @@ export async function excelReport(store, title) {
   const wc = X.utils.aoa_to_sheet(cm, { cellDates: true });
   wc["!cols"] = [5, 40, 16, 22, 80, 10].map(w => ({ wch: w }));
   const wb = X.utils.book_new();
-  wb.Props = { Title: title, Author: "MB Visual" };
+  wb.Props = { Title: title, Author: "MB Desk" };
   X.utils.book_append_sheet(wb, ws, tr("bcfreport.segnalazioni"));
   X.utils.book_append_sheet(wb, wc, tr("bcfreport.commenti"));
   const out = X.write(wb, { bookType: "xlsx", type: "array", cellDates: true });
@@ -131,7 +131,7 @@ export class PdfDoc {
     const xref = len;
     let x = `xref\n0 ${total}\n0000000000 65535 f \n`;
     for (let i = 1; i < total; i++) x += String(offsets[i]).padStart(10, "0") + " 00000 n \n";
-    push(x + `trailer\n<< /Size ${total} /Root 1 0 R /Info << /Producer (MB Visual) /Title (${winAnsi(this.title || tr("bcfreport.report_segnalazioni"))}) >> >>\nstartxref\n${xref}\n%%EOF\n`);
+    push(x + `trailer\n<< /Size ${total} /Root 1 0 R /Info << /Producer (MB Desk) /Title (${winAnsi(this.title || tr("bcfreport.report_segnalazioni"))}) >> >>\nstartxref\n${xref}\n%%EOF\n`);
     return new Blob(chunks, { type: "application/pdf" });
   }
 }

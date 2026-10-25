@@ -6,16 +6,17 @@ La build (tools/build_portable.py) scrive:
 All'avvio l'app cerca la cartella pubblicata sul PC (OneDrive aziendale, anche con nomi diversi) e confronta le build.
 Se c'e' una build piu' recente e OneDrive l'ha scaricata tutta (numero e peso dei file tornano), propone di aggiornare:
 uno script PowerShell aspetta la chiusura dell'app, copia i file nuovi nella cartella dell'app e la riavvia.
-Chi avvia l'app direttamente dalla cartella OneDrive puo' installarla sul PC (%LOCALAPPDATA%\\Programs\\MB Visual):
+Chi avvia l'app direttamente dalla cartella OneDrive puo' installarla sul PC (%LOCALAPPDATA%\\Programs\\MB Desk):
 la copia installata si aggiorna da sola e non risente delle sincronizzazioni a meta'.
 
-Sul Mac l'app e' un pacchetto "MB Visual.app" e si aggiorna solo dalle release su GitHub (file MBVisual-<ver>-mac.dmg):
+Sul Mac l'app e' un pacchetto "MB Desk.app" e si aggiorna solo dalle release su GitHub (file MBDesk-<ver>-mac.dmg):
 il .dmg si monta con hdiutil, il pacchetto nuovo si prepara in locale e uno script sh lo mette al posto di quello
 in uso (di solito in /Applications) dopo la chiusura dell'app, poi la riapre. "Installa" copia l'app in /Applications.
 """
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -26,12 +27,19 @@ from .paths import APP_DIR, DATA_DIR, IS_MAC, IS_WIN, NO_WINDOW, RES_DIR
 from .i18n import t
 
 FROZEN = bool(getattr(sys, "frozen", False))
-REL = Path("ai-engineering-workspace") / "MB Visual" / "App per PC"
+REL = Path("ai-engineering-workspace") / "MB Desk" / "App per PC"
 SETTINGS = DATA_DIR / "aggiornamenti.json"
-INSTALL_DIR = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "Programs" / "MB Visual"
-# Mac: pacchetto in uso (APP_DIR = .../MB Visual.app/Contents/MacOS) e posto dove si installa
+# eseguibile: "MB Desk.exe" dal 25/10/2026; "MBVisual.exe" = nome delle versioni precedenti (ponte per l'aggiornamento)
+EXE = "MB Desk.exe" if IS_WIN else "MB Desk"
+OLD_EXE = "MBVisual.exe"
+_PROGRAMS = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "Programs"
+# installazioni nuove in "MB Desk"; quelle fatte prima del cambio di nome restano nella loro cartella (nessuno la vede)
+INSTALL_DIR = next((d for d in (_PROGRAMS / "MB Desk", _PROGRAMS / "MB Visual") if (d / EXE).is_file() or (d / OLD_EXE).is_file()),
+                   _PROGRAMS / "MB Desk")
+# Mac: pacchetto in uso (APP_DIR = .../MB Desk.app/Contents/MacOS) e posto dove si installa
 MAC_BUNDLE = APP_DIR.parent.parent if APP_DIR.parent.parent.suffix == ".app" else None
-MAC_INSTALL = Path("/Applications") / "MB Visual.app"
+MAC_INSTALL = Path("/Applications") / "MB Desk.app"
+MAC_OLD_INSTALL = Path("/Applications") / "MB Visual.app"  # nome precedente: si toglie dopo l'aggiornamento
 LOG = Path(tempfile.gettempdir()) / "MBVisual-aggiornamento.log"
 
 
@@ -86,10 +94,29 @@ def _candidates():
         try:
             for sub in root.iterdir():
                 if sub.is_dir():
-                    yield sub / "MB Visual" / "App per PC"
+                    yield sub / "MB Desk" / "App per PC"
                     yield sub / REL
         except OSError:
             pass
+
+
+def migrate_exe_name() -> None:
+    """Copie aggiornate da una versione precedente al cambio di nome: il ponte avvia ancora "MBVisual.exe".
+    Qui si crea "MB Desk.exe" accanto (stesso eseguibile), si rifanno i collegamenti e, quando l'app gira gia' con il
+    nome nuovo, si toglie il vecchio file (nessuna scritta "Visual" resta visibile)."""
+    if not (IS_WIN and FROZEN):
+        return
+    me = Path(sys.executable)
+    try:
+        if me.name.lower() == OLD_EXE.lower():
+            new = me.with_name(EXE)
+            if not new.is_file() or new.stat().st_size != me.stat().st_size or new.stat().st_mtime < me.stat().st_mtime:
+                shutil.copy2(me, new)
+            _safe(repair_shortcuts)
+        elif me.name.lower() == EXE.lower() and (me.parent / OLD_EXE).is_file():
+            (me.parent / OLD_EXE).unlink()
+    except OSError as e:
+        _log(f"cambio di nome dell'eseguibile non completato: {e}")
 
 
 def _manifest_ok(src: Path, man: dict) -> bool:
@@ -102,7 +129,7 @@ def _manifest_ok(src: Path, man: dict) -> bool:
                 n += 1
             except OSError:
                 pass
-    return n == man.get("file") and size == man.get("byte") and (src / "MBVisual.exe").is_file()
+    return n == man.get("file") and size == man.get("byte") and (src / EXE).is_file()
 
 
 def _safe(fn):
@@ -183,14 +210,14 @@ def _log(msg: str) -> None:
 
 
 def _copy_app(src: Path, dst: Path, update=None) -> None:
-    """Copia l'app (cartella _internal + MBVisual.exe + LEGGIMI.txt) con avanzamento.
+    """Copia l'app (cartella _internal + MB Desk.exe + LEGGIMI.txt) con avanzamento.
     Leggere i file li scarica da OneDrive se sono "solo online": per questo serve l'avanzamento visibile.
     Salta i file gia' uguali (dimensione e data), toglie da _internal quelli che non esistono piu'."""
     files = []
     for dp, _dn, fn in os.walk(src / "_internal"):
         for n in fn:
             files.append(Path(dp) / n)
-    files += [src / n for n in ("MBVisual.exe", "LEGGIMI.txt") if (src / n).is_file()]
+    files += [src / n for n in (EXE, "LEGGIMI.txt") if (src / n).is_file()]
     total = sum(f.stat().st_size for f in files) or 1
     done = 0
     wanted = set()
@@ -229,45 +256,59 @@ def _copy_app(src: Path, dst: Path, update=None) -> None:
                     pass
 
 
+LINK = "MB Desk.lnk"          # nome dell'app dal 25/10/2026
+OLD_LINK = "MB Desk.lnk"    # collegamenti delle versioni precedenti: si rinominano dove sono
+
+
 def _desktop_link(desktop) -> Path:
-    """Collegamento "MB Visual" del Desktop: se l'utente l'ha spostato in una cartella del Desktop si usa quello, e non se
-    ne crea uno nuovo sul Desktop (prima a ogni avvio ricompariva dove l'utente l'aveva tolto)."""
-    top = Path(desktop) / "MB Visual.lnk"
-    if top.is_file():
-        return top
+    """Collegamento del Desktop: se l'utente l'ha spostato in una cartella del Desktop si usa quello, e non se ne crea uno
+    nuovo sul Desktop (prima a ogni avvio ricompariva dove l'utente l'aveva tolto). Vale anche per il nome vecchio."""
+    d = Path(desktop)
+    for name in (LINK, OLD_LINK):
+        if (d / name).is_file():
+            return d / LINK
     try:
-        moved = sorted(Path(desktop).glob("*/MB Visual.lnk"))
+        moved = sorted(d.glob("*/" + LINK)) or sorted(d.glob("*/" + OLD_LINK))
     except OSError:
         moved = []
-    return moved[0] if moved else top
+    return moved[0].with_name(LINK) if moved else d / LINK
+
+
+def _drop_old(path: Path) -> None:
+    """Toglie il collegamento con il nome vecchio accanto a quello nuovo."""
+    try:
+        (path.parent / OLD_LINK).unlink(missing_ok=True)
+    except OSError:
+        pass
 
 
 def _shortcuts(exe: Path) -> None:
-    """Collegamenti "MB Visual" sul Desktop e nel menu Start (senza script PowerShell)."""
+    """Collegamenti "MB Desk" sul Desktop e nel menu Start (senza script PowerShell)."""
     import pythoncom
     import win32com.client
     pythoncom.CoInitialize()
     try:
         sh = win32com.client.Dispatch("WScript.Shell")
-        for path in (_desktop_link(sh.SpecialFolders("Desktop")), Path(sh.SpecialFolders("Programs")) / "MB Visual.lnk"):
+        for path in (_desktop_link(sh.SpecialFolders("Desktop")), Path(sh.SpecialFolders("Programs")) / LINK):
             lnk = sh.CreateShortcut(str(path))
             lnk.TargetPath = str(exe)
             lnk.WorkingDirectory = str(exe.parent)
             # icona da file .ico locale (se l'exe fosse un file OneDrive "solo online" Windows mostrerebbe un riquadro vuoto)
             ico = exe.parent / "_internal" / "app.ico"
             lnk.IconLocation = f"{ico},0" if ico.is_file() else f"{exe},0"
-            lnk.Description = "MB Visual"
+            lnk.Description = "MB Desk"
             lnk.Save()
+            _drop_old(path)
     finally:
         sh = lnk = None  # oggetti COM rilasciati prima di chiudere COM (altrimenti avvisi Win32 all'uscita)
         pythoncom.CoUninitialize()
 
 
 def repair_shortcuts() -> dict:
-    """Copia installata: ripara i collegamenti "MB Visual" di Desktop e menu Start se mancano, puntano altrove o non
+    """Copia installata: ripara i collegamenti "MB Desk" di Desktop e menu Start se mancano, puntano altrove o non
     hanno un'icona propria. Trascinando la voce del menu Start sul Desktop, Windows crea un collegamento a un
     collegamento senza icona: trascinato poi sulla barra delle applicazioni mostra un quadrato grigio."""
-    exe = INSTALL_DIR / "MBVisual.exe"
+    exe = INSTALL_DIR / EXE
     if not (IS_WIN and FROZEN and _same(APP_DIR, INSTALL_DIR) and exe.is_file()):
         return {"riparati": 0}
     import pythoncom
@@ -278,9 +319,11 @@ def repair_shortcuts() -> dict:
         sh = win32com.client.Dispatch("WScript.Shell")
         ico = INSTALL_DIR / "_internal" / "app.ico"
         want_icon = f"{ico},0" if ico.is_file() else f"{exe},0"
-        for path in (_desktop_link(sh.SpecialFolders("Desktop")), Path(sh.SpecialFolders("Programs")) / "MB Visual.lnk"):
+        for path in (_desktop_link(sh.SpecialFolders("Desktop")), Path(sh.SpecialFolders("Programs")) / LINK):
             ok = False
-            if path.is_file():
+            if (path.parent / OLD_LINK).is_file():
+                ok = False
+            elif path.is_file():
                 try:
                     lnk = sh.CreateShortcut(str(path))
                     ok = _same(Path(lnk.TargetPath or "."), exe) and (lnk.IconLocation or "").lower() == want_icon.lower()
@@ -292,8 +335,9 @@ def repair_shortcuts() -> dict:
             lnk.TargetPath = str(exe)
             lnk.WorkingDirectory = str(INSTALL_DIR)
             lnk.IconLocation = want_icon
-            lnk.Description = "MB Visual"
+            lnk.Description = "MB Desk"
             lnk.Save()
+            _drop_old(path)
             fixed += 1
     finally:
         sh = lnk = None  # oggetti COM rilasciati prima di chiudere COM (altrimenti avvisi Win32 all'uscita)
@@ -344,8 +388,9 @@ def _github_latest():
             rel = json.loads(r.read())
     except Exception:  # noqa: BLE001
         return None
-    pattern = r"MBVisual-.*-mac\.dmg$" if IS_MAC else r"MBVisual-Setup-.*\.exe$"
-    asset = next((a for a in rel.get("assets", []) if re.match(pattern, a.get("name", ""))), None)
+    # nome nuovo prima; il nome vecchio resta nelle release per un periodo solo per le copie precedenti al cambio di nome
+    patterns = (r"MBDesk-.*-mac\.dmg$", r"MBVisual-.*-mac\.dmg$") if IS_MAC else (r"MBDesk-Setup-.*\.exe$", r"MBVisual-Setup-.*\.exe$")
+    asset = next((a for pat in patterns for a in rel.get("assets", []) if re.match(pat, a.get("name", ""))), None)
     if not asset:
         return None
     return {"versione": rel.get("tag_name", "").lstrip("v"), "data": (rel.get("published_at") or "")[:19].replace("T", " "),
@@ -354,7 +399,7 @@ def _github_latest():
 
 def _relaunch_lines(exe, log) -> list:
     """Righe finali dello script di aggiornamento: riavvio dell'app con registro dei passi. Prima "start", poi, se dopo
-    20 s MB Visual non e' partita, un secondo tentativo tramite Esplora risorse (processo del desktop, fuori da ogni
+    20 s MB Desk non e' partita, un secondo tentativo tramite Esplora risorse (processo del desktop, fuori da ogni
     gruppo di processi o job dell'app vecchia)."""
     name = os.path.basename(str(exe))
     return [
@@ -401,11 +446,11 @@ def _apply_github(rel: dict, update=None) -> dict:
         return _apply_github_mac(rel, update)
     if not IS_WIN:
         raise ValueError(t("srv_update.non_disponibile_su_questo_sistema"))
-    setup = STAGING / f"MBVisual-Setup-{rel['versione']}.exe"
+    setup = STAGING / f"MBDesk-Setup-{rel['versione']}.exe"
     _download(rel, setup, update)
     if update:
         update(0.97, t("srv_update.installazione_nuova_versione"))
-    exe = INSTALL_DIR / "MBVisual.exe"
+    exe = INSTALL_DIR / EXE
     cmd = Path(tempfile.gettempdir()) / "MBVisual-aggiorna.cmd"
     pid = os.getpid()
     cmd.write_text("\r\n".join([
@@ -425,9 +470,9 @@ def _sh_quote(p) -> str:
     return "'" + str(p).replace("'", "'\\''") + "'"
 
 
-def _mac_swap(new_app: Path, target: Path) -> None:
+def _mac_swap(new_app: Path, target: Path, drop: Path = None) -> None:
     """Script sh in sottofondo: aspetta la chiusura dell'app, mette new_app al posto di target e la riapre
-    (se la copia non riesce rimette il pacchetto di prima)."""
+    (se la copia non riesce rimette il pacchetto di prima). drop = pacchetto con il nome vecchio da togliere."""
     q = _sh_quote
     pid = os.getpid()
     old = target.with_name(target.name + ".old")
@@ -439,6 +484,7 @@ def _mac_swap(new_app: Path, target: Path) -> None:
         f"if /usr/bin/ditto {q(new_app)} {q(target)} >> {q(LOG)} 2>&1; then rm -rf {q(old)} {q(new_app)}; "
         f"else rm -rf {q(target)}; mv {q(old)} {q(target)}; fi",
         f"/usr/bin/xattr -dr com.apple.quarantine {q(target)} 2>/dev/null",
+        *([f"[ -d {q(target)} ] && rm -rf {q(drop)}"] if drop and not _same(drop, target) else []),
         f"/usr/bin/open {q(target)}",
     ]) + "\n", encoding="utf-8")
     subprocess.Popen(["/bin/sh", str(sh)], start_new_session=True, close_fds=True,
@@ -447,16 +493,16 @@ def _mac_swap(new_app: Path, target: Path) -> None:
 
 
 def _apply_github_mac(rel: dict, update=None) -> dict:
-    """Scarica il .dmg, ne estrae "MB Visual.app" in locale e la sostituisce a quella in uso dopo la chiusura."""
+    """Scarica il .dmg, ne estrae "MB Desk.app" in locale e la sostituisce a quella in uso dopo la chiusura."""
     if not MAC_BUNDLE:
         raise ValueError(t("srv_update.mac_pacchetto_non_riconosciuto"))
     import shutil
-    dmg = STAGING / f"MBVisual-{rel['versione']}-mac.dmg"
+    dmg = STAGING / f"MBDesk-{rel['versione']}-mac.dmg"
     _download(rel, dmg, update)
     if update:
         update(0.96, t("srv_update.mac_preparazione"))
     mnt = Path(tempfile.mkdtemp(prefix="mbvisual-dmg-"))
-    new_app = STAGING / "MB Visual.app"
+    new_app = STAGING / "MB Desk.app"
     shutil.rmtree(new_app, ignore_errors=True)
     subprocess.run(["/usr/bin/hdiutil", "attach", "-nobrowse", "-readonly", "-mountpoint", str(mnt), str(dmg)],
                    check=True, capture_output=True, timeout=300)
@@ -470,7 +516,9 @@ def _apply_github_mac(rel: dict, update=None) -> dict:
     if update:
         update(0.98, t("srv_update.riavvio_mb_visual"))
     _log(f"aggiornamento Mac -> {rel['versione']} in {MAC_BUNDLE}")
-    _mac_swap(new_app, MAC_BUNDLE)
+    # copia nel pacchetto con il nome vecchio ("MB Visual.app"): l'aggiornamento la rinomina in "MB Desk.app"
+    renamed = MAC_BUNDLE.name == MAC_OLD_INSTALL.name
+    _mac_swap(new_app, MAC_BUNDLE.with_name(MAC_INSTALL.name) if renamed else MAC_BUNDLE, MAC_BUNDLE if renamed else None)
     return {"ok": True, "versione": rel["versione"]}
 
 
@@ -484,7 +532,7 @@ def _install_mac(update=None) -> dict:
         update(0.5, t("srv_update.mac_copia_applicazioni"))
     _log(f"installazione Mac da {MAC_BUNDLE} in {MAC_INSTALL}")
     import shutil
-    tmp = STAGING / "installa" / "MB Visual.app"
+    tmp = STAGING / "installa" / "MB Desk.app"
     shutil.rmtree(tmp, ignore_errors=True)
     tmp.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["/usr/bin/ditto", str(MAC_BUNDLE), str(tmp)], check=True, capture_output=True, timeout=900)
@@ -507,7 +555,7 @@ def apply(update=None) -> dict:
     src = Path(r["fonte"])
     if _same(src, APP_DIR):
         raise ValueError(t("srv_update.l_app_avviata_cartella_onedrive"))
-    if not ((APP_DIR / "_internal").is_dir() and (APP_DIR / "MBVisual.exe").is_file()):
+    if not ((APP_DIR / "_internal").is_dir() and ((APP_DIR / EXE).is_file() or (APP_DIR / OLD_EXE).is_file())):
         raise ValueError(t("srv_update.cartella_dell_app_non_riconosciuta"))
     _log(f"aggiornamento {r['attuale']} -> {r['disponibile']} da {src}")
     _copy_app(src, STAGING, update)
@@ -522,8 +570,8 @@ def apply(update=None) -> dict:
         ":attesa",
         rf'"%SystemRoot%\System32\tasklist.exe" /FI "PID eq {pid}" 2>nul | "%SystemRoot%\System32\find.exe" "{pid}" >nul && ("%SystemRoot%\System32\ping.exe" -n 2 127.0.0.1 >nul & goto attesa)',
         f'robocopy "{STAGING / "_internal"}" "{APP_DIR / "_internal"}" /MIR /R:5 /W:2 /NP /NFL /NDL >> "{log}"',
-        f'robocopy "{STAGING}" "{APP_DIR}" MBVisual.exe LEGGIMI.txt /R:90 /W:2 /NP /NFL /NDL >> "{log}"',
-        *_relaunch_lines(APP_DIR / "MBVisual.exe", log),
+        f'robocopy "{STAGING}" "{APP_DIR}" "{EXE}" LEGGIMI.txt /R:90 /W:2 /NP /NFL /NDL >> "{log}"',
+        *_relaunch_lines(APP_DIR / EXE, log),
     ]) + "\r\n", encoding="utf-8", newline="")
     _run_detached(cmd)
     threading.Timer(1.0, lambda: os._exit(0)).start()
@@ -531,7 +579,7 @@ def apply(update=None) -> dict:
 
 
 def install(update=None, integrazione=False) -> dict:
-    """Installa l'app su questo PC (%LOCALAPPDATA%/Programs/MB Visual + collegamenti su Desktop e menu Start),
+    """Installa l'app su questo PC (%LOCALAPPDATA%/Programs/MB Desk + collegamenti su Desktop e menu Start),
     con avanzamento visibile, e la riavvia da li'."""
     if not FROZEN:
         raise ValueError(t("srv_update.disponibile_solo_nell_app_pc"))
@@ -552,7 +600,7 @@ def install(update=None, integrazione=False) -> dict:
         _copy_app(src, INSTALL_DIR, update)
         if update:
             update(0.98, t("srv_update.collegamenti_desktop_menu_start"))
-        exe = INSTALL_DIR / "MBVisual.exe"
+        exe = INSTALL_DIR / EXE
         try:
             _shortcuts(exe)
         except Exception as e:  # noqa: BLE001

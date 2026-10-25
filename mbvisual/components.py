@@ -2,7 +2,7 @@
 
 I file restano tutti installati: lo scopo e' mostrare cosa sa fare l'app e lasciare scegliere cosa serve.
 Registro dei componenti e dei profili: ui/components.json. Scelta in DATA_DIR/componenti.json, scritta dal programma
-di installazione (installer/mbvisual.iss) o dall'app; su Windows anche in HKCU\\Software\\MB Visual\\Componenti
+di installazione (installer/mbvisual.iss) o dall'app; su Windows anche in HKCU\\Software\\MB Desk\\Componenti
 (valori Attivi e Profilo), da cui il setup riprende la scelta quando si aggiorna (anche in modalita' silenziosa).
 """
 import json
@@ -14,7 +14,7 @@ from .paths import DATA_DIR, IS_WIN, UI_DIR
 
 # MBV_COMPONENTI = altro file (prove: non tocca la scelta vera ne' il registro)
 FILE = Path(os.environ["MBV_COMPONENTI"]) if os.environ.get("MBV_COMPONENTI") else DATA_DIR / "componenti.json"
-REG_KEY = r"Software\MB Visual\Componenti"
+REG_KEY = r"Software\MB Visual\Componenti"  # chiave tecnica: nome storico dell'app, non visibile
 
 
 def registry() -> dict:

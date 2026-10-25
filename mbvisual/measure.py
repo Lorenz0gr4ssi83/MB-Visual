@@ -5,7 +5,7 @@ Tutte le coordinate restituite sono nello spazio utente del PDF (punti, y verso 
 
 - page_geometry: tracciati vettoriali della pagina per l'aggancio (estremi, medi, centri, intersezioni) e per la misura di
   un oggetto con un clic (lunghezza del tracciato, area dei contorni chiusi con i fori);
-- scales: scale dichiarate (dizionari /VP /Measure scritti da Acrobat, Bluebeam o MB Visual) e "Scala 1:N" nei testi;
+- scales: scale dichiarate (dizionari /VP /Measure scritti da Acrobat, Bluebeam o MB Desk) e "Scala 1:N" nei testi;
 - texts / tables: elenco dei testi (quote e quote di livello riconosciute) e tabelle di testo (page.find_tables);
 - lines: lunghezze e aree dei tracciati raggruppate per colore, spessore, tratteggio, layer (contenuto opzionale), riempimento;
 - symbols / similar: forme vettoriali identiche (anche ruotate di 90 gradi) contate sulle pagine;
@@ -24,7 +24,7 @@ from pathlib import Path
 
 from .i18n import t
 
-NM = "mbvmis-"          # prefisso del nome (/NM) delle annotazioni scritte da MB Visual
+NM = "mbvmis-"          # prefisso del nome (/NM) delle annotazioni scritte da MB Desk
 ATTACH = "misure.mbmis"  # allegato con il documento delle misure
 _cache: dict = {}
 _lock = threading.Lock()
@@ -298,7 +298,7 @@ def scales(path):
                 mb = page.mediabox
                 full = abs((box[2] - box[0]) - mb.width) < 2 and abs((box[3] - box[1]) - mb.height) < 2
                 out.append({"page": pno, "box": None if full else box, "k": k, "unit": unit, "N": round(N, 3),
-                            "label": (name + " · " if name and not name.startswith("MB Visual") else "") + ("1:%g" % round(N, 2)), "source": t("srv_measure.fonte_vp")})
+                            "label": (name + " · " if name and not name.startswith("MB Desk") else "") + ("1:%g" % round(N, 2)), "source": t("srv_measure.fonte_vp")})
             # testi: "Scala 1:100" (si preferiscono quelli con la parola scala e in basso a destra, nel cartiglio)
             W, H = page.rect.width, page.rect.height
             best = None
@@ -572,7 +572,7 @@ def _scale_for(doc_m, page, pt):
 
 
 def _drop_ours(page):
-    """Toglie le annotazioni di MB Visual dalla pagina (cancellando una misura spariscono anche le sue etichette /IRT)."""
+    """Toglie le annotazioni di MB Desk dalla pagina (cancellando una misura spariscono anche le sue etichette /IRT)."""
     xrefs = [a.xref for a in page.annots() or [] if (a.info.get("name") or "").startswith(NM)]
     n = 0
     for x in xrefs:
@@ -587,7 +587,7 @@ def _drop_ours(page):
 
 
 def strip(path, out=None):
-    """Copia (o il file stesso) senza le annotazioni scritte da MB Visual: con il pannello aperto le disegna l'interfaccia."""
+    """Copia (o il file stesso) senza le annotazioni scritte da MB Desk: con il pannello aperto le disegna l'interfaccia."""
     doc = _open(path)
     n = 0
     try:
@@ -678,7 +678,7 @@ def write(path, mdoc, labels=None, author=""):
             typ = m["type"]
             lab = labels.get(m.get("id"), "")
             name = m.get("name") or m.get("voce") or TYPE[typ]
-            info = {"title": m.get("author") or author or "MB Visual", "subject": TYPE[typ], "content": (name + ": " if name != TYPE[typ] else "") + lab + ("\n" + m["note"] if m.get("note") else "")}
+            info = {"title": m.get("author") or author or "MB Desk", "subject": TYPE[typ], "content": (name + ": " if name != TYPE[typ] else "") + lab + ("\n" + m["note"] if m.get("note") else "")}
             made = []
             if typ == "len":
                 a = page.add_line_annot(pts[0], pts[1])
@@ -756,20 +756,20 @@ def write(path, mdoc, labels=None, author=""):
                 if s.get("page") not in (None, pno):
                     continue
                 box = s.get("box") or [mb.x0, mb.y0, mb.x1, mb.y1]
-                vps.append("<</Type/Viewport/BBox[%s]/Name(MB Visual %s)/Measure %s>>" % (" ".join("%.3f" % v for v in box), s.get("label", "").replace("(", "").replace(")", ""),
+                vps.append("<</Type/Viewport/BBox[%s]/Name(MB Desk %s)/Measure %s>>" % (" ".join("%.3f" % v for v in box), s.get("label", "").replace("(", "").replace(")", ""),
                                                                                        _measure_dict(float(s.get("k") or PT), s.get("unit") or "m", s.get("label") or "")))
-            # i /VP di altri programmi restano; quelli di MB Visual si riscrivono
+            # i /VP di altri programmi restano; quelli di MB Desk si riscrivono
             kind, val = doc.xref_get_key(page.xref, "VP")
-            keep = [d for d in _split_dicts(val) if "MB Visual" not in d] if kind == "array" and "R" not in val.split() else []
+            keep = [d for d in _split_dicts(val) if "MB Desk" not in d] if kind == "array" and "R" not in val.split() else []
             if vps or keep:
                 doc.xref_set_key(page.xref, "VP", "[" + " ".join(keep + vps) + "]")
-            elif kind != "null" and "MB Visual" in (val or ""):
+            elif kind != "null" and "MB Desk" in (val or ""):
                 doc.xref_set_key(page.xref, "VP", "null")
         # allegato con tutti i dati (voci, prezzi, note, scale)
         data = json.dumps(mdoc, ensure_ascii=False).encode("utf-8")
         if ATTACH in (doc.embfile_names() or []):
             doc.embfile_del(ATTACH)  # embfile_upd di PyMuPDF 2.0 non accetta bytes
-        doc.embfile_add(ATTACH, data, filename=ATTACH, desc="MB Visual")
+        doc.embfile_add(ATTACH, data, filename=ATTACH, desc="MB Desk")
         tmp = path + ".mbmis.tmp"
         doc.save(tmp, garbage=1, deflate=True)
     finally:

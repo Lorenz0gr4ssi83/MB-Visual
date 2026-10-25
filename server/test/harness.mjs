@@ -20,7 +20,7 @@ if (process.argv[2] === "serve") {
   mkdirSync(dir, { recursive: true });
   const pub = join(homedir(), ".mbvisual", "server", "public");
   const env = makeEnv(join(dir, "prova.sqlite"), existsSync(pub) ? pub : null);
-  // app per telefono di MB Visual Admin: http://127.0.0.1:<porta>/<percorso>/ (in prova senza https: il cookie Secure vale anche su 127.0.0.1)
+  // app per telefono di MB Desk Admin: http://127.0.0.1:<porta>/<percorso>/ (in prova senza https: il cookie Secure vale anche su 127.0.0.1)
   env.ADMIN_PATH = process.env.MBV_ADMIN_PATH || "gestione-prova-locale-0000";
   const vk = await crypto.subtle.exportKey("jwk", (await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign"])).privateKey);
   env.VAPID_JWK = JSON.stringify({ d: vk.d, x: vk.x, y: vk.y });

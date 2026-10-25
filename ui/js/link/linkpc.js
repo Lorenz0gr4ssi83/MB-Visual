@@ -1,6 +1,6 @@
 // Collegamento con il telefono, lato PC (solo app per PC): pulsante "Telefono" nella barra laterale con il pannello.
 // - abbinamento: QR con l'indirizzo dell'app per telefono + stanza e chiave nel frammento (#), letto dall'app del telefono
-// - file dal telefono (scansioni, foto, documenti, biglietti da visita) salvati nella cartella scelta e aperti in MB Visual
+// - file dal telefono (scansioni, foto, documenti, biglietti da visita) salvati nella cartella scelta e aperti in MB Desk
 // - "Invia al telefono": il file aperto (o scelto) va sul telefono come DOCUMENTO CONDIVISO: quando il telefono lo salva la
 //   versione torna sul PC (sull'originale, o come copia se intanto e' cambiato qui) e quando lo salva il PC va al telefono
 // - file del PC sfogliabili dal telefono (solo schede aperte, recenti e documenti condivisi: nient'altro del disco)

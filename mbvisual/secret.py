@@ -1,7 +1,7 @@
 """Cifratura dei segreti salvati su disco (token degli archivi cloud, password della marca temporale).
 
 Windows: i moduli usano DPAPI (legata all'utente di Windows) come sempre. Fuori da Windows: Fernet (cryptography) con
-una chiave casuale tenuta nel Portachiavi del Mac (comando `security`, voce "MB Visual"); dove il Portachiavi non c'e'
+una chiave casuale tenuta nel Portachiavi del Mac (comando `security`, voce "MB Desk"); dove il Portachiavi non c'e'
 (Linux) la chiave sta in un file leggibile solo dall'utente nella cartella dei dati.
 """
 import base64
@@ -10,7 +10,7 @@ import subprocess
 
 from .paths import DATA_DIR, IS_MAC
 
-_SERVICE = "MB Visual"
+_SERVICE = "MB Desk"
 _cache: dict = {}
 
 

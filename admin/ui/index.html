@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<title>MB Visual Admin</title>
+<title>MB Desk Admin</title>
 <style>
   :root { --bg: #17191b; --panel: #1f2224; --panel2: #26292c; --fg: #e6e8e5; --muted: #9ea29b; --line: #34383b; --accent: #6aa7d8; --ok: #5cb85c; --bad: #e0605a; --warn: #e3a33b; }
   *, *::before, *::after { box-sizing: border-box; cursor: default !important; }
@@ -73,7 +73,7 @@
 </head>
 <body>
 <header>
-  <b>MB Visual Admin</b>
+  <b>MB Desk Admin</b>
   <button class="tab on" data-v="panoramica">Panoramica</button>
   <button class="tab" data-v="licenze">Licenze</button>
   <button class="tab" data-v="richieste">Richieste <span id="nreq"></span></button>
@@ -152,7 +152,7 @@ function usageHtml(u) {
       ${uBars("App", u.app, r => ({ pc: "Windows", mac: "Mac" })[r.k] || r.k, () => "")}
       ${uBars("Lingue", u.lingue, r => (r.k || "—").toUpperCase(), () => "")}
       ${uBars("Componenti attivi", u.componenti, r => U_COMP[r.k] || r.k, () => "")}
-      <section class="u-box"><h3>Cancellazione su richiesta</h3><p class="muted u-note">L'utente trova l'identificativo in MB Visual, File › Impostazioni › Statistiche d'uso.</p>
+      <section class="u-box"><h3>Cancellazione su richiesta</h3><p class="muted u-note">L'utente trova l'identificativo in MB Desk, File › Impostazioni › Statistiche d'uso.</p>
         <div class="u-forget"><input id="u-inst" placeholder="Identificativo (32 caratteri)" maxlength="40" class="mono"><button class="b p" onclick="uForget()">Cancella i dati</button></div></section>
     </div>`;
 }
@@ -378,12 +378,12 @@ async function copyKey(k) { await window.pywebview.api.copy(k); toast("Chiave co
 async function renderSettings(m) {
   const c = await window.pywebview.api.config();
   m.innerHTML = `<div class="card" style="max-width:640px;display:grid;gap:12px"><h3>Impostazioni</h3>
-    <label>Indirizzo del server delle licenze<input id="url" value="${esc(c.url)}" placeholder="https://mbvisual.xxxxx.workers.dev"></label>
+    <label>Indirizzo del server delle licenze<input id="url" value="${esc(c.url)}" placeholder="https://mbdesk.xxxxx.workers.dev"></label>
     <div><button class="b p" onclick="saveUrl()">Salva indirizzo</button></div>
     <label style="display:flex;gap:8px;align-items:center;color:var(--fg)"><input type="checkbox" id="auto" ${c.autostart ? "checked" : ""} onchange="setAuto()"> Avvia con Windows (nascosta nell'area di notifica)</label>
     <p class="muted">Chiudendo la finestra l'app resta attiva nell'area di notifica e ti avvisa di attivazioni, richieste e segnalazioni. Per uscire: clic destro sull'icona → Esci.</p></div>
     <div class="card" style="max-width:640px;display:grid;gap:10px;margin-top:14px"><h3>Email</h3>
-    <p class="muted" style="margin:0">Account da cui MB Visual Admin invia le chiavi. Gmail: serve una "password per le app" (Account Google → Sicurezza → Verifica in due passaggi → Password per le app).
+    <p class="muted" style="margin:0">Account da cui MB Desk Admin invia le chiavi. Gmail: serve una "password per le app" (Account Google → Sicurezza → Verifica in due passaggi → Password per le app).
       Microsoft 365 / Outlook: serve che l'invio SMTP sia consentito per la casella. In alternativa ogni email si puo' aprire nel programma di posta.</p>
     <div id="mailcfg" class="muted">...</div>
     <h3 style="margin-top:8px">Testo dell'email con la chiave</h3><p class="muted" style="margin:0">Uguale anche nell'app per telefono. Campi automatici: {cliente} {chiave} {pc} {cellulari} {link_setup} {link_telefono}</p>

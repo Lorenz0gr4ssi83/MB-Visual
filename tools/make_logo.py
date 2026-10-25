@@ -1,6 +1,6 @@
-"""Crea il logo MB Visual partendo dal logo MB Group originale.
+"""Crea il logo MB Desk partendo dal logo MB Group originale.
 
-Mantiene il marchio "mb" e la linea bianca, sostituisce "GROUP" con "VISUAL".
+Mantiene il marchio "mb" e la linea bianca, sostituisce "GROUP" con "DESK".
 Output: ui/img/logo.png (trasparente fuori dal quadrato), ui/img/logo-512.png, app.ico
 """
 from pathlib import Path
@@ -44,7 +44,7 @@ def main() -> None:
 
     draw = ImageDraw.Draw(im)
     font = ImageFont.truetype("C:/Windows/Fonts/arialbd.ttf", 47)
-    text = "VISUAL"
+    text = "DESK"
     box = draw.textbbox((0, 0), text, font=font)
     tw, th = box[2] - box[0], box[3] - box[1]
     x = (w - tw) / 2 - box[0]

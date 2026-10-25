@@ -1,4 +1,4 @@
-// nwd2mbv - converte un file Navisworks (NWD/NWC) nel formato di scambio di MB Visual, senza Navisworks installato.
+// nwd2mbv - converte un file Navisworks (NWD/NWC) nel formato di scambio di MB Desk, senza Navisworks installato.
 // Usa la libreria open source nwd-reader (https://github.com/1817716374/nwd-reader).
 //
 // Uso:  nwd2mbv INPUT.nwd OUTPUT_PREFIX

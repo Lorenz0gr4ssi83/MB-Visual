@@ -1,5 +1,5 @@
 """Invii grandi: l'allegato pesante si carica nel cloud collegato (pannello Cloud: OneDrive/SharePoint, Google Drive,
-Dropbox) in una cartella "MB Visual - Invii" e nel messaggio va un link di download in sola lettura al suo posto.
+Dropbox) in una cartella "MB Desk - Invii" e nel messaggio va un link di download in sola lettura al suo posto.
 
 - OneDrive/SharePoint: link "chiunque abbia il link" (se l'organizzazione lo vieta: link per l'organizzazione) con
   scadenza a 30 giorni dove il piano lo permette.
@@ -13,7 +13,7 @@ from pathlib import Path
 from .. import cloud
 from ..i18n import t
 
-FOLDER = "MB Visual - Invii"
+FOLDER = "MB Desk - Invii"
 DAYS = 30
 
 
