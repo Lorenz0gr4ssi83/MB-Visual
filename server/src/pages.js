@@ -1,5 +1,5 @@
 // Pagine pubbliche del server (GET, senza cookie ne' licenza), richieste anche da Google per l'app OAuth di Gmail e Drive:
-//   /mbvisual  presentazione di MB Desk          /privacy  informativa unica (licenza, statistiche, posta e archivi cloud)
+//   /mbdesk (anche /mbvisual) presentazione di MB Desk          /privacy  informativa unica (licenza, statistiche, posta e archivi cloud)
 // Testo in italiano con l'inglese sotto. BOZZA legale da far rivedere. Mai il nome del proprietario: contatto = segnalazione
 // dall'app e, se configurata, la variabile SUPPORT_EMAIL (indirizzo neutro di assistenza) in wrangler.toml.
 // Le affermazioni devono restare vere rispetto al codice: statistiche (src/stats.js, mbvisual/stats.py), posta (mbvisual/mail:
@@ -132,5 +132,5 @@ read by humans, except at the user's explicit request for support or where requi
 <h3>6. Rights and contact</h3>
 <p>You can request access, rectification, erasure, restriction and objection, and lodge a complaint with the Italian Data Protection Authority
 (<a href="https://www.garanteprivacy.it">garanteprivacy.it</a>). Contact: ${contact(env, true)}.</p></section>
-<footer class="muted"><a href="/mbvisual">MB Desk</a> · MB Group</footer>`);
+<footer class="muted"><a href="/mbdesk">MB Desk</a> · MB Group</footer>`);
 }

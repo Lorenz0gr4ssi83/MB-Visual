@@ -645,7 +645,7 @@ export default {
           { headers: { "content-type": "application/json", "cache-control": "public, max-age=3600" } });
       if (url.pathname === "/v1/link/ws") return await linkSocket(env, req, url, { readToken, fail });
       // pagine pubbliche (anche per la verifica dell'app OAuth di Google): presentazione e informativa (src/pages.js)
-      if ((url.pathname === "/mbvisual" || url.pathname === "/privacy") && (req.method === "GET" || req.method === "HEAD"))
+      if ((url.pathname === "/mbdesk" || url.pathname === "/mbvisual" || url.pathname === "/privacy") && (req.method === "GET" || req.method === "HEAD"))
         return new Response((url.pathname === "/privacy" ? privacyPage : presentationPage)(env), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=600" } });
       if (!url.pathname.startsWith("/v1/")) {
         if (env.ASSETS && (req.method === "GET" || req.method === "HEAD")) return await serveApp(env, req, url);
