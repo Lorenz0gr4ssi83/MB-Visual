@@ -1,7 +1,7 @@
 """Cifratura dei segreti salvati su disco (token degli archivi cloud, password della marca temporale).
 
 Windows: i moduli usano DPAPI (legata all'utente di Windows) come sempre. Fuori da Windows: Fernet (cryptography) con
-una chiave casuale tenuta nel Portachiavi del Mac (comando `security`, voce "MB Desk"); dove il Portachiavi non c'e'
+una chiave casuale tenuta nel Portachiavi del Mac (comando `security`, voce "MB Visual"); dove il Portachiavi non c'e'
 (Linux) la chiave sta in un file leggibile solo dall'utente nella cartella dei dati.
 """
 import base64
@@ -10,12 +10,15 @@ import subprocess
 
 from .paths import DATA_DIR, IS_MAC
 
-_SERVICE = "MB Desk"
+# Voce del Portachiavi: nome tecnico storico, NON cambiarlo (la chiave dei segreti gia' salvati sta li').
+# Le versioni 1.6.6-1.6.7 per errore la creavano come "MB Desk": se c'e' solo quella si usa quella.
+_SERVICE = "MB Visual"
+_SERVICE_16x = "MB Desk"
 _cache: dict = {}
 
 
-def _keychain_get(account: str):
-    r = subprocess.run(["/usr/bin/security", "find-generic-password", "-s", _SERVICE, "-a", account, "-w"],
+def _keychain_get(account: str, service: str = _SERVICE):
+    r = subprocess.run(["/usr/bin/security", "find-generic-password", "-s", service, "-a", account, "-w"],
                        capture_output=True, text=True, timeout=30)
     return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
 
@@ -31,7 +34,7 @@ def _key(account: str) -> bytes:
     from cryptography.fernet import Fernet
     key = None
     if IS_MAC:
-        key = _keychain_get(account)
+        key = _keychain_get(account) or _keychain_get(account, _SERVICE_16x)
         if not key:
             key = Fernet.generate_key().decode()
             _keychain_set(account, key)

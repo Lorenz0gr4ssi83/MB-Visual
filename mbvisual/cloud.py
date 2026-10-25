@@ -66,19 +66,31 @@ class _Blob(ctypes.Structure):
     _fields_ = [("cbData", ctypes.c_uint32), ("pbData", ctypes.POINTER(ctypes.c_char))]
 
 
-_ENTROPY = b"MB Desk - archivi cloud"
+# Chiave tecnica: NON cambiarla mai (i dati gia' cifrati non si leggerebbero piu': posta, accessi ai cloud, segreto Google).
+# Nome storico dell'app. Le versioni 1.6.6-1.6.7 cifravano per errore con "MB Desk - ...": si leggono ancora (_ENTROPY_16x).
+_ENTROPY = b"MB Visual - archivi cloud"
+_ENTROPY_16x = b"MB Desk - archivi cloud"
 
 
 def _dpapi(data: bytes, protect: bool) -> bytes:
+    if protect or not IS_WIN:
+        return _dpapi_with(data, protect, _ENTROPY)
+    try:
+        return _dpapi_with(data, False, _ENTROPY)
+    except OSError:
+        return _dpapi_with(data, False, _ENTROPY_16x)
+
+
+def _dpapi_with(data: bytes, protect: bool, entropy: bytes) -> bytes:
     if not IS_WIN:  # Mac: chiave nel Portachiavi (mbvisual/secret.py)
         from . import secret
         return secret.protect(data, "cloud") if protect else secret.unprotect(data, "cloud")
     crypt32, kernel32 = ctypes.windll.crypt32, ctypes.windll.kernel32
     kernel32.LocalFree.argtypes = [ctypes.c_void_p]
     buf = ctypes.create_string_buffer(data, len(data))
-    ent = ctypes.create_string_buffer(_ENTROPY, len(_ENTROPY))
+    ent = ctypes.create_string_buffer(entropy, len(entropy))
     inp = _Blob(len(data), ctypes.cast(buf, ctypes.POINTER(ctypes.c_char)))
-    eb = _Blob(len(_ENTROPY), ctypes.cast(ent, ctypes.POINTER(ctypes.c_char)))
+    eb = _Blob(len(entropy), ctypes.cast(ent, ctypes.POINTER(ctypes.c_char)))
     out = _Blob()
     if protect:
         ok = crypt32.CryptProtectData(ctypes.byref(inp), ctypes.c_wchar_p("MB Desk"), ctypes.byref(eb), None, None, 1, ctypes.byref(out))
