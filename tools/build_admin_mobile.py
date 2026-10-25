@@ -16,22 +16,25 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "server" / "adminapp"
 OUT = ROOT / "server" / "src" / "adminui.js"
 ORANGE = (240, 125, 46, 255)
+GREY = (138, 140, 137, 255)  # grigio della piastrella del logo
 
 
 def icon(size: int) -> bytes:
     s = 1024  # disegno grande e riduzione finale: bordi puliti
-    im = Image.new("RGBA", (s, s), (23, 25, 27, 255))  # sfondo pieno: su iPhone la trasparenza diventerebbe nera
-    logo = Image.open(ROOT / "ui" / "img" / "logo-512.png").convert("RGBA").resize((700, 700), Image.LANCZOS)
-    im.alpha_composite(logo, (60, 60))  # logo in alto a sinistra: il tondo non copre la scritta
+    # grigio a tutto campo come la piastrella del logo: niente fondo scuro che, ritagliato da Android/iOS, lasciava bordi neri
+    im = Image.new("RGBA", (s, s), GREY)
+    logo = Image.open(ROOT / "ui" / "img" / "logo-512.png").convert("RGBA").resize((540, 540), Image.LANCZOS)
+    im.alpha_composite(logo, (180, 150))  # dentro la zona sicura delle icone "maskable" (cerchio dell'80%)
     d = ImageDraw.Draw(im)
-    cx, cy, r = 830, 830, 165  # tondo arancione in basso a destra con una chiave bianca
-    d.ellipse((cx - r - 18, cy - r - 18, cx + r + 18, cy + r + 18), fill=(23, 25, 27, 255))
+    cx, cy, r = 735, 735, 95  # tondo arancione in basso a destra con una chiave bianca, anch'esso nella zona sicura
+    d.ellipse((cx - r - 14, cy - r - 14, cx + r + 14, cy + r + 14), fill=GREY)
     d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=ORANGE)
     w = (255, 255, 255, 255)
-    d.ellipse((cx - 105, cy - 54, cx + 3, cy + 54), outline=w, width=30)       # anello della chiave
-    d.rectangle((cx - 4, cy - 15, cx + 110, cy + 15), fill=w)                 # gambo
-    d.rectangle((cx + 60, cy + 8, cx + 84, cy + 58), fill=w)                 # denti
-    d.rectangle((cx + 94, cy + 8, cx + 118, cy + 44), fill=w)
+    k = r / 165
+    d.ellipse((cx - 105 * k, cy - 54 * k, cx + 3 * k, cy + 54 * k), outline=w, width=round(30 * k))  # anello della chiave
+    d.rectangle((cx - 4 * k, cy - 15 * k, cx + 110 * k, cy + 15 * k), fill=w)                      # gambo
+    d.rectangle((cx + 60 * k, cy + 8 * k, cx + 84 * k, cy + 58 * k), fill=w)                      # denti
+    d.rectangle((cx + 94 * k, cy + 8 * k, cx + 118 * k, cy + 44 * k), fill=w)
     out = io.BytesIO()
     im.resize((size, size), Image.LANCZOS).save(out, "PNG", optimize=True)
     return out.getvalue()

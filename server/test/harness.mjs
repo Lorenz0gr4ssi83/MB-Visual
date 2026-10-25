@@ -217,6 +217,35 @@ if (process.argv[2] === "serve") {
   ok((await post("/v1/mlink/claim", { link: "link-oltre-il-limite-12345678", device: "tel-e" })).r.status === 409, "QR: oltre il limite il server rifiuta");
   const mtry = await post("/v1/mlink", { token: pr.d.token });
   ok(mtry.r.status === 403 && /PC/.test(mtry.d.errore), "QR: un cellulare non puo' generare il QR");
+  // app Android: link aperto nel browser (impronta registrata), app aperta poi dalla schermata Home -> si attiva da sola
+  const qk3 = (await call("/admin/licenses", { customer: "QR Android", max_mobile: 2 }, true)).key;
+  const qpc3 = (await call("/v1/activate", { key: qk3, device: "pc-qr3", kind: "pc" })).token;
+  const tok3 = (await post("/v1/mlink", { token: qpc3 })).d.url.split("/").pop();
+  const fpA = "SM-S918B|14|384x832|2.8125|Europe/Rome";
+  env._ip = "203.0.113.7";
+  ok((await post("/v1/mlink/resume", { device: "app-x", fp: fpA })).d.stato === "nessuno", "App Android: senza link aperto nel browser nessuna attivazione automatica");
+  ok((await post("/v1/mlink/offer", { link: tok3, fp: fpA })).d.ok, "App Android: la pagina del QR registra l'impronta");
+  ok((await post("/v1/mlink/resume", { device: "app-x", fp: fpA.replace("SM-S918B", "Pixel 8") })).d.stato === "nessuno", "App Android: un altro telefono non prende il link");
+  env._ip = "198.51.100.9";
+  ok((await post("/v1/mlink/resume", { device: "app-x", fp: fpA })).d.stato === "nessuno", "App Android: stesso modello da un'altra rete non prende il link");
+  env._ip = "203.0.113.7";
+  const res3 = await post("/v1/mlink/resume", { device: "app-1", name: "Android", fp: fpA });
+  ok(res3.d.ok && /mbv_m=[^;]+/.test(res3.r.headers.get("set-cookie") || ""), "App Android: aperta dalla schermata Home si attiva da sola (cookie)");
+  ok((await post("/v1/mlink/resume", { device: "app-2", fp: fpA })).d.stato === "nessuno", "App Android: il link ripreso non vale una seconda volta");
+  // due link aperti dallo stesso telefono e rete: ambiguo -> niente attivazione automatica (resta il QR nell'app)
+  env._db.prepare("UPDATE licenses SET mobile_lock = NULL WHERE key = ?").run(qk3);
+  for (const t of ["link-ambiguo-uno-1234567890", "link-ambiguo-due-1234567890"]) {
+    env._db.prepare("INSERT INTO mobile_links (token, license_key, expires) VALUES (?, ?, datetime('now','+10 minutes'))").run(t, qk3);
+    await post("/v1/mlink/offer", { link: t, fp: fpA });
+  }
+  ok((await post("/v1/mlink/resume", { device: "app-3", fp: fpA })).d.stato === "nessuno", "App Android: due link candidati = nessuna attivazione automatica");
+  const natUa = await worker.fetch(new Request("https://lic.test/v1/mlink/claim", { method: "POST", headers: { "user-agent": UA.androidWv },
+    body: JSON.stringify({ link: "link-ambiguo-uno-1234567890", device: "app-3", name: "Android", native: true }) }), env).then(r => r.json());
+  ok(natUa.ok, "App Android: il QR inquadrato nell'app attiva anche dalla WebView");
+  delete env._ip;
+  const actPage = await get("/");
+  const actText = await actPage.text();
+  ok(actText.includes("/v1/mlink/resume") && actText.includes("Inquadra il QR del PC") && (await get("/vendor/jsqr/jsQR.js")).status !== 401, "App Android: pagina di attivazione con ripresa automatica e lettore QR");
 
   // ---- statistiche d'uso anonime (solo con consenso, inviate dall'app): pacchetti per giorno, revoca, conservazione, riepilogo
   const day = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);

@@ -371,7 +371,7 @@ async function claimLink(env, b, ua = "") {
   const device = String(b.device || "").slice(0, 128), name = String(b.name || "Cellulare").slice(0, 80);
   if (!device) return fail(400, "Dispositivo non riconosciuto");
   // controllo prima di tutto: un browser sbagliato non consuma il link
-  if (wrongBrowser(ua)) return fail(403, /iphone|ipad|ipod/i.test(ua) ? "Apri questo link in Safari." : "Apri questo link in Chrome.", { stato: "browser" });
+  if (!b.native && wrongBrowser(ua)) return fail(403, /iphone|ipad|ipod/i.test(ua) ? "Apri questo link in Safari." : "Apri questo link in Chrome.", { stato: "browser" });
   const link = await env.DB.prepare("SELECT * FROM mobile_links WHERE token = ?").bind(String(b.link || "")).first();
   if (!link) return fail(410, "Questo codice QR e' scaduto o e' gia' stato usato. Inquadra il codice aggiornato sul PC.", { stato: "link_scaduto" });
   const lic = await getLicense(env, link.license_key);
@@ -407,6 +407,27 @@ async function claimLink(env, b, ua = "") {
   await event(env, "activation_mobile", lic.key, `Attivato cellulare "${name}" dal codice QR per ${lic.customer || lic.key}`);
   return json({ ok: true, token: await makeToken(env, lic, dev), cliente: lic.customer, codice: code, codice_minuti: PAIR_MIN });
 }
+// App Android installata dalla pagina del QR ma aperta dalla schermata Home (non da "Apri MB Desk"): la pagina del link nel
+// browser registra l'impronta (IP + modello, versione di Android, schermo, fuso: sha256, niente dati in chiaro) e allunga il
+// link a OFFER_MIN; l'app alla prima apertura senza attivazione la ripresenta e si attiva su quel link, solo se ce n'e' UNO.
+const OFFER_MIN = 30;
+const offerHash = async (ip, fp) => b64u(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(ip) + "|" + String(fp || "").slice(0, 300))));
+async function offerLink(env, b, ip) {
+  const fp = String(b.fp || "");
+  if (!ip || !fp) return fail(400, "Dati mancanti");
+  const r = await env.DB.prepare("UPDATE mobile_links SET offer_fp = ?, offered = ?, expires = MAX(expires, ?) WHERE token = ? AND used IS NULL AND expires > ?")
+    .bind(await offerHash(ip, fp), now(), minutesAhead(OFFER_MIN), String(b.link || ""), now()).run();
+  return json({ ok: !!r.meta?.changes });
+}
+async function resumeLink(env, b, ip, ua) {
+  const fp = String(b.fp || "");
+  if (!ip || !fp) return fail(404, "Nessuna installazione in corso", { stato: "nessuno" });
+  const rows = (await env.DB.prepare("SELECT token FROM mobile_links WHERE offer_fp = ? AND used IS NULL AND offered > ? AND expires > ?")
+    .bind(await offerHash(ip, fp), minutesAgo(OFFER_MIN), now()).all()).results || [];
+  if (rows.length !== 1) return fail(404, "Nessuna installazione in corso", { stato: "nessuno" });
+  return await claimLink(env, { ...b, link: rows[0].token, native: true }, ua);
+}
+
 // codice di 6 cifre per l'app aggiunta alla schermata Home (su iPhone ha una memoria separata da Safari)
 async function mobilePairCode(env, lic, dev) {
   for (let i = 0; i < 5; i++) {
@@ -489,7 +510,15 @@ let dev = localStorage.getItem("mbv-dispositivo");
 if (!dev) { dev = crypto.randomUUID(); localStorage.setItem("mbv-dispositivo", dev); }
 const name = (/android/i.test(ua) ? (/mobile/i.test(ua) ? "Android" : "Tablet Android") : ipad ? "iPad" : ios ? "iPhone" : "Cellulare") + " " + new Date().toLocaleDateString("it-IT");
 const claim = () => fetch("/v1/mlink/claim", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
-  body: JSON.stringify({ link, device: dev, name }) }).then(r => r.json());
+  body: JSON.stringify({ link, device: dev, name, native }) }).then(r => r.json());
+const fingerprint = async () => {
+  let model = "", ver = "";
+  try { const h = await navigator.userAgentData.getHighEntropyValues(["model", "platformVersion"]); model = h.model || ""; ver = (h.platformVersion || "").split(".")[0]; } catch {}
+  const m = navigator.userAgent.match(/Android (\\d+)[^;)]*;\\s*([^;)]+?)(?:\\s+Build\\/[^;)]*)?[;)]/);
+  if (!model && m && m[2] !== "K") model = m[2];
+  if (!ver && m) ver = m[1];
+  return [model.trim(), ver, screen.width + "x" + screen.height, devicePixelRatio, Intl.DateTimeFormat().resolvedOptions().timeZone].join("|");
+};
 const fail = t => { $("msg").textContent = t; $("msg").className = "err"; };
 if (wrong) {
   const app = ios ? "Safari" : "Chrome";
@@ -508,6 +537,8 @@ if (wrong) {
   $("apk-open").href = "intent://" + location.host + location.pathname + "#Intent;scheme=https;package=it.mbgroup.app;end";
   $("apk-web").onclick = e => { e.preventDefault(); sessionStorage.setItem("mbv-web", "1"); location.reload(); };
   show("apk");
+  // l'app aperta poi dalla schermata Home ritrova questo link da sola (/v1/mlink/resume)
+  fingerprint().then(fp => fetch("/v1/mlink/offer", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ link, fp }) })).catch(() => {});
 } else {
   $("msg").textContent = "Attivazione in corso...";
   claim().then(r => {
@@ -539,7 +570,7 @@ const linkManifest = link => JSON.stringify({
 // I file dell'app (cartella public, binding ASSETS) si consegnano solo con un'attivazione "mobile" valida nel cookie
 // mbv_m (HttpOnly). Senza: la pagina di attivazione (nel browser spiega come installare l'app; installata chiede la chiave).
 const COOKIE = "mbv_m";
-const PUBLIC = /^\/(manifest\.webmanifest|sw\.js|img\/(icon-\d+|icon-maskable-512|apple-touch-icon-\d+|splash-\d+x\d+|logo-512|logo)\.png|favicon\.ico)$/;
+const PUBLIC = /^\/(manifest\.webmanifest|sw\.js|vendor\/jsqr\/jsQR\.js|img\/(icon-\d+|icon-maskable-512|apple-touch-icon-\d+|splash-\d+x\d+|logo-512|logo)\.png|favicon\.ico)$/;
 const getCookie = (req, name) => (req.headers.get("cookie") || "").split(/;\s*/).map(c => c.split("=")).find(([k]) => k === name)?.[1] || "";
 const setCookie = (res, token) => {
   const r = new Response(res.body, res);
@@ -578,15 +609,23 @@ ${APPLE_HEAD}
 .box{width:min(440px,100%);text-align:center}img{width:110px;height:110px}h1{font-size:22px;margin:10px 0 6px}p{color:#9ea29b;line-height:1.45}
 input{width:100%;font:17px Consolas,monospace;letter-spacing:.04em;text-align:center;padding:12px;border-radius:8px;border:1px solid #454a4e;background:#26292c;color:#e6e8e5}
 button{margin-top:14px;width:100%;padding:12px;border:0;border-radius:8px;background:#f07d2e;color:#16110c;font:600 16px system-ui}.err{color:#e0605a;min-height:1.3em}
-ol{text-align:left;color:#cfd2cc;line-height:1.6;padding-left:22px}.hide{display:none}</style></head><body><div class="box">
+ol{text-align:left;color:#cfd2cc;line-height:1.6;padding-left:22px}.hide{display:none}.sec{background:#2b3035;color:#e6e8e5}#scan{padding:15px;font-size:17px}</style></head><body><div class="box">
 <img src="/img/logo-512.png" alt="MB Desk"><h1>MB Desk</h1><p style="margin:-2px 0 12px;color:#8a8c89;font-size:13px;letter-spacing:.05em">Powered by MB Group</p>
 <div id="browser"><p>L'app per cellulari e tablet si usa solo installata. Installala, poi aprila dalla schermata Home e inserisci la chiave di licenza.</p>
 <ol id="steps"></ol><button id="inst" class="hide">Installa l'app</button></div>
+<div id="nat" class="hide"><p id="nmsg">Attivazione in corso...</p><div id="nask" class="hide">
+<button id="scan">Inquadra il QR del PC</button><p>Sul PC apri MB Desk: il codice QR e' nella pagina iniziale, in basso a destra.</p>
+<p><a href="#" id="tokey" style="color:#9ea29b">Ho una chiave di licenza</a></p></div></div>
+<div id="cam" class="hide" style="position:fixed;inset:0;background:#000;z-index:9"><video id="v" playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
+<div style="position:absolute;inset:0;display:grid;place-items:center;pointer-events:none"><div style="width:68vmin;height:68vmin;border:3px solid #f07d2e;border-radius:18px;box-shadow:0 0 0 100vmax rgba(0,0,0,.45)"></div></div>
+<p style="position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 24px);color:#fff;font-size:17px;text-align:center">Inquadra il codice QR sullo schermo del PC</p>
+<button id="camx" class="sec" style="position:absolute;left:20px;right:20px;bottom:calc(env(safe-area-inset-bottom) + 24px);width:auto">Annulla</button></div>
 <div id="app" class="hide"><p id="msg">Inserisci la chiave di licenza ricevuta, oppure il codice di 6 cifre mostrato dopo aver inquadrato il QR del PC.</p>
 <input id="k" placeholder="MBV-XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" autocapitalize="characters" spellcheck="false">
 <p class="err" id="err"></p><button id="go">Attiva</button></div></div>
 <script>
-const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const standalone = native || matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const ipad = /ipad/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 const ios = /iphone|ipod/i.test(navigator.userAgent) || ipad;
 const $ = id => document.getElementById(id);
@@ -595,7 +634,8 @@ const $ = id => document.getElementById(id);
 if (!ios && "serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 const why = new URLSearchParams(location.search).get("motivo");
 if (why) $("msg").textContent = why;
-if (standalone) { $("browser").classList.add("hide"); $("app").classList.remove("hide"); }
+if (native) { $("browser").classList.add("hide"); $("nat").classList.remove("hide"); }
+else if (standalone) { $("browser").classList.add("hide"); $("app").classList.remove("hide"); }
 else {
   $("steps").innerHTML = ios ? (ipad ? "<li>Tocca il pulsante Condividi di Safari, in alto a destra (quadrato con la freccia).</li>" : "<li>Tocca il pulsante Condividi di Safari (quadrato con la freccia).</li>") + "<li>Scegli <b>Aggiungi alla schermata Home</b> (se non c'e', scorri l'elenco in basso).</li><li>Apri MB Desk dalla schermata Home.</li>"
     : "<li>Apri il menu del browser (tre puntini).</li><li>Scegli <b>Installa app</b> o <b>Aggiungi a schermata Home</b>.</li><li>Apri MB Desk dalla schermata Home.</li>";
@@ -619,6 +659,52 @@ $("go").onclick = async () => {
     location.replace("/");
   } catch (e) { $("err").textContent = "Serve una connessione a internet per l'attivazione."; } finally { $("go").disabled = false; }
 };
+const fingerprint = async () => {
+  let model = "", ver = "";
+  try { const h = await navigator.userAgentData.getHighEntropyValues(["model", "platformVersion"]); model = h.model || ""; ver = (h.platformVersion || "").split(".")[0]; } catch {}
+  const m = navigator.userAgent.match(/Android (\\d+)[^;)]*;\\s*([^;)]+?)(?:\\s+Build\\/[^;)]*)?[;)]/);
+  if (!model && m && m[2] !== "K") model = m[2];
+  if (!ver && m) ver = m[1];
+  return [model.trim(), ver, screen.width + "x" + screen.height, devicePixelRatio, Intl.DateTimeFormat().resolvedOptions().timeZone].join("|");
+};
+// app Android: prima la ripresa automatica del link aperto nel browser, poi il QR inquadrato qui dentro
+if (native) {
+  const ask = t => { $("nmsg").textContent = t || "Per attivare MB Desk inquadra il codice QR del PC."; $("nask").classList.remove("hide"); };
+  $("tokey").onclick = e => { e.preventDefault(); $("nat").classList.add("hide"); $("app").classList.remove("hide"); };
+  (async () => {
+    const name = (/mobile/i.test(navigator.userAgent) ? "Android" : "Tablet Android") + " " + new Date().toLocaleDateString("it-IT");
+    const r = await fetch("/v1/mlink/resume", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ device: dev, name, fp: await fingerprint() }) }).then(r => r.json());
+    if (r.ok) { localStorage.setItem("mbv-licenza-scade", String(Date.now() + 30 * 86400000)); return location.replace("/"); }
+    ask(r.stato === "nessuno" || !r.errore ? "" : r.errore);
+  })().catch(() => ask("Serve una connessione a internet per l'attivazione."));
+  let stream = null, timer = 0;
+  const stop = () => { clearTimeout(timer); stream && stream.getTracks().forEach(t => t.stop()); stream = null; $("cam").classList.add("hide"); };
+  $("camx").onclick = stop;
+  $("scan").onclick = async () => {
+    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false }); }
+    catch { return ask("Consenti l'uso della fotocamera per inquadrare il codice QR."); }
+    $("cam").classList.remove("hide");
+    const v = $("v"); v.srcObject = stream; await v.play().catch(() => {});
+    let detect;
+    if ("BarcodeDetector" in window) { try { const bd = new BarcodeDetector({ formats: ["qr_code"] }); detect = async () => ((await bd.detect(v))[0] || {}).rawValue; } catch {} }
+    if (!detect) {
+      await new Promise((ok, ko) => { const s = document.createElement("script"); s.src = "/vendor/jsqr/jsQR.js"; s.onload = ok; s.onerror = ko; document.head.append(s); }).catch(() => {});
+      const c = document.createElement("canvas"), g = c.getContext("2d", { willReadFrequently: true });
+      detect = async () => { if (!v.videoWidth || !window.jsQR) return; const k = Math.min(1, 640 / v.videoWidth); c.width = v.videoWidth * k; c.height = v.videoHeight * k;
+        g.drawImage(v, 0, 0, c.width, c.height); return (jsQR(g.getImageData(0, 0, c.width, c.height).data, c.width, c.height) || {}).data; };
+    }
+    const loop = async () => {
+      if (!stream) return;
+      const val = await detect().catch(() => "");
+      const m = String(val || "").match(/\\/l\\/([A-Za-z0-9_-]{20,})/);
+      if (m) { stop(); navigator.vibrate && navigator.vibrate(40); return location.replace("/l/" + m[1]); }
+      if (val) $("nmsg").textContent = "Questo non e' il codice QR di MB Desk: inquadra quello sul PC.";
+      timer = setTimeout(loop, 150);
+    };
+    loop();
+  };
+}
 </script></body></html>`;
 
 export default {
@@ -674,10 +760,12 @@ export default {
       else if (url.pathname === "/v1/mlink") res = await mobileLink(env, b, url.origin);
       else if (url.pathname === "/v1/mlink/claim") res = await claimLink(env, b, req.headers.get("user-agent") || "");
       else if (url.pathname === "/v1/mlink/pair") res = await pairCode(env, b);
+      else if (url.pathname === "/v1/mlink/offer") res = await offerLink(env, b, req.headers.get("cf-connecting-ip") || env._ip || "");
+      else if (url.pathname === "/v1/mlink/resume") res = await resumeLink(env, b, req.headers.get("cf-connecting-ip") || env._ip || "", req.headers.get("user-agent") || "");
       else if (url.pathname === "/v1/link/ticket") res = await linkTicket(env, b, { deviceFromToken, sign: p => signPayload(env, p), json, fail });
       else return fail(404, "Percorso sconosciuto");
       // telefono attivato dal codice QR o dal codice di 6 cifre: attivazione nel cookie
-      if (url.pathname === "/v1/mlink/claim" || url.pathname === "/v1/mlink/pair") {
+      if (url.pathname === "/v1/mlink/claim" || url.pathname === "/v1/mlink/pair" || url.pathname === "/v1/mlink/resume") {
         const data = await res.clone().json();
         if (data.token) return setCookie(res, data.token);
       }

@@ -62,7 +62,9 @@ CREATE TABLE IF NOT EXISTS mobile_links (
   expires     TEXT NOT NULL,
   used        TEXT,
   device_id   INTEGER,
-  created     TEXT NOT NULL DEFAULT (datetime('now'))
+  created     TEXT NOT NULL DEFAULT (datetime('now')),
+  offer_fp    TEXT,   -- app Android: impronta (sha256 di IP + telefono) del browser che ha aperto il link (migrazione 006)
+  offered     TEXT
 );
 -- codice di 6 cifre per l'app installata su iPhone (non vede i cookie di Safari): stesso posto del browser
 CREATE TABLE IF NOT EXISTS pair_codes (

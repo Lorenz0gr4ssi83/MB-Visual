@@ -52,7 +52,7 @@ export async function adminApp(env, req, url, deps) {
       "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'" }) });
   if (req.method === "GET" && sub === "sw.js") return new Response(ADMIN_SW, { headers: hdr("text/javascript; charset=utf-8", { "cache-control": "no-cache" }) });
   if (req.method === "GET" && sub === "manifest.webmanifest")
-    return new Response(JSON.stringify({ name: "MB Desk Admin", short_name: "MBV Admin", start_url: `${base}/`, scope: `${base}/`, display: "standalone",
+    return new Response(JSON.stringify({ name: "MB Desk Admin", short_name: "MB Desk Admin", start_url: `${base}/`, scope: `${base}/`, display: "standalone",
       background_color: "#17191b", theme_color: "#17191b", icons: [{ src: `${base}/icon-192.png`, sizes: "192x192", type: "image/png" }, { src: `${base}/icon-512.png`, sizes: "512x512", type: "image/png" },
         { src: `${base}/icon-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" }] }), { headers: hdr("application/manifest+json", { "cache-control": "no-cache" }) });
   if (req.method === "GET" && (sub === "icon-192.png" || sub === "icon-512.png"))
