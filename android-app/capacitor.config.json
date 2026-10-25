@@ -1,0 +1,11 @@
+{
+  "appId": "it.mbgroup.app",
+  "appName": "MB Desk",
+  "webDir": "www",
+  "server": {
+    "url": "https://mbdesk.mb-group.workers.dev/",
+    "allowNavigation": ["mbdesk.mb-group.workers.dev", "mbvisual.mb-group.workers.dev"],
+    "androidScheme": "https"
+  },
+  "android": {"allowMixedContent": false, "backgroundColor": "#0f1114"}
+}

@@ -17,3 +17,10 @@ tests/samples/danneggiati/disegno_troncato*
 
 # ID dei client OAuth scritti dalle build (tools/cloud_secrets.py)
 mbvisual/cloud_ids_build.py
+
+# app Android: dipendenze e file generati da "npx cap sync"
+android-app/node_modules/
+android-app/android/app/src/main/assets/public/
+android-app/android/app/src/main/assets/capacitor.config.json
+android-app/android/app/src/main/assets/capacitor.plugins.json
+android-app/android/capacitor-cordova-android-plugins/

@@ -264,13 +264,22 @@ export async function openCardReview({ sides, cv, show, busy, again, close }) {
     try { await navigator.share({ files: [file], title: file.name }); return true; }
     catch (e) { if (e.name !== "AbortError") toast(t("bcard.condivisione_non_riuscita") + " " + e.message, true); return false; }
   };
+  const NATIVE = window.Capacitor?.Plugins?.MbDesk;
+  const nativeContact = cc => NATIVE.insertContact({
+    name: P.displayName(cc), org: cc.org || "", title: cc.title || "",
+    phones: cc.phones.filter(p => p.value.trim()).map(p => ({ number: p.value.trim(), kind: p.type })),
+    emails: cc.emails.filter(e => e.trim()), website: (cc.urls.find(u => u.trim()) || "").trim(),
+    address: [cc.adr.street, [cc.adr.cap, cc.adr.city, cc.adr.prov && `(${cc.adr.prov})`].filter(Boolean).join(" "), cc.adr.country].filter(Boolean).join(", "),
+    note: [cc.note, cc.piva && `${t("bcard.piva")} ${cc.piva}`, cc.cf && `${t("bcard.cf")} ${cc.cf}`].filter(Boolean).join("\n") });
   const canShare = f => { try { return !!navigator.canShare?.({ files: [f] }); } catch { return false; } };
 
   saveBtn.addEventListener("click", async () => {
     const { cc, file } = makeFile();
     if (!P.displayName(cc) && !cc.phones.length) { toast(t("bcard.contatto_vuoto"), true); return; }
-    // Android: condivisione (si sceglie Contatti); iPhone o senza condivisione di file: apertura del file
-    if (!IS_IOS && canShare(file)) shareFile(file); else openFile(file);
+    // app Android (APK): schermata "Nuovo contatto" di Android gia' compilata; web app su Android: condivisione
+    // (si sceglie Contatti); iPhone o senza condivisione di file: apertura del file
+    if (NATIVE) nativeContact(cc).catch(() => openFile(file));
+    else if (!IS_IOS && canShare(file)) shareFile(file); else openFile(file);
     if (M && mailChk.checked && cc.emails.length) addToMailBook(M, cc).then(() => toast(t("bcard.aggiunto_rubrica_posta"))).catch(e => toast(e.message, true));
     dirty = false;
     doneSheet(file);
@@ -283,7 +292,7 @@ export async function openCardReview({ sides, cv, show, busy, again, close }) {
       el("div", { class: "bc-grab" }),
       el("h3", {}, t("bcard.contatto_pronto")),
       el("p", {}, t("bcard.contatto_pronto_desc")),
-      mk(t("bcard.apri_contatti"), ICON.open, () => openFile(file)),
+      mk(t("bcard.apri_contatti"), ICON.open, () => (NATIVE ? nativeContact(current()).catch(() => openFile(file)) : openFile(file))),
       canShare(file) ? mk(t("bcard.condividi_vcf"), ICON.share, () => shareFile(file)) : null,
       window.MBLinkPhone?.online ? mk(t("link.invia_al_pc"), ICON.share, () => window.MBLinkPhone.sendBlob(file, { kind: "contact", name: file.name, contact: current() })) : null,
       mk(t("bcard.altro_biglietto"), ICON.again, () => again(), "primary"),

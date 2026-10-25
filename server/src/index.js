@@ -109,16 +109,17 @@ const EMAIL_DEFAULT = { oggetto: "Licenza MB Desk",
     "Telefono: apri {link_telefono} con Safari (iPhone) o Chrome (Android), aggiungi l'app alla schermata Home e inserisci la chiave. " +
     "In alternativa inquadra il codice QR nella home di MB Desk sul PC.\n\n" +
     "La licenza vale per {pc} PC e {cellulari} cellulari. Conserva questa email: la chiave serve anche per reinstallare.\n\nCordiali saluti" };
-// installabile per PC: l'ultimo setup pubblicato, scaricato attraverso questo server (nell'indirizzo non compare nessun nome)
-async function setupDownload(env, req) {
+// installabile per PC (o APK Android): l'ultimo pubblicato, scaricato attraverso questo server (nell'indirizzo non compare nessun nome)
+async function setupDownload(env, req, android = false) {
   const repo = env.RELEASES_REPO || "";
   if (!repo) return fail(404, "Installabile non disponibile");
   const rel = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, { headers: { "user-agent": "MBVisual-Server", accept: "application/vnd.github+json" }, cf: { cacheTtl: 600 } }).then(r => r.ok ? r.json() : null).catch(() => null);
-  const asset = rel?.assets?.find(a => /setup.*\.exe$/i.test(a.name)) || rel?.assets?.find(a => /\.exe$/i.test(a.name));
+  const asset = android ? rel?.assets?.find(a => /\.apk$/i.test(a.name))
+    : rel?.assets?.find(a => /^MBDesk-setup.*\.exe$/i.test(a.name)) || rel?.assets?.find(a => /setup.*\.exe$/i.test(a.name)) || rel?.assets?.find(a => /\.exe$/i.test(a.name));
   if (!asset) return fail(503, "Installabile non disponibile al momento: riprova tra qualche minuto");
   const r = await fetch(asset.browser_download_url, { headers: { "user-agent": "MBVisual-Server" }, redirect: "follow" });
   if (!r.ok || !r.body) return fail(502, "Download non riuscito: riprova tra qualche minuto");
-  return new Response(r.body, { headers: { "content-type": "application/octet-stream", "content-disposition": `attachment; filename="${asset.name.replace(/[^A-Za-z0-9._-]/g, "")}"`,
+  return new Response(r.body, { headers: { "content-type": android ? "application/vnd.android.package-archive" : "application/octet-stream", "content-disposition": `attachment; filename="${asset.name.replace(/[^A-Za-z0-9._-]/g, "")}"`,
     ...(r.headers.get("content-length") ? { "content-length": r.headers.get("content-length") } : {}), "cache-control": "no-store" } });
 }
 const getLicense = (env, key) => env.DB.prepare("SELECT * FROM licenses WHERE key = ?").bind(key).first();
@@ -455,6 +456,7 @@ button,.btn{display:block;margin-top:14px;width:100%;padding:14px;border:0;borde
 <p id="msg">Un momento...</p>
 <div id="ios" class="hide"><p class="big">Ultimo passo: aggiungi MB Desk alla schermata Home</p><ol id="ios-steps"></ol>
 <p>Alla prima apertura dalla Home MB Desk si attiva da sola: non serve inserire codici. Fallo entro 20 minuti, poi chiudi pure Safari.</p></div>
+<div id="apk" class="hide"><p class="big">Installa l'app MB Desk</p><a id="apk-get" class="btn" href="/scarica-android">Scarica l'app per Android</a><ol><li>Tocca <b>Scarica</b>, poi apri il file arrivato (in alto o tra i download).</li><li>Se Android lo chiede, tocca <b>Impostazioni</b>, attiva <b>Consenti da questa fonte</b> e torna indietro.</li><li>Tocca <b>Installa</b> (se compare un avviso di Play Protect: <b>Installa comunque</b>).</li><li>Torna qui e tocca <b>Apri MB Desk</b>: si attiva da sola.</li></ol><a id="apk-open" class="btn sec" href="#">Apri MB Desk</a><p><a id="apk-web" href="#" style="color:#9ea29b">Preferisci non installare nulla? Usa la versione nel browser</a></p></div>
 <div id="and" class="hide"><p class="big">Telefono attivato</p><button id="inst" class="hide">Installa MB Desk</button><ol id="and-steps" class="hide"></ol><p id="and-done" class="hide"></p></div>
 <div id="wrong" class="hide"><a id="open" class="hide btn" href="#">Apri in Safari</a><button id="copy" class="sec" type="button">Copia link</button>
 <ol><li>Tocca <b>Copia link</b>.</li><li>Apri <b id="wrong-app"></b>, tocca la barra degli indirizzi, incolla e vai.</li><li>Il link vale ancora qualche minuto.</li></ol></div>
@@ -462,7 +464,9 @@ button,.btn{display:block;margin-top:14px;width:100%;padding:14px;border:0;borde
 <script>
 const $ = id => document.getElementById(id), ua = navigator.userAgent;
 const ipad = /ipad/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1), ios = /iphone|ipod/i.test(ua) || ipad;
-const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const standalone = native || matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const APK = __APK__; // app Android pubblicata (variabile ANDROID_APK del Worker)
 const link = location.pathname.split("/").pop();
 const show = id => $(id).classList.remove("hide");
 // iPhone/iPad: l'app aggiunta alla Home ha una memoria separata da Safari. Per questo Safari NON attiva nulla: il manifest di
@@ -498,6 +502,12 @@ if (wrong) {
   $("ios-steps").innerHTML = "<li>Tocca <b>Condividi</b> <svg class=share viewBox='0 0 24 24' fill=none stroke=#f07d2e stroke-width=2><path d='M12 3v12M8 7l4-4 4 4M5 11v9h14v-9'/></svg> " + (ipad ? "in alto a destra." : "in basso.") + "</li>"
     + "<li>Scegli <b>Aggiungi alla schermata Home</b> (se non la vedi, scorri in basso), poi <b>Aggiungi</b>.</li><li>Apri <b>MB Desk</b> dalla schermata Home.</li>";
   show("ios");
+} else if (APK && /android/i.test(ua) && !standalone && !sessionStorage.getItem("mbv-web")) {
+  // app Android: Chrome NON attiva nulla; l'app, aperta da "Apri MB Desk" (o dal QR se e' gia' installata), si attiva da sola
+  $("msg").textContent = "";
+  $("apk-open").href = "intent://" + location.host + location.pathname + "#Intent;scheme=https;package=it.mbgroup.app;end";
+  $("apk-web").onclick = e => { e.preventDefault(); sessionStorage.setItem("mbv-web", "1"); location.reload(); };
+  show("apk");
 } else {
   $("msg").textContent = "Attivazione in corso...";
   claim().then(r => {
@@ -547,7 +557,7 @@ async function serveApp(env, req, url) {
   if (/^\/l\/[A-Za-z0-9_-]{20,}$/.test(url.pathname)) {
     // telefono gia' attivato (anche l'app della Home che riparte dal link del QR): dritti all'app
     if (await mobileToken(env, req)) return Response.redirect(new URL("/", url).toString(), 302);
-    return new Response(LINK_PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+    return new Response(LINK_PAGE.replace("__APK__", env.ANDROID_APK === "1" ? "true" : "false"), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
   }
   if (url.pathname !== "/attiva" && await mobileToken(env, req)) {
     const r = await env.ASSETS.fetch(req);
@@ -627,6 +637,12 @@ export default {
       if (P && (url.pathname === "/" + P || url.pathname.startsWith("/" + P + "/"))) return await adminApp(env, req, url, { admin, json, fail, event });
       if (url.pathname.startsWith("/admin")) return await admin(env, req, url);
       if (url.pathname === "/scarica" && req.method === "GET") return await setupDownload(env, req);
+      if (url.pathname === "/scarica-android" && req.method === "GET") return await setupDownload(env, req, true);
+      // App Link dell'app Android (it.mbgroup.app): i link del QR si aprono nell'app installata
+      if (url.pathname === "/.well-known/assetlinks.json" && env.ANDROID_CERT_SHA256)
+        return new Response(JSON.stringify([{ relation: ["delegate_permission/common.handle_all_urls"],
+          target: { namespace: "android_app", package_name: "it.mbgroup.app", sha256_cert_fingerprints: [env.ANDROID_CERT_SHA256] } }]),
+          { headers: { "content-type": "application/json", "cache-control": "public, max-age=3600" } });
       if (url.pathname === "/v1/link/ws") return await linkSocket(env, req, url, { readToken, fail });
       // pagine pubbliche (anche per la verifica dell'app OAuth di Google): presentazione e informativa (src/pages.js)
       if ((url.pathname === "/mbvisual" || url.pathname === "/privacy") && (req.method === "GET" || req.method === "HEAD"))

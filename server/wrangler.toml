@@ -21,6 +21,10 @@ crons = ["0 6 * * *"]
 PUBLIC_KEY = "__PUBLIC_KEY__"
 # repository pubblico dei soli setup: /scarica lo consegna attraverso il server (nell'indirizzo non compare il nome)
 RELEASES_REPO = "Lorenz0gr4ssi83/MB-Visual-Rilasci"
+# impronta (pubblica) del certificato che firma l'app Android: /.well-known/assetlinks.json
+# "1" quando l'APK e' nella release: la pagina del QR propone l'app Android prima della versione web
+ANDROID_APK = "1"
+ANDROID_CERT_SHA256 = "70:E0:46:FC:C1:96:E2:B3:D1:68:A4:75:71:95:80:E3:66:53:CD:1B:1C:01:01:C2:F8:0D:83:8D:E7:06:BF:E2"
 
 [[d1_databases]]
 binding = "DB"

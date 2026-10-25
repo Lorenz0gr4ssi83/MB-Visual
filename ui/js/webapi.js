@@ -503,3 +503,28 @@ if ("launchQueue" in window) {
   });
 }
 sharedFiles();
+// app Android (APK, android-app/): file da "Apri con MB Desk" e "Condividi", copiati dall'app nella sua cache e letti a pezzi
+const NATIVE = window.Capacitor?.Plugins?.MbDesk;
+if (NATIVE) {
+  const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  const take = async f => {
+    const parts = [];
+    for (let off = 0; ; ) {
+      const r = await NATIVE.readChunk({ path: f.path, offset: off, length: 4 << 20 });
+      const u = b64(r.data);
+      parts.push(u);
+      off += u.length;
+      if (r.eof || !u.length) break;
+    }
+    NATIVE.release({ path: f.path }).catch(() => {});
+    return register(new Blob(parts, { type: f.type || "" }), f.name);
+  };
+  const open = async files => {
+    const paths = [];
+    for (const f of files) { try { paths.push(await take(f)); } catch (e) { console.error(e); } }
+    const wait = () => (window.MB ? window.MB.openPaths(paths) : setTimeout(wait, 100));
+    if (paths.length) wait();
+  };
+  NATIVE.addListener("file", f => open([f]));
+  NATIVE.takePending().then(r => open(r.files || [])).catch(() => {});
+}
