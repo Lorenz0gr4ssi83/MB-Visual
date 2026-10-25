@@ -14,6 +14,9 @@ installabile, collegamenti "MB Desk.lnk", eseguibile "MB Desk.exe", setup MBDesk
 Restano col nome storico SOLO cose tecniche invisibili, per non perdere dati e licenze: cartelle dati %LOCALAPPDATA%\MBVisual e
 %TEMP%\MBVisual, chiavi HKCU\Software\MB Visual\*, ProgID MBVisual.<ext>, pacchetto Python mbvisual/, cartella del progetto e
 "App per PC", installazioni gia' esistenti in %LOCALAPPDATA%\Programs\MB Visual (le nuove vanno in ...\Programs\MB Desk).
+MAI rinominare costanti di cifratura: entropia DPAPI `_ENTROPY` di cloud.py ("MB Visual - archivi cloud", usata anche dalla
+posta) e voce del Portachiavi `_SERVICE` di secret.py ("MB Visual"). Nella 1.6.6-1.6.7 il cambio di nome le aveva toccate:
+posta e cloud davano "DPAPI non riuscita (13)". Dalla 1.6.8 si leggono sia i dati storici sia quelli scritti da quelle versioni.
 Ponte per gli aggiornamenti delle copie precedenti (finche' ce ne sono in giro, almeno qualche versione):
 - release GitHub: oltre a MBDesk-Setup-<ver>.exe caricare la STESSA copia anche come MBVisual-Setup-<ver>.exe (le copie vecchie cercano
   quel nome); su Drive e in Desktop\MB Desk SOLO i nomi nuovi. "App per PC" contiene anche MBVisual.exe (lo mette build_portable).
@@ -229,6 +232,14 @@ dell'utente), in forma privata (test chiuso) con account Organizzazione MB Group
 - Build: workflow `build-android.yml` (a mano, ubuntu, JDK 21) -> artefatto MBDesk-android con MBDesk-<ver>.apk e .aab
   (versionCode = A*10000+B*100+C della VERSION di app.py). Icone/avvio: `python tools/make_android_icons.py`.
 - Distribuzione: .apk nella release GitHub (serve a /scarica-android), cartella Drive e Desktop\MB Desk.
+- Attivazione (25/10/2026, richiesta dell'utente "deve partire e basta"): la pagina del QR nel browser registra un'impronta
+  (/v1/mlink/offer: sha256 di IP + modello, versione di Android, schermo, fuso; link allungato a 30 min); l'app aperta dalla
+  schermata Home senza attivazione chiama /v1/mlink/resume e si attiva da sola se c'e' UN solo link candidato (colonne
+  offer_fp/offered, migrazione 006). Altrimenti la pagina di attivazione dell'app mostra "Inquadra il QR del PC" (fotocamera,
+  BarcodeDetector o /vendor/jsqr pubblico) e "Ho una chiave". `native: true` nel claim: la WebView dell'app non e' un browser sbagliato.
+- Icone (Android e MB Desk Admin per telefono): grigio della piastrella a tutto campo (#8A8C89) con il marchio al centro, MAI
+  fondo scuro attorno (Android lo mostrava come bordi neri). MB Desk Admin = logo con la scritta ADMIN (make_logo.py ->
+  admin/logo-admin-512.png e admin/admin.ico), niente chiave.
 
 ## Interfaccia per telefono in stile app (23/10/2026) - FATTO (prova su telefoni veri: la fa l'utente)
 Sui telefoni (lato corto sotto i 600 px, nella web app o con il dito come puntatore; decisione in uno script di `ui/index.html`
