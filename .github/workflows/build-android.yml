@@ -53,7 +53,7 @@ jobs:
           mkdir -p ../../dist-android
           cp app/build/outputs/apk/release/app-release.apk "../../dist-android/MBDesk-${MBD_VERSION}.apk"
           cp app/build/outputs/bundle/release/app-release.aab "../../dist-android/MBDesk-${MBD_VERSION}.aab"
-          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "../../dist-android/MBDesk-${MBD_VERSION}.apk" | head -5
+          "$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner" verify --print-certs "../../dist-android/MBDesk-${MBD_VERSION}.apk" | head -5
 
       - uses: actions/upload-artifact@v4
         with:
