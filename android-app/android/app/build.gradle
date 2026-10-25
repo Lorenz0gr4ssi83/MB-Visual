@@ -8,7 +8,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // versione = quella dell'app per PC (app.py VERSION), passata da tools/build_apk.py o dal workflow
-        versionCode (System.getenv("MBD_VERSION_CODE") ?: "1") as int
+        versionCode Integer.parseInt(System.getenv("MBD_VERSION_CODE") ?: "1")
         versionName System.getenv("MBD_VERSION") ?: "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
