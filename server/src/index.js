@@ -126,8 +126,8 @@ const getLicense = (env, key) => env.DB.prepare("SELECT * FROM licenses WHERE ke
 function licenseProblem(lic) {
   if (!lic) return [404, "Chiave di licenza non valida"];
   if (lic.status === "replaced") return [410, "Questa chiave e' stata sostituita da un cambio dispositivo: inserisci la chiave nuova", { stato: "sostituita" }];
-  if (lic.status === "revoked") return [403, "Licenza revocata. Contatta MB Engineering.", { stato: "revocata" }];
-  if (lic.expires && lic.expires < now()) return [403, "Licenza scaduta. Contatta MB Engineering.", { stato: "scaduta" }];
+  if (lic.status === "revoked") return [403, "Licenza revocata. Contatta MB Group.", { stato: "revocata" }];
+  if (lic.expires && lic.expires < now()) return [403, "Licenza scaduta. Contatta MB Group.", { stato: "scaduta" }];
   return null;
 }
 

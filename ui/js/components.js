@@ -10,10 +10,11 @@ const MAC = /Mac/.test(navigator.platform || navigator.userAgent) && !/iPhone|iP
 let REG = { components: [], profiles: [] };
 let ON = null;            // Set dei componenti facoltativi accesi (null = registro non ancora letto: tutto acceso)
 let STATE = { esiste: true, profilo: "completo" };
-const CAT = new Map(), EXT = new Map();
+const CAT = new Map(), EXT = new Map(), ALIAS = new Map(); // ALIAS: id interno (isOn, data-comp) -> applicazione
+const app = id => ALIAS.get(id) || id;
 
-export const ICON = id => `<svg viewBox="0 0 24 24">${REG.components.find(c => c.id === id)?.icon || ""}</svg>`;
-export const compName = id => tr(`comp.${id}.nome`);
+export const ICON = id => `<svg viewBox="0 0 24 24">${REG.components.find(c => c.id === app(id))?.icon || ""}</svg>`;
+export const compName = id => tr(`comp.${app(id)}.nome`);
 const visible = () => REG.components.filter(c => !(c.win && (MAC || WEB)));
 const optional = () => visible().filter(c => !c.fixed).map(c => c.id);
 
@@ -22,6 +23,7 @@ export async function initComponents() {
   for (const c of REG.components) {
     for (const k of c.cats || []) CAT.set(k, c.id);
     for (const e of c.exts || []) EXT.set(e, c.id);
+    for (const a of c.aliases || []) ALIAS.set(a, c.id);
   }
   if (WEB) { ON = new Set(optional()); return apply(); }
   try {
@@ -33,8 +35,8 @@ export async function initComponents() {
 
 export function isOn(id) {
   if (!ON || WEB) return true;
-  const c = REG.components.find(x => x.id === id);
-  return !c || !!c.fixed || ON.has(id);
+  const c = REG.components.find(x => x.id === app(id));
+  return !c || !!c.fixed || ON.has(c.id);
 }
 
 // componente che serve per modificare un file (null = Base): prima l'estensione, poi la categoria di formats.json
@@ -51,7 +53,7 @@ function apply() {
   let st = document.getElementById("comp-css");
   if (!st) {
     st = el("style", { id: "comp-css" });
-    st.textContent = REG.components.map(c => `html[data-comp-off~="${c.id}"] [data-comp="${c.id}"]{display:none!important}`).join("\n");
+    st.textContent = REG.components.flatMap(c => [c.id, ...(c.aliases || [])].map(a => `html[data-comp-off~="${c.id}"] [data-comp="${a}"]{display:none!important}`)).join("\n");
     document.head.append(st);
   }
 }
@@ -76,6 +78,7 @@ const profileList = id => { const p = REG.profiles.find(x => x.id === id); retur
 
 // invito discreto nella barra di un file che richiede un componente spento
 export function inviteChip(id, onclick) {
+  id = app(id);
   const b = el("button", { class: "comp-invite", type: "button", title: tr(`comp.${id}.desc`), onclick: () => (onclick ? onclick() : showComponents({ focus: id })) });
   b.insertAdjacentHTML("beforeend", ICON(id));
   b.append(el("span", {}, tr(REG.components.find(c => c.id === id)?.invite === "usa" ? "comp.invito_usa" : "comp.invito", compName(id))));
@@ -85,6 +88,7 @@ export function inviteChip(id, onclick) {
 // prima di una funzione legata a un componente: se e' spento si propone di attivarlo (true = si puo' proseguire)
 export async function needComp(id) {
   if (isOn(id)) return true;
+  id = app(id);
   const box = el("div", { class: "comp-need" });
   box.insertAdjacentHTML("beforeend", `<span class="cm-ico">${ICON(id)}</span>`);
   box.append(el("div", {}, el("b", {}, compName(id)), el("p", {}, tr(`comp.${id}.desc`)), el("p", { class: "note" }, tr("comp.invito_azione", compName(id)))));
@@ -101,22 +105,12 @@ export function showComponents({ focus = null, welcome = false } = {}) {
     const sel = new Set(ON || optional());
     const back = el("div", { class: "cm-back", role: "dialog", "aria-label": tr("comp.titolo") });
     const grid = el("div", { class: "cm-grid" });
-    const profRow = el("div", { class: "cm-prof", role: "radiogroup" });
-    const profNote = el("div", { class: "cm-prof-note" });
     const count = el("span", { class: "cm-count" });
     // "Seleziona tutto" / "Deseleziona tutto" (i componenti sempre inclusi restano accesi)
     const allBtn = el("button", { class: "btn cm-all", onclick: () => { const o = optional(); if (o.every(x => sel.has(x))) sel.clear(); else o.forEach(x => sel.add(x)); render(); } });
     const close = v => { back.remove(); document.removeEventListener("keydown", onKey, true); resolve(v); };
     const cards = new Map();
-    const PROFILES = [...REG.profiles.map(p => p.id), "personalizzato"];
     function render() {
-      const prof = profileOf(sel);
-      profRow.innerHTML = "";
-      for (const id of PROFILES) {
-        profRow.append(el("button", { class: "cm-pchip" + (id === prof ? " on" : ""), role: "radio", "aria-checked": String(id === prof), title: tr(`comp.prof.${id}.desc`),
-          onclick: () => { const l = profileList(id); if (l) { sel.clear(); l.forEach(x => sel.add(x)); } render(); } }, tr(`comp.prof.${id}.nome`)));
-      }
-      profNote.textContent = tr(`comp.prof.${prof}.desc`);
       for (const [id, c] of cards) {
         const on = c.fixed || sel.has(id);
         c.card.classList.toggle("on", on);
@@ -146,7 +140,7 @@ export function showComponents({ focus = null, welcome = false } = {}) {
       el("header", { class: "cm-head" },
         el("div", {}, el("h2", {}, welcome ? tr("comp.benvenuto_titolo") : tr("comp.titolo")), el("p", {}, welcome ? tr("comp.benvenuto_testo") : tr("comp.sottotitolo"))),
         welcome ? null : el("button", { class: "nf-x cm-x", title: tr("common.chiudi"), html: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>', onclick: () => close(false) })),
-      el("div", { class: "cm-profbar" }, el("span", { class: "label" }, tr("comp.profilo")), profRow, profNote),
+      el("p", { class: "cm-intro" }, tr("comp.intro")),
       el("div", { class: "cm-body" }, grid),
       el("footer", { class: "cm-foot" }, count, allBtn, el("span", { class: "grow" }), welcome ? null : el("button", { class: "btn", onclick: () => close(false) }, tr("common.annulla")), okBtn)));
     if (!welcome) back.addEventListener("pointerdown", e => { if (e.target === back) close(false); });

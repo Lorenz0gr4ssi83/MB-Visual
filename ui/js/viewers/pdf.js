@@ -173,9 +173,17 @@ export async function mount(ctx) {
         if (await ask(t("v_pdf.filigrana_diagonale"), [f.row, p.row])) run("stamp", { text: f.input.value, mode: "filigrana", pages: p.input.value }, stem + "_filigrana.pdf");
       }, t("v_pdf.testo_diagonale_semitrasparente_ogni_pagina")],
       [t("v_pdf.timbro"), "sign", async () => {
-        const f = el("textarea", { id: "pdf-st-" + ctx.tab.name, rows: 3, class: "field", style: { width: "100%", fontFamily: "var(--ui)" } }, t("v_pdf.approvato_mb_engineering_srl_0", new Date().toLocaleDateString(LOCALE)));
+        // testo libero: ogni studio o persona mette il suo; si ricorda l'ultimo usato (la data si aggiorna da sola)
+        const today = new Date().toLocaleDateString(LOCALE);
+        let last = null;
+        try { last = localStorage.getItem("mbv-timbro"); } catch { /* memoria del browser non disponibile */ }
+        const text = last ? last.replace(/\{data\}/g, today) : t("v_pdf.timbro_predefinito_0", today);
+        const f = el("textarea", { id: "pdf-st-" + ctx.tab.name, rows: 3, class: "field", style: { width: "100%", fontFamily: "var(--ui)" } }, text);
         const p = field(t("v_pdf.pagine_vuoto_tutte"), "1", "pdf-stp");
-        if (await ask(t("v_pdf.timbro_alto_destra"), [el("label", { style: { display: "grid", gap: "4px" } }, t("v_pdf.testo_timbro_riga_riga"), f), p.row])) run("stamp", { text: f.value, mode: "timbro", pages: p.input.value }, stem + "_timbrato.pdf");
+        if (await ask(t("v_pdf.timbro_alto_destra"), [el("label", { style: { display: "grid", gap: "4px" } }, t("v_pdf.testo_timbro_riga_riga"), f), p.row])) {
+          try { localStorage.setItem("mbv-timbro", f.value.split(today).join("{data}")); } catch { /* niente */ }
+          run("stamp", { text: f.value, mode: "timbro", pages: p.input.value }, stem + "_timbrato.pdf");
+        }
       }, t("v_pdf.riquadro_testo_alto_destra_approvazione")],
     ];
     ctx.tb.append(inkBtn, el("span", { class: "sep" }));

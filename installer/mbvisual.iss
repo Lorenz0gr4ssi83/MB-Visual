@@ -25,7 +25,7 @@ AppId={{6E3B8C51-2F4A-4D7B-9A61-3C5D7E9F1A20}
 AppName=MB Desk
 AppVersion={#AppVersion}
 AppVerName=MB Desk {#AppVersion}
-AppPublisher=MB Engineering srl
+AppPublisher=MB Workshop Srl
 AppComments=Visualizzatore e editor di documenti, disegni CAD, modelli 3D e BIM
 DefaultDirName={localappdata}\Programs\MB Desk
 DisableDirPage=yes
@@ -63,10 +63,10 @@ Name: "it"; MessagesFile: "compiler:Languages\Italian.isl"
 Name: "en"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
-it.SelectComponentsLabel2=Scegli il profilo più vicino al tuo lavoro oppure i singoli componenti, poi fai clic su Avanti. Puoi aggiungere o togliere componenti quando vuoi da File › Componenti..., senza reinstallare.
-en.SelectComponentsLabel2=Choose the profile closest to your work or individual components, then click Next. You can add or remove components at any time from File › Components..., without reinstalling.
-it.WizardSelectComponents=Componenti di MB Desk
-en.WizardSelectComponents=MB Desk components
+it.SelectComponentsLabel2=Scegli le applicazioni che vuoi usare e fai clic su Avanti. MB Desk apre comunque tutti i file; puoi cambiare la scelta quando vuoi da File › Applicazioni..., senza reinstallare.
+en.SelectComponentsLabel2=Choose the applications you want to use and click Next. MB Desk still opens every file; you can change your choice at any time from File › Applications..., without reinstalling.
+it.WizardSelectComponents=Applicazioni di MB Desk
+en.WizardSelectComponents=MB Desk applications
 it.SelectComponentsDesc=Cosa vuoi fare con MB Desk?
 en.SelectComponentsDesc=What do you want to do with MB Desk?
 
@@ -175,6 +175,26 @@ begin
   Result := Pos(',' + Id + ',', ',' + List + ',') > 0;
 end;
 
+// applicazione scelta nella scelta salvata: il suo id o uno degli id interni delle versioni precedenti (CompAliases)
+function AppInList(const List, Id: String): Boolean;
+var S, A: String; P: Integer;
+begin
+  Result := InList(List, Id);
+  if Result then exit;
+  S := ';{#CompAliases};';
+  P := Pos(';' + Id + '=', S);
+  if P = 0 then exit;
+  Delete(S, 1, P + Length(Id) + 1);
+  S := Copy(S, 1, Pos(';', S) - 1) + '|';
+  while S <> '|' do begin
+    P := Pos('|', S);
+    A := Copy(S, 1, P - 1);
+    Delete(S, 1, P);
+    if (A <> '') and InList(List, A) then begin Result := True; exit; end;
+    if S = '' then exit;
+  end;
+end;
+
 procedure LoadIcon(const Name: String);
 var F: String;
 begin
@@ -267,13 +287,15 @@ begin
   if (ExpandConstant('{param:TYPE|}') <> '') or (ExpandConstant('{param:COMPONENTS|}') <> '') then exit;
   if not RegQueryStringValue(HKCU, RegKey, 'Attivi', Attivi) then exit;
   if not RegQueryStringValue(HKCU, RegKey, 'Profilo', Profilo) then Profilo := 'personalizzato';
+  // profili delle versioni precedenti (studio, impresa...) non esistono piu': scelta personale
+  if not InList('{#CompProfiles},personalizzato', Profilo) then Profilo := 'personalizzato';
   for I := 0 to WizardForm.TypesCombo.Items.Count - 1 do
     if WizardForm.TypesCombo.Items[I] = CustomMessage('Prof_' + Profilo) then WizardForm.TypesCombo.ItemIndex := I;
   Sel := '';
   I := 0;
   Id := Item('{#CompOptional}', I);
   while Id <> '' do begin
-    if InList(Attivi, Id) then Sel := Sel + Id + ',' else Sel := Sel + '!' + Id + ',';
+    if AppInList(Attivi, Id) then Sel := Sel + Id + ',' else Sel := Sel + '!' + Id + ',';
     I := I + 1;
     Id := Item('{#CompOptional}', I);
   end;
@@ -290,7 +312,9 @@ begin
   // elenco a sinistra, scheda descrittiva a destra (lo spazio su disco non conta: i file si installano tutti)
   WizardForm.ComponentsDiskSpaceLabel.Visible := False;
   L.Width := (W * 46) div 100;
-  WizardForm.TypesCombo.Width := L.Width;
+  // niente tendina dei profili: solo l'elenco delle applicazioni (il tipo resta "completo" o "personalizzato")
+  WizardForm.TypesCombo.Visible := False;
+  L.Top := WizardForm.TypesCombo.Top;
   L.Height := WizardForm.SelectComponentsPage.ClientHeight - L.Top - ScaleY(30);
   SelAll := TNewCheckBox.Create(WizardForm);
   SelAll.Parent := WizardForm.SelectComponentsPage;

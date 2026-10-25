@@ -7,6 +7,14 @@ OUT = ROOT / "ui" / "templates"
 OUT.mkdir(parents=True, exist_ok=True)
 
 
+
+def _no_author(cp) -> None:
+    """Modelli senza autore: i documenti nuovi non devono riportare nomi (ne' della libreria ne' di una ditta)."""
+    cp.author = ""
+    cp.last_modified_by = ""
+    cp.title = ""
+    cp.comments = ""
+
 def word():
     from docx import Document
     from docx.shared import Cm, Pt
@@ -19,6 +27,7 @@ def word():
     st.font.name = "Calibri"
     st.font.size = Pt(11)
     d.add_paragraph("")
+    _no_author(d.core_properties)
     d.save(OUT / "vuoto.docx")
 
 
@@ -26,6 +35,8 @@ def excel():
     import openpyxl
     wb = openpyxl.Workbook()
     wb.active.title = "Foglio1"
+    wb.properties.creator = ""
+    wb.properties.lastModifiedBy = ""
     wb.save(OUT / "vuoto.xlsx")
 
 
@@ -37,6 +48,7 @@ def powerpoint():
     s = p.slides.add_slide(p.slide_layouts[0])
     s.shapes.title.text = "Titolo della presentazione"
     s.placeholders[1].text = "Sottotitolo"
+    _no_author(p.core_properties)
     p.save(OUT / "vuoto.pptx")
 
 
@@ -69,7 +81,7 @@ def dxf():
         msp.add_line((x0 + 120, y0), (x0 + 120, y0 + 30), dxfattribs={"layer": "CARTIGLIO"})
         for i, (label, value) in enumerate([("Titolo", ""), ("Commessa", ""), ("Disegnato", ""), ("Scala", "1:1")][::-1]):
             msp.add_text(label.upper(), height=2, dxfattribs={"layer": "CARTIGLIO"}).set_placement((x0 + 2, y0 + i * 10 + 6.5))
-        msp.add_text("MB ENGINEERING", height=3.5, dxfattribs={"layer": "TESTI"}).set_placement((x0 + 150, y0 + 3.5), align=TextEntityAlignment.MIDDLE_CENTER)
+        msp.add_text("DITTA / STUDIO", height=2, dxfattribs={"layer": "CARTIGLIO"}).set_placement((x0 + 122, y0 + 6.5))
         msp.add_text(f"Foglio {name}", height=2, dxfattribs={"layer": "CARTIGLIO"}).set_placement((x0 + 122, y0 + 22))
         d.saveas(OUT / f"foglio_{name}.dxf")
 

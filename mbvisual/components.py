@@ -35,8 +35,10 @@ def load() -> dict:
         data = None
     if not isinstance(data, dict):
         return {"ok": True, "esiste": False, "profilo": "completo", "attivi": ids}
-    on = {str(x) for x in data.get("attivi") or []}
-    known = {str(x) for x in data.get("noti") or ids}
+    # scelte salvate prima delle 7 applicazioni (id interni: office, cad, bim...): ogni id va alla sua applicazione
+    alias = {a: c["id"] for c in registry()["components"] for a in c.get("aliases", [])}
+    on = {alias.get(str(x), str(x)) for x in data.get("attivi") or []}
+    known = {alias.get(str(x), str(x)) for x in data.get("noti") or ids}
     attivi = [i for i in ids if i in on or i not in known]
     return {"ok": True, "esiste": True, "profilo": str(data.get("profilo") or "personalizzato"), "attivi": attivi}
 

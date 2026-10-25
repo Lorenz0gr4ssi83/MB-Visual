@@ -48,3 +48,4 @@
 .comp-need .note { color: var(--fg); }
 @media (max-width: 700px) { .cm-grid { grid-template-columns: 1fr; } .cm-back { padding: 0; } .cm-box { border-radius: 0; height: 100%; } }
 .cm-all { margin-left: 12px; }
+.cm-intro { margin: 0; padding: 12px 24px; color: var(--muted); font-size: 13.5px; border-bottom: 1px solid var(--line); }

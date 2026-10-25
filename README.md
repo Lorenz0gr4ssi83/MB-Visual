@@ -1,6 +1,6 @@
 # MB Desk
 
-Visualizzatore e editor di documenti, disegni CAD, modelli 3D e BIM, firme digitali, immagini, audio/video e archivi, sviluppato per MB Engineering.
+Visualizzatore e editor di documenti, disegni CAD, modelli 3D e BIM, firme digitali, immagini, audio/video e archivi, di MB Group.
 
 ## Web app (telefono, tablet, qualsiasi PC)
 Aprire **https://mbvisual.mb-group.workers.dev** con Chrome, Edge o Safari e scegliere *Installa app* / *Aggiungi a schermata Home*.

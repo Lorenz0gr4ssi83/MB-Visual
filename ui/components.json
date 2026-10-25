@@ -1,26 +1,17 @@
 {
- "_nota": "Registro unico dei componenti: lo leggono l'app (ui/js/components.js, mbvisual/components.py) e il programma di installazione (tools/make_setup_art.py -> pagine di Inno Setup). Testi: chiavi comp.<id>.nome / comp.<id>.desc in ui/i18n. 'cats' = categorie di ui/formats.json che senza il componente si aprono solo in visualizzazione, 'exts' = estensioni singole.",
+ "_nota": "Registro unico delle applicazioni scelte all'installazione (dal 25/10/2026: 7 applicazioni invece delle funzioni interne). Lo leggono l'app (ui/js/components.js, mbvisual/components.py) e il programma di installazione (tools/make_setup_art.py). aliases = id interni usati nel codice (isOn, data-comp) che appartengono a quell'applicazione; quelli di base sono sempre accesi. Testi: chiavi comp.<id>.nome/desc.",
  "components": [
-  {"id": "base", "fixed": true, "icon": "<path d=\"M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6\"/>"},
+  {"id": "base", "fixed": true, "icon": "<path d=\"M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6\"/>", "aliases": ["measure", "tools", "special"]},
   {"id": "shell", "fixed": true, "win": true, "icon": "<path d=\"M3 5h8v6H3zM13 5h8v6h-8zM3 13h8v6H3zM13 13h8v6h-8z\"/>"},
-  {"id": "office", "cats": ["word", "sheet", "pptx", "office-lo"], "icon": "<path d=\"M4 4h10v16H4zM7 8h4M7 12h4M7 16h4M14 8h6v12h-6M17 11v6\"/>"},
-  {"id": "cad", "cats": ["cad2d"], "icon": "<path d=\"M12 3v3M12 6l-6.5 15M12 6l6.5 15M7.5 16h9\"/><circle cx=\"12\" cy=\"7\" r=\"1.6\"/>"},
-  {"id": "bim", "invite": "usa", "cats": ["bcf", "navisworks"], "exts": ["ifc", "ifczip", "ifcxml"], "icon": "<path d=\"M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5\"/>"},
-  {"id": "mech", "invite": "usa", "cats": ["cad3d", "vis3d", "inventor", "inventor-doc", "solidcad", "revit"], "icon": "<path d=\"M12 2.8l8 4.6v9.2l-8 4.6-8-4.6V7.4z\"/><circle cx=\"12\" cy=\"12\" r=\"3.4\"/>"},
-  {"id": "survey", "invite": "usa", "cats": ["pointcloud"], "icon": "<path d=\"M9 3h6v4H9zM12 7v4M12 11l-6 10M12 11l6 10M12 11v10\"/>"},
-  {"id": "gis", "invite": "usa", "cats": ["gis"], "icon": "<path d=\"M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14\"/>"},
-  {"id": "measure", "icon": "<path d=\"M3 17L17 3l4 4L7 21zM7.5 12.5l2 2M10.5 9.5l2 2M13.5 6.5l2 2\"/>"},
-  {"id": "graphics", "cats": ["image", "image-raw", "publisher", "visio"], "icon": "<path d=\"M4 20l1.2-4.6L16 4.6l3.4 3.4L8.6 18.8zM13.8 6.8l3.4 3.4M4 20h16\"/>"},
-  {"id": "video", "cats": ["videoproject"], "icon": "<path d=\"M3 6h18v13H3zM3 10h18M7 6l2 4M12 6l2 4M17 6l2 4\"/>"},
-  {"id": "sign", "icon": "<path d=\"M3 17c3-1 4-7 6-7s1 6 3 6 3-4 5-4 2 3 4 3M3 21h18\"/>"},
-  {"id": "mail", "icon": "<path d=\"M3 5h18v14H3zM3.5 6.5l8.5 6.5 8.5-6.5\"/>"},
-  {"id": "tools", "icon": "<path d=\"M3 8h18v12H3zM8 8V5h8v3M3 13h18M10 12v3h4v-3\"/>"},
-  {"id": "special", "invite": "usa", "cats": ["dicom", "scidata", "iwork"], "icon": "<path d=\"M9 3h6M10 3v6L4.2 18.8A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.3-2.2L14 9V3M7 15h10\"/>"}
+  {"id": "documenti", "cats": ["word", "sheet", "pptx", "office-lo"], "aliases": ["office"], "icon": "<path d=\"M4 4h10v16H4zM7 8h4M7 12h4M7 16h4M14 8h6v12h-6M17 11v6\"/>"},
+  {"id": "pdf", "aliases": ["sign"], "icon": "<path d=\"M6 3h8l4 4v14H6zM14 3v4h4\"/><path d=\"M8.5 16.5c1.6-.5 2.2-3.5 3.3-3.5s.6 3 1.7 3 1.6-2 2.6-2\"/>"},
+  {"id": "disegni", "cats": ["cad2d"], "aliases": ["cad"], "icon": "<path d=\"M12 3v3M12 6l-6.5 15M12 6l6.5 15M7.5 16h9\"/><circle cx=\"12\" cy=\"7\" r=\"1.6\"/>"},
+  {"id": "modelli", "cats": ["bcf", "navisworks", "cad3d", "vis3d", "inventor", "inventor-doc", "solidcad", "revit", "pointcloud", "gis"], "exts": ["ifc", "ifczip", "ifcxml"], "invite": "usa", "aliases": ["bim", "mech", "survey", "gis"], "icon": "<path d=\"M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5\"/>"},
+  {"id": "grafica", "cats": ["image", "image-raw", "publisher", "visio"], "aliases": ["graphics"], "icon": "<path d=\"M4 20l1.2-4.6L16 4.6l3.4 3.4L8.6 18.8zM13.8 6.8l3.4 3.4M4 20h16\"/>"},
+  {"id": "video", "cats": ["videoproject"], "aliases": [], "icon": "<path d=\"M3 6h18v13H3zM3 10h18M7 6l2 4M12 6l2 4M17 6l2 4\"/>"},
+  {"id": "posta", "aliases": ["mail"], "icon": "<path d=\"M3 5h18v14H3zM3.5 6.5l8.5 6.5 8.5-6.5\"/>"}
  ],
  "profiles": [
-  {"id": "completo", "comps": "*"},
-  {"id": "studio", "comps": ["office", "cad", "bim", "mech", "survey", "gis", "measure", "graphics", "sign", "mail", "tools"]},
-  {"id": "impresa", "comps": ["office", "cad", "bim", "survey", "measure", "video", "sign", "mail", "tools"]},
-  {"id": "ufficio", "comps": ["office", "graphics", "video", "sign", "mail", "tools"]}
+  {"id": "completo", "comps": "*"}
  ]
 }

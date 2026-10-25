@@ -48,7 +48,7 @@ export function privacyPage(env) {
   return page("MB Desk - Privacy", `
 <h2 style="margin-top:0">Informativa sulla privacy</h2>
 <p class="muted">Ultimo aggiornamento: 23 ottobre 2026</p>
-<p>Questa informativa descrive quali dati tratta MB Desk (app per PC, Mac e telefono) e questo server. Titolare del trattamento: MB Engineering srl (MB Group).</p>
+<p>Questa informativa descrive quali dati tratta MB Desk (app per PC, Mac e telefono) e questo server. Titolare del trattamento: MB Workshop Srl (MB Group).</p>
 
 <h3>1. Licenza</h3>
 <p>Per attivare e rinnovare la licenza l'app invia a questo server: la chiave di licenza, un'impronta del dispositivo (codice ricavato dall'identificativo del
@@ -95,7 +95,7 @@ Dropbox Impostazioni › App collegate.</p>
 
 <section class="en"><h2>Privacy policy (English)</h2>
 <p class="muted">Last updated: 23 October 2026</p>
-<p>This policy describes the data processed by MB Desk (app for PC, Mac and phone) and by this server. Data controller: MB Engineering srl (MB Group).</p>
+<p>This policy describes the data processed by MB Desk (app for PC, Mac and phone) and by this server. Data controller: MB Workshop Srl (MB Group).</p>
 <h3>1. License</h3>
 <p>To activate and renew the license the app sends this server: the license key, a device fingerprint (a non-reversible code derived from the system identifier;
 on phones a random code), the device name, the device type (PC or phone) and the app version. The server also keeps the customer's name and email entered by

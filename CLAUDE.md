@@ -1,6 +1,13 @@
 # MB Desk (prima MB Visual) - note per riprendere il lavoro
 
 ## NOME DELL'APP: MB Desk (dal 25/10/2026) - REGOLA PER TUTTE LE SESSIONI
+SOCIETA' (decisione dell'utente, 25/10/2026): dove serve la ragione sociale (editore dell'installabile, copyright, titolare dei dati
+nell'informativa e nelle statistiche, richieste privacy) = "MB Workshop Srl"; dove non serve = "MB Group". MAI "MB Engineering".
+Timbri, cartigli, modelli vuoti e metadati dei file creati dall'utente: NESSUN nome di ditta (ognuno mette il suo; il timbro PDF e'
+testo libero e l'app ricorda l'ultimo usato in localStorage mbv-timbro).
+INSTALLABILE (25/10/2026): 7 applicazioni (documenti, pdf, disegni, modelli, grafica, video, posta) + sempre inclusi; niente profili.
+ui/components.json `aliases` = id interni (office, cad, bim...) usati nel codice: isOn/needComp/data-comp li traducono; le scelte salvate
+con gli id vecchi si convertono (components.py, AppInList in mbvisual.iss).
 L'utente ha rinominato l'app: OGNI cosa visibile dice "MB Desk" (logo con DESK al posto di GROUP da tools/make_logo.py, finestre,
 installabile, collegamenti "MB Desk.lnk", eseguibile "MB Desk.exe", setup MBDesk-Setup-<ver>.exe, MBDesk-<ver>-mac.dmg, "MB Desk.app",
 "MB Desk Admin", app per telefono, pagine web, testi in 5 lingue). La parola "Visual" non deve comparire da nessuna parte visibile.
@@ -1466,4 +1473,4 @@ nell'installabile (una casella gia' spuntata non e' un consenso valido). Solo ap
   /privacy (informativa unica: licenza, statistiche, posta e cloud con la frase Limited Use di Google). Contatto: segnalazione dall'app +
   variabile SUPPORT_EMAIL di wrangler.toml se si aggiunge un indirizzo NEUTRO (mai quello col nome dell'utente). Bozza legale.
 - Collaudo: `node server/test/harness.mjs` (statistiche, cancellazione su richiesta, pagine pubbliche), `python tests/test_stats.py` (22 prove).
-- Informativa nell'app e /privacy = BOZZE da far rivedere a un consulente privacy (titolare indicato: MB Engineering srl).
+- Informativa nell'app e /privacy = BOZZE da far rivedere a un consulente privacy (titolare: MB Workshop Srl).

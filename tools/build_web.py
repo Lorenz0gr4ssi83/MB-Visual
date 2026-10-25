@@ -166,7 +166,7 @@ def splash_tags() -> str:
 
 
 HEAD = """<meta name="theme-color" content="#0f1114">
-<meta name="description" content="MB Desk - visualizzatore di documenti, disegni CAD, modelli 3D e BIM di MB Engineering">
+<meta name="description" content="MB Desk - visualizzatore di documenti, disegni CAD, modelli 3D e BIM di MB Group">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/apple-touch-icon-180.png">
 <link rel="apple-touch-icon" sizes="152x152" href="img/apple-touch-icon-152.png">

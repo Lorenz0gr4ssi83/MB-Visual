@@ -120,7 +120,7 @@ class Ifc:
         for tname, (t, els) in self.types.items():
             self.add(f"IFCRELDEFINESBYTYPE('{guid(self.name + tname + 'rt')}',$,$,$,({','.join('#%d' % e for e in els)}),#{t})")
         head = ("ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('ViewDefinition [CoordinationView]'),'2;1');\n"
-                f"FILE_NAME('{path.name}','2026-10-22T10:00:00',('MB Desk'),('MB Engineering'),'','make_clash_samples','');\n"
+                f"FILE_NAME('{path.name}','2026-10-22T10:00:00',('MB Desk'),('MB Group'),'','make_clash_samples','');\n"
                 "FILE_SCHEMA(('IFC4'));\nENDSEC;\nDATA;\n")
         path.write_text(head + "\n".join(self.L) + "\nENDSEC;\nEND-ISO-10303-21;\n", encoding="utf-8")
 

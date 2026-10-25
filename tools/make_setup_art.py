@@ -102,7 +102,10 @@ def main() -> int:
         small_image(side).save(out / f"small_{side}.png")
 
     L = ["; GENERATO da tools/make_setup_art.py dal registro ui/components.json e dai testi comp.* di ui/i18n: non modificare a mano.",
-         f'#define CompIds "{",".join(ids)}"', f'#define CompOptional "{",".join(optional)}"', f'#define CompProfiles "{",".join(profiles)}"', "", "[Types]"]
+         f'#define CompIds "{",".join(ids)}"', f'#define CompOptional "{",".join(optional)}"', f'#define CompProfiles "{",".join(profiles)}"',
+         # id interni delle versioni precedenti -> applicazione (per riprendere la scelta salvata nel registro)
+         '#define CompAliases "' + ";".join(c["id"] + "=" + "|".join(c.get("aliases", [])) for c in comps if not c.get("fixed")) + '"',
+         "", "[Types]"]
     for p in profiles:
         L.append(f'Name: "{p}"; Description: "{{cm:Prof_{p}}}"')
     L.append('Name: "personalizzato"; Description: "{cm:Prof_personalizzato}"; Flags: iscustom')
@@ -125,7 +128,7 @@ def main() -> int:
             L.append(f'{lang}.CompDesc_{c["id"]}={iss_escape(T[f"comp.{c["id"]}.desc"])}')
         for p in profiles + ["personalizzato"]:
             L.append(f'{lang}.Prof_{p}={iss_escape(T[f"comp.prof.{p}.nome"])}')
-            L.append(f'{lang}.ProfDesc_{p}={iss_escape(T[f"comp.prof.{p}.desc"])}')
+            L.append(f'{lang}.ProfDesc_{p}={iss_escape(T["comp.intro"])}')  # in cima alla pagina: cosa significa scegliere
         L.append(f'{lang}.CompSempre={iss_escape(T["comp.sempre"])}')
         L.append(f'{lang}.CompSottotitolo={iss_escape(T["comp.sottotitolo"])}')
     (out / "componenti.iss").write_text("\n".join(L) + "\n", encoding="utf-8-sig")

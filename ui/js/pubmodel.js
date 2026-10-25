@@ -26,7 +26,7 @@ export const PAGE_SIZES = [
 
 // combinazioni di colori: principale (testo) + 5 accenti, come in Publisher
 export const COLOR_SCHEMES = [
-  ["MB Engineering", "#1d2b36", "#2c6797", "#8a8c89", "#c8a24a", "#5d8aa8", "#eef2f5"],
+  ["MB Group", "#1d2b36", "#2c6797", "#8a8c89", "#c8a24a", "#5d8aa8", "#eef2f5"],
   [tr("pubmodel.acqua"), "#003a4d", "#0083a8", "#3cb5d6", "#9fd8e8", "#f2a541", "#e8f6fa"],
   [tr("pubmodel.mirtillo"), "#2b1a3d", "#6a3d9a", "#a77fd0", "#e2b04a", "#d8cbe6", "#f6f1fa"],
   [tr("pubmodel.ciliegia"), "#3a0d12", "#b5172b", "#e05a5f", "#f4b6a8", "#5b5b5b", "#fbeeee"],

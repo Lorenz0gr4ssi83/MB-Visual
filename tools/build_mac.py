@@ -173,7 +173,7 @@ def main() -> int:
         "CFBundleShortVersionString": version, "CFBundleVersion": version,
         "NSHighResolutionCapable": True, "LSMinimumSystemVersion": "12.0",
         "LSApplicationCategoryType": "public.app-category.productivity",
-        "NSHumanReadableCopyright": "MB Engineering srl",
+        "NSHumanReadableCopyright": "© MB Workshop Srl",
         # l'app apre qualunque file (Apri con...), senza diventare il programma predefinito
         "CFBundleDocumentTypes": [{"CFBundleTypeName": "Documento", "CFBundleTypeRole": "Editor",
                                    "LSHandlerRank": "Alternate", "LSItemContentTypes": ["public.item", "public.data"]}],
