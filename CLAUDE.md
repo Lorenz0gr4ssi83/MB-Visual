@@ -317,7 +317,8 @@ privato (lo fa l'utente SOLO dopo che l'app per cellulari e' online su Cloudflar
 - App per cellulari: `ui/js/mlicenza.js` (solo nella build --mobile) + File -> Account tramite cookie.
 - `admin/`: MB Visual Admin (pywebview + pystray: area di notifica, notifiche di Windows ogni 20 s, avvio con Windows);
   eseguibile con `python admin/build_admin.py` -> `%USERPROFILE%\.mbvisual\dist\MB Visual Admin`.
-- ONLINE: server https://mbvisual.mb-group.workers.dev (dal 22/10/2026: Worker "mbvisual", sottodominio dell'account "mb-group"; il vecchio
+- ONLINE (dal 25/10/2026, 1.6.6): server principale https://mbdesk.mb-group.workers.dev (Worker "mbdesk", segreti caricati, cron);
+  https://mbvisual.mb-group.workers.dev resta acceso senza cron per i telefoni gia' installati. Storia: ONLINE: server https://mbvisual.mb-group.workers.dev (dal 22/10/2026: Worker "mbvisual", sottodominio dell'account "mb-group"; il vecchio
   indirizzo con il nome dell'utente NON esiste piu' e non va mai rimesso: l'utente non vuole il suo nome negli indirizzi; account Cloudflare dell'utente,
   D1 "mbvisual-licenze" in EEUR, segreti SIGNING_KEY/ADMIN_TOKEN caricati, app per cellulari = stessa URL).
   wrangler NON gira con Node ARM64: usare Node x64 portatile in %USERPROFILE%\.mbvisual
