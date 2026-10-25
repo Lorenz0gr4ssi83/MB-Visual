@@ -53,10 +53,12 @@ export async function adminApp(env, req, url, deps) {
   if (req.method === "GET" && sub === "sw.js") return new Response(ADMIN_SW, { headers: hdr("text/javascript; charset=utf-8", { "cache-control": "no-cache" }) });
   if (req.method === "GET" && sub === "manifest.webmanifest")
     return new Response(JSON.stringify({ name: "MB Desk Admin", short_name: "MB Desk Admin", start_url: `${base}/`, scope: `${base}/`, display: "standalone",
-      background_color: "#17191b", theme_color: "#17191b", icons: [{ src: `${base}/icon-192.png`, sizes: "192x192", type: "image/png" }, { src: `${base}/icon-512.png`, sizes: "512x512", type: "image/png" },
-        { src: `${base}/icon-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" }] }), { headers: hdr("application/manifest+json", { "cache-control": "no-cache" }) });
-  if (req.method === "GET" && (sub === "icon-192.png" || sub === "icon-512.png"))
-    return new Response(unb64u(sub === "icon-192.png" ? ICON_192 : ICON_512), { headers: hdr("image/png", { "cache-control": "public, max-age=86400" }) });
+      background_color: "#17191b", theme_color: "#17191b", icons: [{ src: `${base}/admin-192.png`, sizes: "192x192", type: "image/png" }, { src: `${base}/admin-512.png`, sizes: "512x512", type: "image/png" },
+        { src: `${base}/admin-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" }] }), { headers: hdr("application/manifest+json", { "cache-control": "no-cache" }) });
+  // icone: nome nuovo a ogni cambio di logo (Chrome aggiorna l'icona dell'app installata solo se cambia l'indirizzo nel manifest);
+  // i nomi vecchi restano validi per le app gia' installate
+  if (req.method === "GET" && /^(admin|icon)-(192|512)\.png$/.test(sub))
+    return new Response(unb64u(sub.includes("192") ? ICON_192 : ICON_512), { headers: hdr("image/png", { "cache-control": "no-cache" }) });
   if (!sub.startsWith("api/")) return deps.fail(404, "Percorso sconosciuto");
   // POST solo JSON dalla stessa origine (insieme a SameSite=Strict: niente richieste da altri siti)
   if (req.method === "POST" && !(req.headers.get("content-type") || "").includes("application/json")) return deps.fail(415, "Richiesta non valida");

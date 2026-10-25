@@ -7,7 +7,7 @@ self.addEventListener("push", e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data ? e.data.text() : "" }; }
   e.waitUntil(self.registration.showNotification(d.title || "MB Desk Admin", {
-    body: d.body || "", tag: d.tag, icon: SCOPE + "icon-192.png", badge: SCOPE + "icon-192.png", data: { url: d.url || SCOPE },
+    body: d.body || "", tag: d.tag, icon: SCOPE + "admin-192.png", badge: SCOPE + "admin-192.png", data: { url: d.url || SCOPE },
   }));
 });
 self.addEventListener("notificationclick", e => {
