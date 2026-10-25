@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#17191b">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MBV Admin">
+<meta name="apple-mobile-web-app-title" content="MB Desk Admin">
 <link rel="manifest" href="__BASE__/manifest.webmanifest">
 <link rel="icon" href="__BASE__/icon-192.png">
 <link rel="apple-touch-icon" href="__BASE__/icon-192.png">
@@ -377,7 +377,7 @@ function render() {
   if (!data) { m.innerHTML = `<div class="empty">Collegamento al server delle licenze...</div>`; return; }
   if (view === "panoramica") {
     const s = data.s, hint = standalone || localStorage.getItem("mbva-noinstalla") === "1" ? "" : `<div class="banner"><b>Installa l'app sulla schermata Home</b>
-      <ol>${ios ? "<li>Tocca Condividi in Safari (quadrato con la freccia).</li><li>Scegli <b>Aggiungi alla schermata Home</b>.</li><li>Apri MBV Admin dalla Home e accedi con un nuovo codice di 6 cifre (l'app installata non vede l'accesso fatto in Safari).</li>"
+      <ol>${ios ? "<li>Tocca Condividi in Safari (quadrato con la freccia).</li><li>Scegli <b>Aggiungi alla schermata Home</b>.</li><li>Apri MB Desk Admin dalla Home e accedi con un nuovo codice di 6 cifre (l'app installata non vede l'accesso fatto in Safari).</li>"
         : "<li>Apri il menu del browser (tre puntini).</li><li>Scegli <b>Installa app</b> o <b>Aggiungi a schermata Home</b>.</li>"}</ol>
       <div><button class="btn s" onclick="localStorage.setItem('mbva-noinstalla','1');render()">Nascondi</button></div></div>`;
     m.innerHTML = hint + `<div class="cards">${[["Licenze attive", s.licenze], ["PC attivi", s.pc], ["Cellulari attivi", s.cellulari], ["Richieste aperte", s.richieste_aperte, s.richieste_aperte > 0]]
@@ -456,7 +456,7 @@ function pushBanner(m) {
   if (!ok || pushOn || localStorage.getItem("mbva-nopush") === "1") return;
   const denied = Notification.permission === "denied";
   const b = document.createElement("div"); b.className = "banner";
-  b.innerHTML = `<b>Notifiche su questo telefono: non attive</b><span class="muted">${denied ? "Sono bloccate: apri le impostazioni del telefono → App → MBV Admin (o il browser) → Notifiche e consentile, poi torna qui."
+  b.innerHTML = `<b>Notifiche su questo telefono: non attive</b><span class="muted">${denied ? "Sono bloccate: apri le impostazioni del telefono → App → MB Desk Admin (o il browser) → Notifiche e consentile, poi torna qui."
     : "Attivale per ricevere sul telefono le attivazioni, le richieste e le segnalazioni scelte in Impostazioni."}</span>
     <div class="actions">${denied ? "" : `<button class="btn s p" data-on>Attiva notifiche</button>`}<button class="btn s" data-no>Non ora</button></div>`;
   m.prepend(b);
