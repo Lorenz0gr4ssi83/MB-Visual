@@ -337,7 +337,7 @@ async function admin(env, req, url, sub) {
 // licenza senza scrivere la chiave. Dopo ogni attivazione via link la licenza resta bloccata LOCK_MIN minuti: niente link
 // nuovi e niente altre attivazioni via link (blocco con UPDATE condizionato: atomico anche con richieste contemporanee).
 // iPhone: l'app installata dalla Home non vede i cookie di Safari -> codice di 6 cifre da inserire nell'app (stesso posto).
-const LINK_MIN = 10, LOCK_MIN = 1, PAIR_MIN = 30;  // blocco tra due cellulari: 1 minuto (richiesta dell utente)
+const LINK_MIN = 20, LOCK_MIN = 1, PAIR_MIN = 30;  // 20 min: su iPhone l'attivazione avviene nell'app aggiunta alla Home  // blocco tra due cellulari: 1 minuto (richiesta dell utente)
 const minutesAgo = m => new Date(Date.now() - m * 60000).toISOString().replace("T", " ").slice(0, 19);
 const minutesAhead = m => new Date(Date.now() + m * 60000).toISOString().replace("T", " ").slice(0, 19);
 const activeMobiles = async (env, key) => (await env.DB.prepare("SELECT COUNT(*) AS n FROM devices WHERE license_key = ? AND kind = 'mobile' AND status = 'active'").bind(key).first()).n;
@@ -444,51 +444,86 @@ const APPLE_HEAD = `<link rel="apple-touch-icon" href="/img/apple-touch-icon-180
 
 const LINK_PAGE = `<!doctype html><html lang="it"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f1114"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/img/icon-192.png">
+<meta name="theme-color" content="#0f1114"><link id="mf" rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/img/icon-192.png">
 ${APPLE_HEAD}<title>MB Desk</title>
 <style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#17191b;color:#e6e8e5;font:15px system-ui,"Segoe UI",sans-serif;padding:20px}
 .box{width:min(440px,100%);text-align:center}img{width:110px;height:110px}h1{font-size:22px;margin:10px 0 6px}p{color:#9ea29b;line-height:1.45}
-ol{text-align:left;color:#cfd2cc;line-height:1.6;padding-left:22px}.code{font:700 30px Consolas,monospace;letter-spacing:.18em;color:#f07d2e;margin:6px 0}
-button,.btn{display:block;margin-top:14px;width:100%;padding:12px;border:0;border-radius:8px;background:#f07d2e;color:#16110c;font:600 16px system-ui;text-decoration:none}#copy{background:#2b3035;color:#e6e8e5}.err{color:#e0605a}.hide{display:none}</style></head>
-<body><div class="box"><img src="/img/logo-512.png" alt="MB Desk"><h1>MB Desk</h1><p style="margin:-2px 0 12px;color:#8a8c89;font-size:13px;letter-spacing:.05em">Powered by MB Group</p><p id="msg">Attivazione in corso...</p>
-<div id="ok" class="hide"><p>Dispositivo attivato. Ora installa l'app:</p><ol id="steps"></ol><button id="inst" class="hide">Installa l'app</button>
-<div id="wrong" class="hide"><a id="open" class="hide btn" href="#">Apri in Safari</a><button id="copy" type="button">Copia link</button>
+ol{text-align:left;color:#cfd2cc;line-height:1.7;padding-left:22px;font-size:16px}li b{color:#fff}.share{display:inline-block;width:20px;height:20px;vertical-align:-4px}
+button,.btn{display:block;margin-top:14px;width:100%;padding:14px;border:0;border-radius:10px;background:#f07d2e;color:#16110c;font:600 17px system-ui;text-decoration:none}
+.sec{background:#2b3035;color:#e6e8e5}.big{font-size:18px;color:#e6e8e5;margin:14px 0 4px}.err{color:#e0605a}.hide{display:none}</style></head>
+<body><div class="box"><img src="/img/logo-512.png" alt="MB Desk"><h1>MB Desk</h1><p style="margin:-2px 0 12px;color:#8a8c89;font-size:13px;letter-spacing:.05em">Powered by MB Group</p>
+<p id="msg">Un momento...</p>
+<div id="ios" class="hide"><p class="big">Ultimo passo: aggiungi MB Desk alla schermata Home</p><ol id="ios-steps"></ol>
+<p>Alla prima apertura dalla Home MB Desk si attiva da sola: non serve inserire codici. Fallo entro 20 minuti, poi chiudi pure Safari.</p></div>
+<div id="and" class="hide"><p class="big">Telefono attivato</p><button id="inst" class="hide">Installa MB Desk</button><ol id="and-steps" class="hide"></ol><p id="and-done" class="hide"></p></div>
+<div id="wrong" class="hide"><a id="open" class="hide btn" href="#">Apri in Safari</a><button id="copy" class="sec" type="button">Copia link</button>
 <ol><li>Tocca <b>Copia link</b>.</li><li>Apri <b id="wrong-app"></b>, tocca la barra degli indirizzi, incolla e vai.</li><li>Il link vale ancora qualche minuto.</li></ol></div>
-<p id="pair" class="hide">Se l'app installata chiede di nuovo l'attivazione, inserisci questo codice (valido <span id="min"></span> minuti):</p><div class="code" id="code"></div></div></div>
+</div>
 <script>
-const $ = id => document.getElementById(id), ipad = /ipad/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1), ios = /iphone|ipod/i.test(navigator.userAgent) || ipad;
-// iPhone/iPad: niente service worker prima dell'attivazione (installazione fallita = richieste della pagina dopo ferme in Safari:
-// schermo bianco); serve solo ad Android per proporre "Installa app". L'app attivata lo registra da se'.
+const $ = id => document.getElementById(id), ua = navigator.userAgent;
+const ipad = /ipad/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1), ios = /iphone|ipod/i.test(ua) || ipad;
+const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const link = location.pathname.split("/").pop();
+const show = id => $(id).classList.remove("hide");
+// iPhone/iPad: l'app aggiunta alla Home ha una memoria separata da Safari. Per questo Safari NON attiva nulla: il manifest di
+// questa pagina fa aprire l'app proprio su questo link, e l'attivazione avviene li' alla prima apertura (niente codice).
+if (ios && !standalone) $("mf").href = "/l/" + link + "/app.webmanifest";
+// Android: service worker per proporre "Installa"; su iPhone niente (installazione fallita = schermo bianco in Safari)
 if (!ios && "serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 let prompt = null;
-addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; $("inst").classList.remove("hide"); });
-$("inst").onclick = () => prompt && prompt.prompt();
-const ua = navigator.userAgent;
-// browser che non puo' installare l'app: il link NON si usa qui (resta valido per Safari / Chrome)
-const wrong = ios ? (/CriOS|FxiOS|EdgiOS|OPiOS|GSA\\/|FBAN|FBAV|Instagram|LinkedInApp|Snapchat|WhatsApp|Line\\//i.test(ua) || !/Safari\\//.test(ua))
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; show("inst"); $("and-steps").classList.add("hide"); });
+$("inst").onclick = async () => {
+  if (!prompt) return;
+  prompt.prompt();
+  const c = await prompt.userChoice.catch(() => ({}));
+  if (c.outcome === "accepted") { $("inst").classList.add("hide"); $("and-done").textContent = "Fatto: apri MB Desk dalla schermata Home e chiudi pure questa pagina."; show("and-done"); }
+};
+// browser che non puo' installare l'app (dentro WhatsApp, Instagram, Chrome su iPhone...): il link NON si usa qui
+const wrong = ios ? (/CriOS|FxiOS|EdgiOS|OPiOS|GSA\\/|FBAN|FBAV|Instagram|LinkedInApp|Snapchat|WhatsApp|Line\\//i.test(ua) || (!standalone && !/Safari\\//.test(ua)))
   : /android/i.test(ua) && /; wv\\)|FBAN|FBAV|Instagram|GSA\\//i.test(ua);
 let dev = localStorage.getItem("mbv-dispositivo");
 if (!dev) { dev = crypto.randomUUID(); localStorage.setItem("mbv-dispositivo", dev); }
 const name = (/android/i.test(ua) ? (/mobile/i.test(ua) ? "Android" : "Tablet Android") : ipad ? "iPad" : ios ? "iPhone" : "Cellulare") + " " + new Date().toLocaleDateString("it-IT");
+const claim = () => fetch("/v1/mlink/claim", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
+  body: JSON.stringify({ link, device: dev, name }) }).then(r => r.json());
+const fail = t => { $("msg").textContent = t; $("msg").className = "err"; };
 if (wrong) {
   const app = ios ? "Safari" : "Chrome";
   $("msg").innerHTML = "Per installare MB Desk apri questo link in <b>" + app + "</b>.";
-  $("wrong").classList.remove("hide");
-  $("wrong-app").textContent = app;
-  if (ios) { $("open").href = "x-safari-" + location.href; $("open").classList.remove("hide"); }
+  show("wrong"); $("wrong-app").textContent = app;
+  if (ios) { $("open").href = "x-safari-" + location.href; show("open"); }
   $("copy").onclick = async () => { try { await navigator.clipboard.writeText(location.href); $("copy").textContent = "Link copiato"; } catch { window.prompt("Copia il link:", location.href); } };
-} else fetch("/v1/mlink/claim", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
-  body: JSON.stringify({ link: location.pathname.split("/").pop(), device: dev, name }) }).then(r => r.json()).then(r => {
-  if (!r.ok) { $("msg").textContent = r.errore || "Attivazione non riuscita"; $("msg").className = "err"; return; }
-  localStorage.setItem("mbv-licenza-scade", String(Date.now() + 30 * 86400000));
-  if (matchMedia("(display-mode: standalone)").matches || navigator.standalone === true) return location.replace("/");
-  $("msg").textContent = r.cliente ? "Licenza di " + r.cliente : "";
-  $("steps").innerHTML = ios ? (ipad ? "<li>Tocca il pulsante Condividi di Safari, in alto a destra (quadrato con la freccia).</li>" : "<li>Tocca il pulsante Condividi di Safari (quadrato con la freccia).</li>") + "<li>Scegli <b>Aggiungi alla schermata Home</b> (se non c'e', scorri l'elenco in basso).</li><li>Apri MB Desk dalla schermata Home.</li>"
-    : "<li>Apri il menu del browser (tre puntini).</li><li>Scegli <b>Installa app</b> o <b>Aggiungi a schermata Home</b>.</li><li>Apri MB Desk dalla schermata Home.</li>";
-  if (r.codice) { $("code").textContent = r.codice; $("min").textContent = r.codice_minuti; $("pair").classList.remove("hide"); }
-  $("ok").classList.remove("hide");
-}).catch(() => { $("msg").textContent = "Serve una connessione a internet."; $("msg").className = "err"; });
+} else if (ios && !standalone) {
+  $("msg").textContent = "";
+  $("ios-steps").innerHTML = "<li>Tocca <b>Condividi</b> <svg class=share viewBox='0 0 24 24' fill=none stroke=#f07d2e stroke-width=2><path d='M12 3v12M8 7l4-4 4 4M5 11v9h14v-9'/></svg> " + (ipad ? "in alto a destra." : "in basso.") + "</li>"
+    + "<li>Scegli <b>Aggiungi alla schermata Home</b> (se non la vedi, scorri in basso), poi <b>Aggiungi</b>.</li><li>Apri <b>MB Desk</b> dalla schermata Home.</li>";
+  show("ios");
+} else {
+  $("msg").textContent = "Attivazione in corso...";
+  claim().then(r => {
+    if (!r.ok) {
+      // app gia' aperta dalla Home con un link usato o scaduto: si va all'app (che, se serve, chiede la chiave)
+      if (standalone) return location.replace("/");
+      return fail(r.errore || "Attivazione non riuscita");
+    }
+    localStorage.setItem("mbv-licenza-scade", String(Date.now() + 30 * 86400000));
+    if (standalone) return location.replace("/");
+    $("msg").textContent = r.cliente ? "Licenza di " + r.cliente : "";
+    show("and");
+    if (!prompt) {
+      $("and-steps").innerHTML = "<li>Tocca il menu del browser (<b>tre puntini</b> in alto a destra).</li><li>Scegli <b>Installa app</b> (o <b>Aggiungi a schermata Home</b>).</li><li>Apri <b>MB Desk</b> dalla schermata Home.</li>";
+      show("and-steps");
+    }
+  }).catch(() => fail("Serve una connessione a internet."));
+}
 </script></body></html>`;
+
+// manifest dell'app per iPhone/iPad aggiunta alla Home da una pagina del QR: si apre su quel link e si attiva da sola
+const linkManifest = link => JSON.stringify({
+  name: "MB Desk", short_name: "MB Desk", id: "/", start_url: `/l/${link}?app=1`, scope: "/", display: "standalone",
+  background_color: "#0f1114", theme_color: "#0f1114", lang: "it", description: "Powered by MB Group",
+  icons: [{ src: "/img/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "/img/icon-512.png", sizes: "512x512", type: "image/png" }],
+});
 
 // ---------------------------------------------------------------- app per cellulari (file statici protetti)
 // I file dell'app (cartella public, binding ASSETS) si consegnano solo con un'attivazione "mobile" valida nel cookie
@@ -507,7 +542,13 @@ async function mobileToken(env, req) {
 }
 async function serveApp(env, req, url) {
   if (PUBLIC.test(url.pathname)) return env.ASSETS.fetch(req);
-  if (/^\/l\/[A-Za-z0-9_-]{20,}$/.test(url.pathname)) return new Response(LINK_PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+  const lm = url.pathname.match(/^\/l\/([A-Za-z0-9_-]{20,})\/app\.webmanifest$/);
+  if (lm) return new Response(linkManifest(lm[1]), { headers: { "content-type": "application/manifest+json", "cache-control": "no-store" } });
+  if (/^\/l\/[A-Za-z0-9_-]{20,}$/.test(url.pathname)) {
+    // telefono gia' attivato (anche l'app della Home che riparte dal link del QR): dritti all'app
+    if (await mobileToken(env, req)) return Response.redirect(new URL("/", url).toString(), 302);
+    return new Response(LINK_PAGE, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+  }
   if (url.pathname !== "/attiva" && await mobileToken(env, req)) {
     const r = await env.ASSETS.fetch(req);
     if (url.pathname === "/" || url.pathname.endsWith(".html")) { const h = new Response(r.body, r); h.headers.set("cache-control", "no-store"); return h; }
