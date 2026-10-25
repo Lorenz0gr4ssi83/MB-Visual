@@ -5,7 +5,7 @@ Output: ui/img/logo.png (trasparente fuori dal quadrato), ui/img/logo-512.png, a
 """
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "assets" / "logo_mb_group_originale.gif"
@@ -27,7 +27,8 @@ def icon_frame(big: Image.Image, s: int) -> Image.Image:
     return im
 
 
-def main() -> None:
+def tile(text: str):
+    """Piastrella del logo con la scritta sotto la linea (DESK per l'app, ADMIN per MB Desk Admin): (immagine, maschera)."""
     im = Image.open(SRC).convert("RGBA")
     w, h = im.size
 
@@ -44,7 +45,6 @@ def main() -> None:
 
     draw = ImageDraw.Draw(im)
     font = ImageFont.truetype("C:/Windows/Fonts/arialbd.ttf", 47)
-    text = "DESK"
     box = draw.textbbox((0, 0), text, font=font)
     tw, th = box[2] - box[0], box[3] - box[1]
     x = (w - tw) / 2 - box[0]
@@ -67,7 +67,13 @@ def main() -> None:
             if 0 < a < 255 and (xx < inset + radius or xx > w - inset - radius - 1 or yy < inset + radius or yy > h - inset - radius - 1):
                 if min(r, g, b) > 170 and (xx < inset + 6 or xx > w - inset - 7 or yy < inset + 6 or yy > h - inset - 7):
                     px[xx, yy] = GREY + (a,)
+    return im, mask
 
+
+def main() -> None:
+    im, mask = tile("DESK")
+    w, h = im.size
+    k = 4
     out = ROOT / "ui" / "img"
     out.mkdir(parents=True, exist_ok=True)
     im.save(out / "logo.png")
@@ -96,6 +102,11 @@ def main() -> None:
     sizes = [16, 20, 24, 32, 40, 48, 64, 96, 128, 256]
     imgs = [icon_frame(big, s) for s in sizes]
     imgs[-1].save(ROOT / "app.ico", sizes=[(s, s) for s in sizes], append_images=imgs[:-1])
+    # MB Desk Admin: stesso logo con la scritta ADMIN (richiesta dell'utente: niente chiave) -> admin.ico e logo per il telefono
+    adm = tile("ADMIN")[0].resize((512, 512), Image.LANCZOS)
+    adm.save(ROOT / "admin" / "logo-admin-512.png")
+    imgs = [icon_frame(adm, s) for s in sizes]
+    imgs[-1].save(ROOT / "admin" / "admin.ico", sizes=[(s, s) for s in sizes], append_images=imgs[:-1])
     print("ok")
 
 
