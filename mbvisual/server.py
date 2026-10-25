@@ -18,6 +18,9 @@ from .i18n import t
 from .paths import NO_WINDOW, TEMP_DIR, UI_DIR, find_navisworks, find_nwd2mbv, find_office, find_onlyoffice, find_trueview, open_default, open_with, reveal, tools_status
 
 TOKEN = secrets.token_urlsafe(24)
+# file da aprire arrivati da fuori (avvio con file, doppio clic con l'app gia' aperta): li prende l'interfaccia quando e' pronta
+OPEN_QUEUE: list = []
+ON_OPEN = None  # app.py: porta la finestra in primo piano e avvisa l'interfaccia
 COOKIE = "mbv"  # + porta: ogni copia aperta di MB Desk ha il suo (il cookie di 127.0.0.1 vale per tutte le porte)
 mimetypes.add_type("application/wasm", ".wasm")
 mimetypes.add_type("text/javascript", ".mjs")
@@ -158,7 +161,7 @@ class Handler(BaseHTTPRequestHandler):
             if fn is None:
                 return self._json({"ok": False, "errore": t("srv_server.api_sconosciuta")}, 404)
             # licenza: senza attivazione valida rispondono solo licenza e aggiornamenti (mbvisual/license.py)
-            if not route.startswith(("/api/license", "/api/update", "/api/job", "/api/components", "/api/stats")):
+            if not route.startswith(("/api/license", "/api/update", "/api/job", "/api/components", "/api/stats", "/api/open_queue")):
                 from . import license as lic
                 if lic.required() and not lic.status().get("attiva"):
                     return self._json({"ok": False, "errore": t("srv_server.licenza_non_attiva"), "licenza": True}, 402)
@@ -217,6 +220,18 @@ class Handler(BaseHTTPRequestHandler):
         if op == "conta" and self.command == "POST":
             return self._json(stats.track(b))
         self._json(stats.status())
+
+    # ------------------------------------------------------------ API: file da aprire arrivati da fuori (app.py)
+    def api_open_queue(self, qs):
+        if self.command == "POST":
+            paths = [str(p) for p in (self._body_json().get("paths") or []) if isinstance(p, str) and os.path.exists(p)]
+            OPEN_QUEUE.extend(paths)
+            if ON_OPEN:
+                threading.Thread(target=ON_OPEN, daemon=True).start()
+            return self._json({"ok": True, "n": len(paths)})
+        out = OPEN_QUEUE[:]
+        del OPEN_QUEUE[:len(out)]
+        self._json({"ok": True, "paths": out})
 
     # ------------------------------------------------------------ API: lingua (ui/js/i18n.js)
     def api_link(self, qs):

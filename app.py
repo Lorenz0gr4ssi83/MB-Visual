@@ -193,14 +193,53 @@ def _edge_app(url: str) -> bool:
     return True
 
 
+INSTANCE = DATA_DIR / "istanza.json"  # porta e token della copia aperta: un doppio clic su un file le consegna il file
+
+
+def _hand_off(files) -> bool:
+    """MB Desk e' gia' aperto: gli si consegnano i file (li apre lui, in primo piano) e questo avvio finisce."""
+    try:
+        import urllib.request
+        inst = json.loads(INSTANCE.read_text(encoding="utf-8"))
+        if sys.platform == "win32":
+            import ctypes
+            ctypes.windll.user32.AllowSetForegroundWindow(int(inst.get("pid", -1)))  # la finestra aperta puo' venire davanti
+        req = urllib.request.Request(f"http://127.0.0.1:{int(inst['port'])}/api/open_queue?t={inst['token']}", method="POST",
+                                     data=json.dumps({"paths": files}).encode(), headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return bool(json.loads(r.read()).get("ok"))
+    except Exception:  # noqa: BLE001 - nessuna copia aperta (o non risponde): si apre una finestra nuova
+        return False
+
+
+def _bring_front(window):
+    def run():
+        try:
+            window.restore()
+            window.show()
+            if sys.platform == "win32":
+                import ctypes
+                hwnd = ctypes.windll.user32.FindWindowW(None, window.title)
+                if hwnd:
+                    ctypes.windll.user32.SetForegroundWindow(hwnd)
+        except Exception as ex:  # noqa: BLE001
+            print("finestra non portata davanti:", ex)
+        window.evaluate_js("window.MB && MB.drainOpenQueue && MB.drainOpenQueue()")
+    return run
+
+
 def main():
+    files = [os.path.abspath(a) for a in sys.argv[1:] if not a.startswith("--") and os.path.exists(a)]
+    if files and "--browser" not in sys.argv and _hand_off(files):
+        return
     srv, port = start_server()
+    from mbvisual import server as mbserver
+    mbserver.OPEN_QUEUE.extend(files)  # li apre l'interfaccia appena e' pronta (drainOpenQueue in app.js)
     import threading
     threading.Thread(target=_refresh_shell, daemon=True).start()
     from mbvisual import stats
     stats.on_launch()  # statistiche d'uso anonime: conta e invia SOLO con il consenso dell'utente
     url = f"http://127.0.0.1:{port}/?t={TOKEN}"
-    files = [os.path.abspath(a) for a in sys.argv[1:] if not a.startswith("--") and os.path.exists(a)]
 
     if "--browser" in sys.argv:
         print(url, flush=True)
@@ -231,6 +270,12 @@ def main():
     window = webview.create_window("MB Desk", url, js_api=api, width=1400, height=900, min_size=(900, 600),
                                    background_color="#0b0d10", text_select=True)
     api._window = window
+    mbserver.ON_OPEN = _bring_front(window)
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        INSTANCE.write_text(json.dumps({"port": port, "token": TOKEN, "pid": os.getpid()}), encoding="utf-8")
+    except OSError:
+        pass
 
     def on_drop(e):
         paths = [f.get("pywebviewFullPath") for f in e.get("dataTransfer", {}).get("files", [])]
@@ -243,8 +288,7 @@ def main():
             window.dom.document.events.drop += DOMEventHandler(on_drop, True, True)
         except Exception as ex:  # noqa: BLE001
             print("drop non disponibile:", ex)
-        if files:
-            window.evaluate_js(f"window.MB && MB.openPaths({json.dumps(files)})")
+        window.evaluate_js("window.MB && MB.drainOpenQueue && MB.drainOpenQueue()")
 
     def on_closing():
         # file non salvati: la finestra resta aperta e l'interfaccia chiede "Vuoi salvare?" (poi chiama api.quit)

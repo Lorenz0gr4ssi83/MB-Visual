@@ -521,6 +521,17 @@ async function showProperties() {
 }
 
 // ------------------------------------------------------------------ apertura
+// file arrivati da fuori (doppio clic su un file in Esplora, anche con l'app gia' aperta): coda nel motore (app.py)
+let draining = false;
+async function drainOpenQueue() {
+  if (WEB || draining) return;
+  draining = true;
+  try {
+    const r = await api("open_queue", {}, { allowFail: true });
+    if (r.paths?.length) await openPaths(r.paths);
+  } catch (e) { console.error(e); } finally { draining = false; }
+}
+
 async function openPaths(paths, fromDrop = false) {
   if (fromDrop) { $("dragover").hidden = true; document.body.classList.remove("dragging"); }
   // un visualizzatore puo' accettare i file trascinati (es. aggiungerli a un archivio)
@@ -1182,6 +1193,7 @@ async function boot() {
   startMailBadge(); // posta in background (solo con il componente Posta e PEC)
   window.addEventListener("mbv-components", componentsChanged);
   if (!WEB) licenseGate(); // licenza dell'app per PC: senza attivazione copre l'app con la schermata della chiave
+  if (!WEB) drainOpenQueue(); // file passati all'avvio (doppio clic in Esplora) o arrivati da un altro avvio
   if (!WEB) initStats(); // statistiche d'uso anonime: chiede il consenso la prima volta, senza consenso non conta e non invia
   if (!WEB) setupMobileQr(); // QR nella home per installare l'app sul cellulare (posti liberi della licenza)
   if (!WEB) setTimeout(() => checkUpdates(false), 3000);
@@ -1234,6 +1246,6 @@ async function boot() {
   if (needsFirstRun()) showComponents({ welcome: true }); // Mac: il .dmg non ha pagine di installazione, si sceglie al primo avvio
 }
 
-window.MB = { openPaths, openFile, reloadTab, openMail, openComponents, mountPreview, closeTab, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, get exDir() { return exDir; }, activate, modal, askQuit, print: doPrint, save: asNew => save(!!asNew) };
+window.MB = { openPaths, drainOpenQueue, openFile, reloadTab, openMail, openComponents, mountPreview, closeTab, resolveCategory, get tabs() { return tabs; }, get active() { return active; }, get exDir() { return exDir; }, activate, modal, askQuit, print: doPrint, save: asNew => save(!!asNew) };
 const READY = boot();
 READY.then(() => { window.MBV_READY = true; }, e => { (window.MBV_BOOT_ERRS || []).push(String((e && (e.stack || e.message)) || e)); console.error(e); }); // guardia d'avvio della web app (tools/build_web.py)

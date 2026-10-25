@@ -15,6 +15,7 @@ import ctypes
 import hashlib
 import json
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -438,6 +439,16 @@ def refresh_if_needed() -> None:
     """All'avvio dell'app: se l'integrazione e' attiva ma punta a un altro exe o a una DLL vecchia, si riscrive."""
     if winreg is None or not _get(STATE, "Attiva"):
         return
+    # solo la copia INSTALLATA si registra da sola: una copia di sviluppo (python app.py) o portatile non deve prendersi
+    # il doppio clic dei file (prima apriva la copia di sviluppo; si scrive solo con --integrazione attiva)
+    if not FROZEN:
+        return
+    from .update import INSTALL_DIR, _same
+    if not _same(Path(sys.executable).parent, INSTALL_DIR):
+        # copia portatile (es. App per PC): si registra solo se l'integrazione non punta a un MB Desk che esiste ancora
+        reg = re.findall(r'"([^"]+)"', str(_get(STATE, "Comando") or ""))
+        if reg and Path(reg[0]).is_file() and Path(reg[0]).name.lower() in ("mb desk.exe", "mbvisual.exe"):
+            return
     _, cmd = _commands()
     dll = _get(STATE, "Dll") or ""
     want = BIN_DIR / "shell" / f"mbvshell-{native_arch()}.dll"
