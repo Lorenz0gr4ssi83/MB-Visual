@@ -204,6 +204,25 @@ con `#mbvlink=<stanza>.<chiave>.<nome PC>` (il frammento non arriva al server; s
   Online provato: ticket e WebSocket verso la stanza vera. Limiti: niente funziona con l'app chiusa; il server inoltra (nessun
   passaggio diretto fra i dispositivi); il telecomando non fa misure ne' selezioni.
 
+## App Android MB Desk (25/10/2026) - FATTA, da provare su telefoni veri
+`android-app/` = Capacitor 7.6.9 (MIT), pacchetto `it.mbgroup.app` (scelto dall'utente, NON cambiarlo mai: gli aggiornamenti
+dipendono da lui). La pagina e' l'app per telefono del server (`capacitor.config.json` server.url = https://mbdesk.mb-group.workers.dev),
+quindi si aggiorna con il server come la web app; l'APK si rifa' solo se cambia il guscio. Play Store: piu' avanti (decisione
+dell'utente), in forma privata (test chiuso) con account Organizzazione MB Group (D-U-N-S) per non mostrare il nome dell'utente.
+- Nativo: `MainActivity.java` (App Link /l/<link> -> WebView sul link: l'app si attiva da sola; file -> plugin) e
+  `MbDeskPlugin.java` (file di "Apri con"/"Condividi" copiati in cache/ricevuti e letti a pezzi con readChunk; evento "file"
+  conservato finche' la pagina ascolta; `insertContact` = schermata "Nuovo contatto" di Android gia' compilata). Manifest: VIEW su
+  content/file con */*, SEND/SEND_MULTIPLE, App Link autoVerify su mbdesk.mb-group.workers.dev/l/, CAMERA.
+- Web: webapi.js (window.Capacitor.Plugins.MbDesk -> register + MB.openPaths), bcard.js (NATIVE -> insertContact).
+  Pagina del QR (LINK_PAGE): dentro l'app = standalone; su Android con ANDROID_APK="1" (wrangler.toml) propone prima l'app
+  (/scarica-android = ultimo .apk della release, intent:// per aprirla sul link), "versione nel browser" come alternativa.
+  `/.well-known/assetlinks.json` con ANDROID_CERT_SHA256 (impronta pubblica del certificato).
+- Firma: `%USERPROFILE%\.mbvisual\licenzendroid-firma.p12` + android-firma.json (password, alias mbdesk, sha256) -> secret
+  MBD_KEYSTORE_B64 / MBD_KEYSTORE_PASSWORD. SENZA quella chiave gli aggiornamenti non si installano sopra: l'utente ne fa una copia.
+- Build: workflow `build-android.yml` (a mano, ubuntu, JDK 21) -> artefatto MBDesk-android con MBDesk-<ver>.apk e .aab
+  (versionCode = A*10000+B*100+C della VERSION di app.py). Icone/avvio: `python tools/make_android_icons.py`.
+- Distribuzione: .apk nella release GitHub (serve a /scarica-android), cartella Drive e Desktop\MB Desk.
+
 ## Interfaccia per telefono in stile app (23/10/2026) - FATTO (prova su telefoni veri: la fa l'utente)
 Sui telefoni (lato corto sotto i 600 px, nella web app o con il dito come puntatore; decisione in uno script di `ui/index.html`
 prima del primo disegno, che aggiunge `html.phone` e carica `css/phone.css`) la cornice del PC sparisce e c'e' un guscio da
