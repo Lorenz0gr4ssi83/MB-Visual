@@ -1,13 +1,16 @@
-"""Carica i setup di una versione nella cartella Google Drive di distribuzione e sposta quelli vecchi nella sottocartella "Old".
+"""Carica i file di una versione su Google Drive: setup per PC nella cartella pubblica, il resto nell'archivio privato.
 
 Uso:  python tools/publish_drive.py --login                  (una volta sola: autorizza l'account Google nel browser)
-      python tools/publish_drive.py <file> [<file> ...]      (es. MBDesk-Setup-1.6.6.exe MBDesk-1.6.6-mac.dmg)
+      python tools/publish_drive.py <file> [<file> ...]      (es. MBDesk-Setup-1.6.7.exe MBDesk-1.6.7-mac.dmg MBDesk-1.6.7.apk)
 
-Cartella di destinazione: DRIVE_FOLDER (o variabile MBV_DRIVE_FOLDER). "Old" si crea solo se non esiste; si spostano li' solo
-i file di MB Desk gia' presenti nella cartella (MBDesk-Setup-*.exe, MBDesk-*-mac.dmg, MBDesk-*.zip e gli stessi con il nome vecchio MBVisual-*) di una versione
-DIVERSA da quella caricata (il .dmg che arriva dopo non sposta il setup Windows della stessa versione) o con lo stesso nome
-(ricaricamento), mai altri file. Lo chiama da solo tools/build_portable.py quando pubblica in "App per PC" (salvo --no-drive).
-MB Desk Admin NON va caricato qui (e' solo per il proprietario).
+Struttura (decisione dell'utente, 25/10/2026):
+- DRIVE_FOLDER (o MBV_DRIVE_FOLDER) = cartella "MB Desk" CONDIVISA con i clienti (sola lettura): solo l'ULTIMA versione,
+  sottocartelle "Windows" (MBDesk-Setup-*.exe, zip) e "Mac" (MBDesk-*-mac.dmg).
+- "MB Desk - Archivio" nel Drive del proprietario, NON condivisa: "Android" (ultimo .apk: si installa solo dal QR dell'app per PC,
+  che lo scarica dalla release GitHub) e "Old" (tutte le versioni precedenti di ogni tipo).
+Le cartelle si creano solo se mancano. Un file di MB Desk gia' presente va in Old se e' dello stesso tipo e di una versione
+DIVERSA da quella caricata, o con lo stesso nome (ricaricamento); mai altri file. Lo chiama tools/build_portable.py (salvo --no-drive).
+MB Desk Admin NON va mai caricato (e' solo per il proprietario).
 Client OAuth: quello "Applicazione desktop" del progetto Google mb-visual (%USERPROFILE%\\.mbvisual\\licenze\\cloud_ids.json,
 voce gdrive); token con rinnovo in %USERPROFILE%\\.mbvisual\\licenze\\drive_token.json (fuori da OneDrive e dal repository).
 """
@@ -34,6 +37,7 @@ SCOPE = "https://www.googleapis.com/auth/drive"  # serve per spostare file non c
 API = "https://www.googleapis.com/drive/v3"
 UPLOAD = "https://www.googleapis.com/upload/drive/v3/files"
 OURS = re.compile(r"^MB(Desk|Visual)-(Setup-[\d.]+\.exe|[\d.]+-mac\.dmg|[\d.]+\.apk|.*\.zip)$", re.I)  # anche i nomi di prima di MB Desk
+ARCHIVE = "MB Desk - Archivio"  # nella radice del Drive del proprietario, mai condivisa
 VER = re.compile(r"(\d+\.\d+\.\d+)")
 FOLDER_MIME = "application/vnd.google-apps.folder"
 CHUNK = 32 * 1024 * 1024  # multiplo di 256 KiB
@@ -125,18 +129,48 @@ def _list(tok: str, q: str) -> list:
             return out
 
 
-def _old_folder(tok: str) -> str:
-    found = _list(tok, f"'{DRIVE_FOLDER}' in parents and name = 'Old' and mimeType = '{FOLDER_MIME}' and trashed = false")
+def _folder(tok: str, parent: str, name: str) -> str:
+    q = name.replace("'", "\\'")
+    found = _list(tok, f"'{parent}' in parents and name = '{q}' and mimeType = '{FOLDER_MIME}' and trashed = false")
     if found:
         return found[0]["id"]
-    made = _api(tok, "POST", API + "/files", {"name": "Old", "mimeType": FOLDER_MIME, "parents": [DRIVE_FOLDER]}, {"fields": "id"})
-    print("Creata la cartella Old")
-    return made["id"]
+    print("Creata la cartella", name)
+    return _api(tok, "POST", API + "/files", {"name": name, "mimeType": FOLDER_MIME, "parents": [parent]}, {"fields": "id"})["id"]
 
 
-def _upload(tok: str, path: Path) -> str:
+def _kind(name: str) -> str:
+    n = name.lower()
+    return "mac" if n.endswith(".dmg") else "android" if n.endswith(".apk") else "windows"
+
+
+def _folders(tok: str) -> dict:
+    arch = _folder(tok, "root", ARCHIVE)
+    return {"windows": _folder(tok, DRIVE_FOLDER, "Windows"), "mac": _folder(tok, DRIVE_FOLDER, "Mac"),
+            "android": _folder(tok, arch, "Android"), "old": _folder(tok, arch, "Old")}
+
+
+def _move(tok: str, f: dict, src: str, dst: str) -> None:
+    _api(tok, "PATCH", f"{API}/files/{f['id']}", {}, {"addParents": dst, "removeParents": src, "fields": "id"})
+
+
+def tidy(tok: str, fo: dict) -> None:
+    """Riordina la struttura vecchia: file nella radice della cartella pubblica e vecchia "Old" condivisa -> archivio privato."""
+    for f in _list(tok, f"'{DRIVE_FOLDER}' in parents and trashed = false and mimeType != '{FOLDER_MIME}'"):
+        if OURS.match(f["name"]):
+            k = _kind(f["name"])
+            _move(tok, f, DRIVE_FOLDER, fo["android"] if k == "android" else fo[k])
+            print("Spostato in", k, ":", f["name"])
+    for d in _list(tok, f"'{DRIVE_FOLDER}' in parents and name = 'Old' and mimeType = '{FOLDER_MIME}' and trashed = false"):
+        for f in _list(tok, f"'{d['id']}' in parents and trashed = false"):
+            _move(tok, f, d["id"], fo["old"])
+            print("Spostato nell'archivio Old:", f["name"])
+        _api(tok, "PATCH", f"{API}/files/{d['id']}", {"trashed": True}, {"fields": "id"})
+        print("Cestinata la vecchia cartella Old condivisa (vuota)")
+
+
+def _upload(tok: str, path: Path, parent: str) -> str:
     size = path.stat().st_size
-    meta = json.dumps({"name": path.name, "parents": [DRIVE_FOLDER]}).encode()
+    meta = json.dumps({"name": path.name, "parents": [parent]}).encode()
     req = urllib.request.Request(UPLOAD + "?uploadType=resumable&supportsAllDrives=true", data=meta, method="POST", headers={
         "authorization": "Bearer " + tok, "content-type": "application/json; charset=UTF-8",
         "x-upload-content-type": "application/octet-stream", "x-upload-content-length": str(size)})
@@ -178,26 +212,30 @@ def publish(files: list) -> None:
             sys.exit("File non trovato: " + str(p))
         if "admin" in p.name.lower():
             sys.exit("MB Desk Admin non va nella cartella di distribuzione: " + p.name)
-    names = {p.name for p in paths}
-    versions = {m.group(1) for p in paths if (m := VER.search(p.name))}
     tok = _access()
-    old = _old_folder(tok)
-    for f in _list(tok, f"'{DRIVE_FOLDER}' in parents and trashed = false and mimeType != '{FOLDER_MIME}'"):
-        v = VER.search(f["name"])
-        if OURS.match(f["name"]) and (f["name"] in names or not v or v.group(1) not in versions):
-            _api(tok, "PATCH", f"{API}/files/{f['id']}", {}, {"addParents": old, "removeParents": DRIVE_FOLDER, "fields": "id"})
-            print("Spostato in Old:", f["name"])
+    fo = _folders(tok)
+    tidy(tok, fo)
+    for k in sorted({_kind(p.name) for p in paths}):
+        names = {p.name for p in paths if _kind(p.name) == k}
+        versions = {m.group(1) for n in names if (m := VER.search(n))}
+        for f in _list(tok, f"'{fo[k]}' in parents and trashed = false and mimeType != '{FOLDER_MIME}'"):
+            v = VER.search(f["name"])
+            if OURS.match(f["name"]) and (f["name"] in names or not v or v.group(1) not in versions):
+                _move(tok, f, fo[k], fo["old"])
+                print("Spostato nell'archivio Old:", f["name"])
     for p in paths:
         tok = _access()  # i caricamenti lunghi possono superare l'ora di validita' del token
         print("Caricamento:", p.name)
-        _upload(tok, p)
+        _upload(tok, p, fo[_kind(p.name)])
         print("Caricato:", p.name)
-
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     if "--login" in sys.argv:
         login()
+    elif "--riordina" in sys.argv:  # solo la struttura delle cartelle, senza caricare nulla
+        t = _access()
+        tidy(t, _folders(t))
     elif len(sys.argv) > 1:
         publish([a for a in sys.argv[1:] if not a.startswith("--")])
     else:
