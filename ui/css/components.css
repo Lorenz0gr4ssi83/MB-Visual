@@ -47,3 +47,4 @@
 .comp-need p { margin: 4px 0 0; color: var(--muted); }
 .comp-need .note { color: var(--fg); }
 @media (max-width: 700px) { .cm-grid { grid-template-columns: 1fr; } .cm-back { padding: 0; } .cm-box { border-radius: 0; height: 100%; } }
+.cm-all { margin-left: 12px; }

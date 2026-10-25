@@ -27,7 +27,7 @@ const VIEWER_NAMES = {
   office: tr("app.documento_office_libreoffice"), text: tr("app.testo_codice"), markdown: "Markdown", html: tr("app.pagina_web"),
   image: tr("app.immagine"), svg: "SVG", media: tr("app.audio_video"), cad2d: tr("app.disegno_cad_2d"), model3d: tr("app.modello_3d"), inventor: tr("app.documento_inventor"),
   external: tr("app.programma_esterno"), archive: tr("app.archivio"), email: tr("app.email"), epub: "eBook", font: "Font",
-  dwf: tr("app.pubblicazione_dwf"), sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), visio: tr("app.diagramma_visio"), gis: tr("app.mappa_gis"), bcf: tr("app.segnalazioni_bim_bcf"), pratica: tr("newfile.pratica_edilizia"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"), compare: tr("app.confronto_revisioni"),
+  dwf: tr("app.pubblicazione_dwf"), sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), visio: tr("app.diagramma_visio"), gis: tr("app.mappa_gis"), bcf: tr("app.segnalazioni_bim_bcf"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"), compare: tr("app.confronto_revisioni"),
   solidcad: tr("app.solidworks_solid_edge"), recover: tr("app.recupero_file"),
   dicom: tr("app.immagine_medica_dicom"), calendar: tr("app.calendario"), contacts: tr("app.contatti"), cert: tr("app.certificato_digitale"),
   iwork: "Apple iWork", hpgl: tr("app.plotter_hpgl"), scidata: tr("app.dati_scientifici"), revit: "Revit",
@@ -97,7 +97,7 @@ export function resolveCategory(name, sniff) {
 
 // ------------------------------------------------------------------ badge per tipo di file
 const BADGE_COLOR = { pdf: "pdf", signed: "sig", word: "doc", "office-lo": "doc", sheet: "xls", pptx: "ppt", publisher: "cad", visio: "doc", cad2d: "cad",
-  cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", inventor: "3d", "inventor-doc": "cad", solidcad: "3d", vis3d: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", videoproject: "av", bcf: "3d", pratica: "doc",
+  cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", inventor: "3d", "inventor-doc": "cad", solidcad: "3d", vis3d: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", videoproject: "av", bcf: "3d",
   archive: "zip", email: "mail", text: "code", markdown: "code", html: "code", ebook: "code", font: "code", database: "db", gis: "img",
   dicom: "img", calendar: "mail", contacts: "mail", cert: "sig", iwork: "doc", hpgl: "cad", scidata: "db", revit: "3d" };
 export function badgeFor(name, isDir = false) {
@@ -237,7 +237,7 @@ const ICON_FILE = '<svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/
 const ICON_NEW = '<svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M12 11v6M9 14h6"/></svg>';
 const ICON_FOLDER = '<svg viewBox="0 0 24 24"><path d="M3 4h7v16H3zM14 4h7v7h-7zM14 14h7v6h-7z"/></svg>';
 
-function closeMenus() { for (const id of ["menu-open", "menu-as", "menu-file", "menu-pratiche"]) $(id).hidden = true; }
+function closeMenus() { for (const id of ["menu-open", "menu-as", "menu-file"]) $(id).hidden = true; }
 function placeMenu(m, anchor) {
   // dentro lo schermo anche sul telefono: larghezza vera del menu (prima su schermi stretti finiva a sinistra fuori schermo)
   const r = anchor.getBoundingClientRect();
@@ -296,7 +296,6 @@ function fileMenu(anchor) {
   const item = (icon, text, hint, fn, disabled = false) => { const b = el("button", { disabled: disabled || undefined, onclick: () => { m.hidden = true; fn(); } }); b.insertAdjacentHTML("beforeend", icon); b.append(el("span", {}, text)); if (hint) b.append(el("span", { class: "hint" }, hint)); return b; };
   const gated = (comp, b) => (isOn(comp) ? [b] : []);
   m.append(item(ICON_NEW, tr("app.crea_nuovo"), "Ctrl+N", doNew),
-    ...(WEB ? [] : gated("pratiche", item(ICON_PRATICA, tr("pratiche.nuova"), "", newPratica))),
     item(ICON_SAVE, tr("common.salva"), "Ctrl+S", () => save(false), !active),
     item(ICON_SAVEAS, tr("app.salva_nome"), keysText("Ctrl+Shift+S"), () => save(true), !active),
     ...(WEB ? [] : [item(ICON_PHONE, tr("link.invia_telefono"), "", () => window.MBLink?.sendTab(active), !active || !window.MBLink)]),
@@ -700,47 +699,18 @@ function startMailBadge() {
   import("./mail/mailbadge.js").then(m => m.setupMailBadge()).catch(e => console.error(e)); // posta in background: messaggi da leggere, avvisi
 }
 
-// ------------------------------------------------------------------ pratiche edilizie (ui/js/viewers/pratica.js)
-const ICON_PRATICA = '<svg viewBox="0 0 24 24"><path d="M3 11.5L11 5l8 6.5M5 10v11h12V10M8.5 15.5l2 2 3.5-3.5"/></svg>';
-const newPratica = () => doNew("mbcomm");
-async function openPratica() {
-  const ps = await pickFiles();
-  if (ps?.length) openPaths(ps);
-}
-function praticheMenu(anchor) {
-  const m = $("menu-pratiche");
-  if (!m.hidden) { m.hidden = true; return; }
-  closeMenus();
-  m.innerHTML = "";
-  const item = (icon, text, fn) => { const b = el("button", { onclick: () => { m.hidden = true; fn(); } }); b.insertAdjacentHTML("beforeend", icon); b.append(el("span", {}, text)); return b; };
-  m.append(el("div", { class: "sec label" }, tr("pratiche.titolo")),
-    item(ICON_NEW, tr("pratiche.nuova"), newPratica), item(ICON_FOLDER, tr("pratiche.apri"), openPratica), el("hr"), el("div", { class: "sec label" }, tr("pratiche.recenti")));
-  const list = recentList().filter(r => /\.mbcomm$/i.test(r.path));
-  if (!list.length) m.append(el("div", { class: "empty" }, tr("pratiche.nessuna_recente")));
-  for (const r of list.slice(0, 8)) {
-    m.append(el("button", { class: "rec", title: r.path, onclick: () => { m.hidden = true; openPaths([r.path]); } },
-      badgeFor(r.name), el("span", { class: "nm" }, r.name.replace(/\.mbcomm$/i, "")), el("span", { class: "pt" }, dirName(r.path))));
-  }
-  m.hidden = false;
-  const a = anchor.getBoundingClientRect();
-  const side = innerWidth > 700; // su schermi stretti la barra laterale sta in basso
-  m.style.left = (side ? a.right + 8 : Math.max(8, Math.min(a.left, innerWidth - m.offsetWidth - 8))) + "px";
-  m.style.top = (side ? Math.max(8, Math.min(a.top, innerHeight - m.offsetHeight - 8)) : Math.max(8, a.top - m.offsetHeight - 8)) + "px";
-}
-
 // home: scorciatoie "Crea nuovo" dei componenti attivi
 const HOME_NEW = [["docx", "newfile.documento_word", "--t-doc", '<path d="M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M9 17h4"/>', "office"],
   ["xlsx", "newfile.cartella_lavoro_excel", "--t-xls", '<rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 10h16M4 15h16M10 4v16"/>', "office"],
   ["pptx", "newfile.presentazione_powerpoint", "--t-ppt", '<rect x="3" y="5" width="18" height="12" rx="1.5"/><path d="M12 17v3M8 20h8"/>', "office"],
   ["dxf", "newfile.disegno_cad", "--t-cad", '<path d="M4 4h16v16H4zM14 14h6M14 14v6"/>', "cad"],
-  ["mbcomm", "newfile.pratica_edilizia", "--t-sig", '<path d="M3 11.5L11 5l8 6.5M5 10v11h12V10M8.5 15.5l2 2 3.5-3.5"/>', "pratiche"],
   ["mbpub", "newfile.pubblicazione", "--t-av", '<path d="M4 4h16v16H4zM4 10h16M10 10v10"/>', "graphics"],
   ["mbvid", "newfile.progetto_video", "--t-3d", '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/>', "video"]];
 function renderHomeNew() {
   const row = $("home-newrow");
   row.innerHTML = "";
   row.append(el("span", { class: "label" }, tr("idx.crea_nuovo")),
-    ...HOME_NEW.filter(([ext, , , , comp]) => isOn(comp) && !(WEB && ["mbvid", "mbcomm"].includes(ext))).map(([ext, key, c, svg]) => el("button", { class: "new-chip", style: { "--c": `var(${c})` }, onclick: () => doNew(ext),
+    ...HOME_NEW.filter(([ext, , , , comp]) => isOn(comp) && !(WEB && ext === "mbvid")).map(([ext, key, c, svg]) => el("button", { class: "new-chip", style: { "--c": `var(${c})` }, onclick: () => doNew(ext),
       html: `<span class="ci"><svg viewBox="0 0 24 24">${svg}</svg></span>` }, tr(key))));
 }
 
@@ -1041,7 +1011,7 @@ function goBack() {
   if (window.MBV_BACK?.()) return; // schermate a tutto schermo (scanner, realta' aumentata) gestiscono da sole il tasto indietro
   if (!$("modal").hidden) return document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
   if (phoneUi?.back()) return; // telefono: fogli, pannelli, barre nascoste, schede della barra in basso
-  if (!$("menu-open").hidden || !$("menu-as").hidden || !$("menu-file").hidden || !$("menu-pratiche").hidden) return closeMenus();
+  if (!$("menu-open").hidden || !$("menu-as").hidden || !$("menu-file").hidden) return closeMenus();
   if (!$("dragover").hidden) { $("dragover").hidden = true; document.body.classList.remove("dragging"); return; }
   if (document.fullscreenElement) return document.exitFullscreen?.();
   if (!$("formats").hidden) return toggleFormats();
@@ -1109,8 +1079,6 @@ function openPalette() {
     c(ICON_SAVEAS, tr("app.salva_nome"), "Ctrl+Shift+S", () => save(true), has),
     c(ICON_PRINT, tr("app.stampa"), "Ctrl+P", () => doPrint(), has && !WEB),
     c(ICON_PRINT, tr("app.stampa_lotti"), "Ctrl+Shift+P", () => doPrint(true), !WEB && isOn("cad")),
-    c(ICON_PRATICA, tr("pratiche.nuova"), "", newPratica, !WEB && isOn("pratiche")),
-    c(ICON_PRATICA, tr("pratiche.apri"), "", openPratica, !WEB && isOn("pratiche")),
     c(ICON_COMPONENTS, tr("comp.menu"), "", () => openComponents(), !WEB),
     c(ICON_I("M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v6M12 7.5v.5"), tr("idx.proprieta"), "", showProperties, has),
     c(ICON_I("M3 6h6l2 2h10v11H3zM3 10h18"), tr("app.cartella_progetto"), "", chooseExplorerFolder, !WEB),
@@ -1245,10 +1213,9 @@ async function boot() {
   $("btn-home").addEventListener("click", () => activate(null));
   $("btn-search").addEventListener("click", () => import("./search.js").then(m => m.toggle()));
   $("btn-mail").addEventListener("click", () => openMail());
-  $("btn-pratiche").addEventListener("click", e => praticheMenu(e.currentTarget));
   $("btn-keys").addEventListener("click", showShortcuts);
   $("btn-palette").addEventListener("click", openPalette);
-  document.addEventListener("click", e => { if (!e.target.closest(".menu-wrap, #btn-pratiche, #menu-pratiche")) closeMenus(); });
+  document.addEventListener("click", e => { if (!e.target.closest(".menu-wrap")) closeMenus(); });
   document.addEventListener("keydown", e => {
     const k = e.key.toLowerCase();
     // palette dei comandi; Ctrl+K resta all'editor se il programma originale lo usa (Premiere, Publisher, Office) o nei testi

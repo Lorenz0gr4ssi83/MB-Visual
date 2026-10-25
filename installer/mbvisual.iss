@@ -80,6 +80,8 @@ en.Shortcuts=Shortcuts:
 it.ShellStatus=Integrazione con Esplora risorse...
 en.ShellStatus=Integrating with File Explorer...
 it.Launch=Avvia MB Visual
+it.SelAll=Seleziona tutto
+en.SelAll=Select all
 en.Launch=Launch MB Visual
 
 [Tasks]
@@ -133,6 +135,8 @@ end;
 const
   RegKey = 'Software\MB Visual\Componenti';
 var
+  SelAll: TNewCheckBox;
+  SelAllBusy: Boolean;
   InfoPanel: TPanel;
   InfoIcon: TBitmapImage;
   InfoTitle, InfoText, InfoTag: TNewStaticText;
@@ -208,14 +212,40 @@ begin
     ShowComponent(Item('{#CompIds}', WizardForm.ComponentsList.ItemIndex));
 end;
 
+// "Seleziona tutto": spuntata quando tutti i componenti sono scelti
+procedure SyncSelAll();
+var I: Integer; All: Boolean;
+begin
+  All := True;
+  for I := 0 to WizardForm.ComponentsList.Items.Count - 1 do
+    if not WizardForm.ComponentsList.Checked[I] then All := False;
+  SelAllBusy := True;
+  SelAll.Checked := All;
+  SelAllBusy := False;
+end;
+
+procedure SelAllClick(Sender: TObject);
+var I: Integer;
+begin
+  if SelAllBusy then exit;
+  for I := 0 to WizardForm.ComponentsList.Items.Count - 1 do
+    if WizardForm.ComponentsList.ItemEnabled[I] then
+      if SelAll.Checked then WizardForm.ComponentsList.CheckItem(I, coCheck)
+      else WizardForm.ComponentsList.CheckItem(I, coUncheck);
+  WizardForm.ComponentsList.Invalidate;
+  SyncSelAll();
+end;
+
 procedure ComponentsCheck(Sender: TObject);
 begin
   ComponentsClick(Sender);
+  SyncSelAll();
 end;
 
 procedure TypesChange(Sender: TObject);
 begin
   ShowProfile();
+  SyncSelAll();
 end;
 
 // aggiornamento: si riprende la scelta salvata dall'app o dall'installazione precedente (anche con /SILENT)
@@ -249,7 +279,15 @@ begin
   WizardForm.ComponentsDiskSpaceLabel.Visible := False;
   L.Width := (W * 46) div 100;
   WizardForm.TypesCombo.Width := L.Width;
-  L.Height := WizardForm.SelectComponentsPage.ClientHeight - L.Top;
+  L.Height := WizardForm.SelectComponentsPage.ClientHeight - L.Top - ScaleY(30);
+  SelAll := TNewCheckBox.Create(WizardForm);
+  SelAll.Parent := WizardForm.SelectComponentsPage;
+  SelAll.Left := L.Left;
+  SelAll.Top := L.Top + L.Height + ScaleY(8);
+  SelAll.Width := L.Width;
+  SelAll.Height := ScaleY(20);
+  SelAll.Caption := CustomMessage('SelAll');
+  SelAll.OnClick := @SelAllClick;
   L.Offset := ScaleY(4);
   InfoPanel := TPanel.Create(WizardForm);
   InfoPanel.Parent := WizardForm.SelectComponentsPage;
@@ -293,6 +331,7 @@ begin
   L.OnClickCheck := @ComponentsCheck;
   WizardForm.TypesCombo.OnChange := @TypesChange;
   RestoreChoice();
+  SyncSelAll();
 end;
 
 procedure CurPageChanged(CurPageID: Integer);

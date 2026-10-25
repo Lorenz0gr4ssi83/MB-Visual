@@ -104,6 +104,8 @@ export function showComponents({ focus = null, welcome = false } = {}) {
     const profRow = el("div", { class: "cm-prof", role: "radiogroup" });
     const profNote = el("div", { class: "cm-prof-note" });
     const count = el("span", { class: "cm-count" });
+    // "Seleziona tutto" / "Deseleziona tutto" (i componenti sempre inclusi restano accesi)
+    const allBtn = el("button", { class: "btn cm-all", onclick: () => { const o = optional(); if (o.every(x => sel.has(x))) sel.clear(); else o.forEach(x => sel.add(x)); render(); } });
     const close = v => { back.remove(); document.removeEventListener("keydown", onKey, true); resolve(v); };
     const cards = new Map();
     const PROFILES = [...REG.profiles.map(p => p.id), "personalizzato"];
@@ -122,6 +124,7 @@ export function showComponents({ focus = null, welcome = false } = {}) {
       }
       const opt = optional();
       count.textContent = tr("comp.attivi", opt.filter(x => sel.has(x)).length, opt.length);
+      allBtn.textContent = opt.every(x => sel.has(x)) ? tr("comp.desel_tutto") : tr("comp.sel_tutto");
     }
     for (const c of visible()) {
       const card = el("label", { class: "cm-card" + (c.fixed ? " fixed" : ""), "data-id": c.id });
@@ -145,7 +148,7 @@ export function showComponents({ focus = null, welcome = false } = {}) {
         welcome ? null : el("button", { class: "nf-x cm-x", title: tr("common.chiudi"), html: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>', onclick: () => close(false) })),
       el("div", { class: "cm-profbar" }, el("span", { class: "label" }, tr("comp.profilo")), profRow, profNote),
       el("div", { class: "cm-body" }, grid),
-      el("footer", { class: "cm-foot" }, count, el("span", { class: "grow" }), welcome ? null : el("button", { class: "btn", onclick: () => close(false) }, tr("common.annulla")), okBtn)));
+      el("footer", { class: "cm-foot" }, count, allBtn, el("span", { class: "grow" }), welcome ? null : el("button", { class: "btn", onclick: () => close(false) }, tr("common.annulla")), okBtn)));
     if (!welcome) back.addEventListener("pointerdown", e => { if (e.target === back) close(false); });
     document.body.append(back);
     document.addEventListener("keydown", onKey, true);

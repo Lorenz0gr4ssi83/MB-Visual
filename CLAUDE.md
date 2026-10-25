@@ -142,7 +142,7 @@ Scopo commerciale: chi installa vede tutto cio' che l'app sa fare e sceglie cosa
 componenti accendono e spengono le funzioni. Registro unico `ui/components.json` (id, icona SVG, categorie/estensioni di
 formats.json legate al componente, `invite: "usa"` = invito "per usare tutte le funzioni" invece di "per modificarlo", profili).
 Sempre inclusi: base, shell (Integrazione con Windows). Facoltativi: office, cad, bim, mech (anche Revit), survey, gis, measure,
-graphics (Photoshop/Publisher/Visio: anche le immagini), video, sign, mail, pratiche, tools (lotti, ricerca, cloud), special
+graphics (Photoshop/Publisher/Visio: anche le immagini), video, sign, mail, tools (lotti, ricerca, cloud), special
 (DICOM, HDF5/NetCDF, iWork). Profili: completo (predefinito), studio, impresa, ufficio, personalizzato.
 - Scelta salvata in `%LOCALAPPDATA%\MBVisual\componenti.json` ({profilo, attivi, noti}: un componente nuovo, assente da "noti",
   nasce acceso) e su Windows anche in HKCU\Software\MB Visual\Componenti (Attivi, Profilo). Motore `mbvisual/components.py`
@@ -154,8 +154,7 @@ graphics (Photoshop/Publisher/Visio: anche le immagini), video, sign, mail, prat
   propone di attivarlo; attivato, le schede si riaprono da sole (se non modificate). Office spento = niente ONLYOFFICE (editor leggeri),
   CAD spento = cad2d senza editor. Nella web app tutto acceso. Mac: il .dmg non ha pagine, la scelta si fa al primo avvio
   (`needsFirstRun`: Mac e nessun componenti.json).
-- Pratiche edilizie ben visibili: pulsante `#btn-pratiche` nella barra laterale (menu Nuova / Apri / recenti), voce nel menu File,
-  scorciatoia nella home, comandi nella palette (chiavi `pratiche.*`). Testi dei componenti: `comp.<id>.nome|desc`, `comp.prof.<id>.*`.
+- "Seleziona tutto" sia nell'installabile (casella sotto l'elenco, SyncSelAll in mbvisual.iss) sia in File > Componenti (25/10/2026).
 - Installabile: `installer/mbvisual.iss` (WizardStyle modern dark, it + en scelti dalla lingua di Windows, pagina componenti con
   tendina dei profili, elenco a sinistra e scheda con icona/nome/descrizione a destra). `tools/make_setup_art.py <cartella>` genera
   da components.json e da it/en.json: componenti.iss ([Types], [Components], [CustomMessages]), icone BMP 48/96 e immagini col logo;
@@ -1338,35 +1337,9 @@ Web app (app per cellulari sul server delle licenze) finalizzata per tablet 768-
   DXF salvati validati con ezdxf (audit 0 errori), PDF con PyMuPDF (annotazioni Ink lette e disegnate). Testi: chiavi
   `ink.*`, `touch.*` nelle 5 lingue. Collaudi dalla console: `MB.active.api._ink` (PDF).
 
-## Pratiche edilizie e moduli unificati (22/10/2026) - FATTO (da provare con pratiche e visure vere dell'utente)
-"Crea nuovo" -> "Pratica edilizia": si sceglie la cartella di commessa e il nome, nasce `<nome>.mbcomm` (JSON = anagrafica:
-committenti anche piu' di uno con CF/P.IVA e residenza, immobile con dati catastali e titoli precedenti, tecnici con albo,
-imprese con regolarita' contributiva, intervento, procuratore; struttura in `nuova()`), e si apre il visualizzatore `pratica`.
-- Motore `mbvisual/edilizia.py` (API unica `api/pratica?op=moduli|leggi|scrivi|genera|fascicolo|visura|file`, genera e
-  fascicolo = lavori in background). Modelli in `ui/templates/edilizia/*.mbm` (linguaggio a righe descritto in `parse`: `##` fascia,
-  `###` quadro, `[codice?condizione]` casella, `{percorso:mm}` campo, `{=percorso}` testo, `|` tabelle con `|?cond|` righe
-  condizionate, `@per x in elenco`, `@se`, `@include _frammento`, `@firma`). Condizioni: `a.b`, `!a.b`, `a=v1|v2`, `a!=v`,
-  `x|y` (o tra percorsi), `&`, `1`. Variabili in `contesto()` (tit, titolari_altri, imm, tt = titoli per tipo, prog, dl, pr =
-  procuratore o progettista, imp, int, com, prat, luogo_data...). FONTI e licenze: `ui/templates/edilizia/FONTI.md`.
-- Moduli: CILA, SCIA, SCIA alternativa (Accordo C.U. 4/5/2017 + modifiche "Salva Casa" Accordo 27/3/2025), CILA-Superbonus
-  (Accordo 4/8/2021), fine lavori, soggetti coinvolti = trascrizioni dei moduli nazionali; inizio lavori, procura speciale,
-  delega = schemi sui quadri unificati; relazione tecnica asseverata e dichiarazione di conformita' = DOCX (python-docx).
-  Testo dei moduli in italiano (atti italiani); interfaccia con chiavi `pratica.*`, `srv_edilizia.*`, `fmt.pratica.*` (5 lingue).
-- PDF: Arial di Windows con TextWriter (un solo inserimento per pagina: insert_text parola per parola era lentissimo) e Shape;
-  i campi (PyMuPDF Widget) si aggiungono su pagine d'appoggio una alla volta (add_widget controlla i nomi su tutto il modulo:
-  tempo quadratico, 7 s per 600 campi) e il contenuto si posa sotto con show_pdf_page; poi `pdfedit.fix_tounicode`.
-  Nomi dei campi = percorso o codice del quadro, ripetizioni con `#2` (mai `_2`: X_1_2 e' un codice). SCIA 21 pagine ~3 s.
-- Regione: tendina (REGIONI in edilizia.py con l'atto regionale); si generano sempre i moduli nazionali e, se la regione ha
-  modulistica propria, il pannello lo segnala. Da aggiungere i modelli regionali dedicati (elenco in FONTI.md).
-- Visura catastale PDF (`visura`): comune, foglio/particella/sub, categoria/classe/consistenza/rendita, indirizzo, piano, interno,
-  intestati (cognome/nome divisi con il codice fiscale, diritto e quota -> "proprietario"/"comproprietario"), societa'.
-  Scritta sull'impaginazione delle visure AdE ma provata solo su visure sintetiche (`tools/make_edilizia_samples.py`).
-- Fascicolo: frontespizio con i dati della commessa, indice con numeri di pagina e collegamenti, segnalibri (anche quelli dei
-  documenti), campi appiattiti (opzione), DOCX convertiti con Word/LibreOffice o, senza, impaginazione semplice del testo.
-  Si salva accanto al .mbcomm come "<nome> - Fascicolo.pdf". Firma: pulsanti "Firma" che aprono `firma.js` (PAdES).
-- pdf.js: `.annotationLayer { color-scheme: light }` in viewers/pdf.js (nel tema scuro la spunta delle caselle era bianca).
-- Collaudo: `python tests/test_edilizia.py` (121 prove: condizioni, campi riletti dal PDF, sintassi non trapelata, DOCX,
-  generazione, fascicolo, visure). Prove dalla console: `MB.active.api._pt` (a, generate, makeBook, editData, files).
+## Pratiche edilizie - TOLTE (25/10/2026)
+Modulo eliminato su richiesta dell'utente ("non serve a nulla"): edilizia.py, viewers/pratica.js, modelli .mbm, formato .mbcomm,
+componente "pratiche", pulsante della barra laterale e chiavi pratiche.*/srv_edilizia.*. Si recupera dalla cronologia git se servisse.
 
 ## Misure ed estrazioni di quantita' (22/10/2026) - FATTO (da provare sui file veri dell'utente)
 Pannello "Misure" UNICO per PDF, disegni CAD (DWG/DXF), fogli DWF/DWFx e modelli 3D/BIM (stile Bluebeam Revu Measurements /
