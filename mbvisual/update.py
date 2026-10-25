@@ -27,7 +27,9 @@ from .paths import APP_DIR, DATA_DIR, IS_MAC, IS_WIN, NO_WINDOW, RES_DIR
 from .i18n import t
 
 FROZEN = bool(getattr(sys, "frozen", False))
-REL = Path("ai-engineering-workspace") / "MB Desk" / "App per PC"
+# cartella del progetto su OneDrive: nome storico "MB Visual" (non visibile ai clienti), "MB Desk" se un giorno la si rinomina
+REL = Path("ai-engineering-workspace") / "MB Visual" / "App per PC"
+REL_NEW = Path("ai-engineering-workspace") / "MB Desk" / "App per PC"
 SETTINGS = DATA_DIR / "aggiornamenti.json"
 # eseguibile: "MB Desk.exe" dal 25/10/2026; "MBVisual.exe" = nome delle versioni precedenti (ponte per l'aggiornamento)
 EXE = "MB Desk.exe" if IS_WIN else "MB Desk"
@@ -90,12 +92,15 @@ def _candidates():
         seen.add(r)
         root = Path(r)
         yield root / REL
+        yield root / REL_NEW
         # cartella condivisa aggiunta come collegamento o sincronizzata con un altro nome
         try:
             for sub in root.iterdir():
                 if sub.is_dir():
+                    yield sub / "MB Visual" / "App per PC"
                     yield sub / "MB Desk" / "App per PC"
                     yield sub / REL
+                    yield sub / REL_NEW
         except OSError:
             pass
 
@@ -257,7 +262,8 @@ def _copy_app(src: Path, dst: Path, update=None) -> None:
 
 
 LINK = "MB Desk.lnk"          # nome dell'app dal 25/10/2026
-OLD_LINK = "MB Desk.lnk"    # collegamenti delle versioni precedenti: si rinominano dove sono
+OLD_LINK = "MB Visual.lnk"  # collegamenti delle versioni precedenti: si rinominano dove sono (1.6.6-1.6.8: per errore
+                            # era "MB Desk.lnk" e il collegamento appena creato veniva cancellato subito)
 
 
 def _desktop_link(desktop) -> Path:

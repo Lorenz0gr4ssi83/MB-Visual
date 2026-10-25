@@ -25,6 +25,7 @@ from pathlib import Path
 from .i18n import t
 
 NM = "mbvmis-"          # prefisso del nome (/NM) delle annotazioni scritte da MB Desk
+OURS = ("MB Desk", "MB Visual")  # nome dei /VP scritti dall'app (fino alla 1.6.5: "MB Visual")
 ATTACH = "misure.mbmis"  # allegato con il documento delle misure
 _cache: dict = {}
 _lock = threading.Lock()
@@ -298,7 +299,7 @@ def scales(path):
                 mb = page.mediabox
                 full = abs((box[2] - box[0]) - mb.width) < 2 and abs((box[3] - box[1]) - mb.height) < 2
                 out.append({"page": pno, "box": None if full else box, "k": k, "unit": unit, "N": round(N, 3),
-                            "label": (name + " · " if name and not name.startswith("MB Desk") else "") + ("1:%g" % round(N, 2)), "source": t("srv_measure.fonte_vp")})
+                            "label": (name + " · " if name and not name.startswith(OURS) else "") + ("1:%g" % round(N, 2)), "source": t("srv_measure.fonte_vp")})
             # testi: "Scala 1:100" (si preferiscono quelli con la parola scala e in basso a destra, nel cartiglio)
             W, H = page.rect.width, page.rect.height
             best = None
@@ -760,10 +761,10 @@ def write(path, mdoc, labels=None, author=""):
                                                                                        _measure_dict(float(s.get("k") or PT), s.get("unit") or "m", s.get("label") or "")))
             # i /VP di altri programmi restano; quelli di MB Desk si riscrivono
             kind, val = doc.xref_get_key(page.xref, "VP")
-            keep = [d for d in _split_dicts(val) if "MB Desk" not in d] if kind == "array" and "R" not in val.split() else []
+            keep = [d for d in _split_dicts(val) if not any(o in d for o in OURS)] if kind == "array" and "R" not in val.split() else []
             if vps or keep:
                 doc.xref_set_key(page.xref, "VP", "[" + " ".join(keep + vps) + "]")
-            elif kind != "null" and "MB Desk" in (val or ""):
+            elif kind != "null" and any(o in (val or "") for o in OURS):
                 doc.xref_set_key(page.xref, "VP", "null")
         # allegato con tutti i dati (voci, prezzi, note, scale)
         data = json.dumps(mdoc, ensure_ascii=False).encode("utf-8")
