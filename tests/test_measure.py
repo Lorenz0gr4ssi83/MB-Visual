@@ -118,9 +118,9 @@ def main():
     check("contenuto della nota con nome, valore e note", poly and "Soggiorno" in poly.info["content"] and "20,00" in poly.info["content"] and "parquet" in poly.info["content"])
     check("10 simboli del conteggio", sum(1 for n in an if n.startswith("mbvmis-c1")) == 10)
     vp0 = d.xref_get_key(d[0].xref, "VP")[1]
-    check("/VP della pagina 1 con la scala di MB Visual", "MB Visual" in vp0 and "/Measure" in vp0)
+    check("/VP della pagina 1 con la scala di MB Desk", "MB Desk" in vp0 and "/Measure" in vp0)
     vp1 = d.xref_get_key(d[1].xref, "VP")[1]
-    check("/VP della pagina 2: riquadro di MB Visual 1:20", "MB Visual 1:20" in vp1)
+    check("/VP della pagina 2: riquadro di MB Desk 1:20", "MB Desk 1:20" in vp1)
     check("allegato misure.mbmis", "misure.mbmis" in d.embfile_names())
     d.close()
     back = M.read(str(out))
