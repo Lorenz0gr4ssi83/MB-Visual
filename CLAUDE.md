@@ -1308,7 +1308,8 @@ Solo app per PC. Il risultato si apre subito nell'editor CAD. DWG solo con ODA F
   * TRATTEGGI: AutoCAD scrive le linee tratteggiate come trattini separati (anche tracciati consecutivi): `_dash_chains` riunisce i
     trattini in fila con pause regolari in UNA linea/polilinea con tipo di linea MBV_ (schema trattino/pausa, anche lungo-corto).
   * Testi divisi alle tabulazioni (oltre 0,75 x corpo: "1.    COVER SHEET" usciva sovrapposto); scale 1" = 20' riconosciute.
-  * Velocita': `_fit_run` lineare (prima un cerchio ai minimi quadrati a ogni passo), OCR solo nelle zone che servono.
+  * Velocita': `_fit_run` lineare (prima un cerchio ai minimi quadrati a ogni passo); OCR UNA volta per pagina (zone fuori
+    sbiancate: ogni avvio dell'OCR costa ~1 s). Tavole Civil 3D 48x30" con 50.000 entita': 10-22 s per pagina.
 - Collaudo: `python tests/test_todrawing.py` (77 prove, anche sezione 4 "tavole come le esportano i CAD": pagina ruotata, ritaglio,
   mascheratura, SHX con commento, immagine, tratteggio a pezzi, testo come contorni + OCR) e
   `python tests/fidelity_todrawing.py <pdf|cartella>... [--soglia 0.95] [--out cartella]` = fedelta' visiva: DXF ridisegnato con ezdxf

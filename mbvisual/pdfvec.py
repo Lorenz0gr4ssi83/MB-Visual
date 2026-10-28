@@ -1316,17 +1316,15 @@ def _drawn_texts(page, order, layer_of, opts, update=None, zones=None):
         update(message=tr("srv_drawing.riconoscimento_testi"))
     sc = 72 / dpi
     try:
-        if zones:  # solo le zone indicate (ritagli dell'immagine: molto piu' veloce che leggere tutta la tavola)
-            words = []
+        if zones:  # solo le zone indicate: il resto della pagina si sbianca e l'OCR gira UNA volta (ogni avvio costa ~1 s)
+            Z = np.zeros_like(B)
             for z in zones:
                 c0, c1 = max(0, int(z[0] / sc) - 4), min(B.shape[1], int(z[2] / sc) + 5)
                 r0, r1 = max(0, int((H - z[3]) / sc) - 4), min(B.shape[0], int((H - z[1]) / sc) + 5)
-                if c1 - c0 < 8 or r1 - r0 < 8:
-                    continue
-                for w in rastervec.ocr_words(B[r0:r1, c0:c1]):
-                    words.append((w[0], w[1] + c0, w[2] + r0, w[3] + c0, w[4] + r0) + tuple(w[5:]))
-        else:
-            words = rastervec.ocr_words(B)
+                if c1 > c0 and r1 > r0:
+                    Z[r0:r1, c0:c1] = B[r0:r1, c0:c1]
+            B = Z
+        words = rastervec.ocr_words(B)
     except Exception:  # noqa: BLE001
         return []
     if not words:
