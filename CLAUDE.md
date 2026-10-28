@@ -1281,9 +1281,41 @@ Solo app per PC. Il risultato si apre subito nell'editor CAD. DWG solo con ODA F
   NB ezdxf arrotonda la pagina ai punti interi e scala il disegno: nel collaudo il foglio e' 25400 x 17780 mm (720 x 504 pt).
   Campioni realistici (pianta A3 1:100 vettoriale + "scansione" TIFF storta): `python tools/make_todrawing_samples.py <cartella>`
   (non nel repo: il TIFF pesa 15 MB). Tempi: PDF immediato, scansione A3 300 dpi ~17 s con OCR.
-- Da provare con le tavole vere dell'utente (AutoCAD/Revit, scansioni A1/A0): PDF con testi SHX (tratti + testo nascosto),
-  archi spezzati in segmenti, retini a tratteggio (restano linee), scansioni a colori/cianografie, testi inclinati (l'OCR di Windows
-  legge solo orizzontale e verticale).
+- Revisione 2 (28/10/2026, giudizio dell'utente "penosa, deve prendere tutto il PDF, anche i cartigli"). Misurata su tavole vere
+  (AutoCAD/Civil 3D/Architecture, Vectorworks, Illustrator: fonti in side-session-notes .../conversione-pdf-dwg.md, file fuori dal
+  repo in %USERPROFILE%\.mbvisual\pdfcad): prima richiamo medio 0,29 / precisione 0,39, dopo ~0,97 / ~0,96. Cause trovate e corrette:
+  * PAGINE RUOTATE (/Rotate 90/270, normali nei fogli AutoCAD orizzontali): get_drawings/get_texttrace/annotazioni danno coordinate
+    della pagina NON ruotata. `pdfvec.page_transform` (rotation_matrix + y in alto) per tracciati, testi (anche la direzione),
+    ritagli e immagini. Prima il disegno usciva ruotato/specchiato e tagliato.
+  * RITAGLI: get_drawings(extended=True) -> elementi "clip" con `level`; `mbvisual/pdfclip.py` (Region/Stack: rettangolo con
+    Liang-Barsky o poligoni con pari-dispari/avvolgimento; archi e Bezier tagliati restano archi/Bezier). Il ritaglio vale per gli
+    elementi con livello maggiore; un margine di 0,6 pt solo per "tutto dentro" (i bordi sul limite restano interi).
+  * MASCHERATURE: un riempimento bianco nasconde i tratti disegnati PRIMA di lui (sfondi di cartigli, legende, testi):
+    `_apply_masks` (Region.hole). Contorni bianchi = invisibili sulla carta: saltati (prima uscivano neri, ACI 7).
+  * TESTI SHX: (1) commenti /Square con /T "AutoCAD SHX Text" (`shx_annots`): /Rect = [angolo opposto, inizio della linea di base],
+    anche per i testi inclinati (allora l'angolo si stima dalla diagonale con ~0,9 x altezza per carattere e si affina con l'altezza
+    minima dei tratti, `_best_angle`); paragrafi (MTEXT) -> MTEXT a righe esplicite, ma il commento di AutoCAD a volte RIPETE pezzi
+    di testo: se la lunghezza non torna con i tratti restano i tratti e si legge la zona con l'OCR; (2) testo invisibile (modo 3)
+    sopra i tratti o le lettere piene (`_shx_from_hidden`). Il testo prende posizione, altezza delle maiuscole e fattore di larghezza
+    misurati sui tratti (`_text_from_boxes`, Arial); i tratti si tolgono.
+  * TESTI DISEGNATI senza testo (TrueType "come geometria", SHX senza commenti): `_drawn_texts` = OCR di Windows sulla pagina resa
+    (0 e 90 gradi), i tratti/contorni dentro la parola diventano TEXT, gli originali vanno sul layer spento TESTI-DISEGNATI-ORIGINALI
+    (niente perso se l'OCR sbaglia). Automatico solo se la pagina ha meno di 80 caratteri di testo vero; i contorni pieni si
+    considerano uno per uno (una scritta in un solo tracciato si divide per lettera).
+  * IMMAGINI (foto aeree, loghi, timbri) -> IMAGE con il file in "<nome>_immagini" accanto al DXF (percorso relativo; PNG con
+    trasparenza = flag USE_TRANSPARENCY); estratte con extract_image (+ SMask), mai con get_text("dict") (5 s per una foto grande).
+    L'editor CAD dell'app ora le mostra (dxf.js legge IMAGE e IMAGEDEF, cad2d.js `images` sotto il disegno).
+  * TRATTEGGI: AutoCAD scrive le linee tratteggiate come trattini separati (anche tracciati consecutivi): `_dash_chains` riunisce i
+    trattini in fila con pause regolari in UNA linea/polilinea con tipo di linea MBV_ (schema trattino/pausa, anche lungo-corto).
+  * Testi divisi alle tabulazioni (oltre 0,75 x corpo: "1.    COVER SHEET" usciva sovrapposto); scale 1" = 20' riconosciute.
+  * Velocita': `_fit_run` lineare (prima un cerchio ai minimi quadrati a ogni passo), OCR solo nelle zone che servono.
+- Collaudo: `python tests/test_todrawing.py` (77 prove, anche sezione 4 "tavole come le esportano i CAD": pagina ruotata, ritaglio,
+  mascheratura, SHX con commento, immagine, tratteggio a pezzi, testo come contorni + OCR) e
+  `python tests/fidelity_todrawing.py <pdf|cartella>... [--soglia 0.95] [--out cartella]` = fedelta' visiva: DXF ridisegnato con ezdxf
+  sopra la pagina (richiamo/precisione dell'inchiostro entro 2 px a 100 dpi, parole ritrovate, tempi, immagine di confronto
+  rosso = perso, blu = in piu'). MBV_FEDELTA_RADICE=<copia del codice> misura un'altra versione (prima/dopo).
+- Limiti rimasti: caratteri decorativi non installati (si usa Arial con la larghezza giusta), retini a motivo restano linee,
+  OCR di Windows solo 0/90 gradi, scansioni grandi lente (A0 300 dpi ~2-3 min).
 ## Posta elettronica in stile Outlook (22/10/2026) - FATTO (tappe 1-4; account veri da provare con l'utente)
 Scheda "Posta" (pulsante busta nella barra laterale, `MB.openMail()`; percorso virtuale `mail://posta`, i messaggi nuovi
 `mail://scrivi/<n>` con il visualizzatore `mailcompose`). Solo app per PC. Guida utente: `ui/guide/posta.md`.

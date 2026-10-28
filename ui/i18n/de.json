@@ -9224,5 +9224,20 @@
  "comp.pdf.nome": "PDF und Signatur",
  "comp.posta.desc": "E-Mail und PEC, Kalender und Kontakte an einem Ort.",
  "comp.posta.nome": "E-Mail",
- "v_pdf.timbro_predefinito_0": "GENEHMIGT\n{0}"
+ "v_pdf.timbro_predefinito_0": "GENEHMIGT\n{0}",
+ "srv_drawing.layer_immagini": "BILDER",
+ "srv_drawing.cartella_immagini": "bilder",
+ "srv_drawing.layer_testi_tratti": "GEZEICHNETE-TEXTE-ORIGINAL",
+ "todrawing.opzioni_avanzate": "Erweiterte Optionen",
+ "todrawing.testi_shx": "AutoCAD-SHX-Texte als Text",
+ "todrawing.testi_shx_aiuto": "AutoCAD schreibt SHX-Texte als Linien und fügt einen Kommentar mit dem Text hinzu: Die Linien werden zu bearbeitbarem Text.",
+ "todrawing.testi_disegnati": "Als Linien gezeichnete Texte",
+ "todrawing.testi_disegnati_auto": "Bei Bedarf erkennen",
+ "todrawing.testi_disegnati_si": "Immer erkennen",
+ "todrawing.testi_disegnati_no": "Als Linien lassen",
+ "todrawing.testi_disegnati_aiuto": "Wenn das PDF keinen echten Text enthält (SHX- oder TrueType-Texte als Geometrie exportiert), werden die Wörter per OCR gelesen und zu Text; die Originallinien bleiben auf einem ausgeschalteten Layer.",
+ "todrawing.immagini": "Bilder (Logos, Fotos, Stempel)",
+ "todrawing.immagini_aiuto": "Die Bilder des PDF werden zu IMAGE-Objekten; die Dateien liegen im Ordner \"bilder\" neben der DXF.",
+ "todrawing.mascherature": "Weiße Abdeckungen anwenden",
+ "todrawing.mascherature_aiuto": "Weiße Flächen, die im PDF Teile der Zeichnung verdecken (Schriftfelder, Legenden, Texthintergründe), entfernen sie auch in der DXF."
 }

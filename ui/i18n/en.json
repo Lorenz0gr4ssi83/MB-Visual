@@ -9224,5 +9224,20 @@
  "comp.pdf.nome": "PDF and signature",
  "comp.posta.desc": "Email and certified email (PEC), calendar and contacts in one place.",
  "comp.posta.nome": "Mail",
- "v_pdf.timbro_predefinito_0": "APPROVED\n{0}"
+ "v_pdf.timbro_predefinito_0": "APPROVED\n{0}",
+ "srv_drawing.layer_immagini": "IMAGES",
+ "srv_drawing.cartella_immagini": "images",
+ "srv_drawing.layer_testi_tratti": "DRAWN-TEXT-ORIGINAL",
+ "todrawing.opzioni_avanzate": "Advanced options",
+ "todrawing.testi_shx": "AutoCAD SHX texts as text",
+ "todrawing.testi_shx_aiuto": "AutoCAD writes SHX texts as lines and adds a comment with the text: the lines become editable text.",
+ "todrawing.testi_disegnati": "Texts drawn as lines",
+ "todrawing.testi_disegnati_auto": "Recognize when needed",
+ "todrawing.testi_disegnati_si": "Always recognize",
+ "todrawing.testi_disegnati_no": "Keep as lines",
+ "todrawing.testi_disegnati_aiuto": "When the PDF has no real text (SHX or TrueType texts exported as geometry) the words are read with OCR and become text; the original lines stay on a layer that is turned off.",
+ "todrawing.immagini": "Images (logos, photos, stamps)",
+ "todrawing.immagini_aiuto": "The PDF images become IMAGE entities; the files are in the \"images\" folder next to the DXF.",
+ "todrawing.mascherature": "Apply white masks",
+ "todrawing.mascherature_aiuto": "White areas that cover parts of the drawing in the PDF (title blocks, legends, text backgrounds) remove them in the DXF too."
 }

@@ -9224,5 +9224,20 @@
  "comp.pdf.nome": "PDF et signature",
  "comp.posta.desc": "E-mail et PEC, agenda et contacts au même endroit.",
  "comp.posta.nome": "Messagerie",
- "v_pdf.timbro_predefinito_0": "APPROUVÉ\n{0}"
+ "v_pdf.timbro_predefinito_0": "APPROUVÉ\n{0}",
+ "srv_drawing.layer_immagini": "IMAGES",
+ "srv_drawing.cartella_immagini": "images",
+ "srv_drawing.layer_testi_tratti": "TEXTES-DESSINES-ORIGINAUX",
+ "todrawing.opzioni_avanzate": "Options avancées",
+ "todrawing.testi_shx": "Textes SHX d'AutoCAD en texte",
+ "todrawing.testi_shx_aiuto": "AutoCAD écrit les textes SHX en lignes et ajoute un commentaire avec le texte : les lignes deviennent un texte modifiable.",
+ "todrawing.testi_disegnati": "Textes dessinés en lignes",
+ "todrawing.testi_disegnati_auto": "Reconnaître si nécessaire",
+ "todrawing.testi_disegnati_si": "Toujours reconnaître",
+ "todrawing.testi_disegnati_no": "Laisser en lignes",
+ "todrawing.testi_disegnati_aiuto": "Quand le PDF ne contient pas de vrai texte (textes SHX ou TrueType exportés en géométrie), les mots sont lus par OCR et deviennent du texte ; les lignes d'origine restent sur un calque désactivé.",
+ "todrawing.immagini": "Images (logos, photos, tampons)",
+ "todrawing.immagini_aiuto": "Les images du PDF deviennent des entités IMAGE ; les fichiers sont dans le dossier \"images\" à côté du DXF.",
+ "todrawing.mascherature": "Appliquer les masques blancs",
+ "todrawing.mascherature_aiuto": "Les zones blanches qui masquent des parties du dessin dans le PDF (cartouches, légendes, fonds de texte) les retirent aussi dans le DXF."
 }

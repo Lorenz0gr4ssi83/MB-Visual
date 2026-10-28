@@ -20,6 +20,11 @@
 .td-side input[type="range"] { flex: 1; min-width: 80px; accent-color: var(--accent); }
 .td-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
 .td-check input { accent-color: var(--accent); }
+.td-adv { display: grid; gap: 7px; }
+.td-adv[open] { padding-bottom: 2px; }
+.td-adv summary { font-size: 13px; color: var(--muted); padding: 2px 0; }
+.td-adv summary:hover { color: var(--text); }
+.td-adv > :not(summary) { margin-top: 7px; }
 .td-note { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
 .td-val { font: 12px var(--mono); color: var(--muted); min-width: 52px; }
 .td-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

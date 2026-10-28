@@ -1,5 +1,5 @@
 // Disegni CAD 2D (DWG con libredwg, DXF con lettore interno): zoom/pan, layer, blocchi, testi, quote, misure, esportazione.
-import { api, button, el, loading, readBytes, saveBlobAs, toast, withExt, WEB } from "../core.js";
+import { api, button, el, fileUrl, loading, readBytes, saveBlobAs, toast, withExt, WEB } from "../core.js";
 import { createCadEditor } from "../cadedit.js";
 import { parseDxf } from "../dxf.js";
 import { I, TAU, R2D, mul, ap, apv, det, similar, arcPts, sweepPts, bulgeArc, bulgePts, splinePts, textLayout, patternDefLines, hatchSegments, dimGeom, dimTextEntity, osnap, drawSnapMarker } from "../cadgeom.js";
@@ -293,10 +293,23 @@ function build(db) {
           }
           break;
         }
+        case "IMAGE": {
+          // immagine raster: pixel (0, 0) in alto a sinistra; matrice pixel -> mondo per drawImage
+          const w = e.imageSize?.x, h = e.imageSize?.y;
+          if (!w || !h || !e.fileName || !e.insertionPoint) break;
+          const o = e.insertionPoint, u = e.uPixel, v = e.vPixel;
+          const A = mul(N, [u.x, u.y, -v.x, -v.y, o.x + v.x * h, o.y + v.y * h]);
+          images.push({ layer: lname, file: e.fileName, A, w, h });
+          const q = [[0, 0], [w, 0], [w, h], [0, h]].map(([x, y]) => [A[0] * x + A[2] * y + A[4], A[1] * x + A[3] * y + A[5]]);
+          for (const [x, y] of q) { xs.push(x); ys.push(y); }
+          item({ t: "P", pts: [...q, q[0]], closed: true }, lname);
+          break;
+        }
         default: break;
       }
     }
   }
+  const images = [];
   walk(db.entities, I, {}, 0, "", true);
 
   // estensioni robuste (scarta elementi isolati lontanissimi)
@@ -316,7 +329,7 @@ function build(db) {
     for (const { pts } of g.fills) { g.fillPath.moveTo(pts[0][0], pts[0][1]); for (let k = 1; k < pts.length; k++) g.fillPath.lineTo(pts[k][0], pts[k][1]); g.fillPath.closePath(); }
   }
   const index = gridIndex(items, bbox);
-  return { layers, groups: [...groups.values()], texts, bbox, items, ents, query: index, header: H, closed: closedL, hatches, inserts };
+  return { layers, groups: [...groups.values()], texts, bbox, items, ents, query: index, header: H, closed: closedL, hatches, inserts, images };
 }
 
 // indice spaziale a griglia: query(x0, y0, x1, y1) -> indici degli elementi il cui ingombro tocca il rettangolo
@@ -413,6 +426,28 @@ export async function mount(ctx) {
   ld.set(0.7, tr("v_cad2d.preparazione_disegno"));
   await new Promise(r => setTimeout(r, 0));
   let model = build(db);
+  // file delle immagini: relativi alla cartella del disegno (come in AutoCAD), poi assoluti, poi solo il nome
+  const imgCache = new Map();
+  const loadImages = () => {
+    if (WEB || !ctx.path) return;
+    const dir = ctx.path.replace(/[\\/][^\\/]*$/, "");
+    for (const im of model.images || []) {
+      const f = im.file.replace(/\//g, "\\");
+      const name = f.split("\\").pop();
+      const tries = /^([a-z]:|\\\\)/i.test(f) ? [f, dir + "\\" + name] : [dir + "\\" + f.replace(/^\.\\/, ""), dir + "\\" + name];
+      let img = imgCache.get(tries[0]);
+      if (!img) {
+        img = new Image();
+        let k = 0;
+        img.onload = () => draw();
+        img.onerror = () => { if (++k < tries.length) img.src = fileUrl(tries[k]); };
+        img.src = fileUrl(tries[0]);
+        imgCache.set(tries[0], img);
+      }
+      im.img = img;
+    }
+  };
+  loadImages();
   ctx.el.innerHTML = "";
   ctx.el.__cad = { db, get model() { return model; }, get view() { return view; }, get editor() { return editor; }, zoom: bb => zoomBox(bb), canvas: () => canvas }; // per i collaudi dalla console
 
@@ -425,7 +460,7 @@ export async function mount(ctx) {
   // senza il componente CAD 2D il disegno si apre in visualizzazione (misura, layer, esportazioni)
   const editor = WEB || !isOn("cad") ? null : createCadEditor({
     ctx, db, sourceKind: dxfText ? "dxf" : "dwg", ACI, getModel: () => model,
-    rebuild: () => { model = build(db); refreshLayers(); draw(); },
+    rebuild: () => { model = build(db); loadImages(); refreshLayers(); draw(); },
     draw: () => draw(), toWorld: (x, y) => toWorld(x, y), toScreen: (x, y) => toScreen(x, y), get view() { return view; },
     zoomTo: bb => zoomBox(bb), canvasSize: () => ({ w: canvas.width, h: canvas.height }),
     temp: ents => build({ ...db, entities: ents }),
@@ -528,6 +563,14 @@ export async function mount(ctx) {
     c2.fillRect(0, 0, W, H);
     c2.setTransform(s, 0, 0, -s, tx, ty);
     c2.lineJoin = "round";
+    for (const im of model.images || []) { // immagini sotto al disegno (loghi, foto, timbri)
+      const L = model.layers.get(im.layer);
+      if ((L && L.off) || !im.img?.complete || !im.img.naturalWidth) continue;
+      c2.save();
+      c2.transform(...im.A);
+      c2.drawImage(im.img, 0, 0, im.w, im.h);
+      c2.restore();
+    }
     for (const g of model.groups) {
       const L = model.layers.get(g.layer);
       if (L && L.off) continue;
