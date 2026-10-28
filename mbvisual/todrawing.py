@@ -116,6 +116,8 @@ class Writer:
         self.layers = {}
         self.stats = {}
         self.skipped = 0
+        self.images = {}
+        self.out = Path(opts["_out"]) if opts.get("_out") else None
 
     def _count(self, k, n=1):
         self.stats[k] = self.stats.get(k, 0) + n
@@ -242,11 +244,41 @@ class Writer:
                         txt = "\\W%.3f;" % e["wf"] + txt
                     sp.add_mtext(txt, dxfattribs={**a, "style": st, "char_height": h, "insert": P(*e["p"]), "attachment_point": 1,
                                                   "rotation": e.get("rot", 0), "line_spacing_factor": max(0.25, min(4.0, lsf))})
+                elif t == "image":
+                    self._image(sp, e, P, k, a)
                 else:
                     continue
                 self._count(t)
             except Exception:  # noqa: BLE001
                 self.skipped += 1
+
+    def _image(self, sp, e, P, k, a):
+        """IMAGE con il file accanto al disegno (cartella "<nome>_immagini", percorso relativo come fa AutoCAD)."""
+        if not self.out:
+            return
+        folder = self.out.parent / (self.out.stem + "_" + tr("srv_drawing.cartella_immagini"))
+        folder.mkdir(parents=True, exist_ok=True)
+        h = hashlib.sha1(e["data"]).hexdigest()[:12]
+        name = f"{self.out.stem}_{h}.{e['ext']}"
+        f = folder / name
+        if not f.exists():
+            f.write_bytes(e["data"])
+        rel = folder.name + "\\" + name
+        idef = self.images.get(rel)
+        if idef is None:
+            idef = self.images[rel] = self.doc.add_image_def(filename=rel, size_in_pixel=(e["w"], e["h"]))
+        o, u, v = e["o"], e["u"], e["v"]
+        # DXF: punto di inserimento = angolo in basso a sinistra (pixel dell'ultima riga), v verso l'alto
+        bl = P(o[0] + v[0], o[1] + v[1])
+        up = (-v[0] * k / e["h"], -v[1] * k / e["h"], 0)
+        ux = (u[0] * k / e["w"], u[1] * k / e["w"], 0)
+        img = sp.add_image(idef, insert=bl, size_in_units=(1, 1), rotation=0, dxfattribs={kk: vv for kk, vv in a.items() if kk == "layer"})
+        img.dxf.u_pixel = ux
+        img.dxf.v_pixel = up
+        img.dxf.image_size = (e["w"], e["h"])
+        if e["ext"] == "png":
+            img.dxf.flags = img.dxf.flags | img.USE_TRANSPARENCY  # trasparenza del PNG (maschere morbide del PDF)
+        img.reset_boundary_path()
 
     def frame(self, x0, y0, x1, y1, name):
         lay = tr("srv_drawing.layer_contorno_pagina")
@@ -348,7 +380,7 @@ def convert(src: str, out: str, opts: dict | None = None, update=None) -> dict:
     pages = _pages(opts.get("pages"), n)
     if not pages:
         raise ValueError(tr("srv_drawing.nessuna_pagina"))
-    W = Writer(opts)
+    W = Writer({**opts, "_out": out})
     sheets = opts.get("layout", "model") == "sheets"
     x = 0.0
     methods, images = set(), 0
@@ -390,7 +422,7 @@ def preview(src: str, page: int, opts: dict, update=None) -> dict:
     if len(ents) > 150000:
         ents = ents[:150000]
         res["truncated"] = True
-    res["ents"] = [{k: v for k, v in e.items() if k not in ("file",)} for e in ents]
+    res["ents"] = [{k: v for k, v in e.items() if k not in ("file", "data")} for e in ents]
     res["layers"] = r["layers"]
     if r.get("clean") is not None:
         PREVIEW_DIR.mkdir(parents=True, exist_ok=True)

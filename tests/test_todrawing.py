@@ -353,6 +353,147 @@ def test_raster(work, pdf):
     check("PDF scansionato vettorizzato in scala", hit == 3 and r4["methods"] == ["raster"], f"{hit}/3")
 
 
+
+# ---------------------------------------------------------------- 4. tavole come le esportano i CAD
+def _raw_page(d, w, h, content, rot=0):
+    """Pagina con un contenuto scritto a mano (coordinate PDF, y verso l'alto)."""
+    p = d.new_page(width=w, height=h)
+    p.insert_text((0, -50), " ")  # crea il flusso dei contenuti
+    d.update_stream(p.get_contents()[0], content.encode("latin-1"))
+    if rot:
+        p.set_rotation(rot)
+    return p
+
+
+def _glyph_path(text, x, y, size):
+    """Testo come contorni pieni (TrueType "come geometria") con i glifi di Arial, in operatori PDF."""
+    from fontTools.pens.basePen import BasePen
+    from fontTools.ttLib import TTFont
+    from mbvisual.pdfvec import font_file
+    f = TTFont(font_file("Arial", False, False))
+    gs, cmap, upm = f.getGlyphSet(), f.getBestCmap(), f["head"].unitsPerEm
+    ops = []
+    k = size / upm
+    org = [x]
+
+    class Pen(BasePen):
+        def _moveTo(self, q):
+            ops.append(f"{org[0] + q[0] * k:.3f} {y + q[1] * k:.3f} m")
+
+        def _lineTo(self, q):
+            ops.append(f"{org[0] + q[0] * k:.3f} {y + q[1] * k:.3f} l")
+
+        def _curveToOne(self, a, b, c):
+            ops.append(" ".join(f"{org[0] + q[0] * k:.3f} {y + q[1] * k:.3f}" for q in (a, b, c)) + " c")
+
+        def _closePath(self):
+            ops.append("h")
+    for ch in text:
+        g = cmap.get(ord(ch))
+        if g is None:
+            continue
+        gs[g].draw(Pen(gs))
+        org[0] += gs[g].width * k
+    return "\n".join(ops) + "\nf\n"
+
+
+def test_tavole(work):
+    print("\n4. Tavole come le esportano i CAD (pagina ruotata, ritagli, mascherature, SHX, immagini, tratteggi, testi disegnati)")
+    mm = 25.4 / 72
+    d = pymupdf.open()
+    # A: pagina con /Rotate 90 (cosi' AutoCAD stampa spesso i fogli orizzontali): il disegno deve uscire come si vede
+    _raw_page(d, 595, 842, "0 0 0 RG 1 w 100 100 m 300 100 l S 100 100 m 100 400 l S\n", rot=90)
+    # B: ritaglio (finestra di un layout), mascheratura bianca, tratteggio a pezzi, testo SHX con il suo commento, immagine
+    dash = "".join(f"{60 + i * 6} 500 m {64 + i * 6} 500 l S\n" for i in range(40))
+    shx = "0 0 0 RG 0.5 w 100 300 m 100 310 l S 107 300 m 107 310 l S 100 305 m 107 305 l S 110 300 m 110 310 l S\n"
+    cont = ("q 50 50 200 150 re W n 0 0 0 RG 1 w 20 100 m 400 100 l S Q\n"  # linea tagliata a x = 50..250
+            "0 0 0 RG 1 w 300 200 m 700 200 l S 1 1 1 rg 450 150 100 100 re f\n"  # mascheratura: la linea si interrompe 450..550
+            "0 0 1 RG 0.5 w " + dash + shx)
+    p = _raw_page(d, 842, 595, cont)
+    a = p.add_rect_annot(pymupdf.Rect(99, 595 - 311, 112, 595 - 299))
+    a.set_info(title="AutoCAD SHX Text", content="HI")
+    a.set_border(width=0)
+    a.update()
+    d.xref_set_key(a.xref, "Rect", "[111 310 100 300]")  # come AutoCAD: angolo opposto, poi inizio della linea di base
+    import io
+    from PIL import Image
+    im = Image.new("RGB", (40, 20), "white")
+    im.paste((255, 0, 0), (0, 0, 10, 10))
+    buf = io.BytesIO()
+    im.save(buf, "PNG")
+    p.insert_image(pymupdf.Rect(600, 155, 680, 195), stream=buf.getvalue())
+    # C: testo come contorni pieni (TrueType esportato come geometria): si legge con l'OCR
+    _raw_page(d, 842, 595, "0 0 0 rg\n" + _glyph_path("PIANTA PIANO TERRA", 100, 400, 36) + _glyph_path("QUOTA 12.50", 100, 200, 30))
+    pdf = work / "tavole.pdf"
+    d.save(str(pdf))
+
+    out = work / "tavole_a.dxf"
+    res = todrawing.convert(str(pdf), str(out), {"scale": 1, "pages": [0]})
+    dd, ents, aud = ents_of(out)
+    check("pagina ruotata: DXF riapribile", not aud.has_errors and res["pages"] == 1)
+    lines = [e for e in ents if e.dxftype() == "LINE"]
+    pg = pymupdf.open(str(pdf))[0]
+    m = pg.rotation_matrix
+
+    def vis(x, y):  # coordinate PDF (y in alto) -> mm della pagina come si vede (y in alto)
+        q = pymupdf.Point(x, 842 - y) * m
+        return (q.x * mm, (pg.rect.height - q.y) * mm)
+    exp = [(vis(100, 100), vis(300, 100)), (vis(100, 100), vis(100, 400))]
+    ok = all(any((near(ln.dxf.start, a, 0.05) and near(ln.dxf.end, b, 0.05)) or (near(ln.dxf.start, b, 0.05) and near(ln.dxf.end, a, 0.05))
+                 for ln in lines) for a, b in exp)
+    check("pagina ruotata: linee dove si vedono", ok, str([(tuple(round(v, 1) for v in ln.dxf.start), tuple(round(v, 1) for v in ln.dxf.end)) for ln in lines]))
+
+    out = work / "tavole_b.dxf"
+    todrawing.convert(str(pdf), str(out), {"scale": 1, "pages": [1]})
+    dd, ents, aud = ents_of(out)
+    check("tavola: DXF riapribile", not aud.has_errors)
+    L = [e for e in ents if e.dxftype() == "LINE"]
+    clip = [ln for ln in L if abs(ln.dxf.start[1] - (100 * mm)) < 0.05]
+    xs = sorted(round(v / mm) for ln in clip for v in (ln.dxf.start[0], ln.dxf.end[0]))
+    check("ritaglio applicato (linea da 20 a 400 vista solo tra 50 e 250)", xs == [50, 250], str(xs))
+    msk = [ln for ln in L if abs(ln.dxf.start[1] - (200 * mm)) < 0.05]
+    xs = sorted(round(v / mm) for ln in msk for v in (ln.dxf.start[0], ln.dxf.end[0]))
+    check("mascheratura bianca: la linea si interrompe sotto il riquadro", xs == [300, 450, 550, 700], str(xs))
+    dl = [e for e in ents if e.dxftype() in ("LINE", "LWPOLYLINE") and e.dxf.linetype.startswith("MBV_")]
+    check("40 trattini separati -> una linea con tipo di linea", len(dl) == 1, str(len(dl)))
+    if dl:
+        lt = dd.linetypes.get(dl[0].dxf.linetype)
+        desc = lt.dxf.description if lt else ""
+        want = "%g %g" % (round(4 * mm, 4), round(2 * mm, 4))
+        check("schema del tratteggio 4 / 2 pt", want in desc, f"{desc} (atteso {want})")
+    shxt = [e for e in ents if e.dxftype() == "TEXT" and e.dxf.text == "HI"]
+    check("testo SHX dal commento di AutoCAD -> TEXT", len(shxt) == 1)
+    if shxt:
+        t = shxt[0]
+        check("testo SHX: posizione e altezza misurate sui tratti", near(t.dxf.insert, (100 * mm, 300 * mm), 0.15) and abs(t.dxf.height - 10 * mm) < 0.1,
+              f"{tuple(round(v, 2) for v in t.dxf.insert)} h {t.dxf.height:.2f}")
+    left = [ln for ln in L if 99 * mm < ln.dxf.start[0] < 111 * mm and 299 * mm < ln.dxf.start[1] < 311 * mm]
+    check("tratti del testo SHX tolti", not left, str(len(left)))
+    imgs = [e for e in ents if e.dxftype() == "IMAGE"]
+    check("immagine -> IMAGE", len(imgs) == 1)
+    if imgs:
+        im = imgs[0]
+        f = out.parent / im.image_def.dxf.filename.replace("\\", os.sep)
+        check("file dell'immagine accanto al DXF", f.exists(), str(f))
+        check("immagine al suo posto (angolo in basso a sinistra, 80 x 40 pt)", near(im.dxf.insert, (600 * mm, (595 - 195) * mm), 0.05)
+              and abs(im.dxf.u_pixel[0] * 40 - 80 * mm) < 0.05 and abs(im.dxf.v_pixel[1] * 20 - 40 * mm) < 0.05,
+              f"{tuple(round(v, 2) for v in im.dxf.insert)} u {im.dxf.u_pixel} v {im.dxf.v_pixel}")
+
+    out = work / "tavole_c.dxf"
+    todrawing.convert(str(pdf), str(out), {"scale": 1, "pages": [2]})
+    dd, ents, aud = ents_of(out)
+    tx = " ".join(e.dxf.text for e in ents if e.dxftype() == "TEXT")
+    if not tx:
+        print("      (OCR del sistema non disponibile: prova dei testi disegnati saltata)")
+        return
+    check("testi come contorni pieni -> TEXT con l'OCR", "PIANTA" in tx and "TERRA" in tx and "12.50" in tx.replace(",", "."), tx)
+    off = {la.dxf.name for la in dd.layers if la.is_off()}
+    check("contorni originali conservati su un layer spento", any(e.dxf.layer in off for e in ents if e.dxftype() == "HATCH"), str(off))
+    big = [e for e in ents if e.dxftype() == "TEXT" and "PIANTA" in e.dxf.text]
+    if big:
+        check("testo OCR: altezza delle maiuscole (36 pt Arial = 9,1 mm)", abs(big[0].dxf.height - 36 * 0.716 * mm) < 0.3, f"{big[0].dxf.height:.2f}")
+
+
 def main():
     keep = None
     if "--keep" in sys.argv:
@@ -362,6 +503,7 @@ def main():
     test_vector(work)
     test_text(work)
     test_raster(work, thick_pdf(work))
+    test_tavole(work)
     print(f"\n{len(OK)}/{len(OK) + len(KO)} prove riuscite" + (f"  - non riuscite: {', '.join(KO)}" if KO else ""))
     print("file in", work)
     sys.exit(1 if KO else 0)

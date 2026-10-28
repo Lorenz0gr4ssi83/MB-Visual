@@ -9,7 +9,7 @@ export function parseDxf(text) {
     if (isNaN(code)) { i--; continue; }
     pairs.push([code, lines[i + 1]]);
   }
-  const layers = [], blocks = [], entities = [], ltypes = [], header = {}, acds = new Map();
+  const layers = [], blocks = [], entities = [], ltypes = [], header = {}, acds = new Map(), imageDefs = {};
   let i = 0;
   const next = () => pairs[i++];
   const peek = () => pairs[i];
@@ -99,6 +99,18 @@ export function parseDxf(text) {
           blocks.push(b);
         }
       }
+    } else if (sec === "OBJECTS") {
+      // definizioni delle immagini (IMAGEDEF): maniglia -> nome del file
+      while (i < pairs.length) {
+        const [oc, ov] = next();
+        if (oc === 0 && ov.trim() === "ENDSEC") break;
+        if (oc === 0 && ov.trim() === "IMAGEDEF") {
+          const g = [];
+          while (i < pairs.length && pairs[i][0] !== 0) g.push(next());
+          const h = val(g, 5), f = val(g, 1);
+          if (h && f) imageDefs[h.toUpperCase()] = f;
+        }
+      }
     } else if (sec === "TABLES") {
       while (i < pairs.length) {
         const [tc, tv] = next();
@@ -122,6 +134,7 @@ export function parseDxf(text) {
     }
   }
   if (acds.size) for (const list of [entities, ...blocks.map(b => b.entities)]) for (const e of list) if (ACIS.has(e.type) && !e.acis && acds.has(String(e.handle).toUpperCase())) e.acis = { sab: acds.get(String(e.handle).toUpperCase()) };
+  for (const e of entities) if (e.type === "IMAGE" && e.defHandle) e.fileName = imageDefs[e.defHandle.toUpperCase()];
   return { header, entities, tables: { LAYER: { entries: layers }, BLOCK_RECORD: { entries: blocks }, LTYPE: { entries: ltypes } } };
 }
 
@@ -229,6 +242,7 @@ function toEntity(type, g) {
       }
       break;
     }
+    case "IMAGE": e.insertionPoint = pt(g, 10); e.uPixel = pt(g, 11); e.vPixel = pt(g, 12); e.imageSize = { x: num(g, 13), y: num(g, 23) }; e.defHandle = val(g, 340); break;
     case "SOLID": case "TRACE": case "3DFACE":
       e.corner1 = pt(g, 10); e.corner2 = pt(g, 11); e.corner3 = pt(g, 12); e.corner4 = pt(g, 13); break;
     case "SPLINE": {

@@ -28,7 +28,7 @@ export async function openToDrawing({ path, out = null, openFile = null }) {
   const S = {
     page: 0, scaleMode: prefs.scaleMode || "ratio", scale: prefs.scale || 100, units: prefs.units || "mm", layout: prefs.layout || "model",
     pages: "all", range: "", method: "auto", layers: prefs.layers || "auto", arcs: true, seg_arcs: true, mtext: true, texts: true, fills: "hatch",
-    skip_white: true, deskew: true, flatten: true, thAuto: true, threshold: 160, speckAuto: true, speck: 16, vmode: prefs.vmode || "center",
+    skip_white: true, masks: true, images: true, shx: true, drawn_text: "auto", deskew: true, flatten: true, thAuto: true, threshold: 160, speckAuto: true, speck: 16, vmode: prefs.vmode || "center",
     vtol: 1.0, ortho: true, ocr: true, ocr_vertical: true, dpi: 300, img_dpi: info.dpi ? Math.round(info.dpi) : "", to: out ? (out.toLowerCase().endsWith(".dwg") ? "dwg" : "dxf") : "dxf",
     open: prefs.open !== false, ref: null, refLen: "", view: "overlay", picking: 0, pick: [],
   };
@@ -132,12 +132,21 @@ export async function openToDrawing({ path, out = null, openFile = null }) {
     sc.append(row(tr("todrawing.unita"), select("units", [["mm", tr("todrawing.unita_mm")], ["cm", tr("todrawing.unita_cm")], ["m", tr("todrawing.unita_m")]])));
     side.append(sc);
     if (!isRaster()) {
+      const adv = el("details", { class: "td-adv", open: S.advOpen || undefined },
+        el("summary", {}, tr("todrawing.opzioni_avanzate")),
+        chk(tr("todrawing.archi_cerchi"), "arcs", tr("todrawing.archi_cerchi_aiuto")), chk(tr("todrawing.archi_segmenti"), "seg_arcs", tr("todrawing.archi_segmenti_aiuto")),
+        chk(tr("todrawing.mtext"), "mtext"), chk(tr("todrawing.testi_shx"), "shx", tr("todrawing.testi_shx_aiuto")),
+        row(tr("todrawing.riempimenti"), select("fills", [["hatch", tr("todrawing.riempimenti_hatch")], ["none", tr("todrawing.riempimenti_no")]])),
+        chk(tr("todrawing.ignora_bianchi"), "skip_white", tr("todrawing.ignora_bianchi_aiuto")),
+        chk(tr("todrawing.mascherature"), "masks", tr("todrawing.mascherature_aiuto")));
+      adv.addEventListener("toggle", () => { S.advOpen = adv.open; });
       side.append(sec(tr("todrawing.ricostruzione"),
         row(tr("todrawing.layer"), select("layers", [["auto", tr("todrawing.layer_auto")], ["ocg", tr("todrawing.layer_ocg")], ["color", tr("todrawing.layer_colore")], ["single", tr("todrawing.layer_unico")]])),
-        chk(tr("todrawing.archi_cerchi"), "arcs", tr("todrawing.archi_cerchi_aiuto")), chk(tr("todrawing.archi_segmenti"), "seg_arcs", tr("todrawing.archi_segmenti_aiuto")),
-        chk(tr("todrawing.testi"), "texts"), chk(tr("todrawing.mtext"), "mtext"),
-        row(tr("todrawing.riempimenti"), select("fills", [["hatch", tr("todrawing.riempimenti_hatch")], ["none", tr("todrawing.riempimenti_no")]])),
-        chk(tr("todrawing.ignora_bianchi"), "skip_white", tr("todrawing.ignora_bianchi_aiuto"))));
+        chk(tr("todrawing.testi"), "texts"),
+        row(tr("todrawing.testi_disegnati"), select("drawn_text", [["auto", tr("todrawing.testi_disegnati_auto")], ["on", tr("todrawing.testi_disegnati_si")], ["off", tr("todrawing.testi_disegnati_no")]])),
+        el("p", { class: "td-note" }, tr("todrawing.testi_disegnati_aiuto")),
+        chk(tr("todrawing.immagini"), "images", tr("todrawing.immagini_aiuto")),
+        adv));
     } else {
       const res = isPdf ? row(tr("todrawing.risoluzione"), select("dpi", [[200, "200 dpi"], [300, tr("todrawing.300_dpi")], [400, "400 dpi"], [600, "600 dpi"]]))
         : row(tr("todrawing.risoluzione"), el("div", { class: "td-line" }, (() => { const i = el("input", { type: "number", min: 50, max: 2400, step: 1, value: S.img_dpi, placeholder: "300" }); i.addEventListener("change", () => { S.img_dpi = +i.value || ""; changed(); }); return i; })(), el("span", {}, "dpi")));
@@ -206,7 +215,8 @@ export async function openToDrawing({ path, out = null, openFile = null }) {
       o.pages = S.pages === "all" ? "all" : S.pages === "this" ? [S.page] : S.range;
       if (info.pages.length === 1) o.pages = "all";
     }
-    Object.assign(o, { layers: S.layers, arcs: S.arcs, seg_arcs: S.seg_arcs, mtext: S.mtext, texts: S.texts, fills: S.fills, skip_white: S.skip_white });
+    Object.assign(o, { layers: S.layers, arcs: S.arcs, seg_arcs: S.seg_arcs, mtext: S.mtext, texts: S.texts, fills: S.fills, skip_white: S.skip_white,
+      masks: S.masks, images: S.images, shx: S.shx, drawn_text: S.drawn_text });
     Object.assign(o, { deskew: S.deskew, flatten: S.flatten, threshold: S.thAuto ? "auto" : S.threshold, speck: S.speckAuto ? "auto" : S.speck, vmode: S.vmode,
       vtol: S.vtol, ortho: S.ortho, ocr: S.ocr, ocr_vertical: S.ocr_vertical, dpi: S.dpi });
     if (!isPdf && S.img_dpi) o.img_dpi = S.img_dpi;
@@ -303,6 +313,11 @@ export async function openToDrawing({ path, out = null, openFile = null }) {
         const c = e.cp;
         P.curve.moveTo(c[0][0] * k, c[0][1] * k);
         for (let i = 1; i + 2 < c.length; i += 3) P.curve.bezierCurveTo(c[i][0] * k, c[i][1] * k, c[i + 1][0] * k, c[i + 1][1] * k, c[i + 2][0] * k, c[i + 2][1] * k);
+      } else if (t === "image") { // cornice dell'immagine (l'immagine stessa e' nell'originale sotto)
+        const q = [e.o, [e.o[0] + e.u[0], e.o[1] + e.u[1]], [e.o[0] + e.u[0] + e.v[0], e.o[1] + e.u[1] + e.v[1]], [e.o[0] + e.v[0], e.o[1] + e.v[1]]];
+        P.line.moveTo(q[0][0] * k, q[0][1] * k);
+        for (const c of q.slice(1)) P.line.lineTo(c[0] * k, c[1] * k);
+        P.line.closePath();
       } else if (t === "hatch") {
         for (const path of e.paths) {
           if (!path.length) continue;
