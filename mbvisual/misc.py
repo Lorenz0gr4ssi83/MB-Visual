@@ -68,11 +68,29 @@ def image_to_png(path: str) -> dict:
     info["modalita"] = im.mode
     if not out.exists():
         if im.mode in ("I;16", "I;16B", "I;16L", "I", "F"):
-            im = im.point(lambda v: v / 256 if v > 255 else v).convert("L")
+            im = _to_8bit(im)
         if im.mode not in ("RGB", "RGBA", "L", "LA"):
             im = im.convert("RGBA")
         im.save(out, "PNG", compress_level=1)
     return {"path": str(out), "info": info}
+
+
+def _to_8bit(im):
+    """immagini a 16/32 bit o in virgola mobile (TIFF 16 bit, FITS, PFM, SPIDER) -> scala di grigi a 8 bit.
+    Interi fino a 65535: si divide per 256 come prima; valori in virgola mobile o fuori scala: intervallo min-max del file.
+    (Pillow recente non accetta piu' una lambda qualsiasi in point() per questi modi.)"""
+    import numpy as np
+    from PIL import Image
+    a = np.asarray(im, dtype=np.float64)
+    fin = a[np.isfinite(a)]
+    if not fin.size:
+        return Image.new("L", im.size)
+    lo, hi = float(fin.min()), float(fin.max())
+    if im.mode != "F" and lo >= 0 and hi <= 65535:
+        a = np.where(a > 255, a / 256, a)
+    else:
+        a = (a - lo) * (255.0 / (hi - lo)) if hi > lo else np.zeros_like(a)
+    return Image.fromarray(np.nan_to_num(np.clip(a, 0, 255)).astype(np.uint8), "L")
 
 
 PIL_FORMATS = {"jpg": "JPEG", "jpeg": "JPEG", "jpe": "JPEG", "jfif": "JPEG", "png": "PNG", "gif": "GIF", "bmp": "BMP",
@@ -328,7 +346,7 @@ def sniff(path: str) -> dict:
         (len(h) > 376 and h[0] == 0x47 and h[188] == 0x47 and h[376] == 0x47, "media", tr("srv_misc.video_mpeg_ts")),
         (h.startswith(b"0&\xb2u\x8e\x66\xcf\x11"), "media", "Video/Audio Windows Media"),
         (h.startswith(b"FLV"), "media", tr("srv_misc.video_flash")),
-        (h.startswith(b"MThd"), "media", tr("srv_misc.audio_midi")),
+        (h.startswith(b"MThd") or (h[:4] == b"RIFF" and h[8:12] == b"RMID"), "midi", tr("srv_misc.audio_midi")),
         (h.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"), "ole", tr("srv_misc.documento_office_97_2003_msg")),
         (h.startswith(b"SQLite format 3\x00"), "sqlite", tr("srv_misc.database_sqlite")),
         (h[:4] == b"AC10" or h[:6] == b"AC1.40", "cad2d", tr("srv_misc.disegno_autocad_dwg")),

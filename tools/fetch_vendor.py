@@ -58,6 +58,11 @@ PACKAGES = [
      ["package/src/earcut.js", "package/LICENSE"]),
     ("flatbuffers", "https://registry.npmjs.org/flatbuffers/-/flatbuffers-25.9.23.tgz",
      ["package/mjs/", "package/LICENSE"]),
+    # MIDI (ui/js/viewers/midi.js): sintetizzatore SoundFont spessasynth_core (Apache-2.0) e il suo decodificatore Ogg stb-vorbis (Apache-2.0)
+    ("spessasynth_core", "https://registry.npmjs.org/spessasynth_core/-/spessasynth_core-4.3.22.tgz",
+     ["package/dist/index.js", "package/LICENSE"]),
+    ("stb-vorbis", "https://registry.npmjs.org/stb-vorbis/-/stb-vorbis-0.0.6.tgz",
+     ["package/dist/index.js", "package/LICENSE"]),
     # QR della home (installazione sui cellulari): Kazuhiko Arase, MIT (licenza nell'intestazione del file)
     ("qrcode-generator", "https://registry.npmjs.org/qrcode-generator/-/qrcode-generator-2.0.4.tgz",
      ["package/dist/qrcode.mjs"]),
@@ -67,11 +72,17 @@ PACKAGES = [
 EXTRA = {
     "openskp": [("LICENSE", "https://raw.githubusercontent.com/iamahsanmehmood/openskp/v1.3.0/LICENSE")],
 }
+# file singoli (non pacchetti npm): suoni General MIDI FluidR3Mono (MIT) dalla cartella share/sound di MuseScore, commit fissato
+FILES = {
+    "soundfont": [("FluidR3Mono_GM.sf3", "https://raw.githubusercontent.com/musescore/MuseScore/1a4bd0feb9378cd145418dbcb40246980ca1013d/share/sound/FluidR3Mono_GM.sf3"),
+                  ("FluidR3Mono_License.md", "https://raw.githubusercontent.com/musescore/MuseScore/1a4bd0feb9378cd145418dbcb40246980ca1013d/share/sound/FluidR3Mono_License.md")],
+}
 # import senza percorso (da bundler) resi relativi: cosi' il modulo si carica anche in un Worker, che non vede l'import map
 REWRITE = {
     "openskp": ("dist/index.mjs", {'from "fflate"': 'from "../../fflate/esm/browser.js"',
                                    'from "earcut"': 'from "../../earcut/src/earcut.js"',
                                    'from "flatbuffers"': 'from "../../flatbuffers/mjs/flatbuffers.js"'}),
+    "spessasynth_core": ("dist/index.js", {'from "stb-vorbis"': 'from "../../stb-vorbis/dist/index.js"'}),
 }
 # esportazioni in piu': una sola lettura del file per modello (spigoli, scene) e scena a istanze
 APPEND = {
@@ -139,6 +150,14 @@ def main() -> int:
         if only and name not in only:
             continue
         extract(name, url, prefixes)
+    for name, files in FILES.items():
+        if only and name not in only:
+            continue
+        dest = VENDOR / name
+        dest.mkdir(parents=True, exist_ok=True)
+        for rel, url in files:
+            (dest / rel).write_bytes(download(url))
+        print(f"{name}: {len(files)} file")
     return 0
 
 

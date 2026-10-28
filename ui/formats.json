@@ -166,8 +166,7 @@
     "key",
     "pages",
     "mml",
-    "odf",
-    "oxps"
+    "odf"
    ]
   },
   {
@@ -508,7 +507,8 @@
     "bowerrc",
     "jshintrc",
     "jscsrc",
-    "har"
+    "har",
+    "ram"
    ]
   },
   {
@@ -844,10 +844,6 @@
     "mpp",
     "spx",
     "ra",
-    "ram",
-    "mid",
-    "midi",
-    "kar",
     "mod",
     "xm",
     "it",
@@ -980,6 +976,19 @@
    ]
   },
   {
+   "id": "midi",
+   "name": "MIDI e karaoke",
+   "viewer": "midi",
+   "view": "Riproduzione con un sintetizzatore General MIDI incluso (suoni FluidR3, licenza MIT), durata, tracce, testo karaoke sincronizzato (.kar)",
+   "edit": "Salva con nome in WAV, MP3, OGG, FLAC o M4A",
+   "exts": [
+    "mid",
+    "midi",
+    "kar",
+    "rmi"
+   ]
+  },
+  {
    "id": "cad2d",
    "name": "Disegni CAD 2D (AutoCAD)",
    "viewer": "cad2d",
@@ -1002,7 +1011,8 @@
     "dwf",
     "dwfx",
     "w2d",
-    "xps"
+    "xps",
+    "oxps"
    ]
   },
   {

@@ -19,6 +19,49 @@ def _ffmpeg():
     return exe
 
 
+# audio grezzo senza intestazione: G.711 della telefonia (A-law / mu-law) ha parametri fissi, 8000 Hz mono
+RAW_INPUT = {".alaw": ["-f", "alaw"], ".al": ["-f", "alaw"], ".ulaw": ["-f", "mulaw"], ".ul": ["-f", "mulaw"]}
+
+
+# parametri scelti dall'utente per i file grezzi senza intestazione (.pcm, .yuv...: finestra "Parametri" di ui/js/viewers/media.js)
+RAW_PARAMS: dict[str, dict] = {}
+_RAW_OK = {"f": r"[a-z0-9_]{2,16}", "ar": r"\d{3,6}", "ac": r"[1-8]", "pix_fmt": r"[a-z0-9_]{3,16}", "s": r"\d{1,5}x\d{1,5}", "r": r"\d{1,3}(\.\d{1,3})?"}
+
+
+def set_raw(path: str, params: dict) -> dict:
+    """formato del flusso grezzo (audio: f, ar, ac; video: f=rawvideo, pix_fmt, s, r); valori controllati prima di passarli a FFmpeg."""
+    clean = {}
+    for k, rx in _RAW_OK.items():
+        v = str(params.get(k, "")).strip()
+        if v:
+            if not re.fullmatch(rx, v):
+                raise ValueError(tr("srv_media.parametro_non_valido", k, v))
+            clean[k] = v
+    if "f" not in clean:
+        raise ValueError(tr("srv_media.parametro_non_valido", "f", ""))
+    RAW_PARAMS[os.path.normcase(os.path.abspath(path))] = clean
+    return clean
+
+
+def _raw_of(path: str) -> dict | None:
+    return RAW_PARAMS.get(os.path.normcase(os.path.abspath(path)))
+
+
+def _inp(path: str) -> list[str]:
+    """argomenti di ingresso per FFmpeg: -i file, con formato e frequenza per i flussi grezzi (scelti dall'utente o RAW_INPUT)."""
+    p = _raw_of(path)
+    if p:
+        args = ["-f", p["f"]]
+        for k in ("ar", "ac", "pix_fmt", "s"):
+            if k in p:
+                args += [f"-{'video_size' if k == 's' else 'pixel_format' if k == 'pix_fmt' else k}", p[k]]
+        if "r" in p:
+            args += ["-framerate", p["r"]]
+        return [*args, "-i", path]
+    raw = RAW_INPUT.get(Path(path).suffix.lower())
+    return [*raw, "-ar", "8000", "-ac", "1", "-i", path] if raw else ["-i", path]
+
+
 def _parse_duration(text: str) -> float | None:
     m = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", text)
     if not m:
@@ -28,7 +71,7 @@ def _parse_duration(text: str) -> float | None:
 
 
 def probe(path: str) -> dict:
-    r = subprocess.run([_ffmpeg(), "-hide_banner", "-i", path], capture_output=True, creationflags=NO_WINDOW)
+    r = subprocess.run([_ffmpeg(), "-hide_banner", *_inp(path)], capture_output=True, creationflags=NO_WINDOW)
     text = r.stderr.decode("utf-8", "replace")
     streams = []
     for m in re.finditer(r"Stream #\d+:\d+(?:\[\w+\])?(?:\((\w+)\))?: (Video|Audio|Subtitle|Data|Attachment): ([^\n]+)", text):
@@ -66,7 +109,7 @@ def _run_with_progress(args: list[str], duration: float | None, update) -> None:
 def playable(path: str, update) -> dict:
     """Converte in un formato riproducibile (MP4 H.264/AAC o M4A) con cache."""
     st = os.stat(path)
-    key = hashlib.sha1(f"{path}|{st.st_size}|{st.st_mtime}".encode()).hexdigest()[:16]
+    key = hashlib.sha1(f"{path}|{st.st_size}|{st.st_mtime}|{sorted((_raw_of(path) or {}).items())}".encode()).hexdigest()[:16]
     info = probe(path)
     is_video = info["video"]
     out = CACHE / (key + (".mp4" if is_video else ".m4a"))
@@ -74,7 +117,7 @@ def playable(path: str, update) -> dict:
         return {"path": str(out), "info": info}
     update(message=tr("srv_media.conversione_riproduzione"))
     tmp = out.with_suffix(".part" + out.suffix)
-    args = [_ffmpeg(), "-y", "-hide_banner", "-i", path]
+    args = [_ffmpeg(), "-y", "-hide_banner", *_inp(path)]
     if is_video:
         args += ["-map", "0:v:0", "-map", "0:a:0?", "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
                  "-pix_fmt", "yuv420p", "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", "-c:a", "aac", "-b:a", "192k", "-ac", "2", "-ar", "48000",
@@ -94,7 +137,7 @@ def edit(path: str, out_path: str, start: float | None = None, end: float | None
     args = [_ffmpeg(), "-y", "-hide_banner"]
     if start:
         args += ["-ss", f"{start:.3f}"]
-    args += ["-i", path]
+    args += _inp(path)
     if end is not None:
         args += ["-t", f"{max(0.01, end - (start or 0)):.3f}"]
     vf, af = [], []
@@ -140,7 +183,7 @@ def edit(path: str, out_path: str, start: float | None = None, end: float | None
 
 
 def frame(path: str, t: float, out_path: str) -> str:
-    r = subprocess.run([_ffmpeg(), "-y", "-hide_banner", "-ss", f"{t:.3f}", "-i", path, "-frames:v", "1", out_path],
+    r = subprocess.run([_ffmpeg(), "-y", "-hide_banner", "-ss", f"{t:.3f}", *_inp(path), "-frames:v", "1", out_path],
                        capture_output=True, creationflags=NO_WINDOW)
     if r.returncode != 0:
         raise RuntimeError(r.stderr.decode("utf-8", "replace")[-400:])
@@ -149,7 +192,7 @@ def frame(path: str, t: float, out_path: str) -> str:
 
 def waveform(path: str, points: int = 1200) -> list[float]:
     """Picchi audio normalizzati per disegnare la forma d'onda."""
-    r = subprocess.run([_ffmpeg(), "-hide_banner", "-i", path, "-vn", "-ac", "1", "-ar", "8000", "-f", "u8", "-"],
+    r = subprocess.run([_ffmpeg(), "-hide_banner", *_inp(path), "-vn", "-ac", "1", "-ar", "8000", "-f", "u8", "-"],
                        capture_output=True, creationflags=NO_WINDOW)
     data = r.stdout
     if not data:

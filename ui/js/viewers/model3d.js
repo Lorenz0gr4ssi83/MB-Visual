@@ -265,6 +265,14 @@ async function loadIfc(ctx, bytes, ld, info) {
 }
 
 async function loadMesh(ctx, bytes, ld) {
+  // VRML: chevrotain contiene una libreria UMD che, se c'e' il caricatore AMD di Monaco (window.define, dopo aver aperto un
+  // file di testo), si registra li' invece di esportare ("RegExpParser is not a constructor"): define nascosto durante la lettura
+  const amd = ["wrl", "vrml"].includes(ctx.ext) && window.define ? window.define : null;
+  if (amd) window.define = undefined;
+  try { return await loadMeshInner(ctx, bytes, ld); } finally { if (amd) window.define = amd; }
+}
+
+async function loadMeshInner(ctx, bytes, ld) {
   const [file, cls] = LOADERS[ctx.ext];
   ld.set(0.3, tr("v_model3d.lettura_modello_3d"));
   const mod = await import(`/vendor/three/examples/jsm/loaders/${file}.js`);
@@ -282,7 +290,10 @@ async function loadMesh(ctx, bytes, ld) {
     d.setDecoderPath("/vendor/three/examples/jsm/libs/draco/");
     loader.setDRACOLoader(d);
   }
-  const textual = ["obj", "ply", "wrl", "vrml", "vtk", "xyz", "pdb", "dae", "amf"].includes(ctx.ext) && !(bytes[0] === 0x50 && bytes[1] === 0x4b);
+  // AMF: il lettore vuole i byte (anche zippato); BVH: il testo
+  const textual = ["obj", "ply", "wrl", "vrml", "vtk", "xyz", "pdb", "dae", "bvh"].includes(ctx.ext) && !(bytes[0] === 0x50 && bytes[1] === 0x4b);
+  // VTK: il lettore di three.js legge sempre i primi 250 byte per capire il tipo: i file piu' corti si allungano con spazi
+  if (ctx.ext === "vtk" && bytes.length < 250) { const b = new Uint8Array(250).fill(32); b.set(bytes); bytes = b; }
   const input = textual && ctx.ext !== "ply" && ctx.ext !== "vtk" ? new TextDecoder().decode(bytes) : bytes.buffer;
   if (ctx.ext === "3dm") loader.setLibraryPath("/vendor/three/examples/jsm/libs/rhino3dm/"); // Rhino (libreria ufficiale rhino3dm)
   let out = await new Promise((resolve, reject) => {
@@ -308,6 +319,7 @@ async function loadMesh(ctx, bytes, ld) {
     const g = out.geometryAtoms;
     obj.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 0.6, vertexColors: true })));
     obj.add(new THREE.LineSegments(out.geometryBonds, new THREE.LineBasicMaterial({ color: 0x999999 })));
+  } else if (ctx.ext === "vox" && Array.isArray(out)) { obj = new THREE.Group(); out.forEach(ch => obj.add(new mod.VOXMesh(ch))); // MagicaVoxel: un blocco di voxel per modello
   } else if (Array.isArray(out)) { obj = new THREE.Group(); out.forEach(c => obj.add(c.isMesh || c.isObject3D ? c : new THREE.Mesh(c, std()))); }
   else if (out.chunks || out.length) { obj = new THREE.Group(); }
   else throw new Error(tr("v_model3d.formato_modello_non_interpretabile"));
