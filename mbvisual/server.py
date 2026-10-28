@@ -480,6 +480,14 @@ class Handler(BaseHTTPRequestHandler):
         items = self._body_json().get("items") or []
         self._json({"ok": True, "job": jobs.start(cad3d.convert, self._path(qs), items)})
 
+    def api_step3d(self, qs):
+        # STEP/IGES grandi: OpenCascade nativo in parallelo -> GLB in cache (mbvisual/stepnative.py). Senza OCP (Mac,
+        # copie senza il componente) risponde subito nativo=false e l'interfaccia usa il lettore WebAssembly
+        from . import stepnative
+        if not stepnative.available():
+            return self._json({"ok": False, "nativo": False})
+        self._json({"ok": True, "job": jobs.start(stepnative.convert, self._path(qs))})
+
     def api_onlyoffice(self, qs):
         self._json({"ok": True, "url": onlyoffice_url()})
 

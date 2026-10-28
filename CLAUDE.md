@@ -716,6 +716,40 @@ LAS resta anche tra i testi e PTX tra i RAW Pentax: decide `misc.sniff` dal cont
   server locali (stesso host, porte diverse): con piu' sessioni aperte aggiungere `t=<token>` alle chiamate /api.
 
 
+## STEP/IGES grandi con OpenCascade nativo in parallelo (28/10/2026) - FATTO (da provare nell'app installata)
+Richiesta dell'utente: uno STEP < 300 MB deve aprirsi in 20-40 s, non oltre 5 minuti. Solo app per PC Windows (file >= 5 MB);
+web app, Mac, .brep/.stpz e file piccoli restano su occt-import-js (WebAssembly, un core). Se il motore nativo fallisce si ripiega li'.
+- `tools/stepsplit/stepsplit.cpp` (C++ scritto qui, `build.cmd` -> `bin/stepsplit/stepsplit-arm64.exe` e `-x64.exe`, scelto con
+  shellint.native_arch): divide lo STEP in N file con TUTTA la struttura (prodotti, NAUO, rappresentazioni, stili) e ~1/N dei
+  solidi per peso in byte. Riferimento "debole" = dalla struttura verso un solido/elemento topologico escluso: nella lista di una
+  rappresentazione il solido diventa un CARTESIAN_POINT nuovo (le etichette XCAF restano uguali in tutte le parti), STYLED_ITEM e
+  simili si tolgono a catena. Solidi oltre meta' del carico ideale: divisi per gruppi di facce CONSECUTIVE (meno spigoli ripetuti)
+  e riscritti come SHELL_BASED_SURFACE_MODEL + OPEN_SHELL (STEPSPLIT_SOLIDI=1 li lascia solidi). Argomenti letti in Unicode (wmain).
+- `mbvisual/stepnative.py`: N processi `--step-worker` (app.py; nell'exe `"MB Desk.exe" --step-worker`, in sviluppo
+  `python -m mbvisual.stepnative`) avviati PRIMA della divisione (l'import di OCP costa 2-9 s, 51 s la primissima volta) e
+  sbloccati da un file .go; priorita' sotto il normale. Ognuno: STEPCAFControl (nomi, colori; livelli/props/GDT spenti) -> nomi delle
+  etichette "<entry XCAF>\x1f<nome>" -> parti con piu' solidi espanse (XCAFDoc_ShapeTool.Expand, nomi generici SOLID/COMPOUND
+  sostituiti da quello della parte) -> ingombro nel file di stato -> freccia comune dall'app (0,1% della diagonale TOTALE, come
+  il lettore WebAssembly) -> BRepMesh (sequenziale; parallelo solo con un processo) -> GLB (RWGltf_CafWriter, mm, Z in alto,
+  SetMergeFaces). `merge_glb` unisce i GLB per (padre, entry); i nodi senza chiave (solidi espansi) non si uniscono mai; geometria
+  diretta: figlio normale se la parte e' espansa altrove, altrimenti pezzi di un solido diviso = figli con extras mbvFrammento.
+  Impronta della struttura diversa o divisione fallita = si rifa' con un processo solo. Numero di processi: uno ogni 12 MB, max i
+  core, memoria ~0,2 GB + 14 x byte della parte (`_parts_for`; MBV_STEP_PARTI=n per le prove). Stato in file JSON (os.replace con
+  nuovi tentativi: su Windows fallisce se l'altro processo sta leggendo).
+- Cache: TEMP_DIR/modelli3d/<chiave>.glb + .info.json (chiave = percorso+dimensione+data+VERSION di stepnative; max 4 GB di GLB).
+- API `api/step3d` (job; nativo=false subito se OCP manca). model3d.js `loadOcctNative`: GLTFLoader, nomi ripresi dal JSON (GLTFLoader
+  mette "_" al posto degli spazi), materiali come il lettore WebAssembly (grigio 0.72/0.74/0.76 dove il file non da' colore), albero dai
+  nodi (primitive e frammenti con pickParent: il clic seleziona la parte; `unitOf` ora risale con while).
+- Build: cadquery-ocp 8.0.1.1.0 (Apache-2.0, OCCT LGPL-2.1) solo Windows x64; `build_portable.copy_ocp` copia OCP, cadquery_ocp.libs e
+  SOLO le 47 DLL di vtk.libs che OCP carica (129 MB su 265; dipendenze con pefile e MAX_IMPORT_SYMBOLS alzato: col limite normale
+  pefile tronca le importazioni di OCP.pyd), esclusi da PyInstaller OCP/vtk/vtkmodules. Provato con una build PyInstaller ridotta.
+- Misure (PC dell'utente, carico di altri programmi 35-40%): revc.step 297 MB (46.759 facce, 1.546 solidi, 4 solidi da 27-72 MB)
+  prima 584 s -> 34-47 s con 10-12 processi (un processo nativo 108-141 s), dall'archivio 0,4 s; completo.step 49 MB 31 s -> 9-10 s.
+  Confronto con la conversione a un processo: 1.052 parti su 1.052 con ingombri uguali entro 0,02 mm, colori uguali, triangoli +0,1%.
+- Collaudo: `python tests/test_stepnative.py` (17 prove su un assieme sintetico: parte ripetuta, parte con 5 solidi, solido diviso
+  per facce) e `python tests/test_stepnative.py <file.step>...` (un processo contro N, confronto per parte). File veri in
+  %USERPROFILE%\.mbvisual\step-prove (NON nel repo).
+
 ## Autodesk ReCap .rcs / .rcp (28/10/2026) - FATTO
 Prima: .rcs/.rcp non erano nel registro -> si apriva la schermata "file sconosciuto". Ora categoria `pointcloud` (stesso motore,
 ottree e cache delle altre nuvole). Nessuna specifica pubblica ne' lettore open source: struttura ricavata da file veri, descritta in

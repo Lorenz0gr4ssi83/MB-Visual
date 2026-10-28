@@ -55,6 +55,49 @@ def publish(final: Path, info: dict) -> None:
             print("ATTENZIONE: setup NON caricato su Google Drive: rilanciare python tools/publish_drive.py", *[f.name for f in files])
 
 
+def copy_ocp(internal: Path) -> None:
+    """OpenCascade nativo (cadquery-ocp, Apache-2.0; OCCT LGPL-2.1) per gli STEP grandi: il pacchetto OCP, le sue DLL e
+    SOLO le DLL di VTK che OCP carica davvero (129 MB invece di 265; niente moduli Python di VTK). Le dipendenze si
+    seguono nelle tabelle di importazione (pefile, col limite di simboli alzato: OCP ne importa piu' di 8192 da una DLL)."""
+    try:
+        import OCP
+        import pefile
+    except ImportError:
+        print("ATTENZIONE: OCP (cadquery-ocp) non installato: gli STEP grandi useranno il lettore WebAssembly (lento)")
+        return
+    pefile.MAX_IMPORT_SYMBOLS = 10 ** 7
+    sp = Path(OCP.__file__).resolve().parent.parent
+    idx = {}
+    for d in ("OCP", "cadquery_ocp.libs", "vtk.libs"):
+        for f in (sp / d).iterdir():
+            if f.suffix.lower() in (".dll", ".pyd"):
+                idx[f.name.lower()] = f
+    pyd = next(f for f in (sp / "OCP").glob("OCP.*.pyd"))
+    need, todo = set(), [pyd.name.lower()]
+    while todo:
+        n = todo.pop()
+        if n in need:
+            continue
+        need.add(n)
+        pe = pefile.PE(str(idx[n]), fast_load=True)
+        pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_IMPORT"],
+                                               pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT"]])
+        for attr in ("DIRECTORY_ENTRY_IMPORT", "DIRECTORY_ENTRY_DELAY_IMPORT"):
+            for e in getattr(pe, attr, []):
+                dep = e.dll.decode().lower()
+                if dep in idx and dep not in need:
+                    todo.append(dep)
+        pe.close()
+    shutil.copytree(sp / "OCP", internal / "OCP", ignore=shutil.ignore_patterns("__pycache__", "*.pyi"))
+    for d in ("cadquery_ocp.libs", "vtk.libs"):
+        (internal / d).mkdir(exist_ok=True)
+    for n in need:
+        f = idx[n]
+        if f.parent.name != "OCP":
+            shutil.copy2(f, internal / f.parent.name / f.name)
+    print("OpenCascade nativo copiato:", len(need), "file binari")
+
+
 def main() -> int:
     if "--solo-pubblica" in sys.argv:  # ripete solo la copia in App per PC dell'ultima build
         final = DIST / NAME
@@ -102,6 +145,9 @@ def main() -> int:
         "--hidden-import", "mbvisual.fx_sci", "--hidden-import", "mbvisual.fx_iwork", "--hidden-import", "mbvisual.fx_revit",
         "--collect-submodules", "pydicom", "--collect-all", "gdcm", "--collect-submodules", "h5py", "--collect-submodules", "pyarrow", "--hidden-import", "olefile",
         "--exclude-module", "tkinter", "--exclude-module", "matplotlib",
+        # STEP/IGES grandi con OpenCascade nativo (mbvisual/stepnative.py): OCP si copia a mano dopo (copy_ocp), senza VTK Python
+        "--hidden-import", "mbvisual.stepnative", "--exclude-module", "OCP", "--exclude-module", "vtk", "--exclude-module", "vtkmodules",
+        "--exclude-module", "cadquery_ocp",
         # moduli opzionali di PyMuPDF non usati (onnxruntime va in crash durante l analisi su Windows ARM)
         "--exclude-module", "onnxruntime", "--exclude-module", "pymupdf4llm", "--exclude-module", "pymupdf.layout", "--exclude-module", "pymupdf_layout",
     ]
@@ -118,6 +164,7 @@ def main() -> int:
         shutil.copytree(oo, out / "_internal" / "onlyoffice")
     else:
         print("ATTENZIONE: ONLYOFFICE non trovato in", oo, "- Word/Excel/PowerPoint useranno gli editor semplici")
+    copy_ocp(out / "_internal")
     # lettore Navisworks (nwd2mbv.exe) se compilato
     nav = Path.home() / ".mbvisual" / "nwd" / "nwd2mbv.exe"
     if nav.exists():

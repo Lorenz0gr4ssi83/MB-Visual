@@ -29,3 +29,4 @@ h5py  # HDF5 e NetCDF-4 (BSD-3)
 pyarrow  # Parquet, Feather, Arrow (Apache-2.0)
 olefile  # Revit .rvt/.rfa (BSD-2)
 tzdata  # fusi orari degli inviti e dei calendari (Apache-2.0) - mbvisual/mail/ical.py
+cadquery-ocp==8.0.1.1.0; sys_platform == "win32" and platform_machine == "AMD64"  # STEP/IGES grandi con OpenCascade nativo (Apache-2.0; OCCT LGPL-2.1) - mbvisual/stepnative.py; porta VTK (BSD-3), di cui la build copia solo le DLL usate

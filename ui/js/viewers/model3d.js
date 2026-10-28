@@ -78,6 +78,64 @@ async function loadOcct(ctx, bytes, ld) {
   return { root, tree };
 }
 
+// STEP/IGES grandi nell'app per PC: OpenCascade nativo su tutti i core con archivio delle conversioni (mbvisual/stepnative.py).
+// Il motore restituisce un GLB (millimetri, Z in alto) con la struttura dell'assieme, i nomi e i colori; la seconda apertura
+// dello stesso file lo prende dall'archivio. null = motore nativo assente o non riuscito (si usa il lettore WebAssembly).
+const NATIVE_MIN = 5 * 1048576;
+async function loadOcctNative(ctx, ld, info) {
+  if (WEB || OCCT[ctx.ext] === "brep" || ctx.ext === "stpz" || (ctx.info?.size || 0) < NATIVE_MIN) return null;
+  let res;
+  try {
+    const r = await api("step3d", { path: ctx.path }, { allowFail: true });
+    if (!r.ok) return null;
+    res = await waitJob(r.job, (p, m) => ld.set(0.05 + 0.8 * p, m || tr("v_model3d.lettura_modello_cad_opencascade_puo")));
+  } catch (e) {
+    console.warn("STEP nativo non riuscito, uso il lettore WebAssembly", e);
+    return null;
+  }
+  ld.set(0.88, tr("v_model3d.caricamento_geometria"));
+  const buf = await (await fetch(fileUrl(res.glb))).arrayBuffer();
+  const { GLTFLoader } = await import("/vendor/three/examples/jsm/loaders/GLTFLoader.js");
+  const loader = new GLTFLoader();
+  const gltf = await new Promise((ok, ko) => loader.parse(buf, "", ok, ko));
+  const assoc = gltf.parser.associations;
+  // materiali come quelli del lettore WebAssembly (stesso aspetto); grigio dove il file non da' un colore
+  const mats = new Map();
+  const matFor = m => {
+    const c = m && m.color ? m.color : new THREE.Color(0.72, 0.74, 0.76);
+    const a = m ? m.opacity : 1;
+    const k = c.getHexString() + "|" + a.toFixed(3);
+    if (!mats.has(k)) mats.set(k, new THREE.MeshStandardMaterial({ color: c.clone(), metalness: 0.15, roughness: 0.55, side: THREE.DoubleSide, opacity: a, transparent: a < 0.999, depthWrite: a >= 0.999 }));
+    return mats.get(k);
+  };
+  const scene = gltf.scene;
+  const jnodes = gltf.parser.json.nodes || [];
+  scene.traverse(o => { const a = assoc.get(o); if (a && a.nodes !== undefined && jnodes[a.nodes]) o.name = jnodes[a.nodes].name || ""; }); // nomi originali (GLTFLoader cambia gli spazi in "_")
+  scene.traverse(o => {
+    if (!o.isMesh) return;
+    const own = m => (m && assoc.get(m)?.materials !== undefined ? m : null); // senza materiale = predefinito di GLTFLoader
+    o.material = Array.isArray(o.material) ? o.material.map(m => matFor(own(m))) : matFor(own(o.material));
+    const a = assoc.get(o);
+    if (!(a && a.nodes !== undefined) && o.parent) { o.name = o.parent.name; o.userData.pickParent = true; } // primitive (una per colore): la parte
+  });
+  // pezzi di un solido diviso tra i processi: il clic seleziona la parte intera
+  scene.traverse(o => { if (o.userData.mbvFrammento) o.userData.pickParent = true; });
+  // albero: un elemento per nodo dell'assieme; primitive e pezzi restano dentro la loro parte
+  const isNode = o => { const a = assoc.get(o); return !!a && a.nodes !== undefined && !o.userData.mbvFrammento; };
+  const tree = [];
+  const walk = (o, out) => {
+    const item = { name: o.name || tr("v_model3d.assieme"), obj: o, children: [] };
+    out.push(item);
+    for (const c of o.children) if (isNode(c)) walk(c, item.children);
+  };
+  for (const c of scene.children) walk(c, tree);
+  const root = new THREE.Group();
+  root.add(scene);
+  const inf = res.info || {};
+  info.status = res.cache ? tr("v_model3d.step_nativo_archivio") : tr("v_model3d.step_nativo", fmtNum(inf.totale_s || 0, 0), inf.parti || 1);
+  return { root, tree };
+}
+
 async function loadIfc(ctx, bytes, ld, info) {
   ld.set(0.15, tr("v_model3d.apertura_modello_bim"));
   let ifc = info.ifc;
@@ -297,7 +355,10 @@ function rhinoTree(obj) {
 
 // ---------------------------------------------------------------- visualizzatore
 async function loadAny(c, ld, info) {
-  const bytes = NAVIS[c.ext] || INVENTOR[c.ext] || PCLOUD[c.ext] || NEUTRAL[c.ext] || c.preloaded ? null : await readBytes(c.path); // Navisworks, Inventor e nuvole: li legge il motore nativo
+  // Navisworks, Inventor, nuvole e STEP/IGES grandi nell'app per PC: li legge il motore nativo
+  if (OCCT[c.ext] && !WEB && !c.info?.size && !c.preloaded) { try { c.info = { ...(c.info || {}), size: (await api("stat", { path: c.path })).size }; } catch { /* lettore WebAssembly */ } }
+  const nativeCad = OCCT[c.ext] && !WEB && (c.info?.size || 0) >= NATIVE_MIN;
+  const bytes = NAVIS[c.ext] || INVENTOR[c.ext] || PCLOUD[c.ext] || NEUTRAL[c.ext] || c.preloaded || nativeCad ? null : await readBytes(c.path);
   let loaded;
   if (c.preloaded) loaded = await c.preloaded(ld); // geometria gia' letta da un altro visualizzatore (es. modelli 3D dei DWF)
   else if (PCLOUD[c.ext]) {
@@ -305,7 +366,7 @@ async function loadAny(c, ld, info) {
     loaded = await loadPointCloud(c, ld, info);
     if (loaded) { loaded.root.name = c.name; return loaded; }
     loaded = await loadMesh(c, await readBytes(c.path), ld); // PLY con facce
-  } else if (OCCT[c.ext]) loaded = await loadOcct(c, bytes, ld);
+  } else if (OCCT[c.ext]) loaded = (await loadOcctNative(c, ld, info)) || await loadOcct(c, bytes || await readBytes(c.path), ld);
   else if (c.ext === "ifc") loaded = await loadIfc(c, bytes, ld, info);
   else if (NAVIS[c.ext]) { const { loadNavis } = await import("../navis.js"); loaded = await loadNavis(c, ld); if (c.navisInfo) info.status = c.navisInfo; }
   else if (NEUTRAL[c.ext]) { const { loadNeutral } = await import("../neutral3d.js"); loaded = await loadNeutral(c, bytes, ld, info); }
@@ -606,7 +667,7 @@ export async function mount(ctx) {
     while (o.parent && o.parent !== model && o.userData.expressID !== undefined && o.userData.expressID === o.parent.userData.expressID) o = o.parent;
     if (o.userData.navisId !== undefined && o.parent?.userData.navisId === o.userData.navisId) o = o.parent; // Navisworks: il nodo, non la singola mesh
     if (o.userData.neutralShape && o.parent && o.parent !== model) o = o.parent; // JT/U3D: la parte, non la singola forma
-    if (o.userData.pickParent && o.parent) o = o.parent; // SketchUp: il gruppo o componente, non la faccia o lo spigolo
+    while (o.userData.pickParent && o.parent) o = o.parent; // SketchUp: il gruppo o componente, non la faccia o lo spigolo; STEP nativo: la parte
     return o;
   };
   const band = el("div", { hidden: true, style: { position: "absolute", border: "1px dashed #ff9f1a", background: "rgba(255,159,26,.12)", pointerEvents: "none" } });

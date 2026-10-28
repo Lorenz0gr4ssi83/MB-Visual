@@ -32,6 +32,10 @@ if __name__ == "__main__" and "--miniatura" in sys.argv:
 if __name__ == "__main__" and "--integrazione" in sys.argv:
     from mbvisual import shellint
     sys.exit(shellint.cli(sys.argv))
+# processo di lettura degli STEP grandi (mbvisual/stepnative.py): uno per core, avviati dall'app stessa
+if __name__ == "__main__" and "--step-worker" in sys.argv:
+    from mbvisual import stepnative
+    sys.exit(stepnative.cli(sys.argv))
 
 from mbvisual.paths import DATA_DIR, RES_DIR
 from mbvisual.server import TOKEN, start_server
