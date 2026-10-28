@@ -27,7 +27,7 @@ const VIEWER_NAMES = {
   office: tr("app.documento_office_libreoffice"), text: tr("app.testo_codice"), markdown: "Markdown", html: tr("app.pagina_web"),
   image: tr("app.immagine"), svg: "SVG", media: tr("app.audio_video"), cad2d: tr("app.disegno_cad_2d"), model3d: tr("app.modello_3d"), inventor: tr("app.documento_inventor"),
   external: tr("app.programma_esterno"), archive: tr("app.archivio"), email: tr("app.email"), epub: "eBook", font: "Font",
-  dwf: tr("app.pubblicazione_dwf"), sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), visio: tr("app.diagramma_visio"), gis: tr("app.mappa_gis"), bcf: tr("app.segnalazioni_bim_bcf"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"), compare: tr("app.confronto_revisioni"),
+  dwf: tr("app.pubblicazione_dwf"), sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), visio: tr("app.diagramma_visio"), project: tr("app.piano_progetto"), gis: tr("app.mappa_gis"), bcf: tr("app.segnalazioni_bim_bcf"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"), compare: tr("app.confronto_revisioni"),
   solidcad: tr("app.solidworks_solid_edge"), recover: tr("app.recupero_file"),
   dicom: tr("app.immagine_medica_dicom"), calendar: tr("app.calendario"), contacts: tr("app.contatti"), cert: tr("app.certificato_digitale"),
   iwork: "Apple iWork", hpgl: tr("app.plotter_hpgl"), scidata: tr("app.dati_scientifici"), revit: "Revit",
@@ -40,7 +40,7 @@ const TEXT_VIEWERS = new Set(["text", "markdown", "html", "svg"]);
 const SNIFF_FAMILY = {
   pdf: ["pdf"], signed: ["signed"], media: ["media", "audio"], archive: ["archive"], image: ["image", "image-raw"],
   zip: ["word", "sheet", "pptx", "publisher", "visio", "office-lo", "archive", "mesh3d", "ebook"], sqlite: ["database"],
-  ole: ["publisher", "visio", "office-lo", "sheet", "email", "archive", "image", "solidcad"], cad2d: ["cad2d"], ifc: ["mesh3d"], cad3d: ["cad3d"],
+  ole: ["publisher", "visio", "project", "office-lo", "sheet", "email", "archive", "image", "solidcad"], project: ["project"], cad2d: ["cad2d"], ifc: ["mesh3d"], cad3d: ["cad3d"],
   mesh3d: ["mesh3d"], pointcloud: ["pointcloud"], font: ["font"], svg: ["svg"], html: ["html"], email: ["email"], vis3d: ["vis3d"],
   dicom: ["dicom"], iwork: ["iwork"], scidata: ["scidata"], cert: ["cert"],
 };
@@ -96,7 +96,7 @@ export function resolveCategory(name, sniff) {
 }
 
 // ------------------------------------------------------------------ badge per tipo di file
-const BADGE_COLOR = { pdf: "pdf", signed: "sig", word: "doc", "office-lo": "doc", sheet: "xls", pptx: "ppt", publisher: "cad", visio: "doc", cad2d: "cad",
+const BADGE_COLOR = { pdf: "pdf", signed: "sig", word: "doc", "office-lo": "doc", sheet: "xls", pptx: "ppt", publisher: "cad", visio: "doc", project: "xls", cad2d: "cad",
   cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", inventor: "3d", "inventor-doc": "cad", solidcad: "3d", vis3d: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", videoproject: "av", bcf: "3d",
   archive: "zip", email: "mail", text: "code", markdown: "code", html: "code", ebook: "code", font: "code", database: "db", gis: "img",
   dicom: "img", calendar: "mail", contacts: "mail", cert: "sig", iwork: "doc", hpgl: "cad", scidata: "db", revit: "3d" };

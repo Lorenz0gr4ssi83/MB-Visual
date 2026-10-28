@@ -3,7 +3,7 @@
  "components": [
   {"id": "base", "fixed": true, "icon": "<path d=\"M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6\"/>", "aliases": ["measure", "tools", "special"]},
   {"id": "shell", "fixed": true, "win": true, "icon": "<path d=\"M3 5h8v6H3zM13 5h8v6h-8zM3 13h8v6H3zM13 13h8v6h-8z\"/>"},
-  {"id": "documenti", "cats": ["word", "sheet", "pptx", "office-lo"], "aliases": ["office"], "icon": "<path d=\"M4 4h10v16H4zM7 8h4M7 12h4M7 16h4M14 8h6v12h-6M17 11v6\"/>"},
+  {"id": "documenti", "cats": ["word", "sheet", "pptx", "office-lo", "project"], "aliases": ["office"], "icon": "<path d=\"M4 4h10v16H4zM7 8h4M7 12h4M7 16h4M14 8h6v12h-6M17 11v6\"/>"},
   {"id": "pdf", "aliases": ["sign"], "icon": "<path d=\"M6 3h8l4 4v14H6zM14 3v4h4\"/><path d=\"M8.5 16.5c1.6-.5 2.2-3.5 3.3-3.5s.6 3 1.7 3 1.6-2 2.6-2\"/>"},
   {"id": "disegni", "cats": ["cad2d"], "aliases": ["cad"], "icon": "<path d=\"M12 3v3M12 6l-6.5 15M12 6l6.5 15M7.5 16h9\"/><circle cx=\"12\" cy=\"7\" r=\"1.6\"/>"},
   {"id": "modelli", "cats": ["bcf", "navisworks", "cad3d", "vis3d", "inventor", "inventor-doc", "solidcad", "revit", "pointcloud", "gis"], "exts": ["ifc", "ifczip", "ifcxml"], "invite": "usa", "aliases": ["bim", "mech", "survey", "gis"], "icon": "<path d=\"M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5\"/>"},

@@ -835,6 +835,17 @@ class Handler(BaseHTTPRequestHandler):
         from . import visio
         self._json(visio.export_pdf(self._body(), self._path(qs)))
 
+    # ------------------------------------------------------------ piani di progetto (Microsoft Project .mpp)
+    def api_mpp_read(self, qs):
+        from . import mpp
+        self._json({"ok": True, "job": jobs.start(lambda path, update: mpp.read(path), self._path(qs))})
+
+    def api_mpp_write(self, qs):
+        from . import mpp
+        xml = self._body()
+        dest = self._path(qs)
+        self._json({"ok": True, "job": jobs.start(lambda update: mpp.write_with_project(xml, dest))})
+
     def api_visio_vsd(self, qs):
         from . import visio
         self._json({"ok": True, "job": jobs.start(visio.open_vsd, self._path(qs))})
