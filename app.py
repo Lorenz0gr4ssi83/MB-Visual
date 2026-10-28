@@ -36,6 +36,10 @@ if __name__ == "__main__" and "--integrazione" in sys.argv:
 if __name__ == "__main__" and "--step-worker" in sys.argv:
     from mbvisual import stepnative
     sys.exit(stepnative.cli(sys.argv))
+# processi di lettura e scrittura della conversione IFC -> STEP (mbvisual/ifcstep.py)
+if __name__ == "__main__" and "--ifcstep" in sys.argv:
+    from mbvisual import ifcstep
+    sys.exit(ifcstep.cli(sys.argv))
 
 from mbvisual.paths import DATA_DIR, RES_DIR
 from mbvisual.server import TOKEN, start_server

@@ -883,11 +883,11 @@ export async function mount(ctx) {
       if (L?.off) continue;
       let col = g.color;
       if (col[0] > 230 && col[1] > 230 && col[2] > 230) col = [0, 0, 0];
-      const d = g.lines.map(({ pts, closed }) => "M" + pts.map(p => p[0].toFixed(4) + " " + (-p[1]).toFixed(4)).join("L") + (closed ? "Z" : "")).join("");
-      const f = g.fills.map(({ pts }) => "M" + pts.map(p => p[0].toFixed(4) + " " + (-p[1]).toFixed(4)).join("L") + "Z").join("");
+      // tracciati a gruppi di 5000 linee: milioni di linee in un solo attributo "d" supererebbero il limite delle stringhe
+      const pathD = (list, close) => { const out = []; for (let i = 0; i < list.length; i += 5000) out.push(list.slice(i, i + 5000).map(({ pts, closed }) => "M" + pts.map(p => p[0].toFixed(4) + " " + (-p[1]).toFixed(4)).join("L") + (close || closed ? "Z" : "")).join("")); return out; };
       parts.push(`<g data-layer="${esc(g.layer)}">`);
-      if (f) parts.push(`<path d="${f}" fill="${rgb(col)}"/>`);
-      if (d) parts.push(`<path d="${d}" fill="none" stroke="${rgb(col)}" stroke-width="${(x1 - x0) / 2500}"/>`);
+      for (const f of pathD(g.fills, true)) parts.push(`<path d="${f}" fill="${rgb(col)}"/>`);
+      for (const d of pathD(g.lines, false)) parts.push(`<path d="${d}" fill="none" stroke="${rgb(col)}" stroke-width="${(x1 - x0) / 2500}"/>`);
       parts.push("</g>");
     }
     for (const t of model.texts) {
@@ -907,7 +907,7 @@ export async function mount(ctx) {
       parts.push("</g>");
     }
     parts.push("</svg>");
-    await saveBlobAs(withExt(ctx.name, "svg"), new Blob([parts.join("")], { type: "image/svg+xml" }), ctx.path.replace(/[\\/][^\\/]*$/, ""));
+    await saveBlobAs(withExt(ctx.name, "svg"), new Blob(parts, { type: "image/svg+xml" }), ctx.path.replace(/[\\/][^\\/]*$/, ""));
   }
 
   ctx.status(tr("v_cad2d.0_elementi_1_testi", model.groups.reduce((n, g) => n + g.lines.length, 0).toLocaleString(LOCALE), model.texts.length));

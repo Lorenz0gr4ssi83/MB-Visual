@@ -147,6 +147,8 @@ def main() -> int:
         "--exclude-module", "tkinter", "--exclude-module", "matplotlib",
         # STEP/IGES grandi con OpenCascade nativo (mbvisual/stepnative.py): OCP si copia a mano dopo (copy_ocp), senza VTK Python
         "--hidden-import", "mbvisual.stepnative", "--exclude-module", "OCP", "--exclude-module", "vtk", "--exclude-module", "vtkmodules",
+        # IFC -> STEP (mbvisual/ifcstep.py): IfcOpenShell (LGPL-3.0) con i suoi moduli e la libreria nativa
+        "--hidden-import", "mbvisual.ifcstep", "--collect-all", "ifcopenshell", "--hidden-import", "isodate", "--hidden-import", "lark",
         "--exclude-module", "cadquery_ocp",
         # moduli opzionali di PyMuPDF non usati (onnxruntime va in crash durante l analisi su Windows ARM)
         "--exclude-module", "onnxruntime", "--exclude-module", "pymupdf4llm", "--exclude-module", "pymupdf.layout", "--exclude-module", "pymupdf_layout",

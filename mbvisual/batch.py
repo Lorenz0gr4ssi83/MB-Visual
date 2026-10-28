@@ -393,6 +393,20 @@ class Batch:
         fam, src = it["fam"], it["src"]
         if fam == "cad":
             return self._cad(it, to, out)
+        if fam == "model3d" and to in ("step", "stp") and Path(src).suffix.lower() == ".ifc":
+            # IFC -> STEP nel motore (mbvisual/ifcstep.py): solidi esatti, senza la finestra e senza limiti di tempo/dimensione
+            from . import ifcstep
+            if ifcstep.available():
+                try:
+                    rep = ifcstep.convert(src, out, update=self.update, cancelled=lambda: self.cancelled)
+                except ifcstep.Cancel:
+                    raise Cancelled() from None
+                msg = tr("srv_batch.ifc_step_esito", rep["convertiti"], rep["attesi"])
+                if rep["falliti"]:
+                    f = rep["falliti"]
+                    msg += " - " + tr("srv_batch.ifc_step_non_convertiti", len(f), "; ".join(
+                        f"{x.get('c', '')} {x.get('n') or x.get('g', '')}: {x.get('motivo', '')}" for x in f[:5]))
+                return {"msg": msg}
         if fam == "model3d":
             self._client(it, "model3d", {"out": out, "to": to})
             if not os.path.exists(out):

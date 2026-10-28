@@ -6,6 +6,7 @@
 // - modelli 3D e BIM: il visualizzatore 3D si monta in un contenitore fuori schermo e salva con il suo "Salva con nome".
 import { api, baseName, el, fmtSize, loadCss, pickFiles, pickFolder, readBytes, toast } from "./core.js";
 import { t as tr } from "./i18n.js";
+import { chunkBlob, jsonChunks } from "./bigout.js";
 
 const FAM = {
   cad: tr("batch.disegni_cad"), model3d: tr("batch.modelli_3d_bim"), word: tr("batch.word"), sheet: tr("batch.fogli_calcolo"), slides: tr("batch.fam_presentazioni"), pdf: "PDF",
@@ -415,7 +416,8 @@ async function runTask(R, task) {
     console.error(e);
     result = { errore: e.message || String(e) };
   } finally {
-    const body = JSON.stringify({ id: R.id, seq: task.seq, result }, (k, v) => (typeof v === "bigint" ? Number(v) : k === "xdata" || k === "thumbnailImage" || k === "acis" ? undefined : ArrayBuffer.isView(v) ? Array.from(v) : v));
+    // JSON a pezzi (ui/js/bigout.js): il database di un DWG grande supera il limite delle stringhe di JavaScript
+    const body = await chunkBlob(jsonChunks({ id: R.id, seq: task.seq, result }, (k, v) => (k === "xdata" || k === "thumbnailImage" || k === "acis" ? undefined : v)), "application/json");
     for (let i = 0; i < 3; i++) { // il motore aspetta questa risposta: qualche nuovo tentativo se la rete locale si interrompe
       try { if ((await api("batch", { op: "client", id: R.id }, { body, allowFail: true })).ok !== undefined) break; } catch (e) { console.error(e); await sleep(1000); }
     }

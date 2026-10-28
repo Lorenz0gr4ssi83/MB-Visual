@@ -488,6 +488,17 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": False, "nativo": False})
         self._json({"ok": True, "job": jobs.start(stepnative.convert, self._path(qs))})
 
+    def api_ifc_step(self, qs):
+        # IFC -> STEP con solidi esatti (IfcOpenShell + OpenCascade, mbvisual/ifcstep.py); senza i due motori risponde
+        # nativo=false e il visualizzatore esporta come prima (facce piane dalla scena)
+        from . import ifcstep
+        if not ifcstep.available():
+            return self._json({"ok": False, "nativo": False})
+        out = self._body_json().get("out") or ""
+        if not out:
+            return self._json({"ok": False, "errore": "out"})
+        self._json({"ok": True, "job": jobs.start(ifcstep.convert, self._path(qs), out)})
+
     def api_onlyoffice(self, qs):
         self._json({"ok": True, "url": onlyoffice_url()})
 
@@ -526,6 +537,22 @@ class Handler(BaseHTTPRequestHandler):
         """Scrive il corpo della richiesta nel file (con copia di sicurezza temporanea)."""
         p = Path(self._path(qs))
         data = self._body()
+        part = _q(qs, "part", "")
+        if part != "":
+            # file grandi scritti a blocchi dalla pagina (ui/js/bigout.js): 0 = nuovo, poi in coda; last=1 = al suo posto
+            tmp = p.with_name(p.name + ".mbv-parti")
+            with open(tmp, "wb" if int(part) == 0 else "ab") as f:
+                f.write(data)
+            if _q(qs, "last", "0") != "1":
+                self._json({"ok": True, "part": int(part)})
+                return
+            if p.exists() and _q(qs, "backup", "1") == "1":
+                bdir = TEMP_DIR / "backup"
+                bdir.mkdir(exist_ok=True)
+                shutil.copy2(p, bdir / f"{uuid.uuid4().hex[:6]}_{p.name}")
+            os.replace(tmp, p)
+            self._json({"ok": True, "path": str(p), "size": p.stat().st_size})
+            return
         if p.exists() and _q(qs, "backup", "1") == "1":
             bdir = TEMP_DIR / "backup"
             bdir.mkdir(exist_ok=True)
