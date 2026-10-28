@@ -1030,12 +1030,16 @@ def _closed(shell) -> bool:
     from OCP.BRep import BRep_Tool
     from OCP.TopAbs import TopAbs_EDGE, TopAbs_FACE
     from OCP.TopExp import TopExp
-    from OCP.TopTools import TopTools_IndexedDataMapOfShapeListOfShape
+    from OCP.TopoDS import TopoDS
+    try:
+        from OCP.TopTools import TopTools_IndexedDataMapOfShapeListOfShape
+    except ImportError:  # nome della mappa nelle versioni recenti di OCP
+        from OCP.OCP.collections import IndexedDataMap_TopoDS_Shape_List_TopoDS_Shape_TopTools_ShapeMapHasher as TopTools_IndexedDataMapOfShapeListOfShape
     m = TopTools_IndexedDataMapOfShapeListOfShape()
     TopExp.MapShapesAndAncestors_s(shell, TopAbs_EDGE, TopAbs_FACE, m)
     for i in range(1, m.Extent() + 1):
         e = m.FindKey(i)
-        if m.FindFromIndex(i).Size() != 2 and not BRep_Tool.Degenerated_s(e):
+        if m.FindFromIndex(i).Size() != 2 and not BRep_Tool.Degenerated_s(TopoDS.Edge(e)):
             return False
     return True
 

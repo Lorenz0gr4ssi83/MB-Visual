@@ -141,6 +141,10 @@ def make_sample(path: Path) -> None:
     ]
     elem("IfcSlab", "Blocco B-spline (AdvancedBrep)", [f.createIfcAdvancedBrep(f.createIfcClosedShell(adv_faces))], "AdvancedBrep",
          x=9000.0, y=3000.0, rgb=(0.7, 0.5, 0.9))
+    # superficie aperta (IfcShellBasedSurfaceModel): facce sciolte, si cuciono ma non diventano un solido
+    sp = [f.createIfcCartesianPoint(p) for p in ((0.0, 0.0, 0.0), (2000.0, 0.0, 0.0), (2000.0, 1000.0, 300.0), (0.0, 1000.0, 300.0), (1000.0, 2000.0, 0.0))]
+    open_shell = f.createIfcOpenShell([f.createIfcFace([f.createIfcFaceOuterBound(f.createIfcPolyLoop([sp[i] for i in fc]), True)]) for fc in ((0, 1, 2, 3), (3, 2, 4))])
+    elem("IfcCovering", "Telo (superficie aperta)", [f.createIfcShellBasedSurfaceModel([open_shell])], "SurfaceModel", x=12000.0, y=3000.0, rgb=(0.9, 0.9, 0.2))
     # elemento composto: scala = 3 gradini, la scala non ha geometria propria
     stair = f.create_entity("IfcStair", GlobalId=G.new(), Name="Scala", ObjectPlacement=place(0.0, 6000.0, 0.0))
     api.run("spatial.assign_container", f, relating_structure=st, products=[stair])
@@ -206,7 +210,10 @@ def main():
             check("CYLINDRICAL_SURFACE" in txt, "pilastro tondo come cilindro esatto")
             check(m["profondita"] >= 6, "albero progetto/sito/edificio/piano/scala/gradino")
             check("FACETED_BREP(" in txt and "ADVANCED_FACE(" in txt, "entrambi gli scrittori usati")
-            check(txt.count("NEXT_ASSEMBLY_USAGE_OCCURRENCE('g") == 3, "3 pilastri = una geometria condivisa richiamata 3 volte")
+            import re as _re
+            gp = {m.group(2) for m in _re.finditer(r"NEXT_ASSEMBLY_USAGE_OCCURRENCE\('g(\d+)','Pilastro (\d)'", txt)}
+            gi = {m.group(1) for m in _re.finditer(r"NEXT_ASSEMBLY_USAGE_OCCURRENCE\('g(\d+)','Pilastro \d'", txt)}
+            check(gp == {"1", "2", "3"} and len(gi) == 1, "3 pilastri = una geometria condivisa richiamata 3 volte")
     # conversione a lotti vera (mbvisual/batch.py) senza nessuna finestra: prima serviva la pagina (45 s / 30 min)
     from mbvisual import batch
     outdir = tmp / "lotto"
