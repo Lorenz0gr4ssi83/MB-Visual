@@ -139,6 +139,12 @@ def synthetic(tmp):
     check(info["scans"] == 2 and n == 3003, "progetto .rcp: 2 scansioni, tutti i punti")
 
 
+def _keys(xyz):
+    """Chiave del punto a mezzo millimetro (i punti RCS stanno su questa griglia; l'E57 li ha in float con scarti di micron)."""
+    q = np.round(xyz * 2000).astype(np.int64) + (1 << 20)
+    return (q[:, 0] << 42) | (q[:, 1] << 21) | q[:, 2]
+
+
 def real(path, e57=None):
     print("RCS vero:", path)
     t0 = time.time()
@@ -147,45 +153,41 @@ def real(path, e57=None):
           f"traslazione {h['translation']}, rotazione {h['rotation']}")
     n = 0
     mn, mx = np.full(3, np.inf), np.full(3, -np.inf)
-    sample = []
+    sp, sa = [], []
     for xyz, attr, _ in rcs.iter_points(path, h):
         n += len(xyz)
         mn, mx = np.minimum(mn, xyz.min(0)), np.maximum(mx, xyz.max(0))
-        sample.append(np.hstack([xyz[::50], attr[::50, :4].astype(np.float64)]))
+        sp.append(xyz[::40])
+        sa.append(attr[::40, :4])
     dt = time.time() - t0
     check(n == h["n"], f"letti {n:,} punti in {dt:.0f} s")
     print("  ingombro", mn.round(3), mx.round(3))
     if not e57:
         return
-    import pye57
-    e = pye57.E57(e57)
-    print("  E57:", e.scan_count, "scansioni")
-    s = np.concatenate(sample)
-    keys = {}
-    rk = np.round(s[:, :3] * 1000).astype(np.int64)
-    for i, k in enumerate(map(tuple, rk)):
-        keys[k] = i
-    hit = 0
-    tot = 0
-    cdiff = []
-    for si in range(e.scan_count):
-        d = e.read_scan(si, colors=True, intensity=True, ignore_missing_fields=True)
-        h5 = e.get_header(si)
-        p = np.stack([d["cartesianX"], d["cartesianY"], d["cartesianZ"]], 1)
-        if h5.has_pose():
-            p = p @ pointcloud._quat_matrix(h5.rotation).T + np.asarray(h5.translation)
-        tot += len(p)
-        q = np.round(p * 1000).astype(np.int64)
-        for j, k in enumerate(map(tuple, q)):
-            i = keys.get(k)
-            if i is not None:
-                hit += 1
-                if "colorRed" in d:
-                    cdiff.append(np.abs(np.array([d["colorRed"][j], d["colorGreen"][j], d["colorBlue"][j]], np.float64) - s[i, [6, 5, 4]]).max())
-    print(f"  E57: {tot:,} punti; campione RCS {len(s):,}, ritrovati al mm nell'E57: {hit:,}")
-    check(hit > 0.9 * len(s), "coordinate RCS = coordinate E57 (al millimetro)")
-    if cdiff:
-        check(np.median(cdiff) <= 2, "colori RCS (byte B, G, R) = colori E57")
+    sp, sa = np.concatenate(sp), np.concatenate(sa)
+    k = _keys(sp)
+    order = np.argsort(k)
+    ks = k[order]
+    info, gen = pointcloud._read_e57(e57)
+    check(info["n"] == n, f"stesso numero di punti dell'E57 ({info['n']:,})")
+    hit, cbad, ibad = 0, 0, 0
+    for b in gen:
+        kk = _keys(b["xyz"])
+        pos = np.searchsorted(ks, kk)
+        pos[pos >= len(ks)] = 0
+        m = ks[pos] == kk
+        if not m.any():
+            continue
+        j = order[pos[m]]
+        hit += int(m.sum())
+        if b["rgb"] is not None:
+            cbad += int((np.abs(sa[j][:, [3, 2, 1]].astype(int) - b["rgb"][m].astype(int)).max(1) > 2).sum())
+        if b["i"] is not None:
+            ibad += int((np.abs(sa[j][:, 0] / 255.0 - b["i"][m]) > 0.01).sum())
+    print(f"  campione RCS {len(sp):,} punti, ritrovati nell'E57 {hit:,}")
+    check(hit >= 0.98 * len(sp), "coordinate RCS = coordinate E57 (entro mezzo millimetro)")
+    check(cbad <= 0.01 * max(hit, 1), f"colori RCS (byte B, G, R) = colori E57 (diversi: {cbad:,})")
+    check(ibad <= 0.01 * max(hit, 1), f"intensita' RCS = intensita' E57 (diverse: {ibad:,})")
 
 
 if __name__ == "__main__":

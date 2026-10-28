@@ -730,7 +730,12 @@ Altre versioni / file troncati = messaggio chiaro con il consiglio "esporta da R
 - Collaudo: `python tests/test_rcs.py` (RCS sintetico scritto con la stessa struttura, .rcp, errori) e
   `python tests/test_rcs.py <file.rcs> <file.e57>` (confronto con l'E57 dello stesso rilievo). Campione vero usato (NON nel repo, licenza
   "solo prove, non ridistribuire"): rilievo di un edificio "Eka 15mm res" di arrival3d.com/laser-scanning-sample-downloads (RCS da 5,2 GB,
-  232 milioni di punti, + lo stesso in E57).
+  232 milioni di punti, + lo stesso in E57). Risultato 28/10/2026: 232.118.216 punti letti in 84 s, campione di 5,8 milioni tutti
+  ritrovati nell'E57 (scarti di micron), colori e intensita' identici; nell'app ottree pronto in 292 s (cache 3,7 GB), poi immediato.
+- pointcloud._build: indici a 32 bit e confronti a blocchi (`_starts`): prima con 232 M punti MemoryError su 16 GB; uscita identica
+  byte per byte alla versione precedente (verificato).
+- PROVE CON UN SERVER AVVIATO DA CODICE: l'interfaccia avvia da sola il motore della posta (mailbadge.js) sui dati VERI di
+  %LOCALAPPDATA%\MBVisual\posta. Impostare LOCALAPPDATA su una cartella di prova (DATA_DIR lo segue) prima di start_server.
 
 ## Stampa professionale (22/10/2026) - FATTO (prova sul plotter vero: la fa l'utente)
 File -> Stampa (Ctrl+P, anche il pulsante/Ctrl+P di pdf.js) e Stampa a lotti (Ctrl+Maiusc+P). Solo app per PC.

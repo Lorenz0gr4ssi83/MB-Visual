@@ -579,6 +579,19 @@ def _compact(v, L):
     return out
 
 
+def _starts(c, shift):
+    """Inizio di ogni gruppo di chiavi uguali (c >> shift) in un array ordinato, calcolato a blocchi (poca memoria)."""
+    out = np.empty(len(c), bool)
+    if not len(c):
+        return out
+    out[0] = True
+    sh = np.uint64(shift)
+    for s in range(1, len(c), CHUNK):
+        e = min(len(c), s + CHUNK)
+        np.not_equal(c[s:e] >> sh, c[s - 1:e - 1] >> sh, out=out[s:e])
+    return out
+
+
 def cache_key(path) -> str:
     st = os.stat(path)
     return hashlib.sha1(f"{os.path.abspath(path).lower()}|{st.st_size}|{st.st_mtime}|{VERSION}".encode()).hexdigest()[:20]
@@ -690,14 +703,16 @@ def _build(path, d: Path, update):
         q = ((pos[s:s + CHUNK] - cmin.astype(np.float32)) * np.float32(scale)).astype(np.int32)
         np.clip(q, 0, (1 << B) - 1, out=q)
         codes[s:s + CHUNK] = _spread(q[:, 0]) | (_spread(q[:, 1]) << np.uint64(1)) | (_spread(q[:, 2]) << np.uint64(2))
-    order = np.argsort(codes, kind="stable")  # i rilievi sono gia' in parte ordinati (righe di scansione): piu' veloce
+    # indici a 32 bit finche' bastano: con centinaia di milioni di punti la memoria e' il limite (232 M punti = 0,9 GB per indice)
+    idt = np.uint32 if n < (1 << 32) else np.int64
+    order = np.argsort(codes, kind="stable").astype(idt)  # i rilievi sono gia' in parte ordinati (righe di scansione): piu' veloce
     codes = codes[order]
 
     # ---- livelli: un punto per cella della griglia di campionamento; nodi con pochi punti presi interi
     update(0.7, t("srv_pointcloud.livelli"))
     LMAX = B - S
     level = np.full(n, 255, np.uint8)
-    rem = np.arange(n, dtype=np.int64)
+    rem = np.arange(n, dtype=idt)
     c = codes
     for L in range(LMAX + 1):
         if not rem.size:
@@ -705,25 +720,22 @@ def _build(path, d: Path, update):
         if L == LMAX:
             level[rem] = L
             break
-        nk = c >> np.uint64(3 * (B - L))
-        st = np.flatnonzero(np.r_[True, nk[1:] != nk[:-1]])
-        cnt = np.diff(np.r_[st, len(nk)])
-        small = np.repeat(cnt <= SMALL, cnt)
-        sk = c >> np.uint64(3 * (B - L - S))
-        take = np.empty(len(sk), bool)
-        take[0] = True
-        np.not_equal(sk[1:], sk[:-1], out=take[1:])
-        take |= small
+        st = np.flatnonzero(_starts(c, 3 * (B - L)))
+        cnt = np.diff(np.r_[st, len(c)])
+        take = np.repeat(cnt <= SMALL, cnt)
+        del st, cnt
+        take |= _starts(c, 3 * (B - L - S))
         level[rem[take]] = L
         np.logical_not(take, out=take)
         rem = rem[take]
         c = c[take]
-        del nk, sk, take, small
-    fin = np.argsort(level, kind="stable")  # per livello, poi (gia' ordinati) per nodo
+        del take
+    del rem, c
+    fin = np.argsort(level, kind="stable").astype(idt)  # per livello, poi (gia' ordinati) per nodo
     lv = level[fin]
+    del level
     perm = order[fin]
-    fcodes = codes[fin]
-    del order, codes, level
+    del order
 
     # ---- nodi: intervalli contigui con la stessa chiave al loro livello
     nodes = []
@@ -731,13 +743,14 @@ def _build(path, d: Path, update):
     lends = np.r_[lstarts[1:], n]
     for a, b in zip(lstarts, lends):
         L = int(lv[a])
-        nk = fcodes[a:b] >> np.uint64(3 * (B - L))
+        nk = codes[fin[a:b]] >> np.uint64(3 * (B - L))
         st = np.flatnonzero(np.r_[True, nk[1:] != nk[:-1]])
         cnt = np.diff(np.r_[st, len(nk)])
         ix, iy, iz = _compact(nk[st], L)
         for j in range(len(st)):
             nodes.append([L, int(ix[j]), int(iy[j]), int(iz[j]), int(a + st[j]), int(cnt[j])])
-    del fcodes, lv
+        del nk
+    del codes, fin, lv
 
     # ---- scrittura nell'ordine finale
     update(0.8, t("srv_pointcloud.scrittura_cache"))
