@@ -6,6 +6,16 @@ Il file e' un contenitore OLE (Compound File): si leggono solo i flussi descritt
 - PartAtom (famiglie): XML Atom con categoria, versione, parametri e tipi
 - TransmissionData: XML con i riferimenti esterni (collegamenti Revit/CAD, nuvole di punti, decalcomanie...)
 La geometria resta nel formato proprietario e non viene letta. Libreria: olefile (BSD-2).
+
+Perche' niente geometria (indagine del 28/10/2026 su famiglie Revit 2016 di DynamoRevit): i flussi Global/* e Partitions/*
+sono segmenti gzip senza la coda CRC/ISIZE (deflate grezzo dopo i 10 byte d'intestazione); Formats/Latest e' lo schema delle
+classi (nome, etichetta a 16 bit, campi con codice di tipo: 0x07 double, 0x04 intero, 0x0e riferimento...) e le partizioni
+sono oggetti serializzati secondo quello schema. La geometria di una famiglia sta in elementi parametrici (ExtrusionElem,
+BlendElem, schizzi di CurveElem) che rimandano a nodi GNode (FSRModelGNodeData) con le facce calcolate (GFace/GEdge): per
+leggerla servirebbe decifrare l'intera serializzazione degli oggetti, che cambia a ogni versione di Revit. Nessun lettore
+libero lo fa (rvt-rs, Apache-2.0, dichiara "no family geometry"); le alternative sono Revit stesso (Esporta IFC), il servizio
+a pagamento Autodesk APS o la libreria commerciale ODA BimRv. Per questo l'IFC esportato da qui contiene i SOLI DATI della
+famiglia (tipi, parametri, categoria -> classe IFC, OmniClass), senza geometria.
 """
 from __future__ import annotations
 
@@ -127,7 +137,9 @@ def _part_atom(b: bytes | None) -> dict | None:
     for c in root:
         if _local(c.tag) == "category":
             term = _text(c, "term")
-            if term:
+            if term and _text(c, "scheme").startswith("std:oc"):  # OmniClass (std:oc1 = tabella 23, prodotti)
+                info.setdefault("omniclass", []).append(term)
+            elif term:
                 info["categorie"].append(term)
         if _local(c.tag) == "link":
             df = _child(c, "design-file")
@@ -200,6 +212,12 @@ def export(path: str, out: str) -> dict:
     elif ext == "json":
         with open(out, "w", encoding="utf-8") as f:
             json.dump(read(path), f, ensure_ascii=False, indent=2)
+    elif ext == "ifc":
+        r = read(path)
+        if not r.get("famiglia"):
+            raise ValueError(tr("srv_fx_revit.ifc_solo_famiglie"))
+        with open(out, "w", encoding="utf-8", newline="\n") as f:
+            f.write(family_ifc(r, path))
     elif ext == "txt":
         r = read(path)
         lines = [tr("srv_fx_revit.0_revit_1", r['tipo'], r['versione']).strip(), ""]
@@ -217,3 +235,172 @@ def export(path: str, out: str) -> dict:
     else:
         raise ValueError(tr("srv_fx_revit.formato_non_previsto_0", ext))
     return {"ok": True, "path": out}
+
+# ------------------------------------------------------------------ IFC 4 con i soli dati della famiglia
+# Categoria Revit (inglese come in PartAtom, o italiano) -> (tipo IFC, attributi dopo ElementType, occorrenza, attributi dopo Tag)
+_IFC_MAP = [
+    (("doors", "porte"), "IFCDOORTYPE", ".DOOR.,.NOTDEFINED.,$,$", "IFCDOOR", "$,$,.DOOR.,.NOTDEFINED.,$"),
+    (("windows", "finestre"), "IFCWINDOWTYPE", ".WINDOW.,.NOTDEFINED.,$,$", "IFCWINDOW", "$,$,.WINDOW.,.NOTDEFINED.,$"),
+    (("furniture", "furniture systems", "casework", "arredi", "sistemi di arredo", "arredi fissi"), "IFCFURNITURETYPE",
+     ".NOTDEFINED.,.NOTDEFINED.", "IFCFURNITURE", ".NOTDEFINED."),
+    (("structural columns", "columns", "pilastri strutturali", "pilastri"), "IFCCOLUMNTYPE", ".COLUMN.", "IFCCOLUMN", ".COLUMN."),
+    (("structural framing", "telaio strutturale"), "IFCBEAMTYPE", ".BEAM.", "IFCBEAM", ".BEAM."),
+    (("structural foundations", "fondazioni strutturali"), "IFCFOOTINGTYPE", ".NOTDEFINED.", "IFCFOOTING", ".NOTDEFINED."),
+    (("railings", "ringhiere"), "IFCRAILINGTYPE", ".NOTDEFINED.", "IFCRAILING", ".NOTDEFINED."),
+    (("plumbing fixtures", "apparecchi idraulici", "impianti idraulici"), "IFCSANITARYTERMINALTYPE", ".NOTDEFINED.", "IFCSANITARYTERMINAL", ".NOTDEFINED."),
+    (("lighting fixtures", "apparecchi di illuminazione", "lighting devices", "dispositivi di illuminazione"), "IFCLIGHTFIXTURETYPE", ".NOTDEFINED.", "IFCLIGHTFIXTURE", ".NOTDEFINED."),
+    (("electrical fixtures", "apparecchi elettrici"), "IFCOUTLETTYPE", ".NOTDEFINED.", "IFCOUTLET", ".NOTDEFINED."),
+    (("electrical equipment", "attrezzatura elettrica"), "IFCELECTRICDISTRIBUTIONBOARDTYPE", ".NOTDEFINED.", "IFCELECTRICDISTRIBUTIONBOARD", ".NOTDEFINED."),
+    (("mechanical equipment", "attrezzature meccaniche", "apparecchiature meccaniche"), "IFCUNITARYEQUIPMENTTYPE", ".NOTDEFINED.", "IFCUNITARYEQUIPMENT", ".NOTDEFINED."),
+    (("air terminals", "terminali d'aria", "bocchette"), "IFCAIRTERMINALTYPE", ".NOTDEFINED.", "IFCAIRTERMINAL", ".NOTDEFINED."),
+    (("duct fittings", "raccordi condotto"), "IFCDUCTFITTINGTYPE", ".NOTDEFINED.", "IFCDUCTFITTING", ".NOTDEFINED."),
+    (("duct accessories", "accessori condotto"), "IFCDAMPERTYPE", ".NOTDEFINED.", "IFCDAMPER", ".NOTDEFINED."),
+    (("pipe fittings", "raccordi tubazione"), "IFCPIPEFITTINGTYPE", ".NOTDEFINED.", "IFCPIPEFITTING", ".NOTDEFINED."),
+    (("pipe accessories", "accessori tubazione"), "IFCVALVETYPE", ".NOTDEFINED.", "IFCVALVE", ".NOTDEFINED."),
+    (("sprinklers", "sprinkler"), "IFCFIRESUPPRESSIONTERMINALTYPE", ".SPRINKLER.", "IFCFIRESUPPRESSIONTERMINAL", ".SPRINKLER."),
+    (("planting", "piantumazione", "vegetazione"), "IFCGEOGRAPHICELEMENTTYPE", ".NOTDEFINED.", "IFCGEOGRAPHICELEMENT", ".NOTDEFINED."),
+]
+_IFC_PROXY = ("IFCBUILDINGELEMENTPROXYTYPE", ".NOTDEFINED.", "IFCBUILDINGELEMENTPROXY", ".NOTDEFINED.")
+_LEN_UNITS = {"mm": 0.001, "millimeters": 0.001, "millimetri": 0.001, "cm": 0.01, "centimeters": 0.01, "m": 1.0, "meters": 1.0,
+              "metri": 1.0, "ft": 0.3048, "feet": 0.3048, "in": 0.0254, "inches": 0.0254}
+_YES = ("Yes", "Si", "Sì", "1")
+_NO = ("No", "0")
+
+
+def ifc_class(categories: list) -> tuple:
+    """Classi IFC (tipo, attributi del tipo, occorrenza, attributi dell'occorrenza) dalla categoria della famiglia."""
+    for c in (x.strip().lower() for x in categories or []):
+        for names, ty, ty_attrs, occ, occ_attrs in _IFC_MAP:
+            if c in names:
+                return ty, ty_attrs, occ, occ_attrs
+    return _IFC_PROXY
+
+
+def _ifc_str(s) -> str:
+    """Stringa STEP: apostrofi e barre raddoppiati, caratteri non ASCII in \\X2\\....\\X0\\."""
+    out = []
+    for ch in str(s):
+        code = ord(ch)
+        if ch == "'":
+            out.append("''")
+        elif ch == "\\":
+            out.append("\\\\")
+        elif 32 <= code < 127:
+            out.append(ch)
+        elif code < 32:
+            out.append(" ")
+        elif code > 0xFFFF:  # coppia surrogata in UTF-16
+            code -= 0x10000
+            out.append("\\X2\\%04X%04X\\X0\\" % (0xD800 + (code >> 10), 0xDC00 + (code & 0x3FF)))
+        else:
+            out.append("\\X2\\%04X\\X0\\" % code)
+    return "'" + "".join(out) + "'"
+
+
+def _ifc_guid() -> str:
+    """GlobalId IFC: 128 bit in 22 caratteri (il primo porta solo 2 bit)."""
+    import uuid
+    chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$"
+    n = uuid.uuid4().int
+    return chars[(n >> 126) & 3] + "".join(chars[(n >> (6 * i)) & 63] for i in range(20, -1, -1))
+
+
+def _ifc_value(value: str, kind: str = "", unit: str = "") -> str:
+    v = (value or "").strip()
+    if (kind == "Yes/No" or not unit) and v in _YES + _NO and (kind == "Yes/No" or v in ("Yes", "No")):
+        return "IFCBOOLEAN(%s)" % (".T." if v in _YES else ".F.")
+    f = _LEN_UNITS.get(unit.strip().lower())
+    if f is not None:
+        try:
+            return "IFCLENGTHMEASURE(%s)" % repr(float(v.replace(",", ".")) * f)
+        except ValueError:
+            pass
+    return "IFCLABEL(%s)" % _ifc_str(v + (" " + unit if unit else ""))
+
+
+def family_ifc(r: dict, path: str) -> str:
+    """IFC 4 senza geometria: progetto, un tipo IFC e un'occorrenza (senza rappresentazione) per ogni tipo della famiglia,
+    proprieta' dai gruppi di parametri di PartAtom, classificazione OmniClass se presente."""
+    import os
+    import time
+    fam = r["famiglia"]
+    lines: list[str] = []
+
+    def A(txt: str) -> int:
+        lines.append(txt)
+        return len(lines)
+
+    def G() -> str:
+        return _ifc_str(_ifc_guid())
+
+    name = fam.get("titolo") or os.path.splitext(os.path.basename(path))[0]
+    org = A("IFCORGANIZATION($,'MB Group',$,$,$)")
+    app = A(f"IFCAPPLICATION(#{org},'1','MB Desk','MBVisual')")
+    per = A("IFCPERSON($,$,'MB Desk',$,$,$,$,$)")
+    pao = A(f"IFCPERSONANDORGANIZATION(#{per},#{org},$)")
+    own = A(f"IFCOWNERHISTORY(#{pao},#{app},$,.ADDED.,$,$,$,{int(time.time())})")
+    o = A("IFCCARTESIANPOINT((0.,0.,0.))")
+    z = A("IFCDIRECTION((0.,0.,1.))")
+    x = A("IFCDIRECTION((1.,0.,0.))")
+    wcs = A(f"IFCAXIS2PLACEMENT3D(#{o},#{z},#{x})")
+    ctx = A(f"IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.E-05,#{wcs},$)")
+    uL = A("IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.)")
+    uA = A("IFCSIUNIT(*,.AREAUNIT.,$,.SQUARE_METRE.)")
+    uV = A("IFCSIUNIT(*,.VOLUMEUNIT.,$,.CUBIC_METRE.)")
+    units = A(f"IFCUNITASSIGNMENT((#{uL},#{uA},#{uV}))")
+    proj = A(f"IFCPROJECT({G()},#{own},{_ifc_str(name)},{_ifc_str(tr('srv_fx_revit.ifc_descrizione'))},$,$,$,(#{ctx}),#{units})")
+    sp = A(f"IFCLOCALPLACEMENT($,#{wcs})")
+    site = A(f"IFCSITE({G()},#{own},'Site',$,$,#{sp},$,$,.ELEMENT.,$,$,$,$,$)")
+    bp = A(f"IFCLOCALPLACEMENT(#{sp},#{wcs})")
+    bld = A(f"IFCBUILDING({G()},#{own},'Building',$,$,#{bp},$,$,.ELEMENT.,$,$,$)")
+    stp = A(f"IFCLOCALPLACEMENT(#{bp},#{wcs})")
+    sto = A(f"IFCBUILDINGSTOREY({G()},#{own},'Level 0',$,$,#{stp},$,$,.ELEMENT.,0.)")
+    A(f"IFCRELAGGREGATES({G()},#{own},$,$,#{proj},(#{site}))")
+    A(f"IFCRELAGGREGATES({G()},#{own},$,$,#{site},(#{bld}))")
+    A(f"IFCRELAGGREGATES({G()},#{own},$,$,#{bld},(#{sto}))")
+
+    def pset(pname: str, props: list) -> int | None:
+        ids = [A(f"IFCPROPERTYSINGLEVALUE({_ifc_str(n)},$,{v},$)") for n, v in props if n]
+        if not ids:
+            return None
+        return A(f"IFCPROPERTYSET({G()},#{own},{_ifc_str(pname)},$,({','.join('#%d' % i for i in ids)}))")
+
+    cats = fam.get("categorie") or []
+    ty_cls, ty_attrs, occ_cls, occ_attrs = ifc_class(cats)
+    base = [(tr("srv_fx_revit.ifc_famiglia"), _ifc_value(name)), (tr("srv_fx_revit.ifc_categoria"), _ifc_value(", ".join(cats))),
+            (tr("srv_fx_revit.ifc_file"), _ifc_value(os.path.basename(path)))]
+    if fam.get("ospite"):
+        base.append((tr("srv_fx_revit.ifc_ospite"), _ifc_value(fam["ospite"])))
+    if r.get("versione"):
+        base.append((tr("srv_fx_revit.ifc_versione_revit"), _ifc_value(r["versione"])))
+    groups: dict[str, list] = {}
+    for p in fam.get("parametri", []):
+        groups.setdefault(p["gruppo"] or "Revit", []).append((p["nome"], _ifc_value(p["valore"], p.get("tipo", ""))))
+
+    occs = []
+    for ty in fam.get("tipi") or [{"nome": name, "parametri": []}]:
+        tname = ty.get("nome") or name
+        own_ps = pset(tr("srv_fx_revit.ifc_parametri_tipo"),
+                      [(p["nome"], _ifc_value(p["valore"], "", p.get("unita", ""))) for p in ty.get("parametri", [])])
+        # un property set definisce al massimo un tipo (IFC4 DefinesType [0:1]): si ripetono per ogni tipo
+        ps = [c for c in [pset("Revit", base)] + [pset(g, props) for g, props in groups.items()] + [own_ps] if c]
+        has = "(" + ",".join("#%d" % i for i in ps) + ")" if ps else "$"
+        full = _ifc_str(name + ":" + tname)
+        tid = A(f"{ty_cls}({G()},#{own},{full},$,$,{has},$,$,{_ifc_str(tname)},{ty_attrs})")
+        op = A(f"IFCLOCALPLACEMENT(#{stp},#{wcs})")
+        oid = A(f"{occ_cls}({G()},#{own},{full},$,{_ifc_str(tname)},#{op},$,$,{occ_attrs})")
+        A(f"IFCRELDEFINESBYTYPE({G()},#{own},$,$,(#{oid}),#{tid})")
+        occs.append(oid)
+    A(f"IFCRELCONTAINEDINSPATIALSTRUCTURE({G()},#{own},$,$,({','.join('#%d' % i for i in occs)}),#{sto})")
+    oc = fam.get("omniclass") or []
+    if oc:
+        cl = A("IFCCLASSIFICATION('OCCS','2006',$,'OmniClass',$,$,$)")
+        for code in oc:
+            ref = A(f"IFCCLASSIFICATIONREFERENCE($,{_ifc_str(code)},$,#{cl},$,$)")
+            A(f"IFCRELASSOCIATESCLASSIFICATION({G()},#{own},$,$,({','.join('#%d' % i for i in occs)}),#{ref})")
+
+    stamp = time.strftime("%Y-%m-%dT%H:%M:%S")
+    head = ["ISO-10303-21;", "HEADER;", "FILE_DESCRIPTION(('ViewDefinition [ReferenceView_V1.2]'),'2;1');",
+            f"FILE_NAME({_ifc_str(name + '.ifc')},'{stamp}',(''),(''),'MB Desk','MB Desk','');", "FILE_SCHEMA(('IFC4'));", "ENDSEC;", "DATA;"]
+    body = [f"#{i + 1}={ln};" for i, ln in enumerate(lines)]
+    return "\n".join(head + body + ["ENDSEC;", "END-ISO-10303-21;", ""])
