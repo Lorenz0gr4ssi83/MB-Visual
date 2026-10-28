@@ -97,7 +97,8 @@
 .pj-net .box.crit rect { stroke: #d64545; stroke-width: 2; }
 .pj-net .box.done rect { fill: var(--accent-soft); }
 .pj-net .box.ms rect { stroke-dasharray: 4 2; }
-.pj-net text { font-size: 11px; fill: var(--fg); }
+.pj-net text { font-size: 11px; fill: var(--fg); stroke: none; }
+.pj-net .arr { stroke: none; }
 .pj-net text.nm { font-weight: 600; } .pj-net text.pc { fill: var(--muted); }
 .pj-net .lnk { fill: none; stroke: var(--muted); stroke-width: 1.2; } .pj-net .lnk.crit { stroke: #d64545; }
 .pj-net .arr { fill: var(--muted); }

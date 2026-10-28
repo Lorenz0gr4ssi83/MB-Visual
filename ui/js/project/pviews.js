@@ -141,7 +141,7 @@ function resuse(box, E) {
   const sum = (m, a, b) => { let n = 0; if (m) for (let d = a; d < b; d++) n += m.get(d) || 0; return n; };
   const cap = (r, a, b) => { let n = 0; for (let d = a; d < b; d++) n += us.avail(r, d); return n; };
   const tbl = el("table", { class: "pj-table pj-use" });
-  tbl.append(el("tr", {}, el("th", { class: "sticky" }, L("c_nome")), el("th", {}, L("c_lavoro")), ...buckets.map(([a]) => el("th", {}, weekly ? fdm(a * DAY) : fdm(a * DAY)))));
+  tbl.append(el("tr", {}, el("th", { class: "sticky" }, t("common.nome")), el("th", {}, L("c_lavoro")), ...buckets.map(([a]) => el("th", {}, weekly ? fdm(a * DAY) : fdm(a * DAY)))));
   const fmt = m => (m ? (Math.round(m / 6) / 10).toLocaleString(LOCALE) : "");
   for (const r of P.resources.filter(r => r.type === "work")) {
     const m = us.use.get(r.uid);
@@ -196,7 +196,7 @@ function compareView(box, E) {
     const a = r.a, b = r.b;
     tbl.append(el("tr", { class: "c-" + r.kind },
       el("td", {}, { add: "+", del: "−", mod: "≠", same: "" }[r.kind]),
-      el("td", {}, (a || b).name + (a && b && a.name !== b.name ? ` → ${b.name}` : "")),
+      el("td", {}, (a || b).name + (a && b && a.name.trim() !== b.name.trim() ? ` → ${b.name}` : "")),
       el("td", {}, fd(a?.start)), el("td", {}, fd(b?.start)), el("td", { class: "num" }, r.dStart ? dd(r.dStart) : ""),
       el("td", {}, fd(a?.finish)), el("td", {}, fd(b?.finish)), el("td", { class: "num" + (r.dFinish > 0 ? " bad" : "") }, r.dFinish ? dd(r.dFinish) : ""),
       el("td", {}, a && b ? `${Math.round(a.pct || 0)}% → ${Math.round(b.pct || 0)}%` : ""),

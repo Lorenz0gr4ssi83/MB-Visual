@@ -1186,6 +1186,7 @@ export function createEditor(ctx, P, opt = {}) {
     zoomFit,
     ganttState: () => ({ zoom: ppd(), crit: S.o.crit, base: S.o.base || S.view === "tracking", rows: rows.slice(), names: S.o.names }),
     undo, redo,
+    _test: { xOf: m => xOf(m) - chartScroll.scrollLeft, rows: () => rows, canvas: chartCanvas, scroller: chartScroll }, // prove dalla console
   };
   schedule(S.P);
   ribbon();

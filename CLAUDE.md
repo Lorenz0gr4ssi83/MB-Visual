@@ -1495,6 +1495,59 @@ l'impronta di tutti i tratti su 9 DWG/DXF); polyface/MESH/polygon mesh ora si ve
 - Licenza: libredwg-web e' GPL-3.0 (gia' usato prima di questo lavoro); qui solo la stessa libreria con le sue API, nessun
   codice copiato. Da valutare con l'utente (vedi resoconto).
 
+## Piani di progetto in stile Microsoft Project (28/10/2026) - FATTO (da provare sui piani veri dell'utente)
+Richiesta dell'utente "Devi avere anche Project, meglio se migliore". Categoria `project` in formats.json (mpp, mpt, mpx, xer, pmxml,
+gan, xml), visualizzatore `ui/js/viewers/project.js`, applicazione "Documenti" dell'installabile (components.json: niente
+applicazione nuova, Project sta con Word/Excel/PowerPoint), "Piano di progetto" in Crea nuovo (nasce un XML di Project).
+`.xml` resta anche testo: decide il contenuto (misc.sniff / webapi.js sniff -> kind "project" per MSPDI, P6 XML, GanttProject).
+- Modello e calcolo `ui/js/project/pmodel.js` (puro, provato in Node): tempo = minuti "da orologio" calcolati con le funzioni UTC
+  (niente ora legale), calendari `pcal.js` (WorkCal: turni per giorno, add/sub/between, festivi italiani con Pasqua di Gauss),
+  CPM con collegamenti FS/SS/FF/SF, ritardi in lavoro / trascorsi / percentuale, collegamenti di e verso i riepiloghi portati alle
+  foglie, vincoli (8 tipi), scadenze, ALAP sul margine libero, attivita' manuali e inattive, avanzamento con inizio/fine effettivi,
+  margine totale e libero, percorso critico. Risorse lavoro/materiale/costo, costi, uso giornaliero, sovrallocazioni, livellamento
+  (ritardo di livellamento in ordine di inizio/priorita'/margine), linee di base 0-10, confronto tra due versioni (UID poi nome).
+  Collaudo: confrontato con le date salvate da Project su 1254 attivita' dei campioni: 97,6% identiche (il resto: attivita'
+  interrotte e calendari delle risorse, non gestiti).
+- Formati `ui/js/project/pio.js` + lettore XML minimo `pxml.js` (conserva le posizioni nel testo). MSPDI lettura/scrittura SENZA
+  PERDITE: ogni elemento non gestito (campi personalizzati, dati temporali, viste...) si riscrive tale e quale nell'ordine dello
+  schema mspdi_pj15.xsd (ORD_*); se l'utente cambia un'attivita' (taskHash: solo valori scelti dall'utente) i dati derivati
+  (STALE_TASK/STALE_ASSN) non si riscrivono e Project li ricalcola. MPX lettura/scrittura (record 20 = nome + 7 giorni, SENZA
+  calendario di base), Primavera XER e P6 XML sola lettura (WBS -> riepiloghi, clndr_data letto con espressioni regolari),
+  GanttProject .gan lettura/scrittura (depend: 1 SS, 2 FS, 3 FF, 4 SF, elencati sul predecessore).
+- `.mpp`: lettore scritto da zero `mbvisual/mpp.py` (API mpp_read = lavoro; struttura descritta in testa al file): Project 2007
+  ("   112") e 2010-2024 ("   114"), mappa dei campi letta dal file stesso (Props 131092/131093/131095, numeri di campo PjField),
+  attivita', livelli, collegamenti (TBkndCons), risorse, assegnazioni, note RTF -> testo. NON letti: Project 98-2003 (messaggio
+  chiaro), calendari e festivi del file, campi personalizzati, file con password. L'indicatore "programmata manualmente" non ha una
+  posizione stabile tra le versioni: `pio.fromEngine` ricalcola e le attivita' con date diverse da quelle di Project restano
+  manuali alle date del file (indicatore "⚑"). MPXJ (LGPL, Java) NON usato: serve solo come fonte dei file di prova.
+  Scrittura .mpp: solo con Microsoft Project installato (`tools.msproject` = winproj.exe in App Paths; API mpp_write: XML MSPDI ->
+  FileOpenEx + FileSaveAs via COM). NON provata: Project non e' su questo PC.
+- Editor `ui/js/project/pedit.js`: barra multifunzione (schede Attivita'/Risorse/Progetto/Visualizza/Formato) nella barra del
+  visualizzatore, tabella con modifica sul posto come Project (si scrive direttamente sulla cella; durate "5g", "2s?", "3gt";
+  predecessori "3;5FS+2g;7SS-1g;8FF+50%"; risorse "Mario[50%];Cemento[4]" crea le risorse mancanti; date nel formato della lingua),
+  Gantt su canvas (barre, riepiloghi, cardini, avanzamento, linea di base, margine, scadenze, oggi, data di stato, collegamenti;
+  trascina = sposta con vincolo SNET come Project, bordo destro = durata, bordo sinistro = % completamento, trascinamento verticale
+  su un'altra barra = collegamento FS; Ctrl+rotella = zoom), sequenza temporale sopra il Gantt, finestre Informazioni attivita'
+  (schede), Informazioni progetto, Cambia orario lavorativo (+ "Festivi italiani"), Linea di base, Assegna risorse, Colonne.
+  Tasti di Project in keymap (Ins, Canc, Alt+Maiusc+frecce, Ctrl+F2, Ctrl+Maiusc+F2, Maiusc+F2, F2, Ctrl+Maiusc+F5, Ctrl+/...).
+  ATTENZIONE: il pointerdown sulla tabella fa preventDefault + focus sulla radice (le righe si ridisegnano: altrimenti il fuoco
+  finiva sulla pagina e Tab/Invio chiudevano la scheda); Tab scorre le colonne. snapshot() toglie i campi calcolati SOLO da
+  attivita' (lvl) e risorse (max): "work" esiste anche nei calendari.
+- Viste `pviews.js`: Calendario, Diagramma reticolare (SVG), Foglio risorse, Uso risorse (ore per giorno o settimana, rosso =
+  sovrallocata), Confronto versioni (aggiunte/tolte/modificate, delta date, barre viola della seconda versione nel Gantt),
+  Avanzamento (schede con cursore, pensata per il telefono: sul telefono e' la vista iniziale; "atteso" dalla data di stato).
+- Esportazioni `pexport.js`: PDF vettoriale su piu' fogli (A4-A1, tabella ripetuta, ritagli veri `q re W n`, legenda) con lo
+  scrittore PdfDoc di bcfreport.js, "Gantt per il cliente" (solo fasi e cardini fino al livello scelto, un colore per fase), PNG,
+  Excel (SheetJS: Attivita', Risorse, Assegnazioni). Stili `ui/css/project.css` (puntatore sempre freccia). Testi `proj.*`,
+  `srv_mpp.*` (5 lingue).
+- Collaudo: `node tests/test_project.mjs` (49 prove: CPM su casi verificati a mano, calendari/festivi, durate, risorse e
+  livellamento, scrittura e rilettura XML/MPX/GAN, file veri: 177 letti, calcolo 97,6% uguale a Project, XML riscritto senza
+  perdite per il 99,6% delle attivita') e `python tests/test_mpp.py` (.mpp contro l'XML dello stesso progetto: 3548 attivita',
+  nomi/livelli/avanzamento/cardini 100%, collegamenti 99,3%, risorse e assegnazioni 100%; 342 .mpp letti, 267 di Project
+  98-2003 rifiutati con messaggio). Campioni (fuori dal repo, solo prove): %USERPROFILE%\.mbvisual\project-campioni =
+  junit/data di github.com/joniles/mpxj (LGPL) + HouseBuildingSample.gan di GanttProject. Prove dalla console:
+  `MB.active.api._pj` (S.P piano, setView, change, taskInfo, _test.xOf/rows per i trascinamenti simulati).
+
 ## Misure ed estrazioni di quantita' (22/10/2026) - FATTO (da provare sui file veri dell'utente)
 Pannello "Misure" UNICO per PDF, disegni CAD (DWG/DXF), fogli DWF/DWFx e modelli 3D/BIM (stile Bluebeam Revu Measurements /
 Quantity Takeoff). Pulsante "Misure" nella barra di ogni visualizzatore; moduli in `ui/js/measure/`, stile `ui/css/measure.css`.
