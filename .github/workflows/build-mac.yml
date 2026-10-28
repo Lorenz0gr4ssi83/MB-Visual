@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   mac:
-    runs-on: macos-14   # arm64
+    runs-on: macos-15   # arm64 (macos-14: code infinite per mancanza di macchine, 28/10/2026)
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
