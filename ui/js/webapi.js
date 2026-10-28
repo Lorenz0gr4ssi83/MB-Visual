@@ -94,6 +94,7 @@ function sniff(h) {
     const t = new TextDecoder("latin1").decode(sample).trimStart().toLowerCase();
     if (t.startsWith("<svg") || (t.startsWith("<?xml") && t.includes("<svg"))) return { kind: "svg", descr: tr("webapi.grafica_svg") };
     if (t.startsWith("<!doctype html") || t.startsWith("<html")) return { kind: "html", descr: tr("webapi.pagina_web_html") };
+    if (t.includes("schemas.microsoft.com/project") || t.includes("<apibusinessobjects") || t.startsWith("mpx,") || t.startsWith("ermhdr") || (/^(<\?xml[^>]*>\s*)?<project\s/.test(t) && t.includes("<tasks"))) return { kind: "project", descr: tr("webapi.piano_progetto") };
     return { kind: "text", descr: tr("webapi.file_testo") };
   }
   return { kind: null, descr: tr("webapi.dati_binari_non_riconosciuti") };

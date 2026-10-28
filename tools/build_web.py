@@ -63,6 +63,7 @@ WEB_LIBS = [
 WEB_EXTS = {
     "pdf": "*", "signed": "*", "word": "*", "sheet": "*", "pptx": "*", "text": "*", "markdown": "*", "svg": "*",
     "html": ["html", "htm", "xhtml", "shtml"],
+    "project": ["mpx", "xer", "pmxml", "gan", "xml"],  # .mpp/.mpt: motore Python dell'app per PC
     "image": ["png", "apng", "jpg", "jpeg", "jpe", "jfif", "pjpeg", "pjp", "gif", "webp", "bmp", "dib", "ico", "cur", "avif", "avifs",
               "tif", "tiff", "heic", "heif", "hif", "heics", "heifs", "psd", "ora"],
     "media": ["mp4", "m4v", "mov", "webm", "ogv", "3gp", "mkv"],

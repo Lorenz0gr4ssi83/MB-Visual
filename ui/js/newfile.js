@@ -26,6 +26,7 @@ const TYPES = [
     ["xlsx", tr("newfile.cartella_lavoro_excel"), tr("newfile.nuovo_foglio"), () => tpl("vuoto.xlsx"), "sheet", tr("newfile.tabelle_calcoli_computi")],
     ["pptx", tr("newfile.presentazione_powerpoint"), tr("newfile.nuova_presentazione"), () => tpl("vuoto.pptx"), "slide", tr("newfile.diapositive")],
     ["mbpub", tr("newfile.pubblicazione"), tr("newfile.nuova_pubblicazione"), () => import("./pubmodel.js").then(m => m.blankMbpub()), "pub", tr("newfile.volantini_brochure_biglietti_newsletter")],
+    ["xml", tr("newfile.piano_progetto"), tr("newfile.nuovo_progetto"), () => Promise.all([import("./project/pio.js"), import("./project/pmodel.js")]).then(([io, m]) => { const P = m.newProject(); P.name = tr("newfile.nuovo_progetto"); return enc(io.writeMspdi(P)); }), "gantt-l", tr("newfile.attivita_gantt_risorse")],
     ["vsdx", tr("newfile.diagramma"), tr("newfile.nuovo_diagramma"), () => import("./vsdmodel.js").then(m => m.blankVsdx()), "diagram-l", tr("newfile.diagrammi_flusso_schemi_visio")],
     ["mbvid", tr("newfile.progetto_video"), tr("newfile.nuovo_progetto_video"), () => import("./vidmodel.js").then(m => enc(JSON.stringify(m.newProject(), null, 1))), "video-l", tr("newfile.montaggio_video_audio_titoli_transizioni")],
     ["pdf", tr("newfile.documento_pdf"), tr("newfile.nuovo_pdf"), () => tpl("vuoto_A4.pdf"), "page", tr("newfile.moduli_testi_immagini")],
@@ -38,12 +39,12 @@ const TYPES = [
 // nella web app (telefono) il montaggio video non c'e' (serve il motore dell'app per PC): niente modello che poi non si apre
 const WEB_SKIP = new Set(["mbvid"]);
 // tipi che richiedono un componente (ui/components.json): con il componente spento non compaiono
-const NEEDS = { docx: "office", xlsx: "office", pptx: "office", mbpub: "graphics", vsdx: "graphics", png: "graphics", mbvid: "video", dxf: "cad" };
+const NEEDS = { docx: "office", xlsx: "office", pptx: "office", mbpub: "graphics", vsdx: "graphics", png: "graphics", mbvid: "video", dxf: "cad", xml: "office" };
 
 // icona del programma (colori e iniziale come le app originali, senza marchi)
 const APP = {
   docx: ["#185abd", "W"], xlsx: ["#107c41", "X"], csv: ["#107c41", "a,b"], pptx: ["#c43e1c", "P"], mbpub: ["#077568", "P"], vsdx: ["#3955a3", "V"], mbvid: ["#3b2d8f", "VID"], mbcomm: ["#8a5a2b", "PE"], pdf: ["#d93025", "PDF"], dxf: ["#c0392b", "DXF"],
-  txt: ["#5f6b76", "TXT"], md: ["#37474f", "MD"], html: ["#e65100", "</>"], json: ["#6a4fb3", "{ }"], xml: ["#00838f", "XML"], py: ["#2b6cb0", "PY"], bat: ["#3c3c3c", "BAT"],
+  txt: ["#5f6b76", "TXT"], md: ["#37474f", "MD"], html: ["#e65100", "</>"], json: ["#6a4fb3", "{ }"], xml: ["#31752f", "P"], py: ["#2b6cb0", "PY"], bat: ["#3c3c3c", "BAT"],
   png: ["#0078d4", "PNG"], jpg: ["#0078d4", "JPG"], svg: ["#f57c00", "SVG"], sqlite: ["#0f6d8c", "DB"],
 };
 function appIcon(ext) {
@@ -72,6 +73,13 @@ function thumb(kind, color) {
       + `<rect x="${x + 6}" y="${y + H * 0.52 + 18}" width="${W - 12}" height="9" fill="#4f9b5c" opacity=".85"/>`
       + Array.from({ length: 22 }, (_, i) => `<rect x="${x + 8 + i * (W - 16) / 22}" y="${y + H * 0.52 + 22.5 - (2 + (i * 7) % 4)}" width="2" height="${(2 + (i * 7) % 4) * 2}" fill="#1d4d26"/>`).join("")
       + `<rect x="${x + W * 0.6}" y="${y + H * 0.48}" width="1.5" height="${H * 0.48}" fill="#2d8ceb"/>`;
+  }
+  else if (kind === "gantt-l") {
+    // Gantt: barre sfalsate collegate, una di riepilogo e un cardine
+    inner = `<rect x="${x + 6}" y="${y + 8}" width="${W * 0.62}" height="4" fill="#3c3f42"/>`
+      + [[10, 18, 0.28], [30, 28, 0.3], [52, 38, 0.24], [20, 48, 0.2]].map(([dx, dy, w], i) => `<rect x="${x + dx}" y="${y + dy}" width="${W * w}" height="6" rx="1" fill="${i === 2 ? "#d64545" : color}" opacity=".85"/>`).join("")
+      + `<path d="M${x + 10 + W * 0.28} ${y + 21}h4v7" fill="none" stroke="#7a8691"/><path d="M${x + 30 + W * 0.3} ${y + 31}h4v7" fill="none" stroke="#7a8691"/>`
+      + `<path d="M${x + W * 0.8} ${y + 56}l5 5-5 5-5-5z" fill="#3c3f42"/>`;
   }
   else if (kind === "diagram-l") {
     // diagramma di flusso: inizio, processo, decisione collegati da connettori con freccia

@@ -193,5 +193,6 @@ def tools_status():
         "powerpoint": find_office("powerpnt.exe"),
         "onlyoffice": find_onlyoffice(),
         "nwdreader": find_nwd2mbv(),
+        "msproject": find_office("winproj.exe"),  # Microsoft Project: scrittura dei .mpp (mbvisual/mpp.py)
         "mac": IS_MAC,  # l'interfaccia nasconde le funzioni solo per Windows e adatta i testi
     }

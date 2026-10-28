@@ -349,6 +349,8 @@ def sniff(path: str) -> dict:
     ]
     for cond, kind, descr in tests:
         if cond:
+            if kind == "ole" and path.lower().endswith((".mpp", ".mpt")):
+                descr = tr("srv_misc.piano_progetto")
             if kind == "ole" and path.lower().endswith((".ipt", ".iam", ".idw", ".ipn")):
                 descr = "Documento Autodesk Inventor"  # anche Inventor usa il contenitore OLE
             return {"kind": kind, "descr": descr}
@@ -363,6 +365,10 @@ def sniff(path: str) -> dict:
             s = sample.lstrip()[:200].lower()
             if s.startswith(b"<svg") or (s.startswith(b"<?xml") and b"<svg" in sample[:2000].lower()):
                 return {"kind": "svg", "descr": tr("srv_misc.grafica_svg")}
+            if b"schemas.microsoft.com/project" in sample[:4000] or b"<APIBusinessObjects" in sample[:4000] or s.startswith(b"mpx,") or s.startswith(b"ermhdr"):
+                return {"kind": "project", "descr": tr("srv_misc.piano_progetto")}
+            if re.match(rb"\s*(<\?xml[^>]*>\s*)?<project\s", sample[:400]) and b"<tasks" in sample:
+                return {"kind": "project", "descr": tr("srv_misc.piano_progetto")}
             if s.startswith((b"<!doctype html", b"<html")):
                 return {"kind": "html", "descr": tr("srv_misc.pagina_web_html")}
             if re.match(rb"\s*0\s*\r?\n\s*section", sample[:100].lower()):

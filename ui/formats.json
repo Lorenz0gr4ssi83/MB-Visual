@@ -111,6 +111,22 @@
    ]
   },
   {
+   "id": "project",
+   "name": "Piani di progetto (Microsoft Project, Primavera, GanttProject)",
+   "viewer": "project",
+   "view": "Gantt con collegamenti, percorso critico, linee di base, sequenza temporale; calendario, diagramma reticolare, risorse e uso delle risorse, confronto tra versioni",
+   "edit": "Editor in stile Project: attivita' con struttura, durate, collegamenti, vincoli, avanzamento, risorse e costi, calendari con festivi italiani, livellamento; salvataggio in XML di Project, MPX, GanttProject (MPP con Project installato), PDF, Excel",
+   "exts": [
+    "mpp",
+    "mpt",
+    "mpx",
+    "xer",
+    "pmxml",
+    "gan",
+    "xml"
+   ]
+  },
+  {
    "id": "office-lo",
    "name": "Altri documenti Office e OpenDocument",
    "viewer": "office",
