@@ -130,7 +130,7 @@ class Region:
         return self.is_rect and b[0] >= x0 - 1e-6 and b[1] >= y0 - 1e-6 and b[2] <= x1 + 1e-6 and b[3] <= y1 + 1e-6
 
     def outside_box(self, b):
-        x0, y0, x1, y1 = self.rect
+        x0, y0, x1, y1 = self.keep  # stesso margine di "tutto dentro": un bordo appena fuori non sparisce
         return b[2] < x0 or b[0] > x1 or b[3] < y0 or b[1] > y1
 
     def _cuts(self, a, b):

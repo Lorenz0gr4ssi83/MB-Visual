@@ -16,6 +16,7 @@ import hashlib
 import json
 import math
 import os
+import re
 from pathlib import Path
 
 from .i18n import t as tr
@@ -149,12 +150,19 @@ class Writer:
 
     def _style(self, e):
         fam = e.get("font") or "Arial"
+        if fam.lower().endswith(".shx"):  # carattere SHX di AutoCAD (es. romans.shx): AutoCAD lo disegna come nel PDF
+            name = Path(fam).stem.upper()
+            if name not in self.doc.styles:
+                self.doc.styles.add(name, font=fam.lower())
+            return name
         key = (fam, bool(e.get("bold")), bool(e.get("italic")))
         if key in self.styles:
             return self.styles[key]
         name = fam + (" Bold" if key[1] else "") + (" Italic" if key[2] else "")
         name = "".join(ch if ch.isalnum() or ch in " -_" else "_" for ch in name)[:250] or "Standard"
         f = e.get("file")
+        if e.get("missing"):  # carattere non installato qui: nel DXF resta il suo nome (AutoCAD lo usa se c'e')
+            f = re.sub(r"[^\w-]+", "", fam) + ".ttf"
         if name not in self.doc.styles:
             st = self.doc.styles.add(name, font=os.path.basename(f) if f else "arial.ttf")
             try:
@@ -214,10 +222,13 @@ class Writer:
                     sp.add_circle(P(*e["c"]), e["r"] * k, dxfattribs=a)
                 elif t == "poly":
                     pts = [(*P(v[0], v[1]), 0, 0, v[2]) for v in e["v"]]
-                    sp.add_lwpolyline(pts, format="xyseb", close=bool(e.get("closed")), dxfattribs=a)
+                    pl = sp.add_lwpolyline(pts, format="xyseb", close=bool(e.get("closed")), dxfattribs=a)
+                    if e.get("plinegen"):
+                        pl.dxf.flags = pl.dxf.flags | 128  # tipo di linea continuo lungo la polilinea
                 elif t == "spline":
-                    from ezdxf.math import Bezier4P, bezier_to_bspline
-                    cp = [P(*q) for q in e["cp"]]
+                    from ezdxf.math import Bezier4P, Vec3, bezier_to_bspline
+                    # punti Vec3: con tuple il modulo compilato di ezdxf rifiuta la curva (e la spline spariva)
+                    cp = [Vec3(*P(*q)) for q in e["cp"]]
                     curves = [Bezier4P(cp[i:i + 4]) for i in range(0, len(cp) - 3, 3)]
                     sp.add_spline(dxfattribs=a).apply_construction_tool(bezier_to_bspline(curves))
                 elif t == "hatch":
@@ -246,6 +257,8 @@ class Writer:
                                                   "rotation": e.get("rot", 0), "line_spacing_factor": max(0.25, min(4.0, lsf))})
                 elif t == "image":
                     self._image(sp, e, P, k, a)
+                elif t == "hpat":
+                    self._hpat(sp, e, P, k, a)
                 else:
                     continue
                 self._count(t)
@@ -279,6 +292,30 @@ class Writer:
         if e["ext"] == "png":
             img.dxf.flags = img.dxf.flags | img.USE_TRANSPARENCY  # trasparenza del PNG (maschere morbide del PDF)
         img.reset_boundary_path()
+
+    def _hpat(self, sp, e, P, k, a):
+        """Retino a motivo: famiglie di linee (angolo, punto su una riga, passo) -> HATCH con il motivo standard che le
+        riproduce (ANSI31, ANSI37) o definito dall'utente; la fase delle righe e' quella del PDF."""
+        from .pdfvec import _hatch_name
+        fam = [(th, P(*b), sp_ * k) for th, b, sp_ in e["fam"]]
+        name, sc, an = _hatch_name(fam)
+        h = sp.add_hatch(dxfattribs={kk: vv for kk, vv in a.items() if kk != "linetype"})
+        if name == "_USER":
+            defs = [[th, b, (-math.sin(math.radians(th)) * s_, math.cos(math.radians(th)) * s_), []] for th, b, s_ in fam]
+            h.set_pattern_fill("_USER", color=a.get("color", 256), scale=1.0, angle=0.0, pattern_type=0, definition=defs)
+        else:
+            # definizione a scala 1 e angolo 0: ezdxf la ruota/scala come AutoCAD; il punto base porta le righe dove sono nel PDF
+            ra = math.radians(-an)
+            defs = []
+            for th, b, s_ in fam:
+                bu = ((b[0] * math.cos(ra) - b[1] * math.sin(ra)) / sc, (b[0] * math.sin(ra) + b[1] * math.cos(ra)) / sc)
+                tu = th - an
+                defs.append([tu, bu, (-math.sin(math.radians(tu)) * s_ / sc, math.cos(math.radians(tu)) * s_ / sc), []])
+            h.set_pattern_fill(name, color=a.get("color", 256), scale=sc, angle=an, definition=defs)
+        if "true_color" in a:
+            h.dxf.true_color = a["true_color"]
+        for path in e["paths"]:
+            h.paths.add_polyline_path([P(q[0], q[1]) for q in path], is_closed=True)
 
     def frame(self, x0, y0, x1, y1, name):
         lay = tr("srv_drawing.layer_contorno_pagina")
@@ -341,9 +378,9 @@ def extract_page(path: str, page: int, opts: dict, update=None) -> dict:
             pi = pdfvec.page_info(p)
             raster = method == "raster" or (method == "auto" and pi["raster"])
             if not raster:
-                layers = {}
-                ents = pdfvec.extract(p, opts, layers)
-                return {"ents": ents, "layers": layers, "method": "vector", "w": p.rect.width, "h": p.rect.height, "unit_mm": 25.4 / 72,
+                layers, report = {}, {}
+                ents = pdfvec.extract(p, opts, layers, report)
+                return {"ents": ents, "layers": layers, "method": "vector", "fonts": report.get("fonts", {}), "w": p.rect.width, "h": p.rect.height, "unit_mm": 25.4 / 72,
                         "images": len(p.get_images())}
             dpi = int(opts.get("dpi") or 300)
             z = dpi / 72
@@ -383,7 +420,7 @@ def convert(src: str, out: str, opts: dict | None = None, update=None) -> dict:
     W = Writer({**opts, "_out": out})
     sheets = opts.get("layout", "model") == "sheets"
     x = 0.0
-    methods, images = set(), 0
+    methods, images, fonts = set(), 0, {}
     approx = False
     for i, pg in enumerate(pages):
         def sub(progress=None, message=None, _i=i):
@@ -391,6 +428,9 @@ def convert(src: str, out: str, opts: dict | None = None, update=None) -> dict:
         update(progress=i / len(pages) * 0.92, message=tr("srv_drawing.pagina_0_1", i + 1, len(pages)))
         r = extract_page(src, pg, opts, update=sub)
         methods.add(r["method"])
+        for fam, m in (r.get("fonts") or {}).items():
+            if m.get("embedded") or fam not in fonts:
+                fonts[fam] = m
         images += r.get("images", 0)
         approx = approx or r["method"] == "raster"
         k = factor(opts, r["unit_mm"], pg)
@@ -406,8 +446,25 @@ def convert(src: str, out: str, opts: dict | None = None, update=None) -> dict:
         x += w + max(w, h) * 0.08
     update(progress=0.95, message=tr("srv_drawing.scrittura_0", _ext(out).upper()))
     W.save(out)
+    saved = _save_fonts(out, fonts)
     return {"ok": True, "path": out, "stats": W.stats, "skipped": W.skipped, "pages": len(pages), "methods": sorted(methods),
-            "approx": approx, "images": images}
+            "approx": approx, "images": images, "fonts_missing": sorted(fonts), "fonts_saved": saved}
+
+
+def _save_fonts(out, fonts):
+    """Caratteri non installati ma incorporati INTERI nel PDF: copia accanto al DXF (si possono installare)."""
+    saved = []
+    for fam, m in fonts.items():
+        em = m.get("embedded")
+        if not em or not em.get("buf"):
+            continue
+        ext = em.get("ext") if em.get("ext") in ("ttf", "otf", "ttc") else "otf" if em.get("ext") == "cff" else "ttf"
+        folder = Path(out).parent / (Path(out).stem + "_" + tr("srv_drawing.cartella_caratteri"))
+        folder.mkdir(parents=True, exist_ok=True)
+        f = folder / (re.sub(r"[^\w -]+", "_", em.get("name") or fam) + "." + ext)
+        f.write_bytes(em["buf"])
+        saved.append(str(f))
+    return saved
 
 
 # ---------------------------------------------------------------- anteprima

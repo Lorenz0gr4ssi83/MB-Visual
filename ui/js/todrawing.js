@@ -489,6 +489,11 @@ export async function openToDrawing({ path, out = null, openFile = null }) {
       const r = await waitJob(job, (p, m) => { prog.value = p; setMsg(m || tr("todrawing.conversione")); });
       const n = Object.values(r.stats || {}).reduce((a, b) => a + b, 0);
       toast(tr("todrawing.creato_0_1", baseName(target), fmtNum(n, 0)) + (r.approx ? " · " + tr("todrawing.approssimato") : ""), false, 6000);
+      // caratteri non installati: niente sostituzioni silenziose
+      if (r.fonts_missing?.length) {
+        toast(tr("todrawing.caratteri_mancanti", r.fonts_missing.join(", "))
+          + (r.fonts_saved?.length ? " " + tr("todrawing.caratteri_salvati", dirName(r.fonts_saved[0])) : ""), false, 12000);
+      }
       close();
       if (S.open && openFile) openFile(target);
     } catch (e) {

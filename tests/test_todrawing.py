@@ -408,7 +408,8 @@ def test_tavole(work):
     shx = "0 0 0 RG 0.5 w 100 300 m 100 310 l S 107 300 m 107 310 l S 100 305 m 107 305 l S 110 300 m 110 310 l S\n"
     cont = ("q 50 50 200 150 re W n 0 0 0 RG 1 w 20 100 m 400 100 l S Q\n"  # linea tagliata a x = 50..250
             "0 0 0 RG 1 w 300 200 m 700 200 l S 1 1 1 rg 450 150 100 100 re f\n"  # mascheratura: la linea si interrompe 450..550
-            "0 0 1 RG 0.5 w " + dash + shx)
+            "0 0 1 RG 0.5 w " + dash + shx +
+            "0 0 0 RG 0.5 w 600 300 m 650 350 700 250 750 300 c S" + chr(10))  # curva libera (Bezier) -> SPLINE
     p = _raw_page(d, 842, 595, cont)
     a = p.add_rect_annot(pymupdf.Rect(99, 595 - 311, 112, 595 - 299))
     a.set_info(title="AutoCAD SHX Text", content="HI")
@@ -461,12 +462,18 @@ def test_tavole(work):
         desc = lt.dxf.description if lt else ""
         want = "%g %g" % (round(4 * mm, 4), round(2 * mm, 4))
         check("schema del tratteggio 4 / 2 pt", want in desc, f"{desc} (atteso {want})")
+    sp = [e for e in ents if e.dxftype() == "SPLINE"]
+    check("curva libera -> SPLINE (nessuna entita' scartata)", len(sp) == 1, str(len(sp)))
     shxt = [e for e in ents if e.dxftype() == "TEXT" and e.dxf.text == "HI"]
     check("testo SHX dal commento di AutoCAD -> TEXT", len(shxt) == 1)
     if shxt:
         t = shxt[0]
-        check("testo SHX: posizione e altezza misurate sui tratti", near(t.dxf.insert, (100 * mm, 300 * mm), 0.15) and abs(t.dxf.height - 10 * mm) < 0.1,
-              f"{tuple(round(v, 2) for v in t.dxf.insert)} h {t.dxf.height:.2f}")
+        st = dd.styles.get(t.dxf.style)
+        romans = st is not None and str(st.dxf.font).lower() == "romans.shx"
+        # con romans.shx il punto di inserimento e' l'origine del primo carattere (4/21 dell'altezza prima dell'inchiostro di "H")
+        x_exp = 100 * mm - (4 / 21 * t.dxf.height * (t.dxf.width or 1) if romans else 0)
+        check("testo SHX: posizione e altezza misurate sui tratti", near(t.dxf.insert, (x_exp, 300 * mm), 0.15) and abs(t.dxf.height - 10 * mm) < 0.25,
+              f"{tuple(round(v, 2) for v in t.dxf.insert)} h {t.dxf.height:.2f} romans {romans}")
     left = [ln for ln in L if 99 * mm < ln.dxf.start[0] < 111 * mm and 299 * mm < ln.dxf.start[1] < 311 * mm]
     check("tratti del testo SHX tolti", not left, str(len(left)))
     imgs = [e for e in ents if e.dxftype() == "IMAGE"]

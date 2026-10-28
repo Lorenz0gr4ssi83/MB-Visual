@@ -201,7 +201,10 @@ def _merge_arcs(sub, tol):
         if out and s[0] == "A" and out[-1][0] == "A":
             a = out[-1]
             if _d(a[3], s[3]) <= max(tol, a[4] * 3e-3) and abs(a[4] - s[4]) <= max(tol, a[4] * 3e-3) and a[5] == s[5]:
-                out[-1] = ("A", a[1], s[2], a[3], a[4], a[5], a[6] + s[6])
+                sw = a[6] + s[6]
+                if _d(a[1], s[2]) <= max(tol * 0.5, 1e-6) and sw > 340:
+                    sw = 360.0  # archi che si richiudono: cerchio intero (la somma degli angoli perde qualche decimo)
+                out[-1] = ("A", a[1], s[2], a[3], a[4], a[5], min(sw, 360.0))
                 continue
         out.append(s)
     return out
@@ -356,6 +359,82 @@ def font_file(fam: str, bold: bool, italic: bool):
         return None
 
 
+def font_installed(fam: str) -> bool:
+    try:
+        from .fonts import index
+        return (fam or "").lower() in index()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def embedded_fonts(page) -> dict:
+    """Caratteri incorporati nella pagina: nome senza prefisso del sottoinsieme -> {buf, ext, subset, base}."""
+    doc = page.parent
+    cache = _EMB_DOC.setdefault(id(doc), {})
+    out = {}
+    try:
+        fl = page.get_fonts(full=True)
+    except Exception:  # noqa: BLE001
+        return out
+    for f in fl:
+        xref, ext, base = f[0], f[1], f[3] or ""
+        if not xref or ext in ("n/a", "", None):
+            continue
+        name = base.split("+", 1)[-1]
+        if xref not in cache:
+            try:
+                fe = doc.extract_font(xref)
+                cache[xref] = {"buf": fe[3] if fe and len(fe) > 3 else b"", "ext": ext, "subset": "+" in base, "base": name}
+            except Exception:  # noqa: BLE001
+                cache[xref] = {"buf": b"", "ext": ext, "subset": True, "base": name}
+        if cache[xref]["buf"]:
+            out[name] = cache[xref]
+    return out
+
+
+_EMB_DOC, _EMB_MU, _EMB_CAP = {}, {}, {}
+
+
+def _emb_metrics(info):
+    """(pymupdf.Font, altezza delle maiuscole / em) del carattere incorporato, o (None, None)."""
+    key = id(info["buf"])
+    if key not in _EMB_MU:
+        try:
+            _EMB_MU[key] = pymupdf.Font(fontbuffer=info["buf"])
+        except Exception:  # noqa: BLE001
+            _EMB_MU[key] = None
+        cap = None
+        try:
+            import io
+            from fontTools.ttLib import TTFont
+            f = TTFont(io.BytesIO(info["buf"]), lazy=True)
+            c = getattr(f["OS/2"], "sCapHeight", 0) or 0
+            if c > 0:
+                cap = c / f["head"].unitsPerEm
+        except Exception:  # noqa: BLE001
+            pass
+        _EMB_CAP[key] = cap
+    return _EMB_MU[key], _EMB_CAP[key]
+
+
+def _emb_usable(info, chars):
+    """Il carattere incorporato si puo' usare per le misure solo se ha davvero i glifi di questi caratteri (molti sottoinsiemi
+    non hanno la mappa Unicode e darebbero larghezze sbagliate)."""
+    if not info:
+        return None
+    f = _emb_metrics(info)[0]
+    if f is None:
+        return None
+    try:
+        for ch in chars:
+            u = ch[0]
+            if u > 32 and not f.has_glyph(u):
+                return None
+    except Exception:  # noqa: BLE001
+        return None
+    return f
+
+
 @lru_cache(maxsize=256)
 def cap_ratio(path):
     """Altezza delle maiuscole / em del carattere (l'altezza dei TEXT nei DXF e' quella delle maiuscole)."""
@@ -381,9 +460,10 @@ def _mu_font(path):
 
 
 # ---------------------------------------------------------------- testi
-def _texts(page, T, V, layer_of, opts):
+def _texts(page, T, V, layer_of, opts, report=None):
     out = []
     W, H = page.rect.width, page.rect.height
+    emb = embedded_fonts(page)
     try:
         spans = page.get_texttrace()
     except Exception:  # noqa: BLE001
@@ -396,7 +476,8 @@ def _texts(page, T, V, layer_of, opts):
         dx, dy = s["dir"]
         size = float(s["size"]) or 1.0
         fam0, b0, i0 = font_info(s.get("font", ""))
-        mf = _mu_font(font_file(fam0, b0, i0))
+        emi = emb.get((s.get("font") or "").split("+", 1)[-1])
+        mf = _emb_usable(emi, chars) or _mu_font(font_file(fam0, b0, i0))
         cur = None
         for ch in chars:
             u, _, org, bbox = ch[0], ch[1], ch[2], ch[3]
@@ -416,12 +497,17 @@ def _texts(page, T, V, layer_of, opts):
             cur["s"] += c
             # fine del carattere = origine + avanzamento: larghezza del glifo nel carattere scelto, oppure il riquadro
             # (solo per il testo orizzontale/verticale: il riquadro di un testo inclinato e' piu' largo del carattere)
-            try:
-                w = mf.text_length(c, fontsize=size)
-            except Exception:  # noqa: BLE001
-                w = 0
-            if not w:
+            # avanzamento vero dalla pagina (testo dritto: il riquadro del carattere e' origine..origine+avanzamento);
+            # per i testi inclinati il riquadro e' piu' largo: si usano le metriche del carattere
+            if abs(dx) > 0.999 or abs(dy) > 0.999:
                 w = abs((bbox[2] - bbox[0]) * dx + (bbox[3] - bbox[1]) * dy)
+            else:
+                try:
+                    w = mf.text_length(c, fontsize=size)
+                except Exception:  # noqa: BLE001
+                    w = 0
+                if not w:
+                    w = abs((bbox[2] - bbox[0]) * dx + (bbox[3] - bbox[1]) * dy)
             cur["end"] = (org[0] + dx * w, org[1] + dy * w)
         if cur is not None:
             runs.append(cur)
@@ -453,7 +539,14 @@ def _texts(page, T, V, layer_of, opts):
         size = float(s["size"]) or 1.0
         fam, bold, italic = font_info(s.get("font", ""))
         ff = font_file(fam, bold, italic)
-        h = size * cap_ratio(ff)
+        installed = font_installed(fam)
+        emi = emb.get((s.get("font") or "").split("+", 1)[-1])
+        em_font, em_cap = _emb_metrics(emi) if emi else (None, None)
+        if em_font is not None and not _emb_usable(emi, [(ord(c),) for c in r["s"]]):
+            em_font, em_cap = None, None  # sottoinsieme senza la mappa dei caratteri: metriche non affidabili
+        # metriche: quelle del carattere incorporato nel PDF (le originali), altrimenti del carattere di Windows piu' simile
+        mfont = em_font or _mu_font(ff)
+        h = size * (em_cap or cap_ratio(ff))
         org = r["org"]
         vx, vy = V(dx, dy)
         rot = math.degrees(math.atan2(-vy, vx)) % 360
@@ -461,7 +554,7 @@ def _texts(page, T, V, layer_of, opts):
         meas = (r["end"][0] - org[0]) * dx + (r["end"][1] - org[1]) * dy
         wf = 1.0
         try:
-            exp = _mu_font(ff).text_length(r["s"].rstrip(), fontsize=size)
+            exp = mfont.text_length(r["s"].rstrip(), fontsize=size)
             if exp > 0 and meas > 0:
                 wf = meas / exp
                 wf = 1.0 if abs(wf - 1) < 0.04 or not (0.3 < wf < 3) else round(wf, 3)
@@ -469,7 +562,7 @@ def _texts(page, T, V, layer_of, opts):
             pass
         if lead:  # spazi iniziali: l'origine si sposta sul primo carattere visibile
             try:
-                adv = _mu_font(ff).text_length(r["s"][:lead], fontsize=size) * wf
+                adv = mfont.text_length(r["s"][:lead], fontsize=size) * wf
                 org = (org[0] + dx * adv, org[1] + dy * adv)
             except Exception:  # noqa: BLE001
                 pass
@@ -479,7 +572,11 @@ def _texts(page, T, V, layer_of, opts):
             continue
         out.append({"t": "text", "p": list(pos), "h": h, "rot": round(rot, 4), "s": txt, "font": fam, "bold": bold, "italic": italic,
                     "file": ff, "wf": wf, "col": rgb_int(s.get("color")), "L": layer_of(s.get("layer"), None, None, "text", hidden),
-                    "_size": size})
+                    "_size": size, "missing": not installed})
+        if not installed and not hidden and report is not None:
+            m = report.setdefault("fonts", {}).setdefault(fam, {"embedded": None})
+            if emi and not emi["subset"] and m["embedded"] is None:
+                m["embedded"] = {"buf": emi["buf"], "ext": emi["ext"], "name": emi["base"]}
     if opts.get("mtext", True):
         out = _paragraphs(out)
     for e in out:
@@ -557,7 +654,7 @@ def page_info(page) -> dict:
             img_cover = max(img_cover, abs(b) / area if area else 0)
     except Exception:  # noqa: BLE001
         pass
-    raster = img_cover > 0.6 and nd < 50
+    raster = img_cover > 0.85 and nd < 50  # scansione: un'immagine su quasi tutta la pagina e quasi nessun tracciato
     sc = SCALE_RE.findall(txt)
     if not sc:
         sc = [m for m in RATIO_RE.findall(txt) if 1 < int(m) <= 5000]
@@ -574,7 +671,7 @@ def page_info(page) -> dict:
             "raster": raster, "scales": scales[:6]}
 
 
-def extract(page, opts: dict, layers: dict) -> list:
+def extract(page, opts: dict, layers: dict, report: dict | None = None) -> list:
     """Entita' di una pagina in punti PDF, y verso l'alto. `layers` si riempie con {nome: {"c": colore, "lw": spessore, "off": bool}}."""
     H = page.rect.height
     tol = float(opts.get("tol", 0.08))
@@ -588,7 +685,7 @@ def extract(page, opts: dict, layers: dict) -> list:
     page_area = abs(page.rect)
     LN = {"text": tr("srv_drawing.layer_testi"), "hidden": tr("srv_drawing.layer_testi_nascosti"), "fill": tr("srv_drawing.layer_riempimenti"),
          "one": tr("srv_drawing.layer_disegno"), "image": tr("srv_drawing.layer_immagini"),
-          "drawn": tr("srv_drawing.layer_testi_tratti")}
+          "drawn": tr("srv_drawing.layer_testi_tratti"), "pattern": tr("srv_drawing.layer_retino")}
 
     def safe(n):
         n = re.sub(r'[<>/\\":;?*|=`,]', "_", n).strip() or "0"
@@ -651,6 +748,25 @@ def extract(page, opts: dict, layers: dict) -> list:
             continue
         regions = [page_rg] + clips.at(level)
         subs = _subpaths(d["items"], T, tol)
+        if "s" in typ and (d.get("width") or 0) > 0:
+            # puntini: segmenti di lunghezza zero con estremita' tonde/quadre (retini "calcestruzzo", punti) -> disco pieno
+            caps = d.get("lineCap") or (0,)
+            cap = caps[0] if isinstance(caps, (tuple, list)) else caps
+            if cap in (1, 2):
+                dots = [T(float(it[1].x), float(it[1].y)) for it in d["items"]
+                        if it[0] == "l" and abs(it[1].x - it[2].x) < 1e-6 and abs(it[1].y - it[2].y) < 1e-6]
+                if dots:
+                    rr = float(d["width"]) / 2
+                    dc = rgb_int(d.get("color"))
+                    dl = layer_of(d.get("layer") or None, dc, lineweight(d.get("width")), "line")
+                    for cx, cy in dots:
+                        if not (0 <= cx <= W and 0 <= cy <= H) or any(not rg.contains((cx, cy)) for rg in clips.at(level)):
+                            continue
+                        if cap == 1:
+                            path = [[cx + rr, cy, 1.0], [cx - rr, cy, 1.0]]
+                        else:
+                            path = [[cx - rr, cy - rr, 0.0], [cx + rr, cy - rr, 0.0], [cx + rr, cy + rr, 0.0], [cx - rr, cy + rr, 0.0]]
+                        order.append(("e", {"t": "hatch", "paths": [path], "col": dc, "L": dl, "_seq": d.get("seqno", 0)}))
         if not subs:
             continue
         ocg = d.get("layer") or None
@@ -695,6 +811,7 @@ def extract(page, opts: dict, layers: dict) -> list:
                     op = d.get("fill_opacity")
                     if op is not None and op < 0.999:
                         e["alpha"] = round(op, 3)
+                    e["_seq"] = d.get("seqno", 0)
                     order.append(("e", e))
         if "s" not in typ:
             continue
@@ -713,15 +830,16 @@ def extract(page, opts: dict, layers: dict) -> list:
                 sub = sub + [("L", _end(sub[-1]), sub[0][1])]
                 closed = True
             pieces = pdfclip.apply([sub], regions)
-            if len(pieces) == 1 and len(pieces[0]) == len(sub) and pieces[0][0][1] == sub[0][1]:
+            if len(pieces) == 1 and len(pieces[0]) == len(sub) and pieces[0][0][1] == sub[0][1] and _end(pieces[0][-1]) == _end(sub[-1]):
                 pieces = [(sub, closed)]
             else:
                 pieces = [(pc, False) for pc in pieces]
             if pieces:
-                order.append(("s", {"pieces": pieces, "attrs": attrs, "ocg": ocg, "box": _box_of(pc for pc, _ in pieces)}))
+                order.append(("s", {"pieces": pieces, "attrs": attrs, "ocg": ocg, "box": _box_of(pc for pc, _ in pieces),
+                                    "seq": d.get("seqno", 0)}))
     _apply_masks(order, masks)
     shx, rejected = _shx_texts(page, T, order, layer_of, opts) if opts.get("shx", True) else ([], [])
-    real = _texts(page, T, V, layer_of, {**opts, "mtext": False}) if opts.get("texts", True) else []
+    real = _texts(page, T, V, layer_of, {**opts, "mtext": False}, report) if opts.get("texts", True) else []
     if opts.get("shx", True):  # testo invisibile sopra i tratti (altro modo di AutoCAD di conservare i testi SHX)
         real, more = _shx_from_hidden(real, order, layer_of, LN["hidden"])
         shx += more
@@ -731,18 +849,45 @@ def extract(page, opts: dict, layers: dict) -> list:
     visible = sum(len(e.get("s") or "".join(e.get("lines", []))) for e in real if not e["L"].startswith(LN["hidden"]))
     if ocr == "on" or (ocr == "auto" and not shx and visible < 80 and len(order) > 0):
         shx += _drawn_texts(page, order, layer_of, opts)
-    elif rejected and ocr != "off":  # paragrafi SHX con il commento inaffidabile: OCR solo in quelle zone
+    elif rejected and ocr == "on":  # paragrafi SHX con il commento inaffidabile: OCR solo se chiesto (di norma restano i tratti esatti)
         shx += _drawn_texts(page, order, layer_of, opts, zones=rejected)
+    if opts.get("images", True):
+        imgs = sorted(_images(page, T, layer_of), key=lambda e: e.get("_seq", 0))
+        if imgs:
+            merged, k = [], 0
+            for kind, v in order:
+                sq = v.get("_seq", v.get("seq", 0)) if isinstance(v, dict) else 0
+                while k < len(imgs) and imgs[k].get("_seq", 0) <= sq:
+                    merged.append(("e", imgs[k]))
+                    k += 1
+                merged.append((kind, v))
+            merged += [("e", im) for im in imgs[k:]]
+            order[:] = merged
     ents = []
     dashes = opts.get("dashes", True)
+    patterns = opts.get("hatch_patterns", True)
+    polys = _closed_polys(order) if patterns else []
     buf, battrs = [], None
 
     def flush():
         if not buf:
             return
-        chains = _dash_chains(buf, tol, seg_arcs and want_arcs) if dashes else [(a, b, None) for a, b in buf]
+        pieces = list(buf)
+        if patterns:  # righe di retino -> HATCH con motivo (o layer dedicato se il bordo non si trova)
+            hs, used, orphan = _hatch_families(pieces, polys, tol)
+            for h in hs:
+                ents.append({"t": "hpat", **h, "col": battrs.get("col"), "L": battrs["L"]})
+            if orphan:
+                lay = f"{battrs['L']}-{LN['pattern']}"
+                layers.setdefault(lay, dict(layers.get(battrs["L"], {"c": None, "lw": -3})))
+                for i in sorted(orphan):
+                    ents.extend(_emit(pieces[i][0], pieces[i][1], {**battrs, "L": lay}, tol))
+            if used or orphan:
+                pieces = [pc for i, pc in enumerate(pieces) if i not in used and i not in orphan]
+        chains = _dash_chains(pieces, tol, seg_arcs and want_arcs) if dashes else [(a, b, None) for a, b in pieces]
         for pc, closed, lt in chains:
-            ents.extend(_emit(pc, closed, {**battrs, "lt": lt} if lt and not battrs.get("lt") else battrs, tol))
+            # motivo continuo lungo tutta la polilinea (come le curve di livello di AutoCAD), non da capo a ogni vertice
+            ents.extend(_emit(pc, closed, {**battrs, "lt": lt, "plinegen": True} if lt and not battrs.get("lt") else battrs, tol))
         buf.clear()
     # i trattini di una linea tratteggiata sono spesso tracciati separati e consecutivi con lo stesso stile: si esaminano insieme
     for kind, v in order:
@@ -758,8 +903,6 @@ def extract(page, opts: dict, layers: dict) -> list:
             buf.extend(v["pieces"])
     flush()
     ents.extend(shx)
-    if opts.get("images", True):
-        ents.extend(_images(page, T, layer_of))
     ents.extend(real)
     return ents
 
@@ -793,6 +936,199 @@ def _dir_at(sub, end):
     return ((b[0] - a[0]) / n, (b[1] - a[1]) / n) if n > 1e-12 else (0.0, 0.0)
 
 
+def _closed_polys(order):
+    """Contorni chiusi della pagina (polilinee chiuse, rettangoli): possibili bordi dei retini."""
+    out = []
+    for kind, v in order:
+        if kind != "s":
+            continue
+        for pc, closed in v["pieces"]:
+            if not closed or len(pc) < 3:
+                continue
+            pts = pdfclip.sample_sub(pc, step_deg=6)
+            if len(pts) < 3:
+                continue
+            xs, ys = [q[0] for q in pts], [q[1] for q in pts]
+            area = abs(sum(pts[i][0] * pts[i - 1][1] - pts[i - 1][0] * pts[i][1] for i in range(len(pts)))) / 2
+            if area > 1:
+                out.append((pts, (min(xs), min(ys), max(xs), max(ys)), area))
+    out.sort(key=lambda t: t[2])
+    return out
+
+
+def _pt_seg_dist(p, a, b):
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    L2 = dx * dx + dy * dy
+    t = 0.0 if L2 <= 1e-18 else max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2))
+    return math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy)
+
+
+def _inside(p, poly):
+    x, y = p
+    c = False
+    n = len(poly)
+    for i in range(n):
+        a, b = poly[i], poly[i - 1]
+        if (a[1] > y) != (b[1] > y) and x < a[0] + (y - a[1]) * (b[0] - a[0]) / (b[1] - a[1]):
+            c = not c
+    return c
+
+
+HATCH_STD = {"ANSI31": [(45.0, 3.175)], "ANSI37": [(45.0, 3.175), (135.0, 3.175)]}
+
+
+def _hatch_families(buf, polys, tol):
+    """Linee parallele a passo regolare (righe di un retino scritte una per una) -> HATCH con il motivo, il bordo chiuso su cui
+    finiscono, scala, angolo e fase esatti. Ritorna (retini, indici dei pezzi usati, indici dei pezzi di retino senza bordo)."""
+    segs = [(i, pc[0][1], pc[0][2]) for i, (pc, closed) in enumerate(buf) if not closed and len(pc) == 1 and pc[0][0] == "L"
+            and _d(pc[0][1], pc[0][2]) > 0.3]
+    if len(segs) < 6:
+        return [], set(), set()
+    groups = {}
+    for i, a, b in segs:
+        ang = math.degrees(math.atan2(b[1] - a[1], b[0] - a[0])) % 180
+        groups.setdefault(round(ang * 4) % 720, []).append((i, a, b, ang))
+    keys = sorted(groups)
+    merged, seen = [], set()
+    for k in keys:  # angoli vicini (0,25 gradi) insieme
+        if k in seen:
+            continue
+        g = list(groups[k])
+        seen.add(k)
+        for k2 in ((k + 1) % 720, (k - 1) % 720):
+            if k2 in groups and k2 not in seen:
+                g += groups[k2]
+                seen.add(k2)
+        merged.append(g)
+    fams = []
+    for g in merged:
+        if len(g) < 6:
+            continue
+        th = sorted(q[3] for q in g)[len(g) // 2]
+        if min(th % 90, 90 - th % 90) < 2:
+            continue  # orizzontali/verticali: tabelle, griglie, cartigli -> restano linee
+        r = math.radians(th)
+        nx, ny = -math.sin(r), math.cos(r)
+        raw = sorted(q[1][0] * nx + q[1][1] * ny for q in g)
+        rows = []
+        for o in raw:  # righe (piu' pezzi sulla stessa retta = una riga)
+            if not rows or o - rows[-1][-1] > 0.03:
+                rows.append([o])
+            else:
+                rows[-1].append(o)
+        offs = [sum(rw) / len(rw) for rw in rows]
+        if len(offs) < 4:
+            continue
+        diffs = [b - a for a, b in zip(offs, offs[1:])]
+        s0 = sorted(diffs)[len(diffs) // 2]
+        if s0 < 0.3:
+            continue
+        ks = [round(d / s0) for d in diffs]
+        if any(k < 1 or k > 4 for k in ks):
+            continue
+        s = (offs[-1] - offs[0]) / sum(ks)  # passo esatto su tutta la famiglia
+        o0 = offs[0]
+        n = 0
+        bad = False
+        for o, k in zip(offs[1:], ks):  # ogni riga al suo posto teorico entro 0,03 pt
+            n += k
+            if abs(o - (o0 + n * s)) > 0.03:
+                bad = True
+                break
+        if bad:
+            continue
+        base = min(g, key=lambda q: abs(q[1][0] * nx + q[1][1] * ny - o0))[1]
+        fams.append({"th": th, "s": s, "segs": g, "base": base})
+    hatches, used, orphan = [], set(), set()
+    for f in fams:
+        ends = [q[1] for q in f["segs"]] + [q[2] for q in f["segs"]]
+        mids = [((q[1][0] + q[2][0]) / 2, (q[1][1] + q[2][1]) / 2) for q in f["segs"]]
+        ex0, ey0 = min(p[0] for p in ends), min(p[1] for p in ends)
+        ex1, ey1 = max(p[0] for p in ends), max(p[1] for p in ends)
+        found = None
+        for pts, bb, area in polys:
+            if bb[0] > ex0 + 0.5 or bb[1] > ey0 + 0.5 or bb[2] < ex1 - 0.5 or bb[3] < ey1 - 0.5:
+                continue
+            if (bb[2] - bb[0]) > (ex1 - ex0) * 1.6 + 5 and (bb[3] - bb[1]) > (ey1 - ey0) * 1.6 + 5:
+                continue  # troppo grande: non e' il bordo di questo retino
+            tolE = max(0.35, tol * 3)
+            on = 0
+            for p in ends:
+                if any(_pt_seg_dist(p, pts[i - 1], pts[i]) <= tolE for i in range(len(pts))):
+                    on += 1
+            if on < 0.9 * len(ends) or not all(_inside(m, pts) for m in mids):
+                continue
+            if not _hatch_regenerates(pts, f):
+                continue  # il retino rifatto da AutoCAD in questo contorno non darebbe le stesse righe: restano linee
+            found = pts
+            break
+        if found is None:
+            if len(f["segs"]) >= 8:
+                orphan.update(q[0] for q in f["segs"])
+            continue
+        for h in hatches:  # due famiglie sullo stesso bordo = un solo retino (es. ANSI37)
+            if h["paths"][0] is found:
+                h["fam"].append((f["th"], f["base"], f["s"]))
+                break
+        else:
+            hatches.append({"paths": [found], "fam": [(f["th"], f["base"], f["s"])]})
+        used.update(q[0] for q in f["segs"])
+    return hatches, used, orphan - used
+
+
+def _hatch_regenerates(poly, f, tol=0.2):
+    """Le righe che un HATCH con questa famiglia genera dentro il contorno coincidono con quelle del PDF (estremi entro tol)?"""
+    th, sp = f["th"], f["s"]
+    r = math.radians(th)
+    ux, uy, nx, ny = math.cos(r), math.sin(r), -math.sin(r), math.cos(r)
+    o0 = f["base"][0] * nx + f["base"][1] * ny
+    have = {}
+    for _, a, b, _ in f["segs"]:
+        k = round((a[0] * nx + a[1] * ny - o0) / sp)
+        ta, tb = a[0] * ux + a[1] * uy, b[0] * ux + b[1] * uy
+        have.setdefault(k, []).append((min(ta, tb), max(ta, tb)))
+    ns = [q[0] * nx + q[1] * ny for q in poly]
+    k0, k1 = math.ceil((min(ns) - o0) / sp - 1e-9), math.floor((max(ns) - o0) / sp + 1e-9)
+    if k1 - k0 > 4000:
+        return False
+    n = len(poly)
+    for k in range(k0, k1 + 1):
+        o = o0 + k * sp
+        ts = []
+        for i in range(n):
+            a, b = poly[i - 1], poly[i]
+            da, db = a[0] * nx + a[1] * ny - o, b[0] * nx + b[1] * ny - o
+            if (da > 0) != (db > 0) and da != db:
+                t = da / (da - db)
+                ts.append((a[0] + (b[0] - a[0]) * t) * ux + (a[1] + (b[1] - a[1]) * t) * uy)
+        ts.sort()
+        gen = [(ts[i], ts[i + 1]) for i in range(0, len(ts) - 1, 2) if ts[i + 1] - ts[i] > tol]
+        got = sorted(have.get(k, []))
+        merged = []  # pezzi sulla stessa riga che si toccano = un solo tratto
+        for a, b in got:
+            if merged and a <= merged[-1][1] + tol:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+            else:
+                merged.append((a, b))
+        if len(gen) != len(merged):
+            return False
+        for (ga, gb), (ha, hb) in zip(gen, merged):
+            if abs(ga - ha) > tol + 0.1 or abs(gb - hb) > tol + 0.1:
+                return False
+    return True
+
+
+def _hatch_name(fam):
+    """Motivo standard di AutoCAD che riproduce le famiglie di linee (nome, scala, angolo) o "_USER"."""
+    th = sorted(f[0] % 180 for f in fam)
+    s = [f[2] for f in fam]
+    if len(fam) == 1:
+        return "ANSI31", s[0] / 3.175, (th[0] - 45) % 180
+    if len(fam) == 2 and abs((th[1] - th[0]) - 90) < 0.5 and abs(s[0] - s[1]) < 0.03 * s[0]:
+        return "ANSI37", s[0] / 3.175, (th[0] - 45) % 90
+    return "_USER", 1.0, 0.0
+
+
 def _merge_collinear(segs, tol):
     """Segmenti consecutivi sulla stessa retta -> uno solo."""
     out = []
@@ -804,6 +1140,75 @@ def _merge_collinear(segs, tol):
                 continue
         out.append(sg)
     return out
+
+
+def _exact_pattern(dash, gaps, tolp=0.08):
+    """Schema ESATTO del tipo di linea che riproduce i trattini (stesse posizioni entro tolp lungo tutta la linea, niente
+    sfasamento che si accumula): (schema, indice del primo trattino intero) oppure None (allora restano trattini separati)."""
+    if len(dash) < 3:
+        return None
+    a = [0.0]
+    for d, g in zip(dash, gaps):
+        a.append(a[-1] + d + g)
+    ds = sorted(dash[1:-1]) if len(dash) > 3 else sorted(dash)
+    lo, hi = ds[0], ds[-1]
+    cands = []
+    if hi <= lo * 1.15 + 0.08:  # una sola lunghezza di trattino
+        d = ds[len(ds) // 2]
+        cands.append([d])
+    else:  # lungo e corto alternati (linea d'asse)
+        mid = (lo + hi) / 2
+        L = sorted(x for x in ds if x >= mid)
+        S = sorted(x for x in ds if x < mid)
+        cands.append([L[len(L) // 2], S[len(S) // 2]])
+        cands.append([S[len(S) // 2], L[len(L) // 2]])
+    for dl in cands:
+        q = len(dl)
+        for first in (0, 1):
+            full = [m for m in range(first, len(dash)) if abs(dash[m] - dl[(m - first) % q]) <= tolp]
+            if len(full) < 2:
+                continue
+            last = max(full)
+            cycles = (last - first) / q
+            if (last - first) % q:
+                last -= (last - first) % q
+                cycles = (last - first) // q
+            if cycles < 1:
+                continue
+            P = (a[last] - a[first]) / cycles
+            # pause di ogni elemento del motivo, dalla posizione media dei trattini
+            offs = [0.0]
+            for e in range(1, q):
+                vals = [a[first + e + c * q] - a[first + c * q] for c in range(int(cycles)) if first + e + c * q < len(a)]
+                if not vals:
+                    break
+                offs.append(sum(vals) / len(vals))
+            if len(offs) != q:
+                continue
+            ok = True
+            for m in range(first, len(dash)):
+                k = m - first
+                exp = a[first] + (k // q) * P + offs[k % q]
+                if abs(a[m] - exp) > tolp:
+                    ok = False
+                    break
+                full_len = dl[k % q]
+                if m < len(dash) - 1 and abs(dash[m] - full_len) > tolp:  # solo l'ultimo trattino puo' essere accorciato
+                    ok = False
+                    break
+                if m == len(dash) - 1 and dash[m] > full_len + tolp:
+                    ok = False
+                    break
+            if not ok:
+                continue
+            pat = []
+            for e in range(q):
+                nxt = offs[e + 1] if e + 1 < q else P
+                pat += [round(dl[e], 4), round(nxt - offs[e] - dl[e], 4)]
+            if min(pat) < 0:
+                continue
+            return tuple(pat), first
+    return None
 
 
 def _pattern(dash, gaps):
@@ -849,18 +1254,20 @@ def _dash_chains(pieces, tol, fit_arcs):
                 j += 1
         if j - i + 1 >= 3:
             dash = lens[i:j + 1]
-            # i trattini in mezzo devono essere simili (gli estremi possono essere accorciati)
-            inner = dash[1:-1] if len(dash) > 3 else dash
-            if max(inner) <= 3.5 * max(min(inner), 0.05) + 0.1:
+            fit = _exact_pattern(dash, gaps)
+            if fit:
+                pat, first = fit
+                if first:  # primo trattino accorciato: resta a parte, il motivo parte dal primo trattino intero
+                    out.append((pieces[i][0], False, None))
                 segs = []
-                for k in range(i, j + 1):
+                for k in range(i + first, j + 1):
                     if segs:
                         segs.append(("L", _end(segs[-1]), pieces[k][0][0][1]))
                     segs += list(pieces[k][0])
                 segs = _merge_collinear(segs, tol)
                 if fit_arcs:
                     segs = _merge_arcs(_arcs_from_lines(segs, max(tol, 0.12)), tol)
-                out.append((segs, False, _pattern(dash, gaps)))
+                out.append((segs, False, pat))
                 i = j + 1
                 continue
         out.append((pieces[i][0], pieces[i][1], None))
@@ -941,6 +1348,71 @@ def shx_annots(page):
         B = pymupdf.Point(nums[2], nums[3]) * tm
         out.append((txt, (A.x, A.y), (B.x, B.y)))
     return out
+
+
+WF_STD = (0.5, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.2, 1.25, 1.3, 1.5, 2.0)
+_SHX_CODES = re.compile(r"%%[uUoOkK]")
+_SHX_SUB = {"%%c": "O", "%%C": "O", "%%d": "o", "%%D": "o", "%%p": "+", "%%P": "+", "%%%": "%"}
+
+
+def _shx_fit(txt, rot, groups, col, layer, anchor=None):
+    """Testo SHX misurato sui suoi tratti con le metriche di romans.shx. groups = punti di ogni tratto; anchor = punto vicino
+    all'inizio della linea di base (dal commento di AutoCAD o dal testo nascosto). Se torna (fattore di larghezza vicino a un
+    valore standard) -> TEXT con stile romans.shx, altezza, larghezza e punto di inserimento come in AutoCAD; altrimenti None.
+    I codici di AutoCAD (%%U sottolineato, %%C diametro...) restano nel testo: li disegna AutoCAD."""
+    from .shxfonts import CAP, ROMANS
+    raw = txt.strip()
+    s = _SHX_CODES.sub("", raw)
+    for k, v in _SHX_SUB.items():
+        s = s.replace(k, v)
+    s = s.strip()
+    under = bool(re.search(r"%%[uUoO]", raw))
+    if not s or not groups or any(ch not in ROMANS for ch in s):
+        return None
+    r = math.radians(rot)
+    ux, uy, vx, vy = math.cos(r), math.sin(r), -math.sin(r), math.cos(r)
+    G = []
+    for g in groups:
+        us = [x * ux + y * uy for x, y in g]
+        vs = [x * vx + y * vy for x, y in g]
+        G.append((min(us), max(us), min(vs), max(vs)))
+    ink = [ROMANS[ch] for ch in s if ch != " "]
+    lo, hi = min(q[3] for q in ink), max(q[4] for q in ink)
+    if hi - lo <= 0:
+        return None
+
+    def cap_of(gs):
+        ex = sorted(q[3] - q[2] for q in gs)
+        return ex[int(len(ex) * 0.85)] if len(ex) >= 3 else (max(q[3] for q in gs) - min(q[2] for q in gs)) * CAP / (hi - lo)
+    h0 = cap_of(G)
+    if h0 <= 0:
+        return None
+    if anchor is not None:  # solo i tratti della riga di questo testo
+        va = anchor[0] * vx + anchor[1] * vy
+        G = [q for q in G if q[3] >= va - 0.5 * h0 and q[2] <= va + 1.5 * h0] or G
+        h0 = cap_of(G) or h0
+    umin, umax = min(q[0] for q in G), max(q[1] for q in G)
+    vmin, vmax = min(q[2] for q in G), max(q[3] for q in G)
+    span = sum(ROMANS[ch][0] for ch in s) - ROMANS[s[0]][1] - ROMANS[s[-1]][2]
+    if span <= 0 or umax - umin <= 0:
+        return None
+    h_len = (umax - umin) * CAP / span  # altezza se il fattore di larghezza fosse 1
+    wf_raw = h_len / h0
+    wf = min(WF_STD, key=lambda w: abs(w - wf_raw))
+    tolw = 0.03 if len(s) >= 3 else 0.0
+    if abs(wf - wf_raw) > max(tolw * wf, 1e-9) and not (len(s) < 3 and abs(wf_raw - 1) < 0.08):
+        return None
+    if len(s) < 3:
+        wf = 1.0
+    h = h_len / wf
+    k = h / CAP
+    # controllo: l'ingombro verticale dei tratti deve tornare con quello previsto per questo testo
+    if not under and abs((vmax - vmin) - (hi - lo) * k) > 0.08 * h + 0.05:
+        return None
+    v0 = (vmax - hi * k) if under else (vmin - lo * k)
+    u0 = umin - ROMANS[s[0]][1] * k * wf
+    return {"t": "text", "p": [u0 * ux + v0 * vx, u0 * uy + v0 * vy], "h": h, "rot": rot, "s": raw, "font": "romans.shx", "bold": False,
+            "italic": False, "file": None, "wf": wf, "col": col, "L": layer, "_u": (umin, umax), "shx_font": True}
 
 
 def _text_from_boxes(txt, rot, boxes, col, layer):
@@ -1114,8 +1586,11 @@ def _shx_texts(page, T, order, layer_of, opts):
             continue
         rec = order[keep[0][0]][1]
         boxes = [(q[0], q[1], q[0], q[1]) for h in keep for q in pts_of[h]]
-        e = _text_from_boxes(txt.replace("\t", "    "), rot, boxes, rec["attrs"].get("col"), layer_of(rec.get("ocg"), None, None, "text"))
+        lay = layer_of(rec.get("ocg"), None, None, "text")
+        e = (_shx_fit(txt.replace("\t", "    "), rot, [pts_of[h] for h in keep], rec["attrs"].get("col"), lay, anchor=b)
+             or _text_from_boxes(txt.replace("\t", "    "), rot, boxes, rec["attrs"].get("col"), lay))
         if e:
+            e["_shx"] = sum(len(order[ri][1]["pieces"][pi][0]) for ri, pi in keep)  # segmenti dei tratti: forma del carattere SHX
             out.append(e)
             taken.update(keep)
     for ri, pi in taken:
@@ -1266,9 +1741,27 @@ def _shx_from_hidden(texts, order, layer_of, hidden_prefix):
                     pts += [sg[1], sg[-1] if sg[0] == "B" else sg[2]]
         boxes = [(q[0], q[1], q[0], q[1]) for q in pts]
         col = rec["attrs"].get("col") if hits[0][1] >= 0 else rec.get("col")
-        ne = _text_from_boxes(e["s"], e["rot"], boxes, col, layer_of(rec.get("ocg"), None, None, "text"))
+        lay = layer_of(rec.get("ocg"), None, None, "text")
+        fills = any(pi < 0 for _, pi, _ in hits)
+        groups = [_piece_pts(order, ri, pi) for ri, pi, _ in hits if pi >= 0]
+        if fills and not groups:
+            # lettere piene = carattere TrueType disegnato come geometria: il testo nascosto ha di solito carattere, corpo,
+            # posizione e larghezza esatti (e' lo stesso testo); se l'ingombro delle lettere non torna (entro il 6%) si misura su di loro
+            ne = {**e, "L": lay, "col": col}
+            us = [q[0] * ux + q[1] * uy for q in pts]
+            vs = [q[0] * vx + q[1] * vy for q in pts]
+            pu = (px * ux + py * uy, px * ux + py * uy + ln)
+            if abs((max(us) - min(us)) - (pu[1] - pu[0])) > 0.06 * ln + 0.3 or (max(vs) - min(vs)) > 1.45 * h + 0.3:
+                m = _text_from_boxes(e["s"], e["rot"], boxes, col, lay)
+                if m:
+                    ne = {**m, "font": e.get("font", "Arial"), "bold": e.get("bold"), "italic": e.get("italic"), "file": e.get("file") or m["file"]}
+        else:
+            ne = ((None if fills else _shx_fit(e["s"], e["rot"], groups, col, lay, anchor=e["p"]))
+                  or _text_from_boxes(e["s"], e["rot"], boxes, col, lay))
         if not ne:
             continue
+        ne["_shx"] = sum(len(order[ri][1]["pieces"][pi][0]) if pi >= 0 else 0 for ri, pi, _ in hits)
+        ne["_fill"] = any(pi < 0 for _, pi, _ in hits)  # lettere piene: carattere TrueType, non SHX
         out.append(ne)
         used.add(idx)
         for ri, pi, _ in hits:
@@ -1343,6 +1836,7 @@ def _drawn_texts(page, order, layer_of, opts, update=None, zones=None):
     taken, out = set(), []
     hidden = layer_of(None, None, None, "drawn")
     moved = []
+    rejected_ocr = 0
     for w in words:
         txt = w[0].strip().replace("�", "")
         if not txt or all(c in rastervec.JUNK for c in txt):
@@ -1382,6 +1876,11 @@ def _drawn_texts(page, order, layer_of, opts, update=None, zones=None):
         e = _text_from_boxes(txt, rot, [b for *_, b in hits], col, layer_of(ocg, None, None, "text"))
         if not e or e["h"] > h * 1.15 or e["h"] < h * 0.3:
             continue
+        # nessuna lettura dubbia: cifre e lettere mescolate in modo strano o forma che non torna -> restano le linee
+        sc_min = 0.85 if len(txt.replace(" ", "")) == 1 else OCR_MIN_SCORE  # una lettera sola: serve una forma quasi identica
+        if not _ocr_plausible(txt) or _ocr_shape_score(B, (w[1], w[2], w[3], w[4]), txt, rot) < sc_min:
+            rejected_ocr += 1
+            continue
         if any(order[ri][1].get("bold") for ri, pi, _ in hits if pi < 0):
             e["bold"] = True
         out.append(e)
@@ -1410,6 +1909,71 @@ def _drawn_texts(page, order, layer_of, opts, update=None, zones=None):
     return _join_words(out)
 
 
+OCR_MIN_SCORE = 0.5
+_OCR_BAD = re.compile(r"[Il|/\\][0-9]|[0-9][Il|]|[0-9][A-WYZa-wyz][0-9]|[A-Za-z][0-9][A-Za-z]{2}|[oO][0-9]{2}|[0-9]{2}[oO]")
+
+
+def _ocr_plausible(txt):
+    """Regole contro gli scambi tipici dell'OCR sulle tavole (I/1, l/1, O/0 dentro i numeri): meglio le linee che una cifra sbagliata."""
+    letters = txt.replace(" ", "")
+    if letters and all(c in "Il1|!ijîíìl'`.,:;-_" for c in letters):
+        return False  # solo aste verticali e puntini: quasi sempre retini, scale o bordi letti come lettere
+    if len(letters) == 1 and not letters.isalnum():
+        return False
+    for tok in txt.split():
+        core = tok.strip(".,;:()[]'\"")
+        if re.search(r"[Il|][/\]|[/\][Il|]", core):
+            return False
+        if any(c.isdigit() for c in core) and _OCR_BAD.search(core):
+            return False
+    return True
+
+
+def _ocr_shape_score(B, box, txt, rot):
+    """Somiglianza (Dice, con tolleranza di 2 pixel) tra i tratti della pagina nel riquadro della parola e la stessa parola
+    scritta in Arial delle stesse dimensioni: misura quanto la lettura e' credibile."""
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFont
+    x0, y0, x1, y1 = (int(round(v)) for v in box)
+    x0, y0 = max(0, x0 - 1), max(0, y0 - 1)
+    x1, y1 = min(B.shape[1], x1 + 2), min(B.shape[0], y1 + 2)
+    if x1 - x0 < 3 or y1 - y0 < 3:
+        return 0.0
+    crop = B[y0:y1, x0:x1]
+    if rot == 90:
+        crop = np.rot90(crop, -1)  # testo verticale letto dal basso: in orizzontale
+    ys, xs = np.nonzero(crop)
+    if len(xs) < 4:
+        return 0.0
+    crop = crop[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    hh, ww = crop.shape
+    try:
+        font = ImageFont.truetype(font_file("Arial", False, False) or "arial.ttf", max(8, int(hh * 1.25)))
+    except Exception:  # noqa: BLE001
+        return 1.0
+    l, t, r, b = font.getbbox(txt)
+    if r - l <= 0 or b - t <= 0:
+        return 0.0
+    im = Image.new("L", (r - l + 4, b - t + 4), 0)
+    ImageDraw.Draw(im).text((2 - l, 2 - t), txt, fill=255, font=font)
+    a = np.asarray(im) > 96
+    ys2, xs2 = np.nonzero(a)
+    if len(xs2) < 4:
+        return 0.0
+    a = Image.fromarray((a[ys2.min():ys2.max() + 1, xs2.min():xs2.max() + 1] * 255).astype(np.uint8)).resize((ww, hh))
+    a = np.asarray(a) > 96
+
+    def dil(m, r=2):
+        o = m.copy()
+        for dy in range(-r, r + 1):
+            for dx in range(-r, r + 1):
+                o |= np.roll(np.roll(m, dy, 0), dx, 1)
+        return o
+    da, dc = dil(a), dil(crop)
+    inter = (a & dc).sum() + (crop & da).sum()
+    return float(inter / (a.sum() + crop.sum()))
+
+
 def _join_words(texts):
     """Parole vicine sulla stessa linea di base (stessa altezza e rotazione) -> un solo testo."""
     texts = sorted(texts, key=lambda e: (e["rot"], e["L"], round(_rot_y(e) / max(e["h"], 1e-6) * 2), _rot_x(e)))
@@ -1432,6 +1996,33 @@ def _join_words(texts):
     return out
 
 
+def _fast_image(doc, xref):
+    """Immagine dal PDF: i JPEG passano cosi' come sono; le altre diventano PNG con compressione veloce (extract_image le
+    ricomprime al massimo: 20 s per una foto aerea da 30 Mpx)."""
+    filt = (doc.xref_get_key(xref, "Filter")[1] or "")
+    if "DCTDecode" in filt or "JPXDecode" in filt:
+        return doc.extract_image(xref)
+    import io
+    from PIL import Image
+    pix = pymupdf.Pixmap(doc, xref)
+    if pix.alpha:
+        pix = pymupdf.Pixmap(pix, 0)
+    if pix.colorspace is None or pix.colorspace.n not in (1, 3):
+        pix = pymupdf.Pixmap(pymupdf.csRGB, pix)
+    mode = "L" if pix.n == 1 else "RGB"
+    im = Image.frombytes(mode, (pix.width, pix.height), pix.samples)
+    buf = io.BytesIO()
+    im.save(buf, "PNG", compress_level=1)
+    smask = 0
+    try:
+        sm = doc.xref_get_key(xref, "SMask")
+        if sm[0] == "xref":
+            smask = int(sm[1].split()[0])
+    except Exception:  # noqa: BLE001
+        smask = 0
+    return {"image": buf.getvalue(), "ext": "png", "width": pix.width, "height": pix.height, "smask": smask}
+
+
 def _images(page, T, layer_of):
     """Immagini della pagina (foto, loghi, timbri) -> {"t": "image", data, ext, w, h, o, u, v}: o = angolo del pixel (0, 0) (in alto
     a sinistra), u = vettore lungo la prima riga di pixel, v = lungo la prima colonna, coordinate della pagina con y verso l'alto."""
@@ -1442,10 +2033,21 @@ def _images(page, T, layer_of):
     except Exception:  # noqa: BLE001
         return out
     blocks, inline = [], None
+    try:  # posizione nell'ordine di disegno: operazione "fill-image" con lo stesso riquadro
+        img_seq = [(i, b[1]) for i, b in enumerate(page.get_bboxlog()) if b[0] == "fill-image"]
+    except Exception:  # noqa: BLE001
+        img_seq = []
+    taken_seq = set()
     for inf in infos:
+        seq = 10 ** 9
+        for i, bb in img_seq:
+            if i not in taken_seq and all(abs(a - b) < 0.6 for a, b in zip(bb, inf["bbox"])):
+                seq = i
+                taken_seq.add(i)
+                break
         if inf.get("xref"):
             try:
-                x = doc.extract_image(inf["xref"])  # flusso originale, senza decodificare la pagina
+                x = _fast_image(doc, inf["xref"])
             except Exception:  # noqa: BLE001
                 continue
             if not x or not x.get("image"):
@@ -1457,7 +2059,7 @@ def _images(page, T, layer_of):
                 except Exception:  # noqa: BLE001
                     mask = None
             blocks.append({"type": 1, "image": x["image"], "ext": x.get("ext"), "width": x.get("width") or inf["width"],
-                           "height": x.get("height") or inf["height"], "transform": inf["transform"], "mask": mask})
+                           "height": x.get("height") or inf["height"], "transform": inf["transform"], "mask": mask, "_seq": seq})
         else:  # immagine in linea: solo dal testo strutturato della pagina
             if inline is None:
                 try:
@@ -1466,7 +2068,7 @@ def _images(page, T, layer_of):
                     inline = []
             for bl in inline:
                 if tuple(round(v, 2) for v in bl["transform"]) == tuple(round(v, 2) for v in inf["transform"]):
-                    blocks.append(bl)
+                    blocks.append({**bl, "_seq": seq})
                     break
     W, H = page.rect.width, page.rect.height
     for b in blocks:
@@ -1485,14 +2087,22 @@ def _images(page, T, layer_of):
                 pix = pymupdf.Pixmap(data)
                 if pix.colorspace and pix.colorspace.n not in (1, 3):
                     pix = pymupdf.Pixmap(pymupdf.csRGB, pix)
+                if pix.alpha:
+                    pix = pymupdf.Pixmap(pix, 0)
+                import io
+                from PIL import Image
+                im = Image.frombytes("L" if pix.n == 1 else "RGB", (pix.width, pix.height), pix.samples)
                 if b.get("mask"):
-                    mk = pymupdf.Pixmap(b["mask"])
-                    if mk.width == pix.width and mk.height == pix.height:
-                        pix = pymupdf.Pixmap(pymupdf.Pixmap(pix, 0) if pix.alpha else pix, mk)
-                data, ext = pix.tobytes("png"), "png"
+                    mk = Image.open(io.BytesIO(b["mask"])).convert("L")
+                    if mk.size == im.size:
+                        im = im.convert("RGBA")
+                        im.putalpha(mk)
+                buf = io.BytesIO()
+                im.save(buf, "PNG", compress_level=1)  # compressione veloce (la massima costa secondi per immagine)
+                data, ext = buf.getvalue(), "png"
         except Exception:  # noqa: BLE001
             continue
-        out.append({"t": "image", "data": data, "ext": "jpg" if ext == "jpeg" else ext, "w": b["width"], "h": b["height"], "o": list(o),
+        out.append({"t": "image", "_seq": b.get("_seq", 0), "data": data, "ext": "jpg" if ext == "jpeg" else ext, "w": b["width"], "h": b["height"], "o": list(o),
                     "u": [u1[0] - o[0], u1[1] - o[1]], "v": [v1[0] - o[0], v1[1] - o[1]], "L": layer_of(None, None, None, "image")})
     return out
 
