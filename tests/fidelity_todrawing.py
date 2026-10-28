@@ -326,10 +326,11 @@ def main():
                 bad += 1
                 print(f"{f.name[:44]:44} p{pg + 1:<3} ERRORE {r['error']}")
                 continue
-            low = a.soglia and (r["geo_recall"] < a.soglia or r["geo_precision"] < a.soglia)
+            low = a.soglia and (r["geo_recall"] < a.soglia or r["geo_precision"] < a.soglia or r.get("skipped"))
             bad += bool(low)
             shx = f"  SHX {r['shx_ok']}/{r['shx_total']}" if r.get("shx_total") else ""
             shx += f"  immagini {r['img_ok']}/{r['img_total']}" if r.get("img_total") else ""
+            shx += f"  SCARTATI {r['skipped']}" if r.get("skipped") else ""
             print(f"{f.name[:44]:44} p{pg + 1:<3} geometria {r['geo_recall']:.4f}/{r['geo_precision']:.4f} persi {r['geo_lost_pieces']} in piu' "
                   f"{r['geo_extra_pieces']}  tutto {r['recall']:.3f}/{r['precision']:.3f}  testi {r['words_found']}/{r['words_pdf']}{shx}"
                   f"  {r['time_s']:6.2f} s  {sum(r['entities'].values())} entita'{'  <-- SOTTO SOGLIA' if low else ''}")

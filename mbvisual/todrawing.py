@@ -222,10 +222,13 @@ class Writer:
                     sp.add_circle(P(*e["c"]), e["r"] * k, dxfattribs=a)
                 elif t == "poly":
                     pts = [(*P(v[0], v[1]), 0, 0, v[2]) for v in e["v"]]
-                    sp.add_lwpolyline(pts, format="xyseb", close=bool(e.get("closed")), dxfattribs=a)
+                    pl = sp.add_lwpolyline(pts, format="xyseb", close=bool(e.get("closed")), dxfattribs=a)
+                    if e.get("plinegen"):
+                        pl.dxf.flags = pl.dxf.flags | 128  # tipo di linea continuo lungo la polilinea
                 elif t == "spline":
-                    from ezdxf.math import Bezier4P, bezier_to_bspline
-                    cp = [P(*q) for q in e["cp"]]
+                    from ezdxf.math import Bezier4P, Vec3, bezier_to_bspline
+                    # punti Vec3: con tuple il modulo compilato di ezdxf rifiuta la curva (e la spline spariva)
+                    cp = [Vec3(*P(*q)) for q in e["cp"]]
                     curves = [Bezier4P(cp[i:i + 4]) for i in range(0, len(cp) - 3, 3)]
                     sp.add_spline(dxfattribs=a).apply_construction_tool(bezier_to_bspline(curves))
                 elif t == "hatch":

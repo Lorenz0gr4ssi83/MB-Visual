@@ -201,7 +201,10 @@ def _merge_arcs(sub, tol):
         if out and s[0] == "A" and out[-1][0] == "A":
             a = out[-1]
             if _d(a[3], s[3]) <= max(tol, a[4] * 3e-3) and abs(a[4] - s[4]) <= max(tol, a[4] * 3e-3) and a[5] == s[5]:
-                out[-1] = ("A", a[1], s[2], a[3], a[4], a[5], a[6] + s[6])
+                sw = a[6] + s[6]
+                if _d(a[1], s[2]) <= max(tol * 0.5, 1e-6) and sw > 340:
+                    sw = 360.0  # archi che si richiudono: cerchio intero (la somma degli angoli perde qualche decimo)
+                out[-1] = ("A", a[1], s[2], a[3], a[4], a[5], min(sw, 360.0))
                 continue
         out.append(s)
     return out
@@ -808,7 +811,7 @@ def extract(page, opts: dict, layers: dict, report: dict | None = None) -> list:
                 sub = sub + [("L", _end(sub[-1]), sub[0][1])]
                 closed = True
             pieces = pdfclip.apply([sub], regions)
-            if len(pieces) == 1 and len(pieces[0]) == len(sub) and pieces[0][0][1] == sub[0][1]:
+            if len(pieces) == 1 and len(pieces[0]) == len(sub) and pieces[0][0][1] == sub[0][1] and _end(pieces[0][-1]) == _end(sub[-1]):
                 pieces = [(sub, closed)]
             else:
                 pieces = [(pc, False) for pc in pieces]
@@ -827,7 +830,7 @@ def extract(page, opts: dict, layers: dict, report: dict | None = None) -> list:
     visible = sum(len(e.get("s") or "".join(e.get("lines", []))) for e in real if not e["L"].startswith(LN["hidden"]))
     if ocr == "on" or (ocr == "auto" and not shx and visible < 80 and len(order) > 0):
         shx += _drawn_texts(page, order, layer_of, opts)
-    elif rejected and ocr != "off":  # paragrafi SHX con il commento inaffidabile: OCR solo in quelle zone
+    elif rejected and ocr == "on":  # paragrafi SHX con il commento inaffidabile: OCR solo se chiesto (di norma restano i tratti esatti)
         shx += _drawn_texts(page, order, layer_of, opts, zones=rejected)
     if opts.get("images", True):
         imgs = sorted(_images(page, T, layer_of), key=lambda e: e.get("_seq", 0))
@@ -864,7 +867,8 @@ def extract(page, opts: dict, layers: dict, report: dict | None = None) -> list:
                 pieces = [pc for i, pc in enumerate(pieces) if i not in used and i not in orphan]
         chains = _dash_chains(pieces, tol, seg_arcs and want_arcs) if dashes else [(a, b, None) for a, b in pieces]
         for pc, closed, lt in chains:
-            ents.extend(_emit(pc, closed, {**battrs, "lt": lt} if lt and not battrs.get("lt") else battrs, tol))
+            # motivo continuo lungo tutta la polilinea (come le curve di livello di AutoCAD), non da capo a ogni vertice
+            ents.extend(_emit(pc, closed, {**battrs, "lt": lt, "plinegen": True} if lt and not battrs.get("lt") else battrs, tol))
         buf.clear()
     # i trattini di una linea tratteggiata sono spesso tracciati separati e consecutivi con lo stesso stile: si esaminano insieme
     for kind, v in order:
@@ -1035,6 +1039,8 @@ def _hatch_families(buf, polys, tol):
                     on += 1
             if on < 0.9 * len(ends) or not all(_inside(m, pts) for m in mids):
                 continue
+            if not _hatch_regenerates(pts, f):
+                continue  # il retino rifatto da AutoCAD in questo contorno non darebbe le stesse righe: restano linee
             found = pts
             break
         if found is None:
@@ -1049,6 +1055,48 @@ def _hatch_families(buf, polys, tol):
             hatches.append({"paths": [found], "fam": [(f["th"], f["base"], f["s"])]})
         used.update(q[0] for q in f["segs"])
     return hatches, used, orphan - used
+
+
+def _hatch_regenerates(poly, f, tol=0.2):
+    """Le righe che un HATCH con questa famiglia genera dentro il contorno coincidono con quelle del PDF (estremi entro tol)?"""
+    th, sp = f["th"], f["s"]
+    r = math.radians(th)
+    ux, uy, nx, ny = math.cos(r), math.sin(r), -math.sin(r), math.cos(r)
+    o0 = f["base"][0] * nx + f["base"][1] * ny
+    have = {}
+    for _, a, b, _ in f["segs"]:
+        k = round((a[0] * nx + a[1] * ny - o0) / sp)
+        ta, tb = a[0] * ux + a[1] * uy, b[0] * ux + b[1] * uy
+        have.setdefault(k, []).append((min(ta, tb), max(ta, tb)))
+    ns = [q[0] * nx + q[1] * ny for q in poly]
+    k0, k1 = math.ceil((min(ns) - o0) / sp - 1e-9), math.floor((max(ns) - o0) / sp + 1e-9)
+    if k1 - k0 > 4000:
+        return False
+    n = len(poly)
+    for k in range(k0, k1 + 1):
+        o = o0 + k * sp
+        ts = []
+        for i in range(n):
+            a, b = poly[i - 1], poly[i]
+            da, db = a[0] * nx + a[1] * ny - o, b[0] * nx + b[1] * ny - o
+            if (da > 0) != (db > 0) and da != db:
+                t = da / (da - db)
+                ts.append((a[0] + (b[0] - a[0]) * t) * ux + (a[1] + (b[1] - a[1]) * t) * uy)
+        ts.sort()
+        gen = [(ts[i], ts[i + 1]) for i in range(0, len(ts) - 1, 2) if ts[i + 1] - ts[i] > tol]
+        got = sorted(have.get(k, []))
+        merged = []  # pezzi sulla stessa riga che si toccano = un solo tratto
+        for a, b in got:
+            if merged and a <= merged[-1][1] + tol:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+            else:
+                merged.append((a, b))
+        if len(gen) != len(merged):
+            return False
+        for (ga, gb), (ha, hb) in zip(gen, merged):
+            if abs(ga - ha) > tol + 0.1 or abs(gb - hb) > tol + 0.1:
+                return False
+    return True
 
 
 def _hatch_name(fam):
@@ -1073,6 +1121,75 @@ def _merge_collinear(segs, tol):
                 continue
         out.append(sg)
     return out
+
+
+def _exact_pattern(dash, gaps, tolp=0.08):
+    """Schema ESATTO del tipo di linea che riproduce i trattini (stesse posizioni entro tolp lungo tutta la linea, niente
+    sfasamento che si accumula): (schema, indice del primo trattino intero) oppure None (allora restano trattini separati)."""
+    if len(dash) < 3:
+        return None
+    a = [0.0]
+    for d, g in zip(dash, gaps):
+        a.append(a[-1] + d + g)
+    ds = sorted(dash[1:-1]) if len(dash) > 3 else sorted(dash)
+    lo, hi = ds[0], ds[-1]
+    cands = []
+    if hi <= lo * 1.15 + 0.08:  # una sola lunghezza di trattino
+        d = ds[len(ds) // 2]
+        cands.append([d])
+    else:  # lungo e corto alternati (linea d'asse)
+        mid = (lo + hi) / 2
+        L = sorted(x for x in ds if x >= mid)
+        S = sorted(x for x in ds if x < mid)
+        cands.append([L[len(L) // 2], S[len(S) // 2]])
+        cands.append([S[len(S) // 2], L[len(L) // 2]])
+    for dl in cands:
+        q = len(dl)
+        for first in (0, 1):
+            full = [m for m in range(first, len(dash)) if abs(dash[m] - dl[(m - first) % q]) <= tolp]
+            if len(full) < 2:
+                continue
+            last = max(full)
+            cycles = (last - first) / q
+            if (last - first) % q:
+                last -= (last - first) % q
+                cycles = (last - first) // q
+            if cycles < 1:
+                continue
+            P = (a[last] - a[first]) / cycles
+            # pause di ogni elemento del motivo, dalla posizione media dei trattini
+            offs = [0.0]
+            for e in range(1, q):
+                vals = [a[first + e + c * q] - a[first + c * q] for c in range(int(cycles)) if first + e + c * q < len(a)]
+                if not vals:
+                    break
+                offs.append(sum(vals) / len(vals))
+            if len(offs) != q:
+                continue
+            ok = True
+            for m in range(first, len(dash)):
+                k = m - first
+                exp = a[first] + (k // q) * P + offs[k % q]
+                if abs(a[m] - exp) > tolp:
+                    ok = False
+                    break
+                full_len = dl[k % q]
+                if m < len(dash) - 1 and abs(dash[m] - full_len) > tolp:  # solo l'ultimo trattino puo' essere accorciato
+                    ok = False
+                    break
+                if m == len(dash) - 1 and dash[m] > full_len + tolp:
+                    ok = False
+                    break
+            if not ok:
+                continue
+            pat = []
+            for e in range(q):
+                nxt = offs[e + 1] if e + 1 < q else P
+                pat += [round(dl[e], 4), round(nxt - offs[e] - dl[e], 4)]
+            if min(pat) < 0:
+                continue
+            return tuple(pat), first
+    return None
 
 
 def _pattern(dash, gaps):
@@ -1118,18 +1235,20 @@ def _dash_chains(pieces, tol, fit_arcs):
                 j += 1
         if j - i + 1 >= 3:
             dash = lens[i:j + 1]
-            # i trattini in mezzo devono essere simili (gli estremi possono essere accorciati)
-            inner = dash[1:-1] if len(dash) > 3 else dash
-            if max(inner) <= 3.5 * max(min(inner), 0.05) + 0.1:
+            fit = _exact_pattern(dash, gaps)
+            if fit:
+                pat, first = fit
+                if first:  # primo trattino accorciato: resta a parte, il motivo parte dal primo trattino intero
+                    out.append((pieces[i][0], False, None))
                 segs = []
-                for k in range(i, j + 1):
+                for k in range(i + first, j + 1):
                     if segs:
                         segs.append(("L", _end(segs[-1]), pieces[k][0][0][1]))
                     segs += list(pieces[k][0])
                 segs = _merge_collinear(segs, tol)
                 if fit_arcs:
                     segs = _merge_arcs(_arcs_from_lines(segs, max(tol, 0.12)), tol)
-                out.append((segs, False, _pattern(dash, gaps)))
+                out.append((segs, False, pat))
                 i = j + 1
                 continue
         out.append((pieces[i][0], pieces[i][1], None))
