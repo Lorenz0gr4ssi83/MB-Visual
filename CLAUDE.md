@@ -1347,6 +1347,35 @@ Solo app per PC. Il risultato si apre subito nell'editor CAD. DWG solo con ODA F
   rosso = perso, blu = in piu'). MBV_FEDELTA_RADICE=<copia del codice> misura un'altra versione (prima/dopo).
 - Limiti rimasti: caratteri decorativi non installati (si usa Arial con la larghezza giusta), retini a motivo restano linee,
   OCR di Windows solo 0/90 gradi, scansioni grandi lente (A0 300 dpi ~2-3 min).
+- Revisione 3 (28/10/2026, "deve essere 100%"). Misura per pagina con `tests/fidelity_todrawing.py` (geometria a pixel ESCLUSE le
+  zone dei testi e delle immagini, che si controllano a parte: commenti SHX ritrovati per contenuto e posizione, IMAGE con gli
+  angoli entro 0,15 mm; pezzi persi/in piu' = gruppi di celle 4x4 px; "SCARTATI" = entita' rifiutate dallo scrittore, deve essere 0;
+  immagine `<pagina>_geometria.png`). Difetti trovati e corretti:
+  * TUTTE le spline (curve libere) venivano scartate: Bezier4P del modulo compilato di ezdxf rifiuta le tuple -> punti Vec3.
+  * Bordo 0,03 pt fuori dalla finestra = "tutto fuori" e cancellato: anche outside_box usa il margine (Region.keep).
+  * Tratto tagliato solo alla fine scritto intero (il confronto guardava solo l'inizio).
+  * Archi di un cerchio uniti in 357,8 gradi -> arco aperto e riempimento perso: archi che si richiudono = 360.
+  * Immagini nell'ordine di disegno del PDF (posizione dalla get_bboxlog, abbinata per riquadro: il numero di get_image_info non
+    corrisponde sempre), cosi' una foto sopra delle linee le copre anche nel DXF.
+  * Modo "scansione" automatico solo con un'immagine oltre l'85% della pagina (prima 60%: una pianta raster in un'impaginazione
+    veniva ri-vettorizzata e l'immagine persa).
+  * Testi SHX: romans.shx ESATTO (`mbvisual/shxfonts.py`: avanzamenti e ingombri dal Hershey Simplex, pubblico dominio; romans
+    ne deriva): altezza dai singoli tratti (85 percentile), fattore di larghezza dalla lunghezza arrotondato ai valori standard
+    (WF_STD, entro 3%), punto di inserimento all'origine del primo carattere, codici %%U/%%C lasciati ad AutoCAD; stile "ROMANS"
+    con font romans.shx. Se non torna -> Arial misurato. Testo nascosto sopra lettere PIENE = TrueType come geometria: il testo
+    nascosto ha gia' carattere/corpo/posizione esatti e si rende visibile cosi' com'e'.
+  * Caratteri non installati: nel DXF il nome originale (<famiglia>.ttf), metriche dal carattere incorporato nel PDF se ha i glifi
+    (`_emb_usable`: molti sottoinsiemi non hanno la mappa Unicode), quelli incorporati INTERI salvati in "<nome>_caratteri" e
+    avviso nell'interfaccia (`fonts_missing`, `fonts_saved`). Avanzamento dei caratteri dritti preso dal riquadro della pagina.
+  * Tratteggi: schema ESATTO (`_exact_pattern`: periodo da primo e ultimo trattino, ogni trattino entro 0,08 pt, primo trattino
+    parziale a parte), polilinee con generazione continua del tipo di linea (flag 128). Se non torna: trattini separati.
+  * Retini: famiglie di linee parallele a passo esatto (ogni riga entro 0,03 pt) dentro un contorno chiuso -> HATCH ANSI31/ANSI37
+    o _USER con fase esatta (punto base su una riga), SOLO se le righe che il retino genera nel contorno coincidono una per una con
+    quelle del PDF (`_hatch_regenerates`); famiglie senza contorno -> layer "<layer>-RETINO". Orizzontali/verticali escluse
+    (tabelle, cartigli). Contorni bianchi saltati, cornice delle immagini.
+  * OCR: parole scartate se cifre e lettere si mescolano in modo sospetto (I/1, l/1, O/0, "I/"), se fatte solo di aste, se la
+    forma (Dice con Arial, 2 px) e' sotto 0,5 (0,85 per una lettera); allora restano le linee visibili. Paragrafi SHX con il
+    commento inaffidabile: niente OCR (restano i tratti), salvo drawn_text = "on".
 ## Posta elettronica in stile Outlook (22/10/2026) - FATTO (tappe 1-4; account veri da provare con l'utente)
 Scheda "Posta" (pulsante busta nella barra laterale, `MB.openMail()`; percorso virtuale `mail://posta`, i messaggi nuovi
 `mail://scrivi/<n>` con il visualizzatore `mailcompose`). Solo app per PC. Guida utente: `ui/guide/posta.md`.

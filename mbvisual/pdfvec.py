@@ -748,6 +748,25 @@ def extract(page, opts: dict, layers: dict, report: dict | None = None) -> list:
             continue
         regions = [page_rg] + clips.at(level)
         subs = _subpaths(d["items"], T, tol)
+        if "s" in typ and (d.get("width") or 0) > 0:
+            # puntini: segmenti di lunghezza zero con estremita' tonde/quadre (retini "calcestruzzo", punti) -> disco pieno
+            caps = d.get("lineCap") or (0,)
+            cap = caps[0] if isinstance(caps, (tuple, list)) else caps
+            if cap in (1, 2):
+                dots = [T(float(it[1].x), float(it[1].y)) for it in d["items"]
+                        if it[0] == "l" and abs(it[1].x - it[2].x) < 1e-6 and abs(it[1].y - it[2].y) < 1e-6]
+                if dots:
+                    rr = float(d["width"]) / 2
+                    dc = rgb_int(d.get("color"))
+                    dl = layer_of(d.get("layer") or None, dc, lineweight(d.get("width")), "line")
+                    for cx, cy in dots:
+                        if not (0 <= cx <= W and 0 <= cy <= H) or any(not rg.contains((cx, cy)) for rg in clips.at(level)):
+                            continue
+                        if cap == 1:
+                            path = [[cx + rr, cy, 1.0], [cx - rr, cy, 1.0]]
+                        else:
+                            path = [[cx - rr, cy - rr, 0.0], [cx + rr, cy - rr, 0.0], [cx + rr, cy + rr, 0.0], [cx - rr, cy + rr, 0.0]]
+                        order.append(("e", {"t": "hatch", "paths": [path], "col": dc, "L": dl, "_seq": d.get("seqno", 0)}))
         if not subs:
             continue
         ocg = d.get("layer") or None
@@ -1726,9 +1745,16 @@ def _shx_from_hidden(texts, order, layer_of, hidden_prefix):
         fills = any(pi < 0 for _, pi, _ in hits)
         groups = [_piece_pts(order, ri, pi) for ri, pi, _ in hits if pi >= 0]
         if fills and not groups:
-            # lettere piene = carattere TrueType disegnato come geometria: il testo nascosto ha gia' carattere, corpo,
-            # posizione e larghezza esatti (e' lo stesso testo), basta renderlo visibile
+            # lettere piene = carattere TrueType disegnato come geometria: il testo nascosto ha di solito carattere, corpo,
+            # posizione e larghezza esatti (e' lo stesso testo); se l'ingombro delle lettere non torna (entro il 6%) si misura su di loro
             ne = {**e, "L": lay, "col": col}
+            us = [q[0] * ux + q[1] * uy for q in pts]
+            vs = [q[0] * vx + q[1] * vy for q in pts]
+            pu = (px * ux + py * uy, px * ux + py * uy + ln)
+            if abs((max(us) - min(us)) - (pu[1] - pu[0])) > 0.06 * ln + 0.3 or (max(vs) - min(vs)) > 1.45 * h + 0.3:
+                m = _text_from_boxes(e["s"], e["rot"], boxes, col, lay)
+                if m:
+                    ne = {**m, "font": e.get("font", "Arial"), "bold": e.get("bold"), "italic": e.get("italic"), "file": e.get("file") or m["file"]}
         else:
             ne = ((None if fills else _shx_fit(e["s"], e["rot"], groups, col, lay, anchor=e["p"]))
                   or _text_from_boxes(e["s"], e["rot"], boxes, col, lay))
@@ -1970,6 +1996,33 @@ def _join_words(texts):
     return out
 
 
+def _fast_image(doc, xref):
+    """Immagine dal PDF: i JPEG passano cosi' come sono; le altre diventano PNG con compressione veloce (extract_image le
+    ricomprime al massimo: 20 s per una foto aerea da 30 Mpx)."""
+    filt = (doc.xref_get_key(xref, "Filter")[1] or "")
+    if "DCTDecode" in filt or "JPXDecode" in filt:
+        return doc.extract_image(xref)
+    import io
+    from PIL import Image
+    pix = pymupdf.Pixmap(doc, xref)
+    if pix.alpha:
+        pix = pymupdf.Pixmap(pix, 0)
+    if pix.colorspace is None or pix.colorspace.n not in (1, 3):
+        pix = pymupdf.Pixmap(pymupdf.csRGB, pix)
+    mode = "L" if pix.n == 1 else "RGB"
+    im = Image.frombytes(mode, (pix.width, pix.height), pix.samples)
+    buf = io.BytesIO()
+    im.save(buf, "PNG", compress_level=1)
+    smask = 0
+    try:
+        sm = doc.xref_get_key(xref, "SMask")
+        if sm[0] == "xref":
+            smask = int(sm[1].split()[0])
+    except Exception:  # noqa: BLE001
+        smask = 0
+    return {"image": buf.getvalue(), "ext": "png", "width": pix.width, "height": pix.height, "smask": smask}
+
+
 def _images(page, T, layer_of):
     """Immagini della pagina (foto, loghi, timbri) -> {"t": "image", data, ext, w, h, o, u, v}: o = angolo del pixel (0, 0) (in alto
     a sinistra), u = vettore lungo la prima riga di pixel, v = lungo la prima colonna, coordinate della pagina con y verso l'alto."""
@@ -1994,7 +2047,7 @@ def _images(page, T, layer_of):
                 break
         if inf.get("xref"):
             try:
-                x = doc.extract_image(inf["xref"])  # flusso originale, senza decodificare la pagina
+                x = _fast_image(doc, inf["xref"])
             except Exception:  # noqa: BLE001
                 continue
             if not x or not x.get("image"):
@@ -2034,11 +2087,19 @@ def _images(page, T, layer_of):
                 pix = pymupdf.Pixmap(data)
                 if pix.colorspace and pix.colorspace.n not in (1, 3):
                     pix = pymupdf.Pixmap(pymupdf.csRGB, pix)
+                if pix.alpha:
+                    pix = pymupdf.Pixmap(pix, 0)
+                import io
+                from PIL import Image
+                im = Image.frombytes("L" if pix.n == 1 else "RGB", (pix.width, pix.height), pix.samples)
                 if b.get("mask"):
-                    mk = pymupdf.Pixmap(b["mask"])
-                    if mk.width == pix.width and mk.height == pix.height:
-                        pix = pymupdf.Pixmap(pymupdf.Pixmap(pix, 0) if pix.alpha else pix, mk)
-                data, ext = pix.tobytes("png"), "png"
+                    mk = Image.open(io.BytesIO(b["mask"])).convert("L")
+                    if mk.size == im.size:
+                        im = im.convert("RGBA")
+                        im.putalpha(mk)
+                buf = io.BytesIO()
+                im.save(buf, "PNG", compress_level=1)  # compressione veloce (la massima costa secondi per immagine)
+                data, ext = buf.getvalue(), "png"
         except Exception:  # noqa: BLE001
             continue
         out.append({"t": "image", "_seq": b.get("_seq", 0), "data": data, "ext": "jpg" if ext == "jpeg" else ext, "w": b["width"], "h": b["height"], "o": list(o),
