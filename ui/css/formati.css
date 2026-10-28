@@ -24,6 +24,9 @@
 .fx-table tr.click { cursor: pointer; }
 .fx-table tr.click:hover td { background: var(--accent-soft); }
 .fx-table td.num, .fx-table th.num { text-align: right; }
+.fx-notice { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--r-md, 6px); background: var(--panel); padding: 10px 14px; font-size: 13px; display: grid; gap: 4px; }
+.fx-notice b { font-weight: 600; }
+.fx-notice p { margin: 0; color: var(--muted); }
 .fx-empty { padding: 30px; color: var(--muted); text-align: center; }
 
 /* DICOM */

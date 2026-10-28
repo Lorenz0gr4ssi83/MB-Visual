@@ -1012,6 +1012,15 @@ I DICOM SENZA estensione (o con nome numerico) si aprono col visualizzatore DICO
   iWork '09 = XML (index.xml/index.apxl). Anteprime: preview.jpg, QuickLook/Thumbnail.jpg, QuickLook/Preview.pdf.
 - Revit `fx_revit.py` + `viewers/revit.js`: olefile; BasicFileInfo (versione, build, condivisione, centrale), RevitPreview4.0 (PNG),
   PartAtom (famiglie: categoria, parametri, tipi), TransmissionData (collegamenti esterni). Geometria non leggibile.
+  Revit -> IFC (28/10/2026, segnalazione "i .rfa non si salvano in IFC"): la geometria NON si puo' ricavare senza Revit
+  (Partitions = oggetti serializzati con lo schema di Formats/Latest, gzip senza coda; forme in ExtrusionElem/BlendElem ->
+  GNode -> GFace; nessun lettore libero la decifra, rvt-rs Apache-2.0 dice "no family geometry"; Revit non e' su questo PC;
+  alternative a pagamento: Autodesk APS, ODA BimRv). Il visualizzatore lo spiega in un riquadro e per le FAMIGLIE offre
+  Salva con nome -> "IFC con i soli dati della famiglia" (`fx_revit.family_ifc`: IFC4 con un tipo + un'occorrenza senza
+  rappresentazione per ogni tipo, classe IFC dalla categoria (`_IFC_MAP`, nomi inglesi e italiani; altrimenti proxy),
+  property set dai gruppi di PartAtom ripetuti per ogni tipo (DefinesType [0:1]), misure in metri, OmniClass dalle
+  categorie con scheme std:oc*). Per i .rvt niente IFC (messaggio: esportarlo da Revit). Collaudo:
+  `python tests/test_revit_ifc.py [cartella .rfa]` (web-ifc con tests/check_ifc_webifc.mjs; IfcOpenShell se installato).
 - Prove: `python tools/make_fx_samples.py [--pubblici]` -> tests/samples/fx (campioni generati + `pubblici/` da Apache Tika e
   DynamoRevit, Apache-2.0, vedi FONTI.md), poi `python tests/test_fx_formats.py` (46 controlli).
 - Testi in 5 lingue: chiavi v_dicom.*, v_cert.*, v_calendar.*, v_contacts.*, v_hpgl.*, v_scidata.*, v_iwork.*, v_revit.*, pim.*,

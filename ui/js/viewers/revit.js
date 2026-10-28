@@ -1,5 +1,6 @@
 // Autodesk Revit (.rvt/.rfa/.rte/.rft) senza Revit: anteprima incorporata, versione e build di Revit, condivisione,
-// file centrale, riferimenti esterni; per le famiglie categoria, parametri e tipi. Motore: mbvisual/fx_revit.py (solo PC).
+// file centrale, riferimenti esterni; per le famiglie categoria, parametri e tipi, e IFC con i soli dati della famiglia
+// (senza geometria). Motore: mbvisual/fx_revit.py (solo PC).
 import { api, el, loadCss, loading } from "../core.js";
 import { t as tr } from "../i18n.js";
 
@@ -13,7 +14,10 @@ export async function mount(ctx) {
   const fam = r.famiglia;
   page.append(el("div", { class: "fx-row" }, el("h2", {}, tr("v_revit.0_revit_1", r.tipo, r.versione ? " " + r.versione : "")),
     fam?.categorie?.length ? el("span", { class: "chip mute" }, fam.categorie.join(", ")) : null));
-  page.append(el("p", { class: "fx-muted", style: { margin: 0 } }, tr("v_revit.geometria_modello_formato_proprietario_autodesk")));
+  // la geometria Revit e' in un formato proprietario non documentato (vedi mbvisual/fx_revit.py): si dice chiaramente cosa si puo' fare
+  page.append(el("div", { class: "fx-notice" }, el("b", {}, tr("v_revit.avviso_geometria_titolo")),
+    el("p", {}, tr("v_revit.geometria_modello_formato_proprietario_autodesk")),
+    el("p", {}, fam ? tr("v_revit.avviso_ifc_famiglia") : tr("v_revit.avviso_ifc_progetto"))));
 
   const top = el("div", { style: { display: "grid", gridTemplateColumns: "minmax(200px, 360px) 1fr", gap: "16px", alignItems: "start" } });
   const prev = el("div", { class: "panel", style: { display: "grid", placeItems: "center", minHeight: "160px", background: "#fff" } });
@@ -52,8 +56,8 @@ export async function mount(ctx) {
   ctx.status(tr("v_revit.0_revit_1_2", r.tipo, r.versione));
   return {
     saveInPlace: false,
-    saveFormats: [...(r.anteprima ? ["png"] : []), "txt", "json"],
-    saveLabels: { png: tr("v_revit.anteprima_incorporata"), txt: tr("v_revit.informazioni_testo"), json: tr("v_revit.informazioni_json") },
+    saveFormats: [...(fam ? ["ifc"] : []), ...(r.anteprima ? ["png"] : []), "txt", "json"],
+    saveLabels: { ifc: tr("v_revit.ifc_solo_dati"), png: tr("v_revit.anteprima_incorporata"), txt: tr("v_revit.informazioni_testo"), json: tr("v_revit.informazioni_json") },
     async save(target) { await api("fx", { op: "revit_export", path: ctx.path }, { json: { out: target } }); return { switchTo: false }; },
   };
 }

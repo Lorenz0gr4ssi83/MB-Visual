@@ -1417,7 +1417,7 @@
    "name": "Autodesk Revit",
    "viewer": "revit",
    "view": "Anteprima incorporata nel file e informazioni senza Revit: versione e build di Revit, file centrale/locale, condivisione, autore, percorso del modello centrale, identificativi; per le famiglie categoria, tipi e parametri dichiarati",
-   "edit": "Esportazione dell'anteprima in PNG e delle informazioni in TXT/JSON",
+   "edit": "Esportazione dell'anteprima in PNG, delle informazioni in TXT/JSON e, per le famiglie, IFC con i soli dati (tipi e parametri, senza geometria)",
    "exts": [
     "rvt",
     "rfa",

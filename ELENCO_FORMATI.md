@@ -309,7 +309,7 @@ Nell'app lo stesso elenco e' consultabile dal pulsante **Formati**, con la ricer
 ## Autodesk Revit (4)
 
 - **Visualizza:** Anteprima incorporata nel file e informazioni senza Revit: versione e build di Revit, file centrale/locale, condivisione, autore, percorso del modello centrale, identificativi; per le famiglie categoria, tipi e parametri dichiarati
-- **Modifica:** Esportazione dell'anteprima in PNG e delle informazioni in TXT/JSON
+- **Modifica:** Esportazione dell'anteprima in PNG, delle informazioni in TXT/JSON e, per le famiglie, IFC con i soli dati (tipi e parametri, senza geometria)
 
 `.rfa` `.rft` `.rte` `.rvt`
 
