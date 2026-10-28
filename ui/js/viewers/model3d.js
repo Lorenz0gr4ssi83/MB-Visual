@@ -1046,6 +1046,7 @@ export async function mount(ctx) {
         if (r.ok && r.job) {
           const rep = await waitJob(r.job, (p, m) => ctx.status(m || tr("v_model3d.ifc_step_corso", Math.round(p * 100))));
           ctx.status(tr("v_model3d.ifc_step_fatto", rep.convertiti, rep.attesi));
+          if (rep.approssimati?.length) toast(tr("v_model3d.ifc_step_approssimati", rep.approssimati.length, rep.approssimati.slice(0, 3).map(f => f.n || f.c).join(", ")), false, 8000);
           if (rep.falliti?.length) toast(tr("v_model3d.ifc_step_non_convertiti", rep.falliti.length, rep.falliti.slice(0, 3).map(f => f.n || f.c).join(", ")), true, 8000);
           return { switchTo: false };
         }

@@ -273,6 +273,7 @@ def _convert(src, out, work: Path, update, cancelled, t0) -> dict:
         "attesi": struct_info["attesi"], "convertiti": conv, "falliti": falliti,
         "facce_piane": sum(r.get("fac", 0) for r in results.values()), "superfici": sum(r.get("occ", 0) for r in results.values()),
         "mesh": sum(r.get("mesh", 0) for r in results.values()), "ripiego": struct_info.get("ripiego", 0),
+        "approssimati": struct_info.get("approssimati", []),
         "solo_linee": struct_info.get("solo_linee", 0) + sum(r.get("linee", 0) for r in results.values()), "tempo": round(time.time() - t0, 1), "dimensione": os.path.getsize(out),
         "blocchi": total_chunks, "processi": nmax,
     })
@@ -764,6 +765,11 @@ def read_main(src: str, work: str) -> int:
                     ser = W.serialization(geo)  # testo B-rep solo per le geometrie nuove (le copie costano solo la posizione)
                     data = ser.brep_data
                     data = data.encode("utf-8") if isinstance(data, str) else bytes(data)
+                    if b"\nFa\n" not in data:
+                        # nessuna faccia: per un elemento con corpo 3D e' un calcolo fallito (es. sottrazione delle aperture
+                        # che non lascia nulla): si riprova nei ripieghi; senza corpo (linee, assi) si salta
+                        prodotti.discard(eid)
+                        return
                     meta = {**styles(ser), "att": eid in attesi, "n": nodes[eid]["n"], **(meta_extra or {})}
                     if gk not in geos_no and _rigid(m) and _planar_text(data):
                         gi = geos[gk] = len(geos)
@@ -800,7 +806,9 @@ def read_main(src: str, work: str) -> int:
     # curve non perfettamente unite: "Courbes non jointives"), solo alla fine senza sottrarre le aperture
     ripiego = 0
     tentativi = [({"precision-factor": 10.0}, "precisione"), ({"precision-factor": 1000.0}, "precisione"),
-                 ({"precision-factor": 1000.0, "disable-opening-subtractions": True}, "aperture")]
+                 ({"precision-factor": 1000.0, "disable-opening-subtractions": True}, "aperture"),
+                 ({"precision-factor": 1000.0, "disable-boolean-result": True}, "tagli")]
+    approssimati = []  # elementi convertiti senza aperture o senza tagli: nel rapporto
     for opts, tag in tentativi:
         mancanti = [attesi[i] for i in attesi if i not in prodotti]
         if not mancanti:
@@ -822,6 +830,8 @@ def read_main(src: str, work: str) -> int:
                 continue
             if sh is not None:
                 handle(sh, {"rip": tag})
+                if e.id() in prodotti and tag != "precisione":
+                    approssimati.append({"g": getattr(e, "GlobalId", ""), "n": str(getattr(e, "Name", "") or ""), "c": e.is_a(), "tipo": tag})
         ripiego += len(prodotti) - n0
     close_chunk()
     falliti = []
@@ -844,7 +854,7 @@ def read_main(src: str, work: str) -> int:
     parents = set(parent.values())
     info = {"schema": schema, "nodes": {str(k): v for k, v in nodes.items() if k in prodotti or k in parents or v["c"] == "IfcProject"},
             "attesi": len(attesi), "prodotti": len(prodotti), "falliti": falliti, "ripiego": ripiego, "solo_linee": solo_linee,
-            "istanze": inst, "geometrie": geo_names,
+            "istanze": inst, "geometrie": geo_names, "approssimati": approssimati,
             "nome": (proj[0].Name if proj and proj[0].Name else Path(src).stem)}
     sp = work_p / "struttura.json"
     sp.write_text(json.dumps(info), encoding="utf-8")

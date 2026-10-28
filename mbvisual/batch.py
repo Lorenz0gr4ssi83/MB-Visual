@@ -407,6 +407,9 @@ class Batch:
                     f = rep["falliti"]
                     msg += " - " + tr("srv_batch.ifc_step_non_convertiti", len(f), "; ".join(
                         f"{x.get('c', '')} {x.get('n') or x.get('g', '')}: {x.get('motivo', '')}" for x in f[:5]))
+                if rep.get("approssimati"):
+                    a = rep["approssimati"]
+                    msg += " - " + tr("srv_batch.ifc_step_approssimati", len(a), "; ".join(f"{x['c']} {x['n'] or x['g']}" for x in a[:5]))
                 return {"msg": msg}
         if fam == "model3d":
             self._client(it, "model3d", {"out": out, "to": to})
