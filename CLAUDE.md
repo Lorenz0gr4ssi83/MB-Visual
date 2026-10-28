@@ -940,6 +940,26 @@ e niente struttura; il lotto dipendeva dalla finestra (45 s / 30 min).
 - Campioni (fuori dal repo, %USERPROFILE%\.mbvisual\ifc-step-campioni): buildingSMART Sample-Test-Files Simple-Scene IFC2x3/4/4.3
   (CC BY 4.0) e copie dei modelli della commessa 1399 dell'utente (OneDrive 2.0Documenti\7_MODELLI BIM-IFC; solo prove locali).
 
+## Percorsi e nomi lunghi (28/10/2026) - REGOLA PER TUTTE LE SESSIONI
+Richiesta dell'utente: mai un avviso di "nome o percorso troppo lungo". Windows: percorsi oltre 260 caratteri falliscono se
+LongPathsEnabled (HKLM, richiede amministratore) e' spento, cioe' nel predefinito; un nome di file/cartella non supera MAI 255.
+- `mbvisual/longpath.py`, `install()` all'avvio di app.py e nei processi di lavoro (ifcstep, stepnative): open/io.open,
+  os.stat/listdir/scandir/walk/rename/replace/remove/mkdir/..., os.path.exists/isfile/isdir/getsize/realpath, subprocess
+  (argomenti percorso, anche "-o<percorso>" di 7-Zip) e, dopo l'import, PyMuPDF (Document/save), sqlite3.connect,
+  ifcopenshell.open ricevono la forma estesa \\?\ (\\?\UNC\ in rete) per i percorsi >= 240 caratteri; scandir/walk/realpath
+  restituiscono percorsi SENZA prefisso. Componenti oltre 255 caratteri: `safe_name` (radice + "~" + 8 cifre di sha1 +
+  estensione, 240 caratteri) applicato in modo deterministico dentro `lp()`, quindi chi scrive e chi rilegge con il nome lungo
+  trovano lo stesso file (anche i programmi esterni). Nomi in uscita prodotti dall'app: `safe_name` esplicito (lotto, allegati
+  della posta: prima perdevano l'estensione oltre 120 caratteri).
+- Nel codice nuovo: niente controlli di lunghezza ne' messaggi "troppo lungo"; per comporre un nome da un nome sorgente usare
+  `safe_name`; per mostrare un percorso `unlp`. Interfaccia: nomi lunghi con ellissi + title (schede, Esplora, recenti, barra
+  di stato), testi degli avvisi a capo ovunque (app.css).
+- Sondato (percorso 752 caratteri, nomi 250): Python, PyMuPDF, Pillow, ezdxf, 7-Zip, FFmpeg, IfcOpenShell, OCP, openpyxl.
+  Collaudo `python tests/test_longpath.py` (28 prove: cartella da 500 caratteri, nomi 250-325, lotto, conversione, recupero,
+  ricerca nel progetto, allegati della posta, IFC -> STEP); `python tests/con_longpath.py tests/test_x.py` = un altro collaudo
+  con l'aggancio attivo (recupero 95, formati 45, disegno 77, posta 73: nessuna regressione). Su questo PC LongPathsEnabled=1:
+  il caso "spento" e' coperto dalla forma estesa (non simulabile qui senza modificare il registro).
+
 ## Integrazione con Esplora risorse (22/10/2026)
 Miniature, riquadro di anteprima, "Apri con", icone dei tipi e "Apri con MB Visual" nel tasto destro, SOLO per l'utente (HKCU).
 - `tools/mbvshell/` DLL COM in C++ (MSVC, `build.cmd` -> `bin/shell/mbvshell-arm64.dll` e `-x64.dll`, si caricano quella

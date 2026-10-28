@@ -13,13 +13,15 @@ from pathlib import Path
 
 from . import engine, parse
 from ..i18n import t
+from ..longpath import safe_name
 
 _BAD = re.compile(r'[\\/:*?"<>|\r\n\t]+')
 
 
 def safe(name: str, n=80) -> str:
     name = _BAD.sub("_", name or "").strip(" .")
-    return name[:n].rstrip(" .") or "senza_oggetto"
+    # accorciato conservando l'estensione (prima un allegato "nome lunghissimo.pdf" perdeva il ".pdf")
+    return (safe_name(name, n) if len(name) > n else name).rstrip(" .") or "senza_oggetto"
 
 
 def all_() -> list:

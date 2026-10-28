@@ -136,6 +136,31 @@ def main():
     print("  lotto:", [(it["status"], [len(os.path.basename(o)) for o in it["out"]]) for it in items])
     from mbvisual import recover
     step("recupero: controllo", lambda: recover.handle("check", {"path": F["pdf"]}, lambda k: None) is not None if hasattr(recover, "handle") else True)
+    # ricerca nel progetto: indice della cartella lunga e ricerca di una parola del PDF
+    from mbvisual import search
+    def cerca():
+        search.update(str(base))
+        for _ in range(600):
+            st = search.status(str(base))
+            if st.get("fase") in ("pronto", "errore"):
+                break
+            time.sleep(0.5)
+        r = search.search(str(base), "documento")  # parola nei nomi dei file
+        return (len(r.get("files") or []) >= 5 and st.get("stati")) or (st, r)
+    step("ricerca nel progetto", cerca)
+    # posta: allegato con nome lunghissimo salvato nella cartella lunga
+    from email.message import EmailMessage
+    from mbvisual.mail import commesse
+    def allegati():
+        msg = EmailMessage()
+        msg["Subject"], msg["From"], msg["To"] = "prova", "a@b.it", "c@d.it"
+        msg.set_content("ciao")
+        msg.add_attachment(b"%PDF-1.4 prova", maintype="application", subtype="pdf", filename="allegato_" + "q" * 280 + ".pdf")
+        out = Path(d) / ("posta_" + "p" * 150)
+        out.mkdir(exist_ok=True)
+        saved = commesse.save_attachments(msg.as_bytes(), out)
+        return len(saved) == 1 and (out / saved[0]).exists() and saved[0].endswith(".pdf")
+    step("posta: allegato con nome lungo", allegati)
     from mbvisual import ifcstep
     if ifcstep.available():
         step("IFC -> STEP", lambda: ifcstep.convert(F["ifc"], L.safe_path(F["ifc"][:-4] + ".convertito.stp"))["convertiti"] > 0)
