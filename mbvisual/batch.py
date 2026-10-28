@@ -25,6 +25,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import convert
+from .longpath import safe_name
 from .paths import NO_WINDOW, TEMP_DIR
 from .i18n import t as tr
 
@@ -310,13 +311,13 @@ class Batch:
         folder = src.parent if self.mode == "accanto" else Path(self.dest) / Path(it["rel"]).parent
         folder.mkdir(parents=True, exist_ok=True)
         stem = src.stem + self.suffix
-        out = folder / f"{stem}.{ext}"
+        out = folder / safe_name(f"{stem}.{ext}")  # nomi oltre il limite di Windows accorciati, mai un errore
         if out.resolve() == src.resolve():  # mai sopra l'originale
-            out = folder / f"{stem}{tag or ' (convertito)'}.{ext}"
+            out = folder / safe_name(f"{stem}{tag or ' (convertito)'}.{ext}")
         if str(out).lower() in self.used_outputs or (out.exists() and self.collision == "rinomina"):
             n = 1
             while True:
-                cand = folder / f"{out.stem} ({n}){out.suffix}"
+                cand = folder / safe_name(f"{out.stem} ({n}){out.suffix}")
                 if not cand.exists() and str(cand).lower() not in self.used_outputs:
                     out = cand
                     break

@@ -791,3 +791,7 @@ iframe.fill, canvas.fill, video.fill { width: 100%; height: 100%; border: 0; dis
 .mqr-big-txt { display: grid; gap: 6px; font-size: 13px; color: var(--fg); }
 .mqr-big-txt .note { color: var(--muted); font-size: 12px; }
 @media (max-width: 760px) { .mqr { display: none; } }
+
+/* percorsi e nomi lunghi (oltre 260 caratteri): mai fuori dal riquadro; nei testi lunghi si va a capo ovunque */
+.toast, .modal, .modal p, .modal-back .msg { overflow-wrap: anywhere; }
+.tab .name, .ex-item .nm, .menu .rec .nm, .menu .rec .pt { min-width: 0; }

@@ -156,6 +156,7 @@ function updateStatus() {
   const t = active;
   const virt = t && (t.path.startsWith("web://") || t.path.startsWith("mail://"));
   $("st-path").textContent = t ? (virt ? t.info?.nome || t.name : t.path) : tr("app.pronto");
+  $("st-path").title = t && !virt ? t.path : ""; // percorsi lunghi: completi al passaggio del mouse
   $("st-type").textContent = t ? VIEWER_NAMES[t.viewer] + (t.info?.sniff?.descr ? " · " + t.info.sniff.descr : "") : "";
   $("st-size").textContent = t && !t.path.startsWith("mail://") ? fmtSize(t.info?.size) : "";
   $("st-extra").textContent = t?.extra || "";

@@ -25,6 +25,9 @@ elif sys.platform == "darwin" and getattr(sys, "frozen", False) and not sys.stde
 
 VERSION = "1.6.11"
 
+# percorsi e nomi lunghi (oltre 260 caratteri) in tutto il processo, anche nei processi di lavoro avviati dall'app
+from mbvisual import longpath  # noqa: E402
+longpath.install()
 # integrazione con Esplora risorse (mbvisual/shellint.py, mbvisual/miniature.py): nessuna finestra, prima degli import pesanti
 if __name__ == "__main__" and "--miniatura" in sys.argv:
     from mbvisual import miniature

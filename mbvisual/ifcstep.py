@@ -746,6 +746,36 @@ def read_main(src: str, work: str) -> int:
             cols.append(None if (len(c) < 4 or c[0] < 0) else [round(x, 4) for x in c])
         return {"ids": [uq.index(i) for i in ids], "cols": cols}
 
+    def handle(sh, meta_extra=None):
+        try:
+            eid = int(sh.id)
+            geo = sh.geometry
+            if eid not in prodotti:
+                prodotti.add(eid)
+                node(f.by_id(eid))
+                if eid in parent:
+                    nodes[eid]["p"] = parent[eid]
+                m = list(sh.transformation.matrix)  # 4x4 per colonne, metri: posizione dell'elemento
+                gk = geo.id
+                gi = geos.get(gk)
+                if gi is not None and _rigid(m):  # geometria gia' scritta: solo la posizione (MAPPED_ITEM)
+                    inst.append([eid, gi, m])
+                else:
+                    ser = W.serialization(geo)  # testo B-rep solo per le geometrie nuove (le copie costano solo la posizione)
+                    data = ser.brep_data
+                    data = data.encode("utf-8") if isinstance(data, str) else bytes(data)
+                    meta = {**styles(ser), "att": eid in attesi, "n": nodes[eid]["n"], **(meta_extra or {})}
+                    if gk not in geos_no and _rigid(m) and _planar_text(data):
+                        gi = geos[gk] = len(geos)
+                        geo_names.append(nodes[eid]["n"] or nodes[eid]["c"])
+                        put(gi, 3, meta, data)
+                        inst.append([eid, gi, m])
+                    else:  # superfici curve o posizione con scala/specchio: forma propria (il processo la posiziona)
+                        geos_no.add(gk)
+                        put(eid, 0, {**meta, "m": m}, data)
+        except Exception as e:  # noqa: BLE001
+            sys.stderr.write(f"elemento saltato: {e}\n")
+
     def run(settings, include=None, threads=None, frac=(0.05, 0.95), meta_extra=None):
         kw = {"exclude": tuple(excl)} if include is None else {"include": include}
         it = geom.iterator(settings, f, threads or multiprocessing.cpu_count(), **kw)
@@ -753,35 +783,7 @@ def read_main(src: str, work: str) -> int:
             return
         last = time.time()
         while True:
-            sh = it.get()
-            try:
-                eid = int(sh.id)
-                geo = sh.geometry
-                if eid not in prodotti:
-                    prodotti.add(eid)
-                    node(f.by_id(eid))
-                    if eid in parent:
-                        nodes[eid]["p"] = parent[eid]
-                    m = list(sh.transformation.matrix)  # 4x4 per colonne, metri: posizione dell'elemento
-                    gk = geo.id
-                    gi = geos.get(gk)
-                    if gi is not None and _rigid(m):  # geometria gia' scritta: solo la posizione (MAPPED_ITEM)
-                        inst.append([eid, gi, m])
-                    else:
-                        ser = W.serialization(geo)  # testo B-rep solo per le geometrie nuove (le copie costano solo la posizione)
-                        data = ser.brep_data
-                        data = data.encode("utf-8") if isinstance(data, str) else bytes(data)
-                        meta = {**styles(ser), "att": eid in attesi, "n": nodes[eid]["n"], **(meta_extra or {})}
-                        if gk not in geos_no and _rigid(m) and _planar_text(data):
-                            gi = geos[gk] = len(geos)
-                            geo_names.append(nodes[eid]["n"] or nodes[eid]["c"])
-                            put(gi, 3, meta, data)
-                            inst.append([eid, gi, m])
-                        else:  # superfici curve o posizione con scala/specchio: forma propria (il processo la posiziona)
-                            geos_no.add(gk)
-                            put(eid, 0, {**meta, "m": m}, data)
-            except Exception as e:  # noqa: BLE001
-                sys.stderr.write(f"elemento saltato: {e}\n")
+            handle(it.get(), meta_extra)
             if time.time() - last > 0.5:
                 last = time.time()
                 _out("p", f"{frac[0] + (frac[1] - frac[0]) * it.progress() / 100:.4f}")
@@ -794,25 +796,32 @@ def read_main(src: str, work: str) -> int:
     s.set("apply-default-materials", True)
     run(s)
     # ---------------------------------------------------------------- ripieghi per gli elementi non calcolati
-    mancanti = [attesi[i] for i in attesi if i not in prodotti]
+    # ripieghi per gli elementi non calcolati: uno alla volta, prima CON le aperture e tolleranza crescente (profili con
+    # curve non perfettamente unite: "Courbes non jointives"), solo alla fine senza sottrarre le aperture
     ripiego = 0
-    if mancanti:
-        n0 = len(prodotti)
+    tentativi = [({"precision-factor": 10.0}, "precisione"), ({"precision-factor": 1000.0}, "precisione"),
+                 ({"precision-factor": 1000.0, "disable-opening-subtractions": True}, "aperture")]
+    for opts, tag in tentativi:
+        mancanti = [attesi[i] for i in attesi if i not in prodotti]
+        if not mancanti:
+            break
         s2 = geom.settings()
         s2.set("iterator-output", W.NATIVE)
         s2.set("use-world-coords", False)
         s2.set("apply-default-materials", True)
-        s2.set("disable-opening-subtractions", True)
-        run(s2, include=mancanti, frac=(0.95, 0.97), meta_extra={"rip": "aperture"})
-        ripiego += len(prodotti) - n0
-    mancanti = [attesi[i] for i in attesi if i not in prodotti]
-    if mancanti:  # uno alla volta: un elemento difettoso non blocca gli altri
+        for k, v in opts.items():
+            try:
+                s2.set(k, v)
+            except Exception:  # noqa: BLE001
+                pass
         n0 = len(prodotti)
         for e in mancanti:
             try:
-                run(s2, include=[e], threads=1, frac=(0.97, 0.98), meta_extra={"rip": "singolo"})
+                sh = geom.create_shape(s2, e)
             except Exception:  # noqa: BLE001
-                pass
+                continue
+            if sh is not None:
+                handle(sh, {"rip": tag})
         ripiego += len(prodotti) - n0
     close_chunk()
     falliti = []
@@ -1314,6 +1323,8 @@ def write_main() -> int:
 
 
 def cli(argv: list[str]) -> int:
+    from . import longpath
+    longpath.install()  # percorsi lunghi anche nel processo di lavoro
     args = [a for a in argv[1:] if a != "--ifcstep"]
     if not args:
         return 2
