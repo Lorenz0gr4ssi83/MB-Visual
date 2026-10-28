@@ -1376,6 +1376,11 @@ Solo app per PC. Il risultato si apre subito nell'editor CAD. DWG solo con ODA F
   * OCR: parole scartate se cifre e lettere si mescolano in modo sospetto (I/1, l/1, O/0, "I/"), se fatte solo di aste, se la
     forma (Dice con Arial, 2 px) e' sotto 0,5 (0,85 per una lettera); allora restano le linee visibili. Paragrafi SHX con il
     commento inaffidabile: niente OCR (restano i tratti), salvo drawn_text = "on".
+  * Puntini (segmenti di lunghezza zero con estremita' tonde/quadre, retini "calcestruzzo") -> dischi/quadrati pieni grandi quanto
+    lo spessore. Lettere piene con testo nascosto di corpo diverso -> misurate sulle lettere. PNG delle immagini a compressione 1.
+  * Risultato 28/10/2026 su 25 pagine (tabella in side-session-notes .../schermate-pdf-dwg-100): geometria media 99,99% ritrovata /
+    99,93% senza aggiunte (prima 50%/51%), 16 pagine >= 99,99%; sotto il 99,9% restano 6 pagine (99,28%-99,89%): bordi tra foto
+    affiancate, tratteggi irregolari di Civil 3D, piccoli simboli. SHX: lettere dei timbri circolari e lettere singole restano tratti.
 ## Posta elettronica in stile Outlook (22/10/2026) - FATTO (tappe 1-4; account veri da provare con l'utente)
 Scheda "Posta" (pulsante busta nella barra laterale, `MB.openMail()`; percorso virtuale `mail://posta`, i messaggi nuovi
 `mail://scrivi/<n>` con il visualizzatore `mailcompose`). Solo app per PC. Guida utente: `ui/guide/posta.md`.
