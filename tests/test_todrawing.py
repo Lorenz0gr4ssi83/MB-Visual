@@ -465,8 +465,12 @@ def test_tavole(work):
     check("testo SHX dal commento di AutoCAD -> TEXT", len(shxt) == 1)
     if shxt:
         t = shxt[0]
-        check("testo SHX: posizione e altezza misurate sui tratti", near(t.dxf.insert, (100 * mm, 300 * mm), 0.15) and abs(t.dxf.height - 10 * mm) < 0.1,
-              f"{tuple(round(v, 2) for v in t.dxf.insert)} h {t.dxf.height:.2f}")
+        st = dd.styles.get(t.dxf.style)
+        romans = st is not None and str(st.dxf.font).lower() == "romans.shx"
+        # con romans.shx il punto di inserimento e' l'origine del primo carattere (4/21 dell'altezza prima dell'inchiostro di "H")
+        x_exp = 100 * mm - (4 / 21 * t.dxf.height * (t.dxf.width or 1) if romans else 0)
+        check("testo SHX: posizione e altezza misurate sui tratti", near(t.dxf.insert, (x_exp, 300 * mm), 0.15) and abs(t.dxf.height - 10 * mm) < 0.25,
+              f"{tuple(round(v, 2) for v in t.dxf.insert)} h {t.dxf.height:.2f} romans {romans}")
     left = [ln for ln in L if 99 * mm < ln.dxf.start[0] < 111 * mm and 299 * mm < ln.dxf.start[1] < 311 * mm]
     check("tratti del testo SHX tolti", not left, str(len(left)))
     imgs = [e for e in ents if e.dxftype() == "IMAGE"]
