@@ -415,7 +415,7 @@ async function runTask(R, task) {
     console.error(e);
     result = { errore: e.message || String(e) };
   } finally {
-    const body = JSON.stringify({ id: R.id, seq: task.seq, result }, (k, v) => (typeof v === "bigint" ? Number(v) : k === "xdata" || k === "thumbnailImage" ? undefined : ArrayBuffer.isView(v) ? Array.from(v) : v));
+    const body = JSON.stringify({ id: R.id, seq: task.seq, result }, (k, v) => (typeof v === "bigint" ? Number(v) : k === "xdata" || k === "thumbnailImage" || k === "acis" ? undefined : ArrayBuffer.isView(v) ? Array.from(v) : v));
     for (let i = 0; i < 3; i++) { // il motore aspetta questa risposta: qualche nuovo tentativo se la rete locale si interrompe
       try { if ((await api("batch", { op: "client", id: R.id }, { body, allowFail: true })).ok !== undefined) break; } catch (e) { console.error(e); await sleep(1000); }
     }

@@ -1400,6 +1400,38 @@ Web app (app per cellulari sul server delle licenze) finalizzata per tablet 768-
 Modulo eliminato su richiesta dell'utente ("non serve a nulla"): edilizia.py, viewers/pratica.js, modelli .mbm, formato .mbcomm,
 componente "pratiche", pulsante della barra laterale e chiavi pratiche.*/srv_edilizia.*. Si recupera dalla cronologia git se servisse.
 
+## Vista 3D dei DWG/DXF (28/10/2026) - FATTO (da provare sui file veri dell'utente)
+Segnalazione dell'utente: "un DWG 3D si apre in 2D". Pulsante "3D"/"2D" sempre in testa alla barra del visualizzatore CAD
+(`cad2d.js`: `show3d`/`show2d`, model3d.js montato con `preloaded`, come i modelli 3D dei DWF). `ui/js/cad3dscan.js analyze3d`
+(senza three.js): se almeno un terzo delle entita' disegnabili sono solidi/mesh/facce/oggetti con spessore il disegno si apre
+direttamente in 3D, altrimenti con contenuto 3D compare un avviso. Disegni 2D: geometria 2D identica a prima (verificata con
+l'impronta di tutti i tratti su 9 DWG/DXF); polyface/MESH/polygon mesh ora si vedono a fil di ferro anche in 2D.
+- `ui/js/cad3d.js loadCad3d`: un gruppo per layer (layer spenti nascosti), lotti per colore (linee/facce), blocchi come modelli
+  condivisi per blocco+eredita' DaBlocco/layer 0, matrici 3D degli INSERT (scala Z, OCS/estrusione, serie MINSERT), OCS con
+  l'algoritmo dell'asse arbitrario, spessore (pareti; cerchi = cilindri chiusi), elevazione, 3DFACE, SOLID/TRACE, PFACE, PMESH
+  (chiusure M/N), MESH (solo gabbia, senza levigatura), spline 3D. Testi/quote/retini NON nella vista 3D. Spigoli e linee con
+  lo spostamento verso la camera nello shader (depth buffer logaritmico: polygonOffset inutile). Coordinate > 100 km: origine
+  spostata al centro del disegno.
+- Solidi, regioni, corpi e superfici ACIS -> `api/cad3d` (job, `mbvisual/cad3d.py`, cache in TEMP_DIR/cad3d) -> STEP per
+  entita' con `acis_step.Converter` (unita' ACIS ignorata: coordinate nelle unita' del disegno) -> OpenCascade (pool di
+  inventor3d.js). Solo app per PC (nella web app: avviso). Da dove arrivano i dati:
+  DWG 2000/2004 = SAT testo (libredwg, `dwg3dEntities` in cad2d.js li copia prima di dwg_free); DWG 2007-2010 = SAB
+  nell'entita'; DWG 2013+ (AC1027/AC1032) = sezione "AcDb:AcDsPrototype_1b" letta da `mbvisual/dwgacds.py` (scritto da zero:
+  intestazione cifrata, mappa pagine/sezioni, LZ77 2004+; segmento `_data_` = voci 20 byte [0x14, 1, handle 64 bit, posizione]
+  + dati allineati a 16 byte con lunghezza davanti). ATTENZIONE: libredwg nei 2013 abbina i dati ACIS agli oggetti SBAGLIATI e
+  nei 2018 non li trova: per i DWG 2013+ vale solo dwgacds. DXF fino al 2010 = codici 1/3 cifrati (`decodeSat` in dxf.js);
+  DXF 2013+ = sezione ACDSDATA (320 handle, 310 esadecimale). `acis.parse_sat` = SAT testo -> stessi record del binario
+  (parole a due valori -> TRUE/FALSE, vettori raggruppati per i record geometrici, chiusure/singolarita' delle B-spline).
+- libredwg-web non converte REGION/BODY/superfici/MESH/polyface/polygon mesh: `dwg3dEntities` li legge con l'API dinamica
+  (vertind delle facce polyface a tio+6 come 4 int16; MESH: vertex = double, faces = lista uint32 [n, i...]).
+- Collaudo: `python tools/make_cad3d_samples.py` (ezdxf, venv) -> tests/samples/cad3d, poi `node tests/test_cad3d.mjs
+  [cartella con ui/vendor]` (32 prove: lettura DXF R2000/R2018, riconoscimento, STEP, triangolazione, ingombro). File veri
+  (fuori dal repo, %USERPROFILE%\.mbvisual\dwg3d-campioni): campioni Autodesk "visualization_-_*.dwg" (download.autodesk.com/us/
+  samplefiles/acad), ACadSharp samples (MIT) sample_AC1015/1027/1032 .dwg/.dxf, LibreDWG test-data example_2000/2013/2018.dwg
+  (solo prova locale). 103 solidi su 103 convertiti, 1211 facce su 1225 (mancano blend_int_cur, off_surf_int_cur, VBL_SURF).
+- Licenza: libredwg-web e' GPL-3.0 (gia' usato prima di questo lavoro); qui solo la stessa libreria con le sue API, nessun
+  codice copiato. Da valutare con l'utente (vedi resoconto).
+
 ## Misure ed estrazioni di quantita' (22/10/2026) - FATTO (da provare sui file veri dell'utente)
 Pannello "Misure" UNICO per PDF, disegni CAD (DWG/DXF), fogli DWF/DWFx e modelli 3D/BIM (stile Bluebeam Revu Measurements /
 Quantity Takeoff). Pulsante "Misure" nella barra di ogni visualizzatore; moduli in `ui/js/measure/`, stile `ui/css/measure.css`.

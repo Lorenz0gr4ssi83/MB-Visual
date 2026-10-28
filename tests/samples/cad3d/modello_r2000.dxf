@@ -1,0 +1,6884 @@
+  0
+SECTION
+  2
+HEADER
+  9
+$ACADVER
+  1
+AC1015
+  9
+$ACADMAINTVER
+ 70
+6
+  9
+$DWGCODEPAGE
+  3
+ANSI_1252
+  9
+$INSBASE
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$EXTMIN
+ 10
+1e+20
+ 20
+1e+20
+ 30
+1e+20
+  9
+$EXTMAX
+ 10
+-1e+20
+ 20
+-1e+20
+ 30
+-1e+20
+  9
+$LIMMIN
+ 10
+0.0
+ 20
+0.0
+  9
+$LIMMAX
+ 10
+420.0
+ 20
+297.0
+  9
+$ORTHOMODE
+ 70
+0
+  9
+$REGENMODE
+ 70
+1
+  9
+$FILLMODE
+ 70
+1
+  9
+$QTEXTMODE
+ 70
+0
+  9
+$MIRRTEXT
+ 70
+1
+  9
+$LTSCALE
+ 40
+1.0
+  9
+$ATTMODE
+ 70
+1
+  9
+$TEXTSIZE
+ 40
+2.5
+  9
+$TRACEWID
+ 40
+1.0
+  9
+$TEXTSTYLE
+  7
+Standard
+  9
+$CLAYER
+  8
+0
+  9
+$CELTYPE
+  6
+ByLayer
+  9
+$CECOLOR
+ 62
+256
+  9
+$CELTSCALE
+ 40
+1.0
+  9
+$DISPSILH
+ 70
+0
+  9
+$DIMSCALE
+ 40
+1.0
+  9
+$DIMASZ
+ 40
+2.5
+  9
+$DIMEXO
+ 40
+0.625
+  9
+$DIMDLI
+ 40
+3.75
+  9
+$DIMRND
+ 40
+0.0
+  9
+$DIMDLE
+ 40
+0.0
+  9
+$DIMEXE
+ 40
+1.25
+  9
+$DIMTP
+ 40
+0.0
+  9
+$DIMTM
+ 40
+0.0
+  9
+$DIMTXT
+ 40
+2.5
+  9
+$DIMCEN
+ 40
+2.5
+  9
+$DIMTSZ
+ 40
+0.0
+  9
+$DIMTOL
+ 70
+0
+  9
+$DIMLIM
+ 70
+0
+  9
+$DIMTIH
+ 70
+0
+  9
+$DIMTOH
+ 70
+0
+  9
+$DIMSE1
+ 70
+0
+  9
+$DIMSE2
+ 70
+0
+  9
+$DIMTAD
+ 70
+1
+  9
+$DIMZIN
+ 70
+8
+  9
+$DIMBLK
+  1
+
+  9
+$DIMASO
+ 70
+1
+  9
+$DIMSHO
+ 70
+1
+  9
+$DIMPOST
+  1
+
+  9
+$DIMAPOST
+  1
+
+  9
+$DIMALT
+ 70
+0
+  9
+$DIMALTD
+ 70
+3
+  9
+$DIMALTF
+ 40
+0.03937007874
+  9
+$DIMLFAC
+ 40
+1.0
+  9
+$DIMTOFL
+ 70
+1
+  9
+$DIMTVP
+ 40
+0.0
+  9
+$DIMTIX
+ 70
+0
+  9
+$DIMSOXD
+ 70
+0
+  9
+$DIMSAH
+ 70
+0
+  9
+$DIMBLK1
+  1
+
+  9
+$DIMBLK2
+  1
+
+  9
+$DIMSTYLE
+  2
+ISO-25
+  9
+$DIMCLRD
+ 70
+0
+  9
+$DIMCLRE
+ 70
+0
+  9
+$DIMCLRT
+ 70
+0
+  9
+$DIMTFAC
+ 40
+1.0
+  9
+$DIMGAP
+ 40
+0.625
+  9
+$DIMJUST
+ 70
+0
+  9
+$DIMSD1
+ 70
+0
+  9
+$DIMSD2
+ 70
+0
+  9
+$DIMTOLJ
+ 70
+0
+  9
+$DIMTZIN
+ 70
+8
+  9
+$DIMALTZ
+ 70
+0
+  9
+$DIMALTTZ
+ 70
+0
+  9
+$DIMUPT
+ 70
+0
+  9
+$DIMDEC
+ 70
+2
+  9
+$DIMTDEC
+ 70
+2
+  9
+$DIMALTU
+ 70
+2
+  9
+$DIMALTTD
+ 70
+3
+  9
+$DIMTXSTY
+  7
+Standard
+  9
+$DIMAUNIT
+ 70
+0
+  9
+$DIMADEC
+ 70
+0
+  9
+$DIMALTRND
+ 40
+0.0
+  9
+$DIMAZIN
+ 70
+0
+  9
+$DIMDSEP
+ 70
+44
+  9
+$DIMATFIT
+ 70
+3
+  9
+$DIMFRAC
+ 70
+0
+  9
+$DIMLDRBLK
+  1
+
+  9
+$DIMLUNIT
+ 70
+2
+  9
+$DIMLWD
+ 70
+-2
+  9
+$DIMLWE
+ 70
+-2
+  9
+$DIMTMOVE
+ 70
+0
+  9
+$LUNITS
+ 70
+2
+  9
+$LUPREC
+ 70
+4
+  9
+$SKETCHINC
+ 40
+1.0
+  9
+$FILLETRAD
+ 40
+10.0
+  9
+$AUNITS
+ 70
+0
+  9
+$AUPREC
+ 70
+2
+  9
+$MENU
+  1
+.
+  9
+$ELEVATION
+ 40
+0.0
+  9
+$PELEVATION
+ 40
+0.0
+  9
+$THICKNESS
+ 40
+0.0
+  9
+$LIMCHECK
+ 70
+0
+  9
+$CHAMFERA
+ 40
+0.0
+  9
+$CHAMFERB
+ 40
+0.0
+  9
+$CHAMFERC
+ 40
+0.0
+  9
+$CHAMFERD
+ 40
+0.0
+  9
+$SKPOLY
+ 70
+0
+  9
+$TDCREATE
+ 40
+2461342.466261574
+  9
+$TDUCREATE
+ 40
+2458532.153996898
+  9
+$TDUPDATE
+ 40
+2461342.466261574
+  9
+$TDUUPDATE
+ 40
+2458532.1544311
+  9
+$TDINDWG
+ 40
+0.0
+  9
+$TDUSRTIMER
+ 40
+0.0
+  9
+$USRTIMER
+ 70
+1
+  9
+$ANGBASE
+ 50
+0.0
+  9
+$ANGDIR
+ 70
+0
+  9
+$PDMODE
+ 70
+0
+  9
+$PDSIZE
+ 40
+0.0
+  9
+$PLINEWID
+ 40
+0.0
+  9
+$SPLFRAME
+ 70
+0
+  9
+$SPLINETYPE
+ 70
+6
+  9
+$SPLINESEGS
+ 70
+8
+  9
+$HANDSEED
+  5
+F8
+  9
+$SURFTAB1
+ 70
+6
+  9
+$SURFTAB2
+ 70
+6
+  9
+$SURFTYPE
+ 70
+6
+  9
+$SURFU
+ 70
+6
+  9
+$SURFV
+ 70
+6
+  9
+$UCSBASE
+  2
+
+  9
+$UCSNAME
+  2
+
+  9
+$UCSORG
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$UCSXDIR
+ 10
+1.0
+ 20
+0.0
+ 30
+0.0
+  9
+$UCSYDIR
+ 10
+0.0
+ 20
+1.0
+ 30
+0.0
+  9
+$UCSORTHOREF
+  2
+
+  9
+$UCSORTHOVIEW
+ 70
+0
+  9
+$UCSORGTOP
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$UCSORGBOTTOM
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$UCSORGLEFT
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$UCSORGRIGHT
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$UCSORGFRONT
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$UCSORGBACK
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$PUCSBASE
+  2
+
+  9
+$PUCSNAME
+  2
+
+  9
+$PUCSORG
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$PUCSXDIR
+ 10
+1.0
+ 20
+0.0
+ 30
+0.0
+  9
+$PUCSYDIR
+ 10
+0.0
+ 20
+1.0
+ 30
+0.0
+  9
+$PUCSORTHOREF
+  2
+
+  9
+$PUCSORTHOVIEW
+ 70
+0
+  9
+$PUCSORGTOP
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$PUCSORGBOTTOM
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$PUCSORGLEFT
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$PUCSORGRIGHT
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$PUCSORGFRONT
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$PUCSORGBACK
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$USERI1
+ 70
+0
+  9
+$USERI2
+ 70
+0
+  9
+$USERI3
+ 70
+0
+  9
+$USERI4
+ 70
+0
+  9
+$USERI5
+ 70
+0
+  9
+$USERR1
+ 40
+0.0
+  9
+$USERR2
+ 40
+0.0
+  9
+$USERR3
+ 40
+0.0
+  9
+$USERR4
+ 40
+0.0
+  9
+$USERR5
+ 40
+0.0
+  9
+$WORLDVIEW
+ 70
+1
+  9
+$SHADEDGE
+ 70
+3
+  9
+$SHADEDIF
+ 70
+70
+  9
+$TILEMODE
+ 70
+1
+  9
+$MAXACTVP
+ 70
+64
+  9
+$PINSBASE
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  9
+$PLIMCHECK
+ 70
+0
+  9
+$PEXTMIN
+ 10
+1e+20
+ 20
+1e+20
+ 30
+1e+20
+  9
+$PEXTMAX
+ 10
+-1e+20
+ 20
+-1e+20
+ 30
+-1e+20
+  9
+$PLIMMIN
+ 10
+0.0
+ 20
+0.0
+  9
+$PLIMMAX
+ 10
+420.0
+ 20
+297.0
+  9
+$UNITMODE
+ 70
+0
+  9
+$VISRETAIN
+ 70
+1
+  9
+$PLINEGEN
+ 70
+0
+  9
+$PSLTSCALE
+ 70
+1
+  9
+$TREEDEPTH
+ 70
+3020
+  9
+$CMLSTYLE
+  2
+Standard
+  9
+$CMLJUST
+ 70
+0
+  9
+$CMLSCALE
+ 40
+20.0
+  9
+$PROXYGRAPHICS
+ 70
+1
+  9
+$MEASUREMENT
+ 70
+1
+  9
+$CELWEIGHT
+370
+-1
+  9
+$ENDCAPS
+280
+0
+  9
+$JOINSTYLE
+280
+0
+  9
+$LWDISPLAY
+290
+0
+  9
+$INSUNITS
+ 70
+6
+  9
+$HYPERLINKBASE
+  1
+
+  9
+$STYLESHEET
+  1
+
+  9
+$XEDIT
+290
+1
+  9
+$CEPSNTYPE
+380
+0
+  9
+$PSTYLEMODE
+290
+1
+  9
+$FINGERPRINTGUID
+  2
+{8C245E2A-2E31-40E2-952E-CBD9D9002E49}
+  9
+$VERSIONGUID
+  2
+{8E8E0556-66CA-49DA-AE7B-CAB93BA278EF}
+  9
+$EXTNAMES
+290
+1
+  9
+$PSVPSCALE
+ 40
+0.0
+  9
+$OLESTARTUP
+290
+0
+  0
+ENDSEC
+  0
+SECTION
+  2
+CLASSES
+  0
+CLASS
+  1
+ACDBDICTIONARYWDFLT
+  2
+AcDbDictionaryWithDefault
+  3
+ObjectDBX Classes
+ 90
+0
+280
+0
+281
+0
+  0
+CLASS
+  1
+SUN
+  2
+AcDbSun
+  3
+SCENEOE
+ 90
+1153
+280
+0
+281
+0
+  0
+CLASS
+  1
+VISUALSTYLE
+  2
+AcDbVisualStyle
+  3
+ObjectDBX Classes
+ 90
+4095
+280
+0
+281
+0
+  0
+CLASS
+  1
+MATERIAL
+  2
+AcDbMaterial
+  3
+ObjectDBX Classes
+ 90
+1153
+280
+0
+281
+0
+  0
+CLASS
+  1
+SCALE
+  2
+AcDbScale
+  3
+ObjectDBX Classes
+ 90
+1153
+280
+0
+281
+0
+  0
+CLASS
+  1
+TABLESTYLE
+  2
+AcDbTableStyle
+  3
+ObjectDBX Classes
+ 90
+4095
+280
+0
+281
+0
+  0
+CLASS
+  1
+MLEADERSTYLE
+  2
+AcDbMLeaderStyle
+  3
+ACDB_MLEADERSTYLE_CLASS
+ 90
+4095
+280
+0
+281
+0
+  0
+CLASS
+  1
+DICTIONARYVAR
+  2
+AcDbDictionaryVar
+  3
+ObjectDBX Classes
+ 90
+0
+280
+0
+281
+0
+  0
+CLASS
+  1
+CELLSTYLEMAP
+  2
+AcDbCellStyleMap
+  3
+ObjectDBX Classes
+ 90
+1152
+280
+0
+281
+0
+  0
+CLASS
+  1
+MENTALRAYRENDERSETTINGS
+  2
+AcDbMentalRayRenderSettings
+  3
+SCENEOE
+ 90
+1024
+280
+0
+281
+0
+  0
+CLASS
+  1
+ACDBDETAILVIEWSTYLE
+  2
+AcDbDetailViewStyle
+  3
+ObjectDBX Classes
+ 90
+1025
+280
+0
+281
+0
+  0
+CLASS
+  1
+ACDBSECTIONVIEWSTYLE
+  2
+AcDbSectionViewStyle
+  3
+ObjectDBX Classes
+ 90
+1025
+280
+0
+281
+0
+  0
+CLASS
+  1
+RASTERVARIABLES
+  2
+AcDbRasterVariables
+  3
+ISM
+ 90
+0
+280
+0
+281
+0
+  0
+CLASS
+  1
+ACDBPLACEHOLDER
+  2
+AcDbPlaceHolder
+  3
+ObjectDBX Classes
+ 90
+0
+280
+0
+281
+0
+  0
+CLASS
+  1
+LAYOUT
+  2
+AcDbLayout
+  3
+ObjectDBX Classes
+ 90
+0
+280
+0
+281
+0
+  0
+ENDSEC
+  0
+SECTION
+  2
+TABLES
+  0
+TABLE
+  2
+VPORT
+  5
+8
+330
+0
+100
+AcDbSymbolTable
+ 70
+1
+  0
+VPORT
+  5
+23
+330
+8
+100
+AcDbSymbolTableRecord
+100
+AcDbViewportTableRecord
+  2
+*Active
+ 70
+0
+ 10
+0.0
+ 20
+0.0
+ 11
+1.0
+ 21
+1.0
+ 12
+0.0
+ 22
+0.0
+ 13
+0.0
+ 23
+0.0
+ 14
+0.5
+ 24
+0.5
+ 15
+0.5
+ 25
+0.5
+ 16
+0.0
+ 26
+0.0
+ 36
+1.0
+ 17
+0.0
+ 27
+0.0
+ 37
+0.0
+ 40
+1000.0
+ 41
+1.34
+ 42
+50.0
+ 43
+0.0
+ 44
+0.0
+ 50
+0.0
+ 51
+0.0
+ 71
+0
+ 72
+1000
+ 73
+1
+ 74
+3
+ 75
+0
+ 76
+0
+ 77
+0
+ 78
+0
+281
+0
+ 65
+0
+146
+0.0
+  0
+ENDTAB
+  0
+TABLE
+  2
+LTYPE
+  5
+2
+330
+0
+100
+AcDbSymbolTable
+ 70
+3
+  0
+LTYPE
+  5
+24
+330
+2
+100
+AcDbSymbolTableRecord
+100
+AcDbLinetypeTableRecord
+  2
+ByBlock
+ 70
+0
+  3
+
+ 72
+65
+ 73
+0
+ 40
+0.0
+  0
+LTYPE
+  5
+25
+330
+2
+100
+AcDbSymbolTableRecord
+100
+AcDbLinetypeTableRecord
+  2
+ByLayer
+ 70
+0
+  3
+
+ 72
+65
+ 73
+0
+ 40
+0.0
+  0
+LTYPE
+  5
+26
+330
+2
+100
+AcDbSymbolTableRecord
+100
+AcDbLinetypeTableRecord
+  2
+Continuous
+ 70
+0
+  3
+
+ 72
+65
+ 73
+0
+ 40
+0.0
+  0
+ENDTAB
+  0
+TABLE
+  2
+LAYER
+  5
+1
+330
+0
+100
+AcDbSymbolTable
+ 70
+7
+  0
+LAYER
+  5
+27
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+0
+ 70
+0
+ 62
+7
+  6
+Continuous
+370
+-3
+390
+13
+  0
+LAYER
+  5
+28
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+Defpoints
+ 70
+0
+ 62
+7
+  6
+Continuous
+290
+0
+370
+-3
+390
+13
+  0
+LAYER
+  5
+2F
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+SOLIDI
+ 70
+0
+ 62
+1
+  6
+Continuous
+370
+-3
+390
+13
+  0
+LAYER
+  5
+30
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+MESH
+ 70
+0
+ 62
+3
+  6
+Continuous
+370
+-3
+390
+13
+  0
+LAYER
+  5
+31
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+FACCE
+ 70
+0
+ 62
+5
+  6
+Continuous
+370
+-3
+390
+13
+  0
+LAYER
+  5
+32
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+SPESSORI
+ 70
+0
+ 62
+30
+  6
+Continuous
+370
+-3
+390
+13
+  0
+LAYER
+  5
+33
+330
+1
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+BLOCCHI
+ 70
+0
+ 62
+6
+  6
+Continuous
+370
+-3
+390
+13
+  0
+ENDTAB
+  0
+TABLE
+  2
+STYLE
+  5
+5
+330
+0
+100
+AcDbSymbolTable
+ 70
+1
+  0
+STYLE
+  5
+29
+330
+5
+100
+AcDbSymbolTableRecord
+100
+AcDbTextStyleTableRecord
+  2
+Standard
+ 70
+0
+ 40
+0.0
+ 41
+1.0
+ 50
+0.0
+ 71
+0
+ 42
+2.5
+  3
+txt
+  4
+
+  0
+ENDTAB
+  0
+TABLE
+  2
+VIEW
+  5
+7
+330
+0
+100
+AcDbSymbolTable
+ 70
+0
+  0
+ENDTAB
+  0
+TABLE
+  2
+UCS
+  5
+6
+330
+0
+100
+AcDbSymbolTable
+ 70
+0
+  0
+ENDTAB
+  0
+TABLE
+  2
+APPID
+  5
+3
+330
+0
+100
+AcDbSymbolTable
+ 70
+3
+  0
+APPID
+  5
+2A
+330
+3
+100
+AcDbSymbolTableRecord
+100
+AcDbRegAppTableRecord
+  2
+ACAD
+ 70
+0
+  0
+APPID
+  5
+F5
+330
+3
+100
+AcDbSymbolTableRecord
+100
+AcDbRegAppTableRecord
+  2
+HATCHBACKGROUNDCOLOR
+ 70
+0
+  0
+APPID
+  5
+F6
+330
+3
+100
+AcDbSymbolTableRecord
+100
+AcDbRegAppTableRecord
+  2
+EZDXF
+ 70
+0
+  0
+ENDTAB
+  0
+TABLE
+  2
+DIMSTYLE
+  5
+4
+330
+0
+100
+AcDbSymbolTable
+ 70
+1
+100
+AcDbDimStyleTable
+  0
+DIMSTYLE
+105
+2B
+330
+4
+100
+AcDbSymbolTableRecord
+100
+AcDbDimStyleTableRecord
+  2
+Standard
+ 70
+0
+  3
+
+  4
+
+ 40
+1.0
+ 41
+2.5
+ 42
+0.625
+ 43
+3.75
+ 44
+1.25
+ 45
+0.0
+ 46
+0.0
+ 47
+0.0
+ 48
+0.0
+140
+2.5
+141
+2.5
+142
+0.0
+143
+0.03937007874
+144
+1.0
+145
+0.0
+146
+1.0
+147
+0.625
+148
+0.0
+ 71
+0
+ 72
+0
+ 73
+0
+ 74
+0
+ 75
+0
+ 76
+0
+ 77
+1
+ 78
+8
+ 79
+3
+170
+0
+171
+3
+172
+1
+173
+0
+174
+0
+175
+0
+176
+0
+177
+0
+178
+0
+179
+2
+271
+2
+272
+2
+273
+2
+274
+3
+275
+0
+276
+0
+277
+2
+278
+44
+279
+0
+280
+0
+281
+0
+282
+0
+283
+0
+284
+8
+285
+0
+286
+0
+288
+0
+289
+3
+371
+-2
+372
+-2
+  0
+ENDTAB
+  0
+TABLE
+  2
+BLOCK_RECORD
+  5
+9
+330
+0
+100
+AcDbSymbolTable
+ 70
+3
+  0
+BLOCK_RECORD
+  5
+17
+330
+9
+100
+AcDbSymbolTableRecord
+100
+AcDbBlockTableRecord
+  2
+*Model_Space
+340
+1A
+  0
+BLOCK_RECORD
+  5
+1B
+330
+9
+100
+AcDbSymbolTableRecord
+100
+AcDbBlockTableRecord
+  2
+*Paper_Space
+340
+1E
+  0
+BLOCK_RECORD
+  5
+71
+330
+9
+100
+AcDbSymbolTableRecord
+100
+AcDbBlockTableRecord
+  2
+SEDIA
+340
+0
+  0
+ENDTAB
+  0
+ENDSEC
+  0
+SECTION
+  2
+BLOCKS
+  0
+BLOCK
+  5
+18
+330
+17
+100
+AcDbEntity
+  8
+0
+100
+AcDbBlockBegin
+  2
+*Model_Space
+ 70
+0
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  3
+*Model_Space
+  1
+
+  0
+ENDBLK
+  5
+19
+330
+17
+100
+AcDbEntity
+  8
+0
+100
+AcDbBlockEnd
+  0
+BLOCK
+  5
+1C
+330
+1B
+100
+AcDbEntity
+  8
+0
+100
+AcDbBlockBegin
+  2
+*Paper_Space
+ 70
+0
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  3
+*Paper_Space
+  1
+
+  0
+ENDBLK
+  5
+1D
+330
+1B
+100
+AcDbEntity
+  8
+0
+100
+AcDbBlockEnd
+  0
+BLOCK
+  5
+72
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbBlockBegin
+  2
+SEDIA
+ 70
+0
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+  3
+SEDIA
+  1
+
+  0
+3DSOLID
+  5
+74
+330
+71
+100
+AcDbEntity
+  8
+0
+ 62
+0
+100
+AcDbModelerGeometry
+ 70
+1
+  1
+hoo o n o
+  1
+_mj :%;'9 )nqkqj ^ \VL ]*63;:- _nm ^ \VL lmqo QK _mk H:; P<+ mg nnennemj momi
+  1
+n fqfffffffffffffffj:rooh n:rono
+  1
+=0;& {rn rn {rn {m {rn {n |
+  1
++->1,90-2 {rn rn n o o o n o o o n mmj mmj kjo n 10@-0+>+: 10@-:93:<+ 10@,7:>- |
+  1
+3*2/ {rn rn {rn {rn {l {o |
+  1
+,7:33 {rn rn {rn {rn {rn {k {rn {m |
+  1
+9><: {rn rn {rn {h {j {l {rn {i 90-(>-; ,6183: |
+  1
+300/ {rn rn {rn {rn {g {k |
+  1
+/3>1:r,*-9><: {rn rn {rn rmmj rmmj rlo o o rn o n o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {nn {f {l {rn {no 90-(>-; ,6183: |
+  1
+<0:;8: {rn rn {rn {nk {nl {nj {nm 90-(>-; {j {rn |
+  1
+300/ {rn rn {rn {rn {ni {h |
+  1
+/3>1:r,*-9><: {rn rn {rn mmj rmmj rlo n o o o n o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {nf {nh {l {rn {ng 90-(>-; ,6183: |
+  1
+:;8: {rn rn {rn {mo o {mn kjo {g {mm 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {g {mk {mj {ml -:):-,:; {j {rn |
+  1
+<0:;8: {rn rn {rn {mk {g {mh {mi -:):-,:; {j {rn |
+  1
+<0:;8: {rn rn {rn {lo {mf {g {nm -:):-,:; {mg {rn |
+  1
+<0:;8: {rn rn {rn {ll {lm {mk {ln 90-(>-; {f {rn |
+  1
+300/ {rn rn {rn {rn {lk {nn |
+  1
+/3>1:r,*-9><: {rn rn {rn rmmj mmj rlo o n o o o n 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {li {mg {l {rn {lj 90-(>-; ,6183: |
+  1
+):-+:' {rn rn {rn {nm {lh |
+  1
+):-+:' {rn rn {rn {nm {lg |
+  1
+,+->687+r<*-): {rn rn {rn rmmj rmmj rlo o n o V V |
+  1
+:;8: {rn rn {rn {mo o {lf kjo {nl {ko 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {nl {nk {ni {ln -:):-,:; {j {rn |
+  1
+<0:;8: {rn rn {rn {kl {km {nl {ml 90-(>-; {kn {rn |
+  1
+:;8: {rn rn {rn {kk o {mn kjo {nk {kj 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {lk {ki {nk {mi 90-(>-; {nh {rn |
+  1
+300/ {rn rn {rn {rn {lo {nf |
+  1
+<0:;8: {rn rn {rn {nj {kg {lk {kh -:):-,:; {mg {rn |
+  1
+<0:;8: {rn rn {rn {kg {nj {km {kf 90-(>-; {mg {rn |
+  1
+:;8: {rn rn {rn {lf o {kk kjo {mk {jo 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {ni {jm {kl {jn -:):-,:; {f {rn |
+  1
+<0:;8: {rn rn {rn {jm {ni {ki {jl 90-(>-; {f {rn |
+  1
+<0:;8: {rn rn {rn {jk {mh {mf {kh 90-(>-; {nh {rn |
+  1
+/3>1:r,*-9><: {rn rn {rn rmmj rmmj rlo rn o o o o n 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {ji {kn {l {rn {jj 90-(>-; ,6183: |
+  1
+/061+ {rn rn {rn rmmj rmmj rlo |
+  1
+/061+ {rn rn {rn rmmj mmj rlo |
+  1
+):-+:' {rn rn {rn {ln {jh |
+  1
+,+->687+r<*-): {rn rn {rn rmmj rmmj rlo n o o V V |
+  1
+300/ {rn rn {rn {rn {mj {li |
+  1
+<0:;8: {rn rn {rn {mj {jg {lo {kf -:):-,:; {kn {rn |
+  1
+<0:;8: {rn rn {rn {jg {mj {lm {jn 90-(>-; {kn {rn |
+  1
+):-+:' {rn rn {rn {mi {jf |
+  1
+,+->687+r<*-): {rn rn {rn mmj mmj rlo rn o o V V |
+  1
+<0:;8: {rn rn {rn {mh {jk {ll {jl -:):-,:; {nh {rn |
+  1
+:;8: {rn rn {rn {mn o {io io {lk {in 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mf {lo {il {im 90-(>-; {mg {rn |
+  1
+:;8: {rn rn {rn {mo o {ik io {lo {ij 90-(>-; _h *1410(1 |
+  1
+,+->687+r<*-): {rn rn {rn mmj rmmj rlo o n o V V |
+  1
+:;8: {rn rn {rn {lf o {ii io {lm {ih 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {lm {ll {if {ig -:):-,:; {f {rn |
+  1
+:;8: {rn rn {rn {kk o {ho io {ll {hn 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {ki {lk {hl {hm -:):-,:; {nh {rn |
+  1
+/3>1:r,*-9><: {rn rn {rn rmmj rmmj rlo o rn o n o o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {rn {hk {l {rn {hj 90-(>-; ,6183: |
+  1
+/061+ {rn rn {rn mmj rmmj rlo |
+  1
+<0:;8: {rn rn {rn {km {kl {hh {hi -:):-,:; {kn {rn |
+  1
+/061+ {rn rn {rn mmj mmj rlo |
+  1
+):-+:' {rn rn {rn {kh {hg |
+  1
+,+->687+r<*-): {rn rn {rn rmmj mmj rlo o o n V V |
+  1
+:;8: {rn rn {rn {ik o {io kjo {kg {hf 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {hh {hl {kg {im -:):-,:; {hk {rn |
+  1
+):-+:' {rn rn {rn {kf {go |
+  1
+,+->687+r<*-): {rn rn {rn rmmj rmmj rlo o o n V V |
+  1
+):-+:' {rn rn {rn {ig {gn |
+  1
+,+->687+r<*-): {rn rn {rn mmj rmmj rlo o o n V V |
+  1
+:;8: {rn rn {rn {ii o {ho kjo {jm {gm 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {hl {hh {jm {ig 90-(>-; {hk {rn |
+  1
+):-+:' {rn rn {rn {jl {gl |
+  1
+,+->687+r<*-): {rn rn {rn mmj mmj rlo o o n V V |
+  1
+:;8: {rn rn {rn {ho o {io kjo {jk {gk 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {il {if {jk {hm 90-(>-; {hk {rn |
+  1
+300/ {rn rn {rn {rn {hh {ji |
+  1
+/3>1:r,*-9><: {rn rn {rn rmmj rmmj lo o o n n o o 90-(>-;@) V V V V |
+  1
+:;8: {rn rn {rn {ik o {ii kjo {jg {gj 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {if {il {jg {hi 90-(>-; {hk {rn |
+  1
+/061+ {rn rn {rn rmmj mmj lo |
+  1
+,+->687+r<*-): {rn rn {rn rmmj rmmj lo o n o V V |
+  1
+/061+ {rn rn {rn rmmj rmmj lo |
+  1
+/061+ {rn rn {rn mmj rmmj lo |
+  1
+,+->687+r<*-): {rn rn {rn mmj rmmj lo o n o V V |
+  1
+/061+ {rn rn {rn mmj mmj lo |
+  1
+,+->687+r<*-): {rn rn {rn mmj mmj lo rn o o V V |
+  1
+,+->687+r<*-): {rn rn {rn rmmj rmmj lo n o o V V |
+  1
+Z1;r09r^ \VLr;>+>
+  0
+POLYLINE
+  5
+75
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbPolyFaceMesh
+ 66
+1
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+64
+ 71
+32
+ 72
+24
+  0
+VERTEX
+  5
+77
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+78
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+0.0
+ 20
+50.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+79
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+50.0
+ 20
+50.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+7A
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+50.0
+ 20
+0.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+7E
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+50.0
+ 20
+50.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+7F
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+50.0
+ 20
+0.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+82
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+0.0
+ 20
+50.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+87
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+0.0
+ 20
+0.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+95
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+400.0
+ 20
+0.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+96
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+400.0
+ 20
+50.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+97
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+450.0
+ 20
+50.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+98
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+450.0
+ 20
+0.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+9C
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+450.0
+ 20
+50.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+9D
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+450.0
+ 20
+0.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+A0
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+400.0
+ 20
+50.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+A5
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+400.0
+ 20
+0.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+B3
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+400.0
+ 20
+400.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+B4
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+400.0
+ 20
+450.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+B5
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+450.0
+ 20
+450.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+B6
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+450.0
+ 20
+400.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+BA
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+450.0
+ 20
+450.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+BB
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+450.0
+ 20
+400.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+BE
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+400.0
+ 20
+450.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+C3
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+400.0
+ 20
+400.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+D1
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+0.0
+ 20
+400.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+D2
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+0.0
+ 20
+450.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+D3
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+50.0
+ 20
+450.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+D4
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+50.0
+ 20
+400.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+D8
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+50.0
+ 20
+450.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+D9
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+50.0
+ 20
+400.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+DC
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+0.0
+ 20
+450.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+E1
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+0.0
+ 20
+400.0
+ 30
+420.0
+ 70
+192
+  0
+VERTEX
+  5
+7B
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+1
+ 72
+2
+ 73
+3
+ 74
+4
+  0
+VERTEX
+  5
+80
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+4
+ 72
+3
+ 73
+5
+ 74
+6
+  0
+VERTEX
+  5
+85
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+2
+ 72
+7
+ 73
+5
+ 74
+3
+  0
+VERTEX
+  5
+8A
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+1
+ 72
+8
+ 73
+7
+ 74
+2
+  0
+VERTEX
+  5
+8F
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+1
+ 72
+4
+ 73
+6
+ 74
+8
+  0
+VERTEX
+  5
+94
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+8
+ 72
+6
+ 73
+5
+ 74
+7
+  0
+VERTEX
+  5
+99
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+9
+ 72
+10
+ 73
+11
+ 74
+12
+  0
+VERTEX
+  5
+9E
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+12
+ 72
+11
+ 73
+13
+ 74
+14
+  0
+VERTEX
+  5
+A3
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+10
+ 72
+15
+ 73
+13
+ 74
+11
+  0
+VERTEX
+  5
+A8
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+9
+ 72
+16
+ 73
+15
+ 74
+10
+  0
+VERTEX
+  5
+AD
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+9
+ 72
+12
+ 73
+14
+ 74
+16
+  0
+VERTEX
+  5
+B2
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+16
+ 72
+14
+ 73
+13
+ 74
+15
+  0
+VERTEX
+  5
+B7
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+17
+ 72
+18
+ 73
+19
+ 74
+20
+  0
+VERTEX
+  5
+BC
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+20
+ 72
+19
+ 73
+21
+ 74
+22
+  0
+VERTEX
+  5
+C1
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+18
+ 72
+23
+ 73
+21
+ 74
+19
+  0
+VERTEX
+  5
+C6
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+17
+ 72
+24
+ 73
+23
+ 74
+18
+  0
+VERTEX
+  5
+CB
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+17
+ 72
+20
+ 73
+22
+ 74
+24
+  0
+VERTEX
+  5
+D0
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+24
+ 72
+22
+ 73
+21
+ 74
+23
+  0
+VERTEX
+  5
+D5
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+25
+ 72
+26
+ 73
+27
+ 74
+28
+  0
+VERTEX
+  5
+DA
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+28
+ 72
+27
+ 73
+29
+ 74
+30
+  0
+VERTEX
+  5
+DF
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+26
+ 72
+31
+ 73
+29
+ 74
+27
+  0
+VERTEX
+  5
+E4
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+25
+ 72
+32
+ 73
+31
+ 74
+26
+  0
+VERTEX
+  5
+E9
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+25
+ 72
+28
+ 73
+30
+ 74
+32
+  0
+VERTEX
+  5
+EE
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+32
+ 72
+30
+ 73
+29
+ 74
+31
+  0
+SEQEND
+  5
+76
+330
+75
+100
+AcDbEntity
+  8
+0
+  0
+ENDBLK
+  5
+73
+330
+71
+100
+AcDbEntity
+  8
+0
+100
+AcDbBlockEnd
+  0
+ENDSEC
+  0
+SECTION
+  2
+ENTITIES
+  0
+3DSOLID
+  5
+34
+330
+17
+100
+AcDbEntity
+  8
+SOLIDI
+100
+AcDbModelerGeometry
+ 70
+1
+  1
+hoo o n o
+  1
+_mj :%;'9 )nqkqj ^ \VL ]*63;:- _nm ^ \VL lmqo QK _mk H:; P<+ mg nnennemj momi
+  1
+n fqfffffffffffffffj:rooh n:rono
+  1
+=0;& {rn rn {rn {m {rn {n |
+  1
++->1,90-2 {rn rn n o o o n o o o n nooo joo mjo n 10@-0+>+: 10@-:93:<+ 10@,7:>- |
+  1
+3*2/ {rn rn {rn {rn {l {o |
+  1
+,7:33 {rn rn {rn {rn {rn {k {rn {m |
+  1
+9><: {rn rn {rn {h {j {l {rn {i 90-(>-; ,6183: |
+  1
+300/ {rn rn {rn {rn {g {k |
+  1
+/3>1:r,*-9><: {rn rn {rn rnooo rjoo rmjo o o rn o n o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {nn {f {l {rn {no 90-(>-; ,6183: |
+  1
+<0:;8: {rn rn {rn {nk {nl {nj {nm 90-(>-; {j {rn |
+  1
+300/ {rn rn {rn {rn {ni {h |
+  1
+/3>1:r,*-9><: {rn rn {rn nooo rjoo rmjo n o o o n o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {nf {nh {l {rn {ng 90-(>-; ,6183: |
+  1
+:;8: {rn rn {rn {mo o {mn nooo {g {mm 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {g {mk {mj {ml -:):-,:; {j {rn |
+  1
+<0:;8: {rn rn {rn {mk {g {mh {mi -:):-,:; {j {rn |
+  1
+<0:;8: {rn rn {rn {lo {mf {g {nm -:):-,:; {mg {rn |
+  1
+<0:;8: {rn rn {rn {ll {lm {mk {ln 90-(>-; {f {rn |
+  1
+300/ {rn rn {rn {rn {lk {nn |
+  1
+/3>1:r,*-9><: {rn rn {rn rnooo joo rmjo o n o o o n 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {li {mg {l {rn {lj 90-(>-; ,6183: |
+  1
+):-+:' {rn rn {rn {nm {lh |
+  1
+):-+:' {rn rn {rn {nm {lg |
+  1
+,+->687+r<*-): {rn rn {rn rnooo rjoo rmjo o n o V V |
+  1
+:;8: {rn rn {rn {mo o {lf mooo {nl {ko 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {nl {nk {ni {ln -:):-,:; {j {rn |
+  1
+<0:;8: {rn rn {rn {kl {km {nl {ml 90-(>-; {kn {rn |
+  1
+:;8: {rn rn {rn {kk o {mn mooo {nk {kj 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {lk {ki {nk {mi 90-(>-; {nh {rn |
+  1
+300/ {rn rn {rn {rn {lo {nf |
+  1
+<0:;8: {rn rn {rn {nj {kg {lk {kh -:):-,:; {mg {rn |
+  1
+<0:;8: {rn rn {rn {kg {nj {km {kf 90-(>-; {mg {rn |
+  1
+:;8: {rn rn {rn {lf o {kk nooo {mk {jo 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {ni {jm {kl {jn -:):-,:; {f {rn |
+  1
+<0:;8: {rn rn {rn {jm {ni {ki {jl 90-(>-; {f {rn |
+  1
+<0:;8: {rn rn {rn {jk {mh {mf {kh 90-(>-; {nh {rn |
+  1
+/3>1:r,*-9><: {rn rn {rn rnooo rjoo rmjo rn o o o o n 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {ji {kn {l {rn {jj 90-(>-; ,6183: |
+  1
+/061+ {rn rn {rn rnooo rjoo rmjo |
+  1
+/061+ {rn rn {rn rnooo joo rmjo |
+  1
+):-+:' {rn rn {rn {ln {jh |
+  1
+,+->687+r<*-): {rn rn {rn rnooo rjoo rmjo n o o V V |
+  1
+300/ {rn rn {rn {rn {mj {li |
+  1
+<0:;8: {rn rn {rn {mj {jg {lo {kf -:):-,:; {kn {rn |
+  1
+<0:;8: {rn rn {rn {jg {mj {lm {jn 90-(>-; {kn {rn |
+  1
+):-+:' {rn rn {rn {mi {jf |
+  1
+,+->687+r<*-): {rn rn {rn nooo joo rmjo rn o o V V |
+  1
+<0:;8: {rn rn {rn {mh {jk {ll {jl -:):-,:; {nh {rn |
+  1
+:;8: {rn rn {rn {mn o {io joo {lk {in 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mf {lo {il {im 90-(>-; {mg {rn |
+  1
+:;8: {rn rn {rn {mo o {ik joo {lo {ij 90-(>-; _h *1410(1 |
+  1
+,+->687+r<*-): {rn rn {rn nooo rjoo rmjo o n o V V |
+  1
+:;8: {rn rn {rn {lf o {ii joo {lm {ih 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {lm {ll {if {ig -:):-,:; {f {rn |
+  1
+:;8: {rn rn {rn {kk o {ho joo {ll {hn 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {ki {lk {hl {hm -:):-,:; {nh {rn |
+  1
+/3>1:r,*-9><: {rn rn {rn rnooo rjoo rmjo o rn o n o o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {rn {hk {l {rn {hj 90-(>-; ,6183: |
+  1
+/061+ {rn rn {rn nooo rjoo rmjo |
+  1
+<0:;8: {rn rn {rn {km {kl {hh {hi -:):-,:; {kn {rn |
+  1
+/061+ {rn rn {rn nooo joo rmjo |
+  1
+):-+:' {rn rn {rn {kh {hg |
+  1
+,+->687+r<*-): {rn rn {rn rnooo joo rmjo o o n V V |
+  1
+:;8: {rn rn {rn {ik o {io nooo {kg {hf 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {hh {hl {kg {im -:):-,:; {hk {rn |
+  1
+):-+:' {rn rn {rn {kf {go |
+  1
+,+->687+r<*-): {rn rn {rn rnooo rjoo rmjo o o n V V |
+  1
+):-+:' {rn rn {rn {ig {gn |
+  1
+,+->687+r<*-): {rn rn {rn nooo rjoo rmjo o o n V V |
+  1
+:;8: {rn rn {rn {ii o {ho nooo {jm {gm 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {hl {hh {jm {ig 90-(>-; {hk {rn |
+  1
+):-+:' {rn rn {rn {jl {gl |
+  1
+,+->687+r<*-): {rn rn {rn nooo joo rmjo o o n V V |
+  1
+:;8: {rn rn {rn {ho o {io mooo {jk {gk 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {il {if {jk {hm 90-(>-; {hk {rn |
+  1
+300/ {rn rn {rn {rn {hh {ji |
+  1
+/3>1:r,*-9><: {rn rn {rn rnooo rjoo mjo o o n n o o 90-(>-;@) V V V V |
+  1
+:;8: {rn rn {rn {ik o {ii mooo {jg {gj 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {if {il {jg {hi 90-(>-; {hk {rn |
+  1
+/061+ {rn rn {rn rnooo joo mjo |
+  1
+,+->687+r<*-): {rn rn {rn rnooo rjoo mjo o n o V V |
+  1
+/061+ {rn rn {rn rnooo rjoo mjo |
+  1
+/061+ {rn rn {rn nooo rjoo mjo |
+  1
+,+->687+r<*-): {rn rn {rn nooo rjoo mjo o n o V V |
+  1
+/061+ {rn rn {rn nooo joo mjo |
+  1
+,+->687+r<*-): {rn rn {rn nooo joo mjo rn o o V V |
+  1
+,+->687+r<*-): {rn rn {rn rnooo rjoo mjo n o o V V |
+  1
+Z1;r09r^ \VLr;>+>
+  0
+3DSOLID
+  5
+35
+330
+17
+100
+AcDbEntity
+  8
+SOLIDI
+100
+AcDbModelerGeometry
+ 70
+1
+  1
+hoo o n o
+  1
+_mj :%;'9 )nqkqj ^ \VL ]*63;:- _nm ^ \VL lmqo QK _mk H:; P<+ mg nnennemj momi
+  1
+n fqfffffffffffffffj:rooh n:rono
+  1
+=0;& {rn rn {rn {m {rn {n |
+  1
++->1,90-2 {rn rn n o o o n o o o n nooo joo foo n 10@-0+>+: 10@-:93:<+ 10@,7:>- |
+  1
+3*2/ {rn rn {rn {rn {l {o |
+  1
+,7:33 {rn rn {rn {rn {rn {k {rn {m |
+  1
+9><: {rn rn {rn {h {j {l {rn {i 90-(>-; ,6183: |
+  1
+300/ {rn rn {rn {rn {g {k |
+  1
+/3>1:r,*-9><: {rn rn {rn loo o rkoo o o rn roqnlojmi roqffnkkj o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {nn {f {l {rn {no 90-(>-; ,6183: |
+  1
+<0:;8: {rn rn {rn {nk {nl {nj {nm 90-(>-; {j {rn |
+  1
+300/ {rn rn {rn {rn {ni {h |
+  1
+/3>1:r,*-9><: {rn rn {rn loo o rkoo oqffnkkj oqnlojmi o roqnlojmi oqffnkkj o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {nf {nh {l {rn {ng 90-(>-; ,6183: |
+  1
+:;8: {rn rn {rn {mo o {mn hgqlnjh {g {mm 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {g {mk {ni {ml -:):-,:; {j {rn |
+  1
+<0:;8: {rn rn {rn {mi {g {mh {mj 90-(>-; {j {rn |
+  1
+<0:;8: {rn rn {rn {lo {mf {g {nm -:):-,:; {mg {rn |
+  1
+<0:;8: {rn rn {rn {lm {ln {nl {ml 90-(>-; {f {rn |
+  1
+300/ {rn rn {rn {rn {ll {nn |
+  1
+/3>1:r,*-9><: {rn rn {rn mgfqhhg hhqikjh rkoo oqfmlgg oqlgmigl o roqlgmigl oqfmlgg o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {li {lk {l {rn {lj 90-(>-; ,6183: |
+  1
+):-+:' {rn rn {rn {nm {lh |
+  1
+):-+:' {rn rn {rn {nm {lg |
+  1
+,+->687+r<*-): {rn rn {rn loo o rkoo roqnlojmi roqffnkkj o V V |
+  1
+:;8: {rn rn {rn {mo o {lf hgqlnjh {nl {ko 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {nl {km {ll {kn 90-(>-; {j {rn |
+  1
+:;8: {rn rn {rn {mn o {kl hgqlnjh {nk {kk 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {ki {nk {kh {kj 90-(>-; {j {rn |
+  1
+<0:;8: {rn rn {rn {jo {kf {nk {mj -:):-,:; {kg {rn |
+  1
+300/ {rn rn {rn {rn {nj {jn |
+  1
+<0:;8: {rn rn {rn {nj {jl {jo {jm -:):-,:; {mg {rn |
+  1
+<0:;8: {rn rn {rn {jl {nj {ln {jk 90-(>-; {mg {rn |
+  1
+<0:;8: {rn rn {rn {ni {jj {lo {jk -:):-,:; {f {rn |
+  1
+<0:;8: {rn rn {rn {jj {ni {jh {ji 90-(>-; {f {rn |
+  1
+<0:;8: {rn rn {rn {jg {jh {mk {kn -:):-,:; {nh {rn |
+  1
+300/ {rn rn {rn {rn {jf {nf |
+  1
+/3>1:r,*-9><: {rn rn {rn mjfqgog njo rkoo oqhflljl oqioghin o roqioghin oqhflljl o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {im {io {l {rn {in 90-(>-; ,6183: |
+  1
+/061+ {rn rn {rn loo o rkoo |
+  1
+/061+ {rn rn {rn mgfqhhg rhhqikjh rkoo |
+  1
+):-+:' {rn rn {rn {kn {il |
+  1
+,+->687+r<*-): {rn rn {rn loo o rkoo roqnlojmi oqffnkkj o V V |
+  1
+:;8: {rn rn {rn {ik o {lf hgqlnjh {mk {ij 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mk {ih {jf {ii 90-(>-; {j {rn |
+  1
+):-+:' {rn rn {rn {mj {ig |
+  1
+,+->687+r<*-): {rn rn {rn mgfqhhg rhhqikjh rkoo roqlgmigl roqfmlgg o V V |
+  1
+:;8: {rn rn {rn {kl o {if hgqlnjh {mi {ho 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {hm {mi {hl {hn 90-(>-; {j {rn |
+  1
+<0:;8: {rn rn {rn {hi {hj {mi {kj -:):-,:; {hk {rn |
+  1
+300/ {rn rn {rn {rn {mh {hh |
+  1
+<0:;8: {rn rn {rn {mh {hf {hi {hg -:):-,:; {kg {rn |
+  1
+<0:;8: {rn rn {rn {hf {mh {mf {jm 90-(>-; {kg {rn |
+  1
+9><: {rn rn {rn {gn {mg {l {rn {go 90-(>-; ,6183: |
+  1
+:;8: {rn rn {rn {mn o {gm goo {jo {gl 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mf {lo {gj {gk 90-(>-; {mg {rn |
+  1
+:;8: {rn rn {rn {mo o {gi goo {ln {gh 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {ln {lm {gf {gg 90-(>-; {f {rn |
+  1
+:;8: {rn rn {rn {lf o {fo goo {lm {fn 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {ll {fm {lm {ji -:):-,:; {nh {rn |
+  1
+<0:;8: {rn rn {rn {fm {ll {fk {fl 90-(>-; {nh {rn |
+  1
+<0:;8: {rn rn {rn {fj {fk {km {ii -:):-,:; {lk {rn |
+  1
+300/ {rn rn {rn {rn {fi {li |
+  1
+/3>1:r,*-9><: {rn rn {rn mnmqnlm mnmqnlm rkoo oqioghin oqhflljl o roqhflljl oqioghin o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {ff {fh {l {rn {fg 90-(>-; ,6183: |
+  1
+/061+ {rn rn {rn mgfqhhg hhqikjh rkoo |
+  1
+):-+:' {rn rn {rn {ii {noo |
+  1
+,+->687+r<*-): {rn rn {rn mjfqgog njo rkoo oqlgmigl roqfmlgg o V V |
+  1
+:;8: {rn rn {rn {non o {ik hgqlnjh {km {nom 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {km {nok {fi {nol 90-(>-; {j {rn |
+  1
+/061+ {rn rn {rn mjfqgog rnjo rkoo |
+  1
+):-+:' {rn rn {rn {kj {noj |
+  1
+,+->687+r<*-): {rn rn {rn mjfqgog rnjo rkoo roqioghin roqhflljl o V V |
+  1
+:;8: {rn rn {rn {if o {noi hgqlnjh {ki {noh 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {nof {ki {nno {nog 90-(>-; {j {rn |
+  1
+<0:;8: {rn rn {rn {nnl {nnm {ki {hn -:):-,:; {nnn {rn |
+  1
+300/ {rn rn {rn {rn {kh {nnk |
+  1
+<0:;8: {rn rn {rn {kh {nni {nnl {nnj -:):-,:; {hk {rn |
+  1
+<0:;8: {rn rn {rn {nni {kh {kf {hg 90-(>-; {hk {rn |
+  1
+9><: {rn rn {rn {jn {kg {l {rn {nnh 90-(>-; ,6183: |
+  1
+:;8: {rn rn {rn {kl o {nng goo {hi {nnf 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {kf {jo {nmn {nmo -:):-,:; {kg {rn |
+  1
+/3>1:r,*-9><: {rn rn {rn mgfqhhg rhhqikjh rkoo oqffnkkj roqnlojmi o oqnlojmi oqffnkkj o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {rn {nmm {l {rn {nml 90-(>-; ,6183: |
+  1
+):-+:' {rn rn {rn {jm {nmk |
+  1
+,+->687+r<*-): {rn rn {rn mgfqhhg rhhqikjh rkoo o o n V V |
+  1
+:;8: {rn rn {rn {gi o {gm hgqlnjh {jl {nmj 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {gf {nmn {jl {gk -:):-,:; {nmm {rn |
+  1
+):-+:' {rn rn {rn {gg {nmi |
+  1
+,+->687+r<*-): {rn rn {rn loo o rkoo o o n V V |
+  1
+:;8: {rn rn {rn {fo o {gi hgqlnjh {jj {nmh 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {nmg {gj {jj {gg -:):-,:; {nmm {rn |
+  1
+):-+:' {rn rn {rn {ji {nmf |
+  1
+,+->687+r<*-): {rn rn {rn mgfqhhg hhqikjh rkoo o o n V V |
+  1
+<0:;8: {rn rn {rn {jh {jg {nmg {nlo -:):-,:; {nh {rn |
+  1
+:;8: {rn rn {rn {ik o {nln goo {jg {nlm 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {jf {nll {jg {fl -:):-,:; {lk {rn |
+  1
+<0:;8: {rn rn {rn {nll {jf {nlj {nlk 90-(>-; {lk {rn |
+  1
+<0:;8: {rn rn {rn {nli {nlj {ih {nol -:):-,:; {io {rn |
+  1
+300/ {rn rn {rn {rn {nlh {im |
+  1
+/3>1:r,*-9><: {rn rn {rn njo mjfqgog rkoo oqlgmigl oqfmlgg o roqfmlgg oqlgmigl o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {nko {nlg {l {rn {nlf 90-(>-; ,6183: |
+  1
+/061+ {rn rn {rn mjfqgog njo rkoo |
+  1
+):-+:' {rn rn {rn {nol {nkn |
+  1
+,+->687+r<*-): {rn rn {rn mnmqnlm mnmqnlm rkoo oqioghin roqhflljl o V V |
+  1
+:;8: {rn rn {rn {nkm o {non hgqlnjh {ih {nkl 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {ih {nkj {nlh {nkk 90-(>-; {j {rn |
+  1
+/061+ {rn rn {rn mnmqnlm rmnmqnlm rkoo |
+  1
+):-+:' {rn rn {rn {hn {nki |
+  1
+,+->687+r<*-): {rn rn {rn mnmqnlm rmnmqnlm rkoo roqhflljl roqioghin o V V |
+  1
+:;8: {rn rn {rn {noi o {nkh hgqlnjh {hm {nkg 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {njo {hm {njn {nkf 90-(>-; {j {rn |
+  1
+<0:;8: {rn rn {rn {njk {njl {hm {nog -:):-,:; {njm {rn |
+  1
+300/ {rn rn {rn {rn {hl {njj |
+  1
+<0:;8: {rn rn {rn {hl {njh {njk {nji -:):-,:; {nnn {rn |
+  1
+<0:;8: {rn rn {rn {njh {hl {hj {nnj 90-(>-; {nnn {rn |
+  1
+9><: {rn rn {rn {hh {hk {l {rn {njg 90-(>-; ,6183: |
+  1
+:;8: {rn rn {rn {if o {njf goo {nnl {nio 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {hj {hi {nim {nin -:):-,:; {hk {rn |
+  1
+/3>1:r,*-9><: {rn rn {rn mjfqgog rnjo rkoo oqfmlgg roqlgmigl o oqlgmigl oqfmlgg o 90-(>-;@) V V V V |
+  1
+):-+:' {rn rn {rn {hg {nil |
+  1
+,+->687+r<*-): {rn rn {rn mjfqgog rnjo rkoo o o n V V |
+  1
+:;8: {rn rn {rn {nng o {gm hgqlnjh {hf {nik 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {gj {nim {hf {nmo 90-(>-; {nmm {rn |
+  1
+300/ {rn rn {rn {rn {gf {gn |
+  1
+/3>1:r,*-9><: {rn rn {rn loo o koo o o n roqnlojmi oqffnkkj o 90-(>-;@) V V V V |
+  1
+/061+ {rn rn {rn mgfqhhg rhhqikjh koo |
+  1
+,+->687+r<*-): {rn rn {rn loo o koo roqnlojmi roqffnkkj o V V |
+  1
+/061+ {rn rn {rn loo o koo |
+  1
+,+->687+r<*-): {rn rn {rn mgfqhhg hhqikjh koo oqnlojmi roqffnkkj o V V |
+  1
+<0:;8: {rn rn {rn {nij {gf {fm {nlo 90-(>-; {nmm {rn |
+  1
+/061+ {rn rn {rn mgfqhhg hhqikjh koo |
+  1
+:;8: {rn rn {rn {fo o {nln hgqlnjh {fm {nii 90-(>-; _h *1410(1 |
+  1
+):-+:' {rn rn {rn {fl {nih |
+  1
+,+->687+r<*-): {rn rn {rn mjfqgog njo rkoo o o n V V |
+  1
+<0:;8: {rn rn {rn {fk {fj {nij {nig -:):-,:; {lk {rn |
+  1
+:;8: {rn rn {rn {non o {nif goo {fj {nho 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {fi {nhn {fj {nlk -:):-,:; {io {rn |
+  1
+<0:;8: {rn rn {rn {nhn {fi {nhl {nhm 90-(>-; {io {rn |
+  1
+<0:;8: {rn rn {rn {nhk {nhl {nok {nkk -:):-,:; {fh {rn |
+  1
+300/ {rn rn {rn {rn {nhj {ff |
+  1
+/3>1:r,*-9><: {rn rn {rn hhqikjh mgfqhhg rkoo oqnlojmi oqffnkkj o roqffnkkj oqnlojmi o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {nhg {nhi {l {rn {nhh 90-(>-; ,6183: |
+  1
+/061+ {rn rn {rn mnmqnlm mnmqnlm rkoo |
+  1
+):-+:' {rn rn {rn {nkk {nhf |
+  1
+,+->687+r<*-): {rn rn {rn njo mjfqgog rkoo oqhflljl roqioghin o V V |
+  1
+:;8: {rn rn {rn {ngo o {nkm hgqlnjh {nok {ngn 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {nok {ngl {nhj {ngm 90-(>-; {j {rn |
+  1
+/061+ {rn rn {rn njo rmjfqgog rkoo |
+  1
+):-+:' {rn rn {rn {nog {ngk |
+  1
+,+->687+r<*-): {rn rn {rn njo rmjfqgog rkoo roqfmlgg roqlgmigl o V V |
+  1
+:;8: {rn rn {rn {nkh o {ngj hgqlnjh {nof {ngi 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {ngg {nof {ngf {ngh 90-(>-; {j {rn |
+  1
+<0:;8: {rn rn {rn {nfm {nfn {nof {nkf -:):-,:; {nfo {rn |
+  1
+300/ {rn rn {rn {rn {nno {nfl |
+  1
+<0:;8: {rn rn {rn {nno {nfj {nfm {nfk -:):-,:; {njm {rn |
+  1
+<0:;8: {rn rn {rn {nfj {nno {nnm {nji 90-(>-; {njm {rn |
+  1
+9><: {rn rn {rn {nnk {nnn {l {rn {nfi 90-(>-; ,6183: |
+  1
+:;8: {rn rn {rn {noi o {nfh goo {njk {nfg 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {nnm {nnl {moo {nff -:):-,:; {nnn {rn |
+  1
+/3>1:r,*-9><: {rn rn {rn mnmqnlm rmnmqnlm rkoo oqhflljl roqioghin o oqioghin oqhflljl o 90-(>-;@) V V V V |
+  1
+):-+:' {rn rn {rn {nnj {mon |
+  1
+,+->687+r<*-): {rn rn {rn mnmqnlm rmnmqnlm rkoo o o n V V |
+  1
+:;8: {rn rn {rn {njf o {nng hgqlnjh {nni {mom 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {nmn {moo {nni {nin 90-(>-; {nmm {rn |
+  1
+/061+ {rn rn {rn mjfqgog rnjo koo |
+  1
+,+->687+r<*-): {rn rn {rn mjfqgog rnjo koo oqlgmigl oqfmlgg o V V |
+  1
+<0:;8: {rn rn {rn {mol {nmg {nll {nig 90-(>-; {nmm {rn |
+  1
+,+->687+r<*-): {rn rn {rn mgfqhhg hhqikjh koo roqlgmigl oqfmlgg o V V |
+  1
+/061+ {rn rn {rn mjfqgog njo koo |
+  1
+:;8: {rn rn {rn {nln o {nif hgqlnjh {nll {mok 90-(>-; _h *1410(1 |
+  1
+):-+:' {rn rn {rn {nlk {moj |
+  1
+,+->687+r<*-): {rn rn {rn mnmqnlm mnmqnlm rkoo o o n V V |
+  1
+<0:;8: {rn rn {rn {nlj {nli {mol {moi -:):-,:; {io {rn |
+  1
+:;8: {rn rn {rn {nkm o {moh goo {nli {mog 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {nlh {mof {nli {nhm -:):-,:; {fh {rn |
+  1
+<0:;8: {rn rn {rn {mof {nlh {mnn {mno 90-(>-; {fh {rn |
+  1
+<0:;8: {rn rn {rn {mnm {mnn {nkj {ngm -:):-,:; {nlg {rn |
+  1
+300/ {rn rn {rn {rn {mnl {nko |
+  1
+/3>1:r,*-9><: {rn rn {rn nqnligh:rnl loo rkoo roqnlojmi oqffnkkj o roqffnkkj roqnlojmi o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {mni {mnk {l {rn {mnj 90-(>-; ,6183: |
+  1
+/061+ {rn rn {rn njo mjfqgog rkoo |
+  1
+):-+:' {rn rn {rn {ngm {mnh |
+  1
+,+->687+r<*-): {rn rn {rn hhqikjh mgfqhhg rkoo oqfmlgg roqlgmigl o V V |
+  1
+:;8: {rn rn {rn {mng o {ngo hgqlnjh {nkj {mnf 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {nkj {mmn {mnl {mmo 90-(>-; {j {rn |
+  1
+/061+ {rn rn {rn hhqikjh rmgfqhhg rkoo |
+  1
+):-+:' {rn rn {rn {nkf {mmm |
+  1
+,+->687+r<*-): {rn rn {rn hhqikjh rmgfqhhg rkoo roqffnkkj roqnlojmi o V V |
+  1
+:;8: {rn rn {rn {ngj o {mml hgqlnjh {njo {mmk 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mmi {njo {mmh {mmj 90-(>-; {j {rn |
+  1
+<0:;8: {rn rn {rn {mlo {mmf {njo {ngh -:):-,:; {mmg {rn |
+  1
+300/ {rn rn {rn {rn {njn {mln |
+  1
+<0:;8: {rn rn {rn {njn {mll {mlo {mlm -:):-,:; {nfo {rn |
+  1
+<0:;8: {rn rn {rn {mll {njn {njl {nfk 90-(>-; {nfo {rn |
+  1
+9><: {rn rn {rn {njj {njm {l {rn {mlk 90-(>-; ,6183: |
+  1
+:;8: {rn rn {rn {nkh o {mlj goo {nfm {mli 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {njl {njk {mlg {mlh -:):-,:; {njm {rn |
+  1
+/3>1:r,*-9><: {rn rn {rn njo rmjfqgog rkoo oqioghin roqhflljl o oqhflljl oqioghin o 90-(>-;@) V V V V |
+  1
+):-+:' {rn rn {rn {nji {mlf |
+  1
+,+->687+r<*-): {rn rn {rn njo rmjfqgog rkoo o o n V V |
+  1
+:;8: {rn rn {rn {nfh o {njf hgqlnjh {njh {mko 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {nim {mlg {njh {nff 90-(>-; {nmm {rn |
+  1
+/061+ {rn rn {rn mnmqnlm rmnmqnlm koo |
+  1
+,+->687+r<*-): {rn rn {rn mnmqnlm rmnmqnlm koo oqioghin oqhflljl o V V |
+  1
+<0:;8: {rn rn {rn {mkn {nij {nhn {moi 90-(>-; {nmm {rn |
+  1
+,+->687+r<*-): {rn rn {rn mjfqgog njo koo roqioghin oqhflljl o V V |
+  1
+/061+ {rn rn {rn mnmqnlm mnmqnlm koo |
+  1
+:;8: {rn rn {rn {nif o {moh hgqlnjh {nhn {mkm 90-(>-; _h *1410(1 |
+  1
+):-+:' {rn rn {rn {nhm {mkl |
+  1
+,+->687+r<*-): {rn rn {rn njo mjfqgog rkoo o o n V V |
+  1
+<0:;8: {rn rn {rn {nhl {nhk {mkn {mkk -:):-,:; {fh {rn |
+  1
+:;8: {rn rn {rn {ngo o {mkj goo {nhk {mki 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {nhj {mkh {nhk {mno -:):-,:; {nlg {rn |
+  1
+<0:;8: {rn rn {rn {mkh {nhj {mkf {mkg 90-(>-; {nlg {rn |
+  1
+<0:;8: {rn rn {rn {mjo {mkf {ngl {mmo -:):-,:; {nhi {rn |
+  1
+300/ {rn rn {rn {rn {mjn {nhg |
+  1
+/3>1:r,*-9><: {rn rn {rn rhhqikjh mgfqhhg rkoo roqlgmigl oqfmlgg o roqfmlgg roqlgmigl o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {mjk {mjm {l {rn {mjl 90-(>-; ,6183: |
+  1
+/061+ {rn rn {rn hhqikjh mgfqhhg rkoo |
+  1
+):-+:' {rn rn {rn {mmo {mjj |
+  1
+,+->687+r<*-): {rn rn {rn nqnligh:rnl loo rkoo oqffnkkj roqnlojmi o V V |
+  1
+:;8: {rn rn {rn {mji o {mng hgqlnjh {ngl {mjh 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {ngl {mjf {mjn {mjg 90-(>-; {j {rn |
+  1
+/061+ {rn rn {rn o rloo rkoo |
+  1
+):-+:' {rn rn {rn {ngh {mio |
+  1
+,+->687+r<*-): {rn rn {rn o rloo rkoo roqffnkkj oqnlojmi o V V |
+  1
+:;8: {rn rn {rn {mml o {min hgqlnjh {ngg {mim 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mik {ngg {mij {mil 90-(>-; {j {rn |
+  1
+<0:;8: {rn rn {rn {mig {mih {ngg {mmj -:):-,:; {mii {rn |
+  1
+300/ {rn rn {rn {rn {ngf {mif |
+  1
+<0:;8: {rn rn {rn {ngf {mhn {mig {mho -:):-,:; {mmg {rn |
+  1
+<0:;8: {rn rn {rn {mhn {ngf {nfn {mlm 90-(>-; {mmg {rn |
+  1
+9><: {rn rn {rn {nfl {nfo {l {rn {mhm 90-(>-; ,6183: |
+  1
+:;8: {rn rn {rn {ngj o {mhl goo {mlo {mhk 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {nfn {nfm {mhi {mhj -:):-,:; {nfo {rn |
+  1
+/3>1:r,*-9><: {rn rn {rn hhqikjh rmgfqhhg rkoo oqlgmigl roqfmlgg o oqfmlgg oqlgmigl o 90-(>-;@) V V V V |
+  1
+):-+:' {rn rn {rn {nfk {mhh |
+  1
+,+->687+r<*-): {rn rn {rn hhqikjh rmgfqhhg rkoo o o n V V |
+  1
+:;8: {rn rn {rn {mlj o {nfh hgqlnjh {nfj {mhg 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {moo {mhi {nfj {mlh 90-(>-; {nmm {rn |
+  1
+/061+ {rn rn {rn njo rmjfqgog koo |
+  1
+,+->687+r<*-): {rn rn {rn njo rmjfqgog koo oqhflljl oqioghin o V V |
+  1
+<0:;8: {rn rn {rn {mhf {mol {mof {mkk 90-(>-; {nmm {rn |
+  1
+,+->687+r<*-): {rn rn {rn mnmqnlm mnmqnlm koo roqhflljl oqioghin o V V |
+  1
+/061+ {rn rn {rn njo mjfqgog koo |
+  1
+:;8: {rn rn {rn {moh o {mkj hgqlnjh {mof {mgo 90-(>-; _h *1410(1 |
+  1
+):-+:' {rn rn {rn {mno {mgn |
+  1
+,+->687+r<*-): {rn rn {rn hhqikjh mgfqhhg rkoo o o n V V |
+  1
+<0:;8: {rn rn {rn {mnn {mnm {mhf {mgm -:):-,:; {nlg {rn |
+  1
+:;8: {rn rn {rn {mng o {mgl goo {mnm {mgk 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mnl {mgj {mnm {mkg -:):-,:; {nhi {rn |
+  1
+<0:;8: {rn rn {rn {mgj {mnl {mgh {mgi 90-(>-; {nhi {rn |
+  1
+<0:;8: {rn rn {rn {mgg {mgh {mmn {mjg -:):-,:; {mnk {rn |
+  1
+300/ {rn rn {rn {rn {mgf {mni |
+  1
+/3>1:r,*-9><: {rn rn {rn rnjo mjfqgog rkoo roqioghin oqhflljl o roqhflljl roqioghin o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {mfm {mfo {l {rn {mfn 90-(>-; ,6183: |
+  1
+/061+ {rn rn {rn nqnligh:rnl loo rkoo |
+  1
+):-+:' {rn rn {rn {mjg {mfl |
+  1
+,+->687+r<*-): {rn rn {rn rhhqikjh mgfqhhg rkoo oqffnkkj oqnlojmi o V V |
+  1
+:;8: {rn rn {rn {mfk o {mji hgqlnjh {mmn {mfj 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mmn {mfh {mgf {mfi 90-(>-; {j {rn |
+  1
+/061+ {rn rn {rn rhhqikjh rmgfqhhg rkoo |
+  1
+):-+:' {rn rn {rn {mmj {mfg |
+  1
+,+->687+r<*-): {rn rn {rn rhhqikjh rmgfqhhg rkoo roqfmlgg oqlgmigl o V V |
+  1
+:;8: {rn rn {rn {min o {mff hgqlnjh {mmi {loo 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {lom {mmi {lol {lon 90-(>-; {j {rn |
+  1
+<0:;8: {rn rn {rn {loi {loj {mmi {mil -:):-,:; {lok {rn |
+  1
+300/ {rn rn {rn {rn {mmh {loh |
+  1
+<0:;8: {rn rn {rn {mmh {lof {loi {log -:):-,:; {mii {rn |
+  1
+<0:;8: {rn rn {rn {lof {mmh {mmf {mho 90-(>-; {mii {rn |
+  1
+9><: {rn rn {rn {mln {mmg {l {rn {lno 90-(>-; ,6183: |
+  1
+:;8: {rn rn {rn {mml o {lnn goo {mig {lnm 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mmf {mlo {lnk {lnl -:):-,:; {mmg {rn |
+  1
+/3>1:r,*-9><: {rn rn {rn o rloo rkoo oqnlojmi roqffnkkj o oqffnkkj oqnlojmi o 90-(>-;@) V V V V |
+  1
+):-+:' {rn rn {rn {mlm {lnj |
+  1
+,+->687+r<*-): {rn rn {rn o rloo rkoo o o n V V |
+  1
+:;8: {rn rn {rn {mhl o {mlj hgqlnjh {mll {lni 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mlg {lnk {mll {mhj 90-(>-; {nmm {rn |
+  1
+/061+ {rn rn {rn hhqikjh rmgfqhhg koo |
+  1
+,+->687+r<*-): {rn rn {rn hhqikjh rmgfqhhg koo oqfmlgg oqlgmigl o V V |
+  1
+<0:;8: {rn rn {rn {lnh {mkn {mkh {mgm 90-(>-; {nmm {rn |
+  1
+,+->687+r<*-): {rn rn {rn njo mjfqgog koo roqfmlgg oqlgmigl o V V |
+  1
+/061+ {rn rn {rn hhqikjh mgfqhhg koo |
+  1
+:;8: {rn rn {rn {mkj o {mgl hgqlnjh {mkh {lng 90-(>-; _h *1410(1 |
+  1
+):-+:' {rn rn {rn {mkg {lnf |
+  1
+,+->687+r<*-): {rn rn {rn nqnligh:rnl loo rkoo o o n V V |
+  1
+<0:;8: {rn rn {rn {mkf {mjo {lnh {lmo -:):-,:; {nhi {rn |
+  1
+:;8: {rn rn {rn {mji o {lmn goo {mjo {lmm 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mjn {lml {mjo {mgi -:):-,:; {mnk {rn |
+  1
+<0:;8: {rn rn {rn {lml {mjn {lmj {lmk 90-(>-; {mnk {rn |
+  1
+<0:;8: {rn rn {rn {lmi {lmj {mjf {mfi -:):-,:; {mjm {rn |
+  1
+300/ {rn rn {rn {rn {lmh {mjk |
+  1
+/3>1:r,*-9><: {rn rn {rn rmnmqnlm mnmqnlm rkoo roqhflljl oqioghin o roqioghin roqhflljl o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {llo {lmg {l {rn {lmf 90-(>-; ,6183: |
+  1
+/061+ {rn rn {rn rhhqikjh mgfqhhg rkoo |
+  1
+):-+:' {rn rn {rn {mfi {lln |
+  1
+,+->687+r<*-): {rn rn {rn rnjo mjfqgog rkoo oqfmlgg oqlgmigl o V V |
+  1
+:;8: {rn rn {rn {llm o {mfk hgqlnjh {mjf {lll 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mjf {llj {lmh {llk 90-(>-; {j {rn |
+  1
+/061+ {rn rn {rn rnjo rmjfqgog rkoo |
+  1
+):-+:' {rn rn {rn {mil {lli |
+  1
+,+->687+r<*-): {rn rn {rn rnjo rmjfqgog rkoo roqhflljl oqioghin o V V |
+  1
+:;8: {rn rn {rn {mff o {llh hgqlnjh {mik {llg 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {lko {mik {lkn {llf 90-(>-; {j {rn |
+  1
+<0:;8: {rn rn {rn {lkk {lkl {mik {lon -:):-,:; {lkm {rn |
+  1
+300/ {rn rn {rn {rn {mij {lkj |
+  1
+<0:;8: {rn rn {rn {mij {lkh {lkk {lki -:):-,:; {lok {rn |
+  1
+<0:;8: {rn rn {rn {lkh {mij {mih {log 90-(>-; {lok {rn |
+  1
+9><: {rn rn {rn {mif {mii {l {rn {lkg 90-(>-; ,6183: |
+  1
+:;8: {rn rn {rn {min o {lkf goo {loi {ljo 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mih {mig {ljm {ljn -:):-,:; {mii {rn |
+  1
+/3>1:r,*-9><: {rn rn {rn rhhqikjh rmgfqhhg rkoo roqnlojmi roqffnkkj o oqffnkkj roqnlojmi o 90-(>-;@) V V V V |
+  1
+):-+:' {rn rn {rn {mho {ljl |
+  1
+,+->687+r<*-): {rn rn {rn rhhqikjh rmgfqhhg rkoo o o n V V |
+  1
+:;8: {rn rn {rn {lnn o {mhl hgqlnjh {mhn {ljk 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mhi {ljm {mhn {lnl 90-(>-; {nmm {rn |
+  1
+/061+ {rn rn {rn o rloo koo |
+  1
+,+->687+r<*-): {rn rn {rn o rloo koo oqffnkkj oqnlojmi o V V |
+  1
+<0:;8: {rn rn {rn {ljj {mhf {mgj {lmo 90-(>-; {nmm {rn |
+  1
+,+->687+r<*-): {rn rn {rn hhqikjh mgfqhhg koo roqffnkkj oqnlojmi o V V |
+  1
+/061+ {rn rn {rn nqnligh:rnl loo koo |
+  1
+:;8: {rn rn {rn {mgl o {lmn hgqlnjh {mgj {lji 90-(>-; _h *1410(1 |
+  1
+):-+:' {rn rn {rn {mgi {ljh |
+  1
+,+->687+r<*-): {rn rn {rn rhhqikjh mgfqhhg rkoo o o n V V |
+  1
+<0:;8: {rn rn {rn {mgh {mgg {ljj {ljg -:):-,:; {mnk {rn |
+  1
+:;8: {rn rn {rn {mfk o {ljf goo {mgg {lio 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mgf {lin {mgg {lmk -:):-,:; {mjm {rn |
+  1
+<0:;8: {rn rn {rn {lin {mgf {lil {lim 90-(>-; {mjm {rn |
+  1
+<0:;8: {rn rn {rn {lik {lil {mfh {llk -:):-,:; {mfo {rn |
+  1
+300/ {rn rn {rn {rn {lij {mfm |
+  1
+/3>1:r,*-9><: {rn rn {rn rmjfqgog njo rkoo roqfmlgg oqlgmigl o roqlgmigl roqfmlgg o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {lig {lii {l {rn {lih 90-(>-; ,6183: |
+  1
+/061+ {rn rn {rn rnjo mjfqgog rkoo |
+  1
+):-+:' {rn rn {rn {llk {lif |
+  1
+,+->687+r<*-): {rn rn {rn rmnmqnlm mnmqnlm rkoo oqhflljl oqioghin o V V |
+  1
+:;8: {rn rn {rn {lho o {llm hgqlnjh {mfh {lhn 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {mfh {lhl {lij {lhm 90-(>-; {j {rn |
+  1
+/061+ {rn rn {rn rmnmqnlm rmnmqnlm rkoo |
+  1
+):-+:' {rn rn {rn {lon {lhk |
+  1
+,+->687+r<*-): {rn rn {rn rmnmqnlm rmnmqnlm rkoo roqioghin oqhflljl o V V |
+  1
+:;8: {rn rn {rn {llh o {lhj hgqlnjh {lom {lhi 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {lhl {lom {lhg {lhh 90-(>-; {j {rn |
+  1
+<0:;8: {rn rn {rn {lgn {lgo {lom {llf -:):-,:; {lhf {rn |
+  1
+300/ {rn rn {rn {rn {lol {lgm |
+  1
+<0:;8: {rn rn {rn {lol {lgk {lgn {lgl -:):-,:; {lkm {rn |
+  1
+<0:;8: {rn rn {rn {lgk {lol {loj {lki 90-(>-; {lkm {rn |
+  1
+9><: {rn rn {rn {loh {lok {l {rn {lgj 90-(>-; ,6183: |
+  1
+:;8: {rn rn {rn {mff o {lgi goo {lkk {lgh 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {loj {loi {lgf {lgg -:):-,:; {lok {rn |
+  1
+/3>1:r,*-9><: {rn rn {rn rnjo rmjfqgog rkoo roqlgmigl roqfmlgg o oqfmlgg roqlgmigl o 90-(>-;@) V V V V |
+  1
+):-+:' {rn rn {rn {log {lfo |
+  1
+,+->687+r<*-): {rn rn {rn rnjo rmjfqgog rkoo o o n V V |
+  1
+:;8: {rn rn {rn {lkf o {lnn hgqlnjh {lof {lfn 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {lnk {lgf {lof {ljn 90-(>-; {nmm {rn |
+  1
+/061+ {rn rn {rn rhhqikjh rmgfqhhg koo |
+  1
+,+->687+r<*-): {rn rn {rn rhhqikjh rmgfqhhg koo oqffnkkj roqnlojmi o V V |
+  1
+<0:;8: {rn rn {rn {lfm {lnh {lml {ljg 90-(>-; {nmm {rn |
+  1
+,+->687+r<*-): {rn rn {rn nqnligh:rnl loo koo roqffnkkj roqnlojmi o V V |
+  1
+/061+ {rn rn {rn rhhqikjh mgfqhhg koo |
+  1
+:;8: {rn rn {rn {lmn o {ljf hgqlnjh {lml {lfl 90-(>-; _h *1410(1 |
+  1
+):-+:' {rn rn {rn {lmk {lfk |
+  1
+,+->687+r<*-): {rn rn {rn rnjo mjfqgog rkoo o o n V V |
+  1
+<0:;8: {rn rn {rn {lmj {lmi {lfm {lfj -:):-,:; {mjm {rn |
+  1
+:;8: {rn rn {rn {llm o {lfi goo {lmi {lfh 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {lmh {lfg {lmi {lim -:):-,:; {mfo {rn |
+  1
+<0:;8: {rn rn {rn {lfg {lmh {koo {lff 90-(>-; {mfo {rn |
+  1
+<0:;8: {rn rn {rn {kon {koo {llj {lhm -:):-,:; {lmg {rn |
+  1
+300/ {rn rn {rn {rn {kom {llo |
+  1
+/3>1:r,*-9><: {rn rn {rn rmgfqhhg hhqikjh rkoo roqffnkkj oqnlojmi o roqnlojmi roqffnkkj o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {koj {kol {l {rn {kok 90-(>-; ,6183: |
+  1
+/061+ {rn rn {rn rmnmqnlm mnmqnlm rkoo |
+  1
+):-+:' {rn rn {rn {lhm {koi |
+  1
+,+->687+r<*-): {rn rn {rn rmjfqgog njo rkoo oqioghin oqhflljl o V V |
+  1
+:;8: {rn rn {rn {koh o {lho hgqlnjh {llj {kog 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {llj {lko {kom {kof 90-(>-; {j {rn |
+  1
+/061+ {rn rn {rn rmjfqgog rnjo rkoo |
+  1
+):-+:' {rn rn {rn {llf {kno |
+  1
+,+->687+r<*-): {rn rn {rn rmjfqgog rnjo rkoo roqlgmigl oqfmlgg o V V |
+  1
+:;8: {rn rn {rn {lhj o {knn hgqlnjh {lko {knm 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {knk {knl {lko {lhh -:):-,:; {kol {rn |
+  1
+300/ {rn rn {rn {rn {lkn {koj |
+  1
+<0:;8: {rn rn {rn {lkn {kni {knk {knj -:):-,:; {lhf {rn |
+  1
+<0:;8: {rn rn {rn {kni {lkn {lkl {lgl 90-(>-; {lhf {rn |
+  1
+9><: {rn rn {rn {lkj {lkm {l {rn {knh 90-(>-; ,6183: |
+  1
+:;8: {rn rn {rn {llh o {kng goo {lgn {knf 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {lkl {lkk {kmn {kmo -:):-,:; {lkm {rn |
+  1
+/3>1:r,*-9><: {rn rn {rn rmnmqnlm rmnmqnlm rkoo roqioghin roqhflljl o oqhflljl roqioghin o 90-(>-;@) V V V V |
+  1
+):-+:' {rn rn {rn {lki {kmm |
+  1
+,+->687+r<*-): {rn rn {rn rmnmqnlm rmnmqnlm rkoo o o n V V |
+  1
+:;8: {rn rn {rn {lgi o {lkf hgqlnjh {lkh {kml 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {ljm {kmn {lkh {lgg 90-(>-; {nmm {rn |
+  1
+/061+ {rn rn {rn rnjo rmjfqgog koo |
+  1
+,+->687+r<*-): {rn rn {rn rnjo rmjfqgog koo oqfmlgg roqlgmigl o V V |
+  1
+<0:;8: {rn rn {rn {kmk {ljj {lin {lfj 90-(>-; {nmm {rn |
+  1
+,+->687+r<*-): {rn rn {rn rhhqikjh mgfqhhg koo roqfmlgg roqlgmigl o V V |
+  1
+/061+ {rn rn {rn rnjo mjfqgog koo |
+  1
+:;8: {rn rn {rn {ljf o {lfi hgqlnjh {lin {kmj 90-(>-; _h *1410(1 |
+  1
+):-+:' {rn rn {rn {lim {kmi |
+  1
+,+->687+r<*-): {rn rn {rn rmnmqnlm mnmqnlm rkoo o o n V V |
+  1
+<0:;8: {rn rn {rn {lil {lik {kmk {kmh -:):-,:; {mfo {rn |
+  1
+:;8: {rn rn {rn {lho o {kmg goo {lik {kmf 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {lij {klo {lik {lff -:):-,:; {lmg {rn |
+  1
+<0:;8: {rn rn {rn {klo {lij {klm {kln 90-(>-; {lmg {rn |
+  1
+<0:;8: {rn rn {rn {kll {klm {lhl {kof -:):-,:; {lii {rn |
+  1
+300/ {rn rn {rn {rn {lhg {lig |
+  1
+/3>1:r,*-9><: {rn rn {rn rloo rnqnligh:rnl rkoo roqffnkkj roqnlojmi o oqnlojmi roqffnkkj o 90-(>-;@) V V V V |
+  1
+9><: {rn rn {rn {lgm {lhf {l {rn {klk 90-(>-; ,6183: |
+  1
+/061+ {rn rn {rn rmjfqgog njo rkoo |
+  1
+):-+:' {rn rn {rn {kof {klj |
+  1
+,+->687+r<*-): {rn rn {rn rmgfqhhg hhqikjh rkoo oqlgmigl oqfmlgg o V V |
+  1
+:;8: {rn rn {rn {knn o {koh hgqlnjh {lhl {kli 90-(>-; _h *1410(1 |
+  1
+/061+ {rn rn {rn rmgfqhhg rhhqikjh rkoo |
+  1
+):-+:' {rn rn {rn {lhh {klh |
+  1
+,+->687+r<*-): {rn rn {rn rmgfqhhg rhhqikjh rkoo roqnlojmi oqffnkkj o V V |
+  1
+<0:;8: {rn rn {rn {lhg {klf {kll {klg -:):-,:; {kol {rn |
+  1
+<0:;8: {rn rn {rn {klf {lhg {lgo {knj 90-(>-; {kol {rn |
+  1
+:;8: {rn rn {rn {lhj o {kko goo {knk {kkn 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {lgo {lgn {kkl {kkm -:):-,:; {lhf {rn |
+  1
+/3>1:r,*-9><: {rn rn {rn rmjfqgog rnjo rkoo roqhflljl roqioghin o oqioghin roqhflljl o 90-(>-;@) V V V V |
+  1
+):-+:' {rn rn {rn {lgl {kkk |
+  1
+,+->687+r<*-): {rn rn {rn rmjfqgog rnjo rkoo o o n V V |
+  1
+:;8: {rn rn {rn {kng o {lgi hgqlnjh {lgk {kkj 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {lgf {kkl {lgk {kmo 90-(>-; {nmm {rn |
+  1
+/061+ {rn rn {rn rmnmqnlm rmnmqnlm koo |
+  1
+,+->687+r<*-): {rn rn {rn rmnmqnlm rmnmqnlm koo oqhflljl roqioghin o V V |
+  1
+<0:;8: {rn rn {rn {kki {lfm {lfg {kmh 90-(>-; {nmm {rn |
+  1
+,+->687+r<*-): {rn rn {rn rnjo mjfqgog koo roqhflljl roqioghin o V V |
+  1
+/061+ {rn rn {rn rmnmqnlm mnmqnlm koo |
+  1
+:;8: {rn rn {rn {lfi o {kmg hgqlnjh {lfg {kkh 90-(>-; _h *1410(1 |
+  1
+):-+:' {rn rn {rn {lff {kkg |
+  1
+,+->687+r<*-): {rn rn {rn rmjfqgog njo rkoo o o n V V |
+  1
+<0:;8: {rn rn {rn {koo {kon {kki {kkf -:):-,:; {lmg {rn |
+  1
+:;8: {rn rn {rn {koh o {kjo goo {kon {kjn 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {kom {kjm {kon {kln -:):-,:; {lii {rn |
+  1
+<0:;8: {rn rn {rn {kjm {kom {knl {klg 90-(>-; {lii {rn |
+  1
+/3>1:r,*-9><: {rn rn {rn rmgfqhhg rhhqikjh rkoo roqfmlgg roqlgmigl o oqlgmigl roqfmlgg o 90-(>-;@) V V V V |
+  1
+/061+ {rn rn {rn rmgfqhhg hhqikjh rkoo |
+  1
+,+->687+r<*-): {rn rn {rn rloo rnqnligh:rnl rkoo oqnlojmi oqffnkkj o V V |
+  1
+/061+ {rn rn {rn rloo rnqnligh:rnl rkoo |
+  1
+:;8: {rn rn {rn {knn o {kjl goo {kll {kjk 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {knl {knk {kji {kjj -:):-,:; {kol {rn |
+  1
+):-+:' {rn rn {rn {knj {kjh |
+  1
+,+->687+r<*-): {rn rn {rn rmgfqhhg rhhqikjh rkoo o o n V V |
+  1
+:;8: {rn rn {rn {kko o {kng hgqlnjh {kni {kjg 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {kmn {kji {kni {kkm 90-(>-; {nmm {rn |
+  1
+/061+ {rn rn {rn rmjfqgog rnjo koo |
+  1
+,+->687+r<*-): {rn rn {rn rmjfqgog rnjo koo oqioghin roqhflljl o V V |
+  1
+<0:;8: {rn rn {rn {kjf {kmk {klo {kkf 90-(>-; {nmm {rn |
+  1
+,+->687+r<*-): {rn rn {rn rmnmqnlm mnmqnlm koo roqioghin roqhflljl o V V |
+  1
+/061+ {rn rn {rn rmjfqgog njo koo |
+  1
+:;8: {rn rn {rn {kmg o {kjo hgqlnjh {klo {kio 90-(>-; _h *1410(1 |
+  1
+):-+:' {rn rn {rn {kln {kin |
+  1
+,+->687+r<*-): {rn rn {rn rmgfqhhg hhqikjh rkoo o o n V V |
+  1
+<0:;8: {rn rn {rn {klm {kll {kjf {kim -:):-,:; {lii {rn |
+  1
+):-+:' {rn rn {rn {klg {kil |
+  1
+,+->687+r<*-): {rn rn {rn rloo rnqnligh:rnl rkoo o o n V V |
+  1
+:;8: {rn rn {rn {kjl o {kko hgqlnjh {klf {kik 90-(>-; _h *1410(1 |
+  1
+<0:;8: {rn rn {rn {kkl {kjf {klf {kjj 90-(>-; {nmm {rn |
+  1
+/061+ {rn rn {rn rmgfqhhg rhhqikjh koo |
+  1
+,+->687+r<*-): {rn rn {rn rmgfqhhg rhhqikjh koo oqlgmigl roqfmlgg o V V |
+  1
+<0:;8: {rn rn {rn {kji {kki {kjm {kim 90-(>-; {nmm {rn |
+  1
+,+->687+r<*-): {rn rn {rn rmjfqgog njo koo roqlgmigl roqfmlgg o V V |
+  1
+/061+ {rn rn {rn rmgfqhhg hhqikjh koo |
+  1
+:;8: {rn rn {rn {kjo o {kjl hgqlnjh {kjm {kij 90-(>-; _h *1410(1 |
+  1
+/061+ {rn rn {rn rloo rnqnligh:rnl koo |
+  1
+,+->687+r<*-): {rn rn {rn rloo rnqnligh:rnl koo oqnlojmi roqffnkkj o V V |
+  1
+,+->687+r<*-): {rn rn {rn rmgfqhhg hhqikjh koo roqnlojmi roqffnkkj o V V |
+  1
+Z1;r09r^ \VLr;>+>
+  0
+MESH
+  5
+36
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbSubDMesh
+ 71
+2
+ 72
+0
+ 91
+0
+ 92
+5
+ 10
+3000.0
+ 20
+0.0
+ 30
+0.0
+ 10
+4000.0
+ 20
+0.0
+ 30
+0.0
+ 10
+4000.0
+ 20
+1000.0
+ 30
+0.0
+ 10
+3000.0
+ 20
+1000.0
+ 30
+0.0
+ 10
+3500.0
+ 20
+500.0
+ 30
+900.0
+ 93
+21
+ 90
+4
+ 90
+0
+ 90
+1
+ 90
+2
+ 90
+3
+ 90
+3
+ 90
+0
+ 90
+1
+ 90
+4
+ 90
+3
+ 90
+1
+ 90
+2
+ 90
+4
+ 90
+3
+ 90
+2
+ 90
+3
+ 90
+4
+ 90
+3
+ 90
+3
+ 90
+0
+ 90
+4
+ 94
+0
+ 95
+0
+ 90
+0
+  0
+POLYLINE
+  5
+37
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbPolyFaceMesh
+ 66
+1
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+64
+ 71
+8
+ 72
+6
+  0
+VERTEX
+  5
+39
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+4750.0
+ 20
+0.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+3A
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+4750.0
+ 20
+500.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+3B
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+5250.0
+ 20
+500.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+3C
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+5250.0
+ 20
+0.0
+ 30
+0.0
+ 70
+192
+  0
+VERTEX
+  5
+40
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+5250.0
+ 20
+500.0
+ 30
+500.0
+ 70
+192
+  0
+VERTEX
+  5
+41
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+5250.0
+ 20
+0.0
+ 30
+500.0
+ 70
+192
+  0
+VERTEX
+  5
+44
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+4750.0
+ 20
+500.0
+ 30
+500.0
+ 70
+192
+  0
+VERTEX
+  5
+49
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolyFaceMeshVertex
+ 10
+4750.0
+ 20
+0.0
+ 30
+500.0
+ 70
+192
+  0
+VERTEX
+  5
+3D
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+1
+ 72
+2
+ 73
+3
+ 74
+4
+  0
+VERTEX
+  5
+42
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+4
+ 72
+3
+ 73
+5
+ 74
+6
+  0
+VERTEX
+  5
+47
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+2
+ 72
+7
+ 73
+5
+ 74
+3
+  0
+VERTEX
+  5
+4C
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+1
+ 72
+8
+ 73
+7
+ 74
+2
+  0
+VERTEX
+  5
+51
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+1
+ 72
+4
+ 73
+6
+ 74
+8
+  0
+VERTEX
+  5
+56
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbFaceRecord
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+128
+ 71
+8
+ 72
+6
+ 73
+5
+ 74
+7
+  0
+SEQEND
+  5
+38
+330
+37
+100
+AcDbEntity
+  8
+MESH
+  0
+POLYLINE
+  5
+57
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbPolygonMesh
+ 66
+1
+ 10
+0.0
+ 20
+0.0
+ 30
+0.0
+ 70
+16
+ 71
+4
+ 72
+5
+  0
+VERTEX
+  5
+59
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6000.0
+ 20
+0.0
+ 30
+0.0
+ 70
+64
+  0
+VERTEX
+  5
+5A
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6000.0
+ 20
+250.0
+ 30
+100.0
+ 70
+64
+  0
+VERTEX
+  5
+5B
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6000.0
+ 20
+500.0
+ 30
+0.0
+ 70
+64
+  0
+VERTEX
+  5
+5C
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6000.0
+ 20
+750.0
+ 30
+100.0
+ 70
+64
+  0
+VERTEX
+  5
+5D
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6000.0
+ 20
+1000.0
+ 30
+0.0
+ 70
+64
+  0
+VERTEX
+  5
+5E
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6300.0
+ 20
+0.0
+ 30
+100.0
+ 70
+64
+  0
+VERTEX
+  5
+5F
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6300.0
+ 20
+250.0
+ 30
+0.0
+ 70
+64
+  0
+VERTEX
+  5
+60
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6300.0
+ 20
+500.0
+ 30
+100.0
+ 70
+64
+  0
+VERTEX
+  5
+61
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6300.0
+ 20
+750.0
+ 30
+0.0
+ 70
+64
+  0
+VERTEX
+  5
+62
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6300.0
+ 20
+1000.0
+ 30
+100.0
+ 70
+64
+  0
+VERTEX
+  5
+63
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6600.0
+ 20
+0.0
+ 30
+0.0
+ 70
+64
+  0
+VERTEX
+  5
+64
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6600.0
+ 20
+250.0
+ 30
+100.0
+ 70
+64
+  0
+VERTEX
+  5
+65
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6600.0
+ 20
+500.0
+ 30
+0.0
+ 70
+64
+  0
+VERTEX
+  5
+66
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6600.0
+ 20
+750.0
+ 30
+100.0
+ 70
+64
+  0
+VERTEX
+  5
+67
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6600.0
+ 20
+1000.0
+ 30
+0.0
+ 70
+64
+  0
+VERTEX
+  5
+68
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6900.0
+ 20
+0.0
+ 30
+100.0
+ 70
+64
+  0
+VERTEX
+  5
+69
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6900.0
+ 20
+250.0
+ 30
+0.0
+ 70
+64
+  0
+VERTEX
+  5
+6A
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6900.0
+ 20
+500.0
+ 30
+100.0
+ 70
+64
+  0
+VERTEX
+  5
+6B
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6900.0
+ 20
+750.0
+ 30
+0.0
+ 70
+64
+  0
+VERTEX
+  5
+6C
+330
+17
+100
+AcDbEntity
+  8
+MESH
+100
+AcDbVertex
+100
+AcDbPolygonMeshVertex
+ 10
+6900.0
+ 20
+1000.0
+ 30
+100.0
+ 70
+64
+  0
+SEQEND
+  5
+58
+330
+57
+100
+AcDbEntity
+  8
+MESH
+  0
+3DFACE
+  5
+6D
+330
+17
+100
+AcDbEntity
+  8
+FACCE
+100
+AcDbFace
+ 10
+0.0
+ 20
+2000.0
+ 30
+0.0
+ 11
+1000.0
+ 21
+2000.0
+ 31
+0.0
+ 12
+1000.0
+ 22
+2600.0
+ 32
+600.0
+ 13
+0.0
+ 23
+2600.0
+ 33
+600.0
+  0
+CIRCLE
+  5
+6E
+330
+17
+100
+AcDbEntity
+  8
+SPESSORI
+100
+AcDbCircle
+ 10
+2000.0
+ 20
+2500.0
+ 30
+0.0
+ 40
+250.0
+ 39
+1200.0
+  0
+LWPOLYLINE
+  5
+6F
+330
+17
+100
+AcDbEntity
+  8
+SPESSORI
+100
+AcDbPolyline
+ 90
+4
+ 70
+1
+ 38
+100.0
+ 39
+2700.0
+ 10
+3000.0
+ 20
+2000.0
+ 10
+4500.0
+ 20
+2000.0
+ 10
+4500.0
+ 20
+3000.0
+ 10
+3000.0
+ 20
+3000.0
+  0
+LINE
+  5
+70
+330
+17
+100
+AcDbEntity
+  8
+SPESSORI
+100
+AcDbLine
+ 10
+5000.0
+ 20
+2000.0
+ 30
+0.0
+ 11
+6500.0
+ 21
+2000.0
+ 31
+0.0
+ 39
+1000.0
+  0
+INSERT
+  5
+EF
+330
+17
+100
+AcDbEntity
+  8
+BLOCCHI
+ 62
+2
+100
+AcDbBlockReference
+  2
+SEDIA
+ 10
+0.0
+ 20
+4000.0
+ 30
+0.0
+ 50
+30.0
+  0
+INSERT
+  5
+F1
+330
+17
+100
+AcDbEntity
+  8
+BLOCCHI
+ 62
+4
+100
+AcDbBlockReference
+  2
+SEDIA
+ 10
+2000.0
+ 20
+4000.0
+ 30
+0.0
+210
+0.0
+220
+-1.0
+230
+0.0
+  0
+LINE
+  5
+F3
+330
+17
+100
+AcDbEntity
+  8
+0
+100
+AcDbLine
+ 10
+0.0
+ 20
+-500.0
+ 30
+0.0
+ 11
+7000.0
+ 21
+-500.0
+ 31
+0.0
+  0
+TEXT
+  5
+F4
+330
+17
+100
+AcDbEntity
+  8
+0
+100
+AcDbText
+ 10
+0.0
+ 20
+-800.0
+ 30
+0.0
+ 40
+150.0
+  1
+Modello di prova
+100
+AcDbText
+  0
+ENDSEC
+  0
+SECTION
+  2
+OBJECTS
+  0
+DICTIONARY
+  5
+A
+330
+0
+100
+AcDbDictionary
+281
+1
+  3
+ACAD_COLOR
+350
+B
+  3
+ACAD_GROUP
+350
+C
+  3
+ACAD_LAYOUT
+350
+D
+  3
+ACAD_MATERIAL
+350
+E
+  3
+ACAD_MLEADERSTYLE
+350
+F
+  3
+ACAD_MLINESTYLE
+350
+10
+  3
+ACAD_PLOTSETTINGS
+350
+11
+  3
+ACAD_PLOTSTYLENAME
+350
+12
+  3
+ACAD_SCALELIST
+350
+14
+  3
+ACAD_TABLESTYLE
+350
+15
+  3
+ACAD_VISUALSTYLE
+350
+16
+  3
+EZDXF_META
+350
+2D
+  0
+DICTIONARY
+  5
+B
+330
+A
+100
+AcDbDictionary
+281
+1
+  0
+DICTIONARY
+  5
+C
+330
+A
+100
+AcDbDictionary
+281
+1
+  0
+DICTIONARY
+  5
+D
+330
+A
+100
+AcDbDictionary
+281
+1
+  3
+Model
+350
+1A
+  3
+Layout1
+350
+1E
+  0
+DICTIONARY
+  5
+E
+330
+A
+100
+AcDbDictionary
+281
+1
+  3
+ByBlock
+350
+1F
+  3
+ByLayer
+350
+20
+  3
+Global
+350
+21
+  0
+DICTIONARY
+  5
+F
+330
+A
+100
+AcDbDictionary
+281
+1
+  3
+Standard
+350
+2C
+  0
+DICTIONARY
+  5
+10
+330
+A
+100
+AcDbDictionary
+281
+1
+  3
+Standard
+350
+22
+  0
+DICTIONARY
+  5
+11
+330
+A
+100
+AcDbDictionary
+281
+1
+  0
+ACDBDICTIONARYWDFLT
+  5
+12
+330
+A
+100
+AcDbDictionary
+281
+1
+  3
+Normal
+350
+13
+100
+AcDbDictionaryWithDefault
+340
+13
+  0
+ACDBPLACEHOLDER
+  5
+13
+330
+12
+  0
+DICTIONARY
+  5
+14
+330
+A
+100
+AcDbDictionary
+281
+1
+  0
+DICTIONARY
+  5
+15
+330
+A
+100
+AcDbDictionary
+281
+1
+  0
+DICTIONARY
+  5
+16
+330
+A
+100
+AcDbDictionary
+281
+1
+  0
+LAYOUT
+  5
+1A
+330
+D
+100
+AcDbPlotSettings
+  1
+
+  4
+A3
+  6
+
+ 40
+7.5
+ 41
+20.0
+ 42
+7.5
+ 43
+20.0
+ 44
+420.0
+ 45
+297.0
+ 46
+0.0
+ 47
+0.0
+ 48
+0.0
+ 49
+0.0
+140
+0.0
+141
+0.0
+142
+1.0
+143
+1.0
+ 70
+1024
+ 72
+1
+ 73
+0
+ 74
+5
+  7
+
+ 75
+16
+ 76
+0
+ 77
+2
+ 78
+300
+147
+1.0
+148
+0.0
+149
+0.0
+100
+AcDbLayout
+  1
+Model
+ 70
+1
+ 71
+0
+ 10
+0.0
+ 20
+0.0
+ 11
+420.0
+ 21
+297.0
+ 12
+0.0
+ 22
+0.0
+ 32
+0.0
+ 14
+1e+20
+ 24
+1e+20
+ 34
+1e+20
+ 15
+-1e+20
+ 25
+-1e+20
+ 35
+-1e+20
+146
+0.0
+ 13
+0.0
+ 23
+0.0
+ 33
+0.0
+ 16
+1.0
+ 26
+0.0
+ 36
+0.0
+ 17
+0.0
+ 27
+1.0
+ 37
+0.0
+ 76
+1
+330
+17
+  0
+LAYOUT
+  5
+1E
+330
+D
+100
+AcDbPlotSettings
+  1
+
+  4
+A3
+  6
+
+ 40
+7.5
+ 41
+20.0
+ 42
+7.5
+ 43
+20.0
+ 44
+420.0
+ 45
+297.0
+ 46
+0.0
+ 47
+0.0
+ 48
+0.0
+ 49
+0.0
+140
+0.0
+141
+0.0
+142
+1.0
+143
+1.0
+ 70
+0
+ 72
+1
+ 73
+0
+ 74
+5
+  7
+
+ 75
+16
+ 76
+0
+ 77
+2
+ 78
+300
+147
+1.0
+148
+0.0
+149
+0.0
+100
+AcDbLayout
+  1
+Layout1
+ 70
+1
+ 71
+1
+ 10
+0.0
+ 20
+0.0
+ 11
+420.0
+ 21
+297.0
+ 12
+0.0
+ 22
+0.0
+ 32
+0.0
+ 14
+1e+20
+ 24
+1e+20
+ 34
+1e+20
+ 15
+-1e+20
+ 25
+-1e+20
+ 35
+-1e+20
+146
+0.0
+ 13
+0.0
+ 23
+0.0
+ 33
+0.0
+ 16
+1.0
+ 26
+0.0
+ 36
+0.0
+ 17
+0.0
+ 27
+1.0
+ 37
+0.0
+ 76
+1
+330
+1B
+  0
+MATERIAL
+  5
+1F
+102
+{ACAD_REACTORS
+330
+E
+102
+}
+330
+E
+100
+AcDbMaterial
+  1
+ByBlock
+  2
+
+ 70
+0
+ 40
+1.0
+ 71
+1
+ 41
+1.0
+ 91
+-1023410177
+ 42
+1.0
+ 72
+1
+  3
+
+ 73
+1
+ 74
+1
+ 75
+1
+ 44
+0.5
+ 73
+0
+ 45
+1.0
+ 46
+1.0
+ 77
+1
+  4
+
+ 78
+1
+ 79
+1
+170
+1
+ 48
+1.0
+171
+1
+  6
+
+172
+1
+173
+1
+174
+1
+140
+1.0
+141
+1.0
+175
+1
+  7
+
+176
+1
+177
+1
+178
+1
+143
+1.0
+179
+1
+  8
+
+270
+1
+271
+1
+272
+1
+145
+1.0
+146
+1.0
+273
+1
+  9
+
+274
+1
+275
+1
+276
+1
+ 42
+1.0
+ 72
+1
+  3
+
+ 73
+1
+ 74
+1
+ 75
+1
+ 94
+63
+  0
+MATERIAL
+  5
+20
+102
+{ACAD_REACTORS
+330
+E
+102
+}
+330
+E
+100
+AcDbMaterial
+  1
+ByLayer
+  2
+
+ 70
+0
+ 40
+1.0
+ 71
+1
+ 41
+1.0
+ 91
+-1023410177
+ 42
+1.0
+ 72
+1
+  3
+
+ 73
+1
+ 74
+1
+ 75
+1
+ 44
+0.5
+ 73
+0
+ 45
+1.0
+ 46
+1.0
+ 77
+1
+  4
+
+ 78
+1
+ 79
+1
+170
+1
+ 48
+1.0
+171
+1
+  6
+
+172
+1
+173
+1
+174
+1
+140
+1.0
+141
+1.0
+175
+1
+  7
+
+176
+1
+177
+1
+178
+1
+143
+1.0
+179
+1
+  8
+
+270
+1
+271
+1
+272
+1
+145
+1.0
+146
+1.0
+273
+1
+  9
+
+274
+1
+275
+1
+276
+1
+ 42
+1.0
+ 72
+1
+  3
+
+ 73
+1
+ 74
+1
+ 75
+1
+ 94
+63
+  0
+MATERIAL
+  5
+21
+102
+{ACAD_REACTORS
+330
+E
+102
+}
+330
+E
+100
+AcDbMaterial
+  1
+Global
+  2
+
+ 70
+0
+ 40
+1.0
+ 71
+1
+ 41
+1.0
+ 91
+-1023410177
+ 42
+1.0
+ 72
+1
+  3
+
+ 73
+1
+ 74
+1
+ 75
+1
+ 44
+0.5
+ 73
+0
+ 45
+1.0
+ 46
+1.0
+ 77
+1
+  4
+
+ 78
+1
+ 79
+1
+170
+1
+ 48
+1.0
+171
+1
+  6
+
+172
+1
+173
+1
+174
+1
+140
+1.0
+141
+1.0
+175
+1
+  7
+
+176
+1
+177
+1
+178
+1
+143
+1.0
+179
+1
+  8
+
+270
+1
+271
+1
+272
+1
+145
+1.0
+146
+1.0
+273
+1
+  9
+
+274
+1
+275
+1
+276
+1
+ 42
+1.0
+ 72
+1
+  3
+
+ 73
+1
+ 74
+1
+ 75
+1
+ 94
+63
+  0
+MLINESTYLE
+  5
+22
+102
+{ACAD_REACTORS
+330
+10
+102
+}
+330
+10
+100
+AcDbMlineStyle
+  2
+Standard
+ 70
+0
+  3
+
+ 62
+256
+ 51
+90.0
+ 52
+90.0
+ 71
+2
+ 49
+0.5
+ 62
+256
+  6
+BYLAYER
+ 49
+-0.5
+ 62
+256
+  6
+BYLAYER
+  0
+MLEADERSTYLE
+  5
+2C
+102
+{ACAD_REACTORS
+330
+F
+102
+}
+330
+F
+100
+AcDbMLeaderStyle
+179
+2
+170
+2
+171
+1
+172
+0
+ 90
+2
+ 40
+0.0
+ 41
+0.0
+173
+1
+ 91
+-1056964608
+ 92
+-2
+290
+1
+ 42
+2.0
+291
+1
+ 43
+8.0
+  3
+Standard
+ 44
+4.0
+300
+
+342
+29
+174
+1
+175
+1
+176
+0
+178
+1
+ 93
+-1056964608
+ 45
+4.0
+292
+0
+297
+0
+ 46
+4.0
+ 94
+-1056964608
+ 47
+1.0
+ 49
+1.0
+140
+1.0
+294
+1
+141
+0.0
+177
+0
+142
+1.0
+295
+0
+296
+0
+143
+3.75
+271
+0
+272
+9
+273
+9
+  0
+DICTIONARY
+  5
+2D
+330
+A
+100
+AcDbDictionary
+280
+1
+281
+1
+  3
+CREATED_BY_EZDXF
+350
+2E
+  3
+WRITTEN_BY_EZDXF
+350
+F7
+  0
+DICTIONARYVAR
+  5
+2E
+330
+2D
+100
+DictionaryVariables
+280
+0
+  1
+1.4.5 @ 2026-10-28T10:11:25.284891+00:00
+  0
+DICTIONARYVAR
+  5
+F7
+330
+2D
+100
+DictionaryVariables
+280
+0
+  1
+1.4.5 @ 2026-10-28T10:11:25.336011+00:00
+  0
+ENDSEC
+  0
+EOF

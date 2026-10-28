@@ -1895,7 +1895,7 @@ export function createCadEditor(o) {
     },
     hasEdits: () => undo.length > 0 || newLayers.size > 0,
     // dati per il salvataggio (ezdxf)
-    payload() { return JSON.parse(JSON.stringify(this._payload(), (k, v) => (k === "xdata" ? undefined : plain(k, v)))); },
+    payload() { return JSON.parse(JSON.stringify(this._payload(), (k, v) => (k === "xdata" || k === "acis" ? undefined : plain(k, v)))); },
     _payload() {
       const layers = [...newLayers.values()];
       for (const L of model().layers.values()) layers.push({ name: L.name, aci: L.aci, off: L.off });

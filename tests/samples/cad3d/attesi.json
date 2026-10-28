@@ -1,0 +1,46 @@
+{
+ "modello_r2000.dxf": {
+  "mostly": true,
+  "solidi": 3,
+  "mesh": 1,
+  "polyface": 2,
+  "polymesh": 1,
+  "facce3d": 1,
+  "solido_principale": {
+   "min": [
+    0,
+    0,
+    0
+   ],
+   "max": [
+    2000,
+    1000,
+    500
+   ]
+  }
+ },
+ "modello_r2018.dxf": {
+  "mostly": true,
+  "solidi": 3,
+  "mesh": 1,
+  "polyface": 2,
+  "polymesh": 1,
+  "facce3d": 1,
+  "solido_principale": {
+   "min": [
+    0,
+    0,
+    0
+   ],
+   "max": [
+    2000,
+    1000,
+    500
+   ]
+  }
+ },
+ "pianta_2d.dxf": {
+  "mostly": false,
+  "any": false
+ }
+}

@@ -8,7 +8,7 @@ import { t as tr } from "./i18n.js";
 const PARAMS = { linearUnit: "millimeter", linearDeflectionType: "bounding_box_ratio", linearDeflection: 0.001, angularDeflection: 0.5 };
 
 // lettori OpenCascade in parallelo (ognuno carica il motore una sola volta)
-function makePool(n) {
+export function makePool(n) { // usata anche dalla vista 3D dei disegni (ui/js/cad3d.js)
   const workers = [], waiting = new Map();
   let seq = 0;
   for (let i = 0; i < n; i++) {
@@ -75,7 +75,7 @@ const MISS = {
   "facce con spigoli non convertibili": "r_facce_spigoli", "facce non leggibili": "r_facce_non_leggibili",
   "geometria 3D non trovata nel file": "r_geometria_mancante", "file non leggibile": "r_file_non_leggibile",
 };
-function missLabel(k) {
+export function missLabel(k) {
   if (MISS[k]) return tr("inventor3d." + MISS[k]);
   let m = /^blocco non leggibile \((.*)\)$/.exec(k);
   if (m) return tr("inventor3d.r_blocco", m[1]);

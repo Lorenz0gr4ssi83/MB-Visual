@@ -647,11 +647,21 @@ class Converter:
         if tc.peek() == acis.INT:
             tc.next()
         vecs = []
+        scale = None
         while tc.more() and len(vecs) < 4:
             tt, v = tc.next()
             if tt in (acis.POS, acis.VEC):
                 vecs.append(v)
-        scale = tc.float() if tc.peek() in (acis.DOUBLE, acis.DOUBLE2) else 1.0
+            elif tt == acis.STR and len(v.split()) >= 12:
+                # matrice scritta come testo dentro il binario (file creati da ezdxf)
+                try:
+                    nums = [float(x) for x in v.split()[:13]]
+                except ValueError:
+                    continue
+                vecs = [tuple(nums[k:k + 3]) for k in range(0, 12, 3)]
+                scale = nums[12] if len(nums) > 12 else 1.0
+        if scale is None:
+            scale = tc.float() if tc.peek() in (acis.DOUBLE, acis.DOUBLE2) else 1.0
         if len(vecs) < 4:
             return Xf(unit=self.unit)
         return Xf(rows=tuple(vecs[:3]), t=vecs[3], scale=scale, unit=self.unit)
@@ -749,13 +759,13 @@ def product(w: StepWriter, name: str, items: list[int], color=None) -> int:
     return pr
 
 
-def sab_to_step(blobs: list[bytes], name: str, color=None) -> tuple[str, dict]:
-    """Dati ShapeManager -> testo STEP + rapporto {facce, mancanti}."""
+def sab_to_step(blobs: list, name: str, color=None) -> tuple[str, dict]:
+    """Dati ShapeManager (binari SAB o testo SAT) -> testo STEP + rapporto {facce, mancanti}."""
     w = StepWriter()
     items, report, missing = [], Counter(), Counter()
     for blob in blobs:
         try:
-            header, records, subtypes = acis.parse(blob)
+            header, records, subtypes = acis.parse_any(blob)
         except (AcisError, IndexError, ValueError) as e:
             missing[f"blocco non leggibile ({e})"] += 1
             continue
