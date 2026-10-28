@@ -339,6 +339,7 @@ def sniff(path: str) -> dict:
         (h.startswith(b"ASTM-E57"), "pointcloud", tr("srv_misc.nuvola_e57")),
         (h.startswith(b"ADOCT"), "pointcloud", tr("srv_misc.nuvola_rcs")),
         (h.startswith(b"\xff\xfe\xff\x0e" + "SketchUp Model".encode("utf-16-le")), "sketchup", tr("srv_misc.modello_sketchup")),
+        (h.startswith(b"#UGC:"), "creo", tr("srv_misc.modello_creo")),  # PTC Creo / Pro/ENGINEER (mbvisual/fx_creo.py)
         (b"ISO-10303-21" in h[:200] and b"IFC" in h[:4000].upper(), "ifc", tr("srv_misc.modello_bim_ifc")),
         (b"ISO-10303-21" in h[:200], "cad3d", tr("srv_misc.modello_cad_step")),
         (h.startswith(b"MZ"), "exe", tr("srv_misc.programma_windows_eseguibile")),

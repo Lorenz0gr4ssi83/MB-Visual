@@ -1168,6 +1168,19 @@
    ]
   },
   {
+   "id": "creo",
+   "name": "PTC Creo Parametric / Pro/ENGINEER",
+   "viewer": "creo",
+   "view": "Anteprima salvata nel file (Creo 2.0 e successivi), tipo di modello, nome, versione di Creo che l'ha salvato, sezioni del file; anche i file con il numero di versione (pezzo.prt.3). Apertura con Creo Parametric o Creo View se installati",
+   "edit": "Nessuna (la geometria e' in un formato proprietario PTC: per il 3D esportare in STEP da Creo)",
+   "exts": [
+    "prt",
+    "asm",
+    "drw",
+    "frm"
+   ]
+  },
+  {
    "id": "archive",
    "name": "Archivi compressi e immagini disco",
    "viewer": "archive",
