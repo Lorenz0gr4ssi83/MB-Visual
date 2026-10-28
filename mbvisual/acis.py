@@ -324,3 +324,219 @@ def find_bs3(vals: list, start: int, surface: bool):
                     return None
         i += 1
     return None
+
+
+# ---------------------------------------------------------------- formato testo SAT
+# Stessi record del formato binario, ma i valori sono parole separate da spazi e il tipo non e' scritto: i
+# puntatori sono "$n", le stringhe "@n testo", i blocchi { }, i numeri e le parole vanno riconosciuti.
+# Le parole con due valori (forward/reversed, single/double, I/F degli intervalli...) diventano TRUE/FALSE come nel
+# binario; i vettori, che nel testo sono tre numeri, si raggruppano per i record geometrici che li usano.
+_BOOL = {"forward": False, "reversed": True, "reverse": True, "forward_v": False, "reverse_v": True,
+         "single": False, "double": True, "out": False, "in": True, "F": True, "I": False,
+         "no_rotate": False, "rotate": True, "no_reflect": False, "reflect": True, "no_shear": False, "shear": True}
+_CLOSURE = {"open": 0, "closed": 1, "periodic": 2}
+_SINGULAR = {"none": 0, "full": 1, "u": 2, "v": 3, "both": 4}
+# vettori (V) e numeri (N) all'inizio dei record geometrici, dopo i puntatori dell'intestazione
+_SHAPE = {"point": "V", "straight-curve": "VV", "ellipse-curve": "VVVN", "plane-surface": "VVV", "cone-surface": "VVVN",
+          "sphere-surface": "VNVV", "torus-surface": "VVNNV", "transform": "VVVVN"}
+
+
+def _sat_tokens(s: str):
+    i, n = 0, len(s)
+    while i < n:
+        c = s[i]
+        if c in " \t\r\n":
+            i += 1
+            continue
+        if c == "@":  # stringa con lunghezza: @7 unknown
+            j = i + 1
+            while j < n and s[j].isdigit():
+                j += 1
+            ln = int(s[i + 1:j] or 0)
+            yield ("@", s[j + 1:j + 1 + ln])
+            i = j + 1 + ln
+            continue
+        j = i
+        while j < n and s[j] not in " \t\r\n":
+            j += 1
+        tok = s[i:j]
+        i = j
+        if tok.endswith("#") and len(tok) > 1:
+            yield ("w", tok[:-1])
+            yield ("w", "#")
+        else:
+            yield ("w", tok)
+
+
+def _num(tok: str):
+    try:
+        if any(ch in tok for ch in ".eEn"):
+            return DOUBLE, float(tok)
+        return INT, int(tok)
+    except ValueError:
+        return None
+
+
+def parse_sat(text: str) -> tuple[dict, list[Record], list]:
+    toks = list(_sat_tokens(text))
+    if len(toks) < 4:
+        raise AcisError("dati ACIS non riconosciuti")
+    try:
+        version, _nrec, _nent, flags = (int(toks[k][1]) for k in range(4))
+    except ValueError:
+        raise AcisError("dati ACIS non riconosciuti") from None
+    p = 4
+    # riga del prodotto: tre stringhe con la lunghezza davanti (anche senza @)
+    hv = []
+    for _ in range(3):
+        if p < len(toks) and toks[p][0] == "w" and toks[p][1].isdigit():
+            ln = int(toks[p][1])
+            p += 1
+            words, got = [], 0
+            while p < len(toks) and got < ln:
+                w = toks[p][1]
+                words.append(w)
+                got += len(w) + 1
+                p += 1
+            hv.append(" ".join(words))
+        elif p < len(toks) and toks[p][0] == "@":
+            hv.append(toks[p][1])
+            p += 1
+    nums = []
+    while p < len(toks) and len(nums) < 3:
+        v = _num(toks[p][1])
+        if v is None:
+            break
+        nums.append(float(v[1]))
+        p += 1
+    header = {"version": version, "flags": flags, "product": hv[0] if hv else "", "asm": hv[1] if len(hv) > 1 else "",
+              "date": hv[2] if len(hv) > 2 else "", "unit_mm": (nums[0] if nums else 1.0) or 1.0,
+              "resabs": nums[1] if len(nums) > 1 else 1e-6, "resnor": nums[2] if len(nums) > 2 else 1e-10}
+    legacy = version < 700
+    records: list[Record] = []
+    subtypes: list = []
+    n = len(toks)
+    while p < n:
+        # un record: [-indice] tipo valori... #
+        kind, w = toks[p]
+        if kind == "w" and w.startswith("-") and w[1:].isdigit() and p + 1 < n:
+            p += 1
+            kind, w = toks[p]
+        if w.startswith(("End-of-", "Begin-of-ACIS-History", "Begin-of-ASM-History")):
+            break
+        type_ = w
+        p += 1
+        raw = []
+        while p < n and not (toks[p][0] == "w" and toks[p][1] == "#"):
+            raw.append(toks[p])
+            p += 1
+        p += 1
+        vals = _sat_values(type_, raw, legacy)
+        has_sub = any(t == SUB_START for t, _ in vals)
+        if not has_sub and type_.endswith("attrib"):
+            vals = []
+        r = Record(len(records), type_, vals)
+        if has_sub:
+            for k, (t, _v) in enumerate(vals):
+                if t == SUB_START and not (k + 1 < len(vals) and vals[k + 1][1] == "ref"):
+                    subtypes.append((r, k))
+        records.append(r)
+    return header, records, subtypes
+
+
+def _sat_values(type_: str, raw: list, legacy: bool) -> list:
+    vals: list = []
+    add = vals.append
+    k, n = 0, len(raw)
+    shape = _SHAPE.get(type_)
+    seen_ptr = False
+    while k < n:
+        kind, w = raw[k]
+        k += 1
+        if kind == "@":
+            add((STR, w))
+            continue
+        if w.startswith("$") and w[1:].lstrip("-").isdigit():
+            add((PTR, int(w[1:])))
+            seen_ptr = True
+            continue
+        if w == "{":
+            add((SUB_START, None))
+            continue
+        if w == "}":
+            add((SUB_END, None))
+            continue
+        if w in ("nubs", "nurbs"):
+            add((NAME, w))
+            k = _sat_bs3(raw, k, add)
+            continue
+        num = _num(w)
+        if num is not None:
+            is_id = not legacy and len(vals) == 1 and num[0] == INT  # identificativo dopo il primo puntatore (7.0+)
+            if shape and seen_ptr and not is_id:
+                take = []
+                kk = k - 1
+                for s in shape:
+                    if s == "V":
+                        trip = [_num(raw[kk + j][1]) if kk + j < n and raw[kk + j][0] == "w" else None for j in range(3)]
+                        if None in trip:
+                            break
+                        take.append((POS, tuple(float(x[1]) for x in trip)))
+                        kk += 3
+                    else:
+                        x = _num(raw[kk][1]) if kk < n and raw[kk][0] == "w" else None
+                        if x is None:
+                            break
+                        take.append((DOUBLE, float(x[1])))
+                        kk += 1
+                vals.extend(take)
+                k = kk
+                shape = None
+                continue
+            if type_ == "edge" and num[0] == INT and not is_id:
+                num = (DOUBLE, float(num[1]))  # parametri degli estremi dello spigolo
+            add(num)
+            continue
+        if w in _BOOL:
+            add((TRUE if _BOOL[w] else FALSE, None))
+            continue
+        add((STR, w))
+    return vals
+
+
+def _sat_bs3(raw: list, k: int, add) -> int:
+    """Dopo nubs/nurbs: grado e chiusura (curva) oppure gradi, razionale, chiusure e singolarita' (superficie)."""
+    def word(j):
+        return raw[j][1] if j < len(raw) else ""
+    a, b = _num(word(k)), _num(word(k + 1))
+    if a is None:
+        return k
+    if b is not None and b[0] == INT:
+        add((INT, int(a[1])))
+        add((INT, int(b[1])))
+        k += 2
+        if word(k) not in _CLOSURE:
+            add((STR, word(k)))
+            k += 1
+        for _ in range(2):
+            add((ENUM, _CLOSURE.get(word(k), 0)))
+            k += 1
+        for _ in range(2):
+            add((ENUM, _SINGULAR.get(word(k), 0)))
+            k += 1
+        return k
+    add((INT, int(a[1])))
+    k += 1
+    if word(k) in _CLOSURE:
+        add((ENUM, _CLOSURE[word(k)]))
+        k += 1
+    return k
+
+
+def parse_any(data) -> tuple[dict, list[Record], list]:
+    """Binario (SAB) o testo (SAT)."""
+    if isinstance(data, str):
+        return parse_sat(data)
+    if data.startswith((b"ASM BinaryFile", b"ACIS BinaryFile")):
+        return parse(data)
+    return parse_sat(data.decode("latin-1"))

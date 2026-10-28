@@ -9,6 +9,7 @@ import { LAYER_PEN } from "../inkdxf.js";
 import { pinchPan } from "../touch.js";
 import { measureBtn, mbmisOf } from "../measure/mbutton.js";
 import { isOn } from "../components.js";
+import { analyze3d } from "../cad3dscan.js";
 
 
 // ---------------------------------------------------------------- colori ACI
@@ -219,6 +220,26 @@ function build(db) {
           item({ t: e.type === "3DFACE" ? "P" : "F", pts: [...P, P[0]], closed: true }, lname);
           break;
         }
+        case "PFACE": case "MESH": { // mesh 3D: spigoli visibili proiettati sulla pianta (fil di ferro, come AutoCAD)
+          const V = e.vertices || [], base = e.type === "PFACE" ? 1 : 0;
+          for (const f of e.faces || []) {
+            if (f.length < 2) continue;
+            for (let k = 0; k < f.length; k++) {
+              const a = f[k], b = f[(k + 1) % f.length];
+              if (e.type === "PFACE" && a < 0) continue; // indice negativo = spigolo invisibile
+              const p = V[Math.abs(a) - base], q = V[Math.abs(b) - base];
+              if (p && q) line(st, N, p[0], p[1], q[0], q[1]);
+            }
+          }
+          break;
+        }
+        case "PMESH": {
+          const V = e.vertices || [], m = e.m | 0, n = e.n | 0;
+          if (m < 2 || n < 2 || V.length < m * n) break;
+          for (let i = 0; i < m; i++) poly(st, N, Array.from({ length: n }, (_, j) => V[i * n + j]), !!(e.flag & 32));
+          for (let j = 0; j < n; j++) poly(st, N, Array.from({ length: m }, (_, i) => V[i * n + j]), !!(e.flag & 1));
+          break;
+        }
         case "HATCH": {
           const loops = [];
           for (const path of e.boundaryPaths || []) {
@@ -362,6 +383,7 @@ export async function decodeDwg(bytes, ctx, ld) { // usata anche dalla conversio
       if (data === undefined || data === null) throw new Error(tr("v_cad2d.file_dwg_non_leggibile_versione"));
       const db = lib.convert(data);
       if (ctx.geodata) try { db.geodata = dwgGeodata(lib, data, m); } catch { /* */ } // mappa (ui/js/gisdraw.js)
+      try { dwg3dEntities(lib, data, m, db); } catch (e) { console.warn(e); } // vista 3D (ui/js/cad3d.js)
       try { lib.dwg_free(data); } catch { /* */ }
       return db;
     } catch (e) {
@@ -372,6 +394,75 @@ export async function decodeDwg(bytes, ctx, ld) { // usata anche dalla conversio
       }
       throw e;
     }
+  }
+}
+
+// Entita' 3D che libredwg-web non converte (REGION, BODY, superfici, MESH, polyface e polygon mesh) e dati ACIS dei
+// solidi, letti con l'API dinamica prima di liberare la memoria del motore (il 3DSOLID convertito ha solo un indirizzo).
+// Nei DWG 2013+ i dati ACIS li rilegge il motore Python dalla sezione AcDs (mbvisual/dwgacds.py).
+function dwg3dEntities(lib, data, m, db) {
+  const T = m.Dwg_Object_Type, W = lib.wasmInstance;
+  const ACIS = new Map([["3DSOLID", T.DWG_TYPE_3DSOLID], ["REGION", T.DWG_TYPE_REGION], ["BODY", T.DWG_TYPE_BODY],
+    ...["PLANESURFACE", "EXTRUDEDSURFACE", "LOFTEDSURFACE", "REVOLVEDSURFACE", "SWEPTSURFACE", "NURBSURFACE"].map(n => [n, T["DWG_TYPE_" + n]])].filter(([, v]) => v !== undefined).map(([k, v]) => [v, k]));
+  const MESHT = { [T.DWG_TYPE_MESH]: "MESH", [T.DWG_TYPE_POLYLINE_PFACE]: "PFACE", [T.DWG_TYPE_POLYLINE_MESH]: "PMESH" };
+  const VX = new Set([T.DWG_TYPE_VERTEX_PFACE, T.DWG_TYPE_VERTEX_PFACE_FACE, T.DWG_TYPE_VERTEX_MESH]);
+  const hex = v => (typeof v === "bigint" ? v : BigInt(Math.round(Number(v) || 0))).toString(16).toUpperCase();
+  const layerByHandle = new Map((db.tables.LAYER?.entries || []).filter(l => l.handle).map(l => [String(l.handle).toUpperCase(), l.name]));
+  const n = lib.dwg_get_num_objects(data);
+  const acisOf = new Map(), made = [], verts = new Map();
+  for (let i = 0; i < n; i++) {
+    const o = lib.dwg_get_object(data, i);
+    const t = lib.dwg_object_get_fixedtype(o);
+    if (!ACIS.has(t) && !MESHT[t] && !VX.has(t)) continue;
+    const ent = lib.dwg_object_to_entity(o), tio = lib.dwg_object_to_entity_tio(o);
+    if (!ent || !tio) continue;
+    const g = k => { try { return lib.dwg_dynapi_entity_data(tio, k); } catch { return undefined; } };
+    const handle = hex(lib.dwg_object_entity_get_handle_object(ent).value);
+    const owner = hex(lib.dwg_object_entity_get_ownerhandle_object(ent).absolute_ref);
+    if (VX.has(t)) {
+      let v = verts.get(owner);
+      if (!v) verts.set(owner, (v = { pts: [], faces: [] }));
+      if (t === T.DWG_TYPE_VERTEX_PFACE_FACE) { const q = (tio + 6) >> 1; v.faces.push(Array.from(W.HEAP16.subarray(q, q + 4)).filter(k => k)); } // vertind[4] dopo parent e flag
+      else { const p = g("point"); v.pts.push([p?.x || 0, p?.y || 0, p?.z || 0]); }
+      continue;
+    }
+    let acis;
+    if (ACIS.has(t)) {
+      const ver = g("version"), p = g("acis_data");
+      if (p && typeof p === "number") {
+        if (ver === 2) { const sz = g("sab_size") || 0; if (sz > 0) acis = { sab: W.HEAPU8.slice(p, p + sz) }; }
+        else { let e = p; while (W.HEAPU8[e] && e - p < 2e8) e++; if (e > p) acis = { sat: new TextDecoder("latin1").decode(W.HEAPU8.subarray(p, e)) }; }
+      }
+      if (t === T.DWG_TYPE_3DSOLID) { acisOf.set(handle, acis || null); continue; } // gia' convertito da libredwg-web
+    }
+    const col = lib.dwg_object_entity_get_color_object(ent);
+    const e = { type: ACIS.get(t) || MESHT[t], handle, ownerBlockRecordSoftId: owner, colorIndex: col.index,
+      layer: layerByHandle.get(hex(lib.dwg_object_entity_get_layer_object_ref(ent).handleref.value)) || "0",
+      isVisible: !lib.dwg_object_entity_get_invisible(ent) };
+    if (col.method === 194 || ((col.rgb >>> 24) & 255) === 194) e.color = col.rgb & 0xffffff;
+    if (acis) e.acis = acis;
+    if (e.type === "MESH") {
+      const nv = g("num_vertex") || 0, vp = g("vertex"), nf = g("num_faces") || 0, fp = g("faces");
+      e.vertices = [];
+      if (vp && nv) { const a = W.HEAPF64.subarray(vp >> 3, (vp >> 3) + nv * 3); for (let k = 0; k < nv; k++) e.vertices.push([a[k * 3], a[k * 3 + 1], a[k * 3 + 2]]); }
+      e.faces = [];
+      if (fp && nf) { const L = W.HEAPU32.subarray(fp >> 2, (fp >> 2) + nf); for (let k = 0; k < L.length;) { const c = L[k]; if (!c) break; e.faces.push(Array.from(L.subarray(k + 1, k + 1 + c))); k += c + 1; } }
+    } else if (e.type === "PMESH") { e.flag = g("flag") || 0; e.m = g("num_m_verts") || 0; e.n = g("num_n_verts") || 0; }
+    made.push(e);
+  }
+  for (const e of made) if (e.type === "PFACE" || e.type === "PMESH") { const v = verts.get(e.handle); e.vertices = v?.pts || []; if (e.type === "PFACE") e.faces = v?.faces || []; }
+  const brs = db.tables.BLOCK_RECORD?.entries || [];
+  const byHandle = new Map(brs.filter(b => b.handle).map(b => [String(b.handle).toUpperCase(), b]));
+  for (const e of made) {
+    const b = byHandle.get(e.ownerBlockRecordSoftId);
+    if (!b || /^\*(model|paper)_space/i.test(b.name || "")) db.entities.push(e);
+    else (b.entities ||= []).push(e);
+  }
+  if (acisOf.size) for (const list of [db.entities, ...brs.map(b => b.entities || [])]) for (const e of list) {
+    if (e.type !== "3DSOLID") continue;
+    const k = String(e.handle || "").toUpperCase();
+    if (acisOf.has(k)) { const a = acisOf.get(k); if (a) e.acis = a; }
+    delete e.data; // indirizzo nella memoria del motore, non piu' valido dopo dwg_free
   }
 }
 
@@ -413,6 +504,7 @@ export async function mount(ctx) {
   ld.set(0.7, tr("v_cad2d.preparazione_disegno"));
   await new Promise(r => setTimeout(r, 0));
   let model = build(db);
+  const scan3d = analyze3d(db); // contenuto 3D: solidi, mesh, facce, oggetti con spessore (ui/js/cad3d.js)
   ctx.el.innerHTML = "";
   ctx.el.__cad = { db, get model() { return model; }, get view() { return view; }, get editor() { return editor; }, zoom: bb => zoomBox(bb), canvas: () => canvas }; // per i collaudi dalla console
 
@@ -434,7 +526,9 @@ export async function mount(ctx) {
   const stage = el("div", { style: { position: "relative", overflow: "hidden", flex: "1 1 auto", minHeight: 0 } }, canvas);
   const wrap = el("div", { class: "side" }, side, el("div", { style: { display: "flex", flexDirection: "column", minHeight: 0, minWidth: 0 } },
     editor ? editor.bar : el("span"), stage, editor ? editor.cmdline : el("span")));
-  ctx.el.append(wrap);
+  // vista 3D (model3d.js con la scena costruita da cad3d.js), al posto della vista 2D
+  const host3d = el("div", { style: { display: "none", flex: "1 1 auto", minHeight: 0, minWidth: 0, flexDirection: "column", height: "100%" } });
+  ctx.el.append(wrap, host3d);
   ctx.fillBody(true);
   let dark = true, measure = false, mpts = [], showText = true, showLw = false, msnap = null;
   // ---- misure ed estrazioni (pannello comune a PDF, CAD e 3D: ui/js/measure/mcad.js; misure nel file .mbmis accanto)
@@ -472,7 +566,11 @@ export async function mount(ctx) {
   tBtn.classList.add("on");
   // nell'app per PC gli strumenti di modifica (barra come AutoCAD + riga di comando) sono sempre visibili, come aprendo
   // un disegno in AutoCAD: niente pulsante "Modifica disegno"; la misura e' nel pannello Utilita' (Distanza, Area)
-  ctx.tb.append(...[button(tr("v_cad2d.adatta"), "fit", fit), button("", "zoomIn", () => zoomAt(1.4), { iconOnly: true, title: tr("v_cad2d.ingrandisci") }), button("", "zoomOut", () => zoomAt(1 / 1.4), { iconOnly: true, title: tr("v_cad2d.riduci") }),
+  const tb2d = el("span", { style: { display: "contents" } }), tb3d = el("span", { style: { display: "none" } });
+  const viewBtn = button(tr("cad3d.vista_3d_btn"), "cube", () => (mode3d ? show2d() : show3d()), { title: tr("cad3d.vista_3d_tip") });
+  if (scan3d.any) viewBtn.classList.add("cad3d-has");
+  ctx.tb.append(viewBtn, el("span", { class: "sep" }), tb2d, tb3d);
+  tb2d.append(...[button(tr("v_cad2d.adatta"), "fit", fit), button("", "zoomIn", () => zoomAt(1.4), { iconOnly: true, title: tr("v_cad2d.ingrandisci") }), button("", "zoomOut", () => zoomAt(1 / 1.4), { iconOnly: true, title: tr("v_cad2d.riduci") }),
     el("span", { class: "sep" }), editor ? null : mBtn, measBtn, inkBtn, tBtn, lwBtn, bgBtn, el("span", { class: "sep" }),
     button("PNG", "download", () => exportPng()), button("SVG", "download", () => exportSvg()), button("PDF", "download", () => exportPdf()),
     button(tr("gisdraw.mostra_mappa"), '<svg viewBox="0 0 24 24"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>', () => ctx.openAs("gis"), { title: tr("gisdraw.mostra_mappa_tip"), comp: "gis" }),
@@ -665,7 +763,44 @@ export async function mount(ctx) {
     onZoom: (f, cx, cy) => { const d = devicePixelRatio || 1; zoomAt(f, cx * d, cy * d); },
   });
   canvas.addEventListener("contextmenu", e => e.preventDefault());
-  const onKey = e => { if (ctx.tab.view.hidden) return; if (meas?.key(e)) { e.preventDefault(); return; } if (editor?.key(e)) e.preventDefault(); };
+  // ---- passaggio 2D / 3D
+  let mode3d = false, api3d = null, built3d = false;
+  async function show3d() {
+    mode3d = true;
+    wrap.style.display = "none"; host3d.style.display = "flex"; tb2d.style.display = "none"; tb3d.style.display = "contents";
+    viewBtn.lastChild.textContent = tr("cad3d.vista_2d_btn"); viewBtn.title = tr("cad3d.vista_2d_tip");
+    if (built3d) { api3d?.onShow?.(); return; }
+    built3d = true;
+    const body = el("div", { class: "body fill", style: { flex: "1 1 auto", minHeight: 0, position: "relative" } });
+    host3d.append(body);
+    const info = {};
+    const bb = model.bbox;
+    const sub = { ...ctx, el: body, tb: tb3d, info: { nome: ctx.name }, extraPaths: [], fillBody() {}, status: s => ctx.status(s),
+      preloaded: async ld2 => { const { loadCad3d } = await import("../cad3d.js"); const r = await loadCad3d({ path: ctx.path, name: ctx.name, origin: [(bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2] }, db, ld2, info, { ACI, dark: (await import("../monaco.js")).isDark() }); return r; } };
+    try {
+      const mod = await import("./model3d.js");
+      api3d = await mod.mount(sub);
+      if (info.status) ctx.status(info.status);
+      const { cad3dWarnings } = await import("../cad3d.js");
+      const w = cad3dWarnings(info.cad3d);
+      if (w.length) toast(w.join(" · "), true, 10000);
+    } catch (e) {
+      console.error(e);
+      body.innerHTML = "";
+      body.append(el("div", { class: "center" }, el("div", { class: "panel", style: { maxWidth: "560px", textAlign: "left" } }, el("h3", { style: { marginTop: 0 } }, tr("cad3d.non_visualizzabile")), el("p", { class: "err" }, e.message))));
+    }
+  }
+  function show2d() {
+    mode3d = false;
+    host3d.style.display = "none"; wrap.style.display = ""; tb3d.style.display = "none"; tb2d.style.display = "contents";
+    viewBtn.lastChild.textContent = tr("cad3d.vista_3d_btn"); viewBtn.title = tr("cad3d.vista_3d_tip");
+    resize(); draw();
+  }
+  // disegno prevalentemente 3D: si apre subito in 3D (come lo mostrerebbe AutoCAD); altrimenti un avviso
+  if (scan3d.mostly) setTimeout(show3d, 0);
+  else if (scan3d.solids + scan3d.meshes + scan3d.thick > 0) toast(tr("cad3d.contiene_3d"), false, 7000);
+
+  const onKey = e => { if (ctx.tab.view.hidden || mode3d) return; if (meas?.key(e)) { e.preventDefault(); return; } if (editor?.key(e)) e.preventDefault(); };
   window.addEventListener("keydown", onKey);
   canvas.addEventListener("wheel", e => { e.preventDefault(); const [px, py] = pos(e); zoomAt(e.deltaY < 0 ? 1.2 : 1 / 1.2, px, py); }, { passive: false });
   canvas.addEventListener("dblclick", e => { if (meas?.dbl(e, ...pos(e))) return; if (editor?.dblclick(e)) return; if (!measure && !editor?.on) fit(); });
@@ -735,7 +870,7 @@ export async function mount(ctx) {
   ctx.status(tr("v_cad2d.0_elementi_1_testi", model.groups.reduce((n, g) => n + g.lines.length, 0).toLocaleString(LOCALE), model.texts.length));
   if (editor && !editor.on) editor.toggle(); // strumenti di modifica visibili da subito, come in AutoCAD
   return {
-    onShow() { resize(); draw(); },
+    onShow() { if (mode3d) api3d?.onShow?.(); else { resize(); draw(); } },
     onBack() { return false; },
     // finestra Stampa (ui/js/print.js): modifiche e layer accesi/spenti, vista attuale, limiti, clic -> coordinate
     printSource() {
@@ -772,7 +907,8 @@ export async function mount(ctx) {
       if (ext === "png") { const c = offscreen(); await api("save", { path: target }, { body: new Uint8Array(await (await new Promise(r => c.toBlob(r, "image/png"))).arrayBuffer()) }); return { switchTo: false }; }
       throw new Error(tr("v_cad2d.usa_i_pulsanti_png_svg"));
     },
-    dispose() { window.removeEventListener("keydown", onKey); meas?.dispose(); },
+    dispose() { window.removeEventListener("keydown", onKey); meas?.dispose(); try { api3d?.dispose?.(); } catch { /* */ } },
+    get view3d() { return mode3d; }, show3d: () => show3d(), show2d: () => show2d(), // collaudo dalla console
     _meas: { get: measGet }, // collaudo dalla console: (await MB.active.api._meas.get()).M
   };
 }

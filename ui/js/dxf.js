@@ -9,7 +9,7 @@ export function parseDxf(text) {
     if (isNaN(code)) { i--; continue; }
     pairs.push([code, lines[i + 1]]);
   }
-  const layers = [], blocks = [], entities = [], ltypes = [], header = {};
+  const layers = [], blocks = [], entities = [], ltypes = [], header = {}, acds = new Map();
   let i = 0;
   const next = () => pairs[i++];
   const peek = () => pairs[i];
@@ -36,7 +36,12 @@ export function parseDxf(text) {
           e.vertices.push(v);
         }
         if (i < pairs.length && peek()[1].trim() === "SEQEND") { i++; readEntity("SEQEND"); }
-        e.type = e.flag & 8 ? "POLYLINE3D" : "POLYLINE2D";
+        e.type = e.flag & 64 ? "PFACE" : e.flag & 16 ? "PMESH" : e.flag & 8 ? "POLYLINE3D" : "POLYLINE2D";
+        if (e.type === "PFACE") { // polyface: vertici (flag 64) e facce (flag 128) con indici da 1, negativi = spigolo invisibile
+          const V = e.vertices;
+          e.vertices = V.filter(v => v.flag & 64).map(v => [v.x, v.y, v.z || 0]);
+          e.faces = V.filter(v => (v.flag & 128) && !(v.flag & 64)).map(v => v.faceIdx.filter(k => k));
+        } else if (e.type === "PMESH") e.vertices = e.vertices.map(v => [v.x, v.y, v.z || 0]);
         list.push(e);
       } else if (t === "INSERT") {
         const e = readEntity("INSERT");
@@ -66,6 +71,18 @@ export function parseDxf(text) {
           const name = hv.trim().slice(1);
           if (i < pairs.length && pairs[i][0] !== 9 && pairs[i][0] !== 0) { const [vc, vv] = next(); header[name] = vc === 2 || vc === 1 || vc === 7 ? vv.trim() : parseFloat(vv); }
         }
+      }
+    } else if (sec === "ACDSDATA") {
+      // DXF 2013+: dati ShapeManager dei solidi (record con l'handle dell'entita' e i byte in esadecimale)
+      let h = null, asm = false, hex = null;
+      const close = () => { if (h && hex?.length) acds.set(h, hexBytes(hex.join(""))); h = null; asm = false; hex = null; };
+      while (i < pairs.length) {
+        const [dc, dv] = next();
+        if (dc === 0) { close(); if (dv.trim() === "ENDSEC") break; continue; }
+        if (dc === 320) h = dv.trim().toUpperCase();
+        else if (dc === 2) asm = dv.trim() === "ASM_Data";
+        else if (dc === 94 && asm) hex = [];
+        else if (dc === 310 && hex) hex.push(dv.trim());
       }
     } else if (sec === "ENTITIES") {
       readEntities(entities, "ENDSEC");
@@ -104,7 +121,28 @@ export function parseDxf(text) {
       }
     }
   }
+  if (acds.size) for (const list of [entities, ...blocks.map(b => b.entities)]) for (const e of list) if (ACIS.has(e.type) && !e.acis && acds.has(String(e.handle).toUpperCase())) e.acis = { sab: acds.get(String(e.handle).toUpperCase()) };
   return { header, entities, tables: { LAYER: { entries: layers }, BLOCK_RECORD: { entries: blocks }, LTYPE: { entries: ltypes } } };
+}
+
+// solidi, regioni, corpi e superfici ACIS (vista 3D: ui/js/cad3d.js)
+const ACIS = new Set(["3DSOLID", "REGION", "BODY", "SURFACE", "PLANESURFACE", "EXTRUDEDSURFACE", "LOFTEDSURFACE", "REVOLVEDSURFACE", "SWEPTSURFACE", "NURBSURFACE"]);
+function hexBytes(h) { const b = new Uint8Array(h.length >> 1); for (let k = 0; k < b.length; k++) b[k] = parseInt(h.substr(k * 2, 2), 16); return b; }
+// testo SAT "cifrato" dei DXF fino al 2010: spazio invariato, '@' e '_' scambiati, le maiuscole A-^ in ordine inverso
+// (dopo '^' lo spazio fa parte della lettera), gli altri caratteri con XOR 0x5F
+function decodeSat(lines) {
+  return lines.map(line => {
+    let out = "";
+    for (let k = 0; k < line.length; k++) {
+      const c = line.charCodeAt(k);
+      if (c === 0x20) out += " ";
+      else if (c === 0x40) out += "_";
+      else if (c === 0x5F) out += "@";
+      else if (c >= 0x41 && c <= 0x5E) { out += String.fromCharCode(0x41 + 0x5E - c); if (c === 0x5E && line[k + 1] === " ") k++; }
+      else out += String.fromCharCode(c ^ 0x5F);
+    }
+    return out;
+  }).join("\n");
 }
 
 function val(g, code) { const p = g.find(x => x[0] === code); return p ? p[1].trim() : undefined; }
@@ -123,6 +161,13 @@ function toEntity(type, g) {
   if (val(g, 370) !== undefined) e.lineweight = num(g, 370);
   if (val(g, 48) !== undefined) e.lineTypeScale = num(g, 48, 1);
   if (val(g, 230) !== undefined) e.extrusionDirection = { x: num(g, 210), y: num(g, 220), z: num(g, 230, 1) };
+  if (val(g, 39) !== undefined) e.thickness = num(g, 39);
+  if (ACIS.has(type)) { // dati ACIS: righe nei codici 1, continuazione nei codici 3
+    const lines = [];
+    for (const [c, v] of g) { if (c === 1) lines.push(v.replace(/\r$/, "")); else if (c === 3 && lines.length) lines[lines.length - 1] += v.replace(/\r$/, ""); }
+    if (lines.length) e.acis = { sat: decodeSat(lines) };
+    return e;
+  }
   switch (type) {
     case "LINE": e.startPoint = pt(g, 10); e.endPoint = pt(g, 11); break;
     case "XLINE": case "RAY": e.firstPoint = pt(g, 10); e.unitDirection = pt(g, 11); break;
@@ -132,6 +177,7 @@ function toEntity(type, g) {
     case "ELLIPSE": e.center = pt(g, 10); e.majorAxisEndPoint = pt(g, 11); e.axisRatio = num(g, 40, 1); e.startAngle = num(g, 41, 0); e.endAngle = num(g, 42, Math.PI * 2); break;
     case "LWPOLYLINE": {
       e.flag = num(g, 70);
+      e.elevation = num(g, 38);
       e.vertices = [];
       let cur = null;
       for (const [c, v] of g) {
@@ -144,8 +190,9 @@ function toEntity(type, g) {
       }
       break;
     }
-    case "POLYLINE": e.flag = num(g, 70); if (num(g, 40) > 0 && num(g, 40) === num(g, 41)) e.constantWidth = num(g, 40); break;
+    case "POLYLINE": e.flag = num(g, 70); e.elevation = num(g, 30); e.m = num(g, 71); e.n = num(g, 72); if (num(g, 40) > 0 && num(g, 40) === num(g, 41)) e.constantWidth = num(g, 40); break;
     case "VERTEX": e.point = pt(g, 10); e.x = e.point.x; e.y = e.point.y; e.z = e.point.z; e.bulge = num(g, 42); e.flag = num(g, 70);
+      if (e.flag & 128) e.faceIdx = [71, 72, 73, 74].map(c => Math.trunc(num(g, c)));
       if (val(g, 40) !== undefined) e.startWidth = num(g, 40);
       if (val(g, 41) !== undefined) e.endWidth = num(g, 41);
       break;
@@ -162,7 +209,7 @@ function toEntity(type, g) {
       if (val(g, 11) !== undefined) e.direction = pt(g, 11);
       break;
     case "INSERT":
-      e.name = val(g, 2); e.insertionPoint = pt(g, 10); e.xScale = num(g, 41, 1); e.yScale = num(g, 42, 1);
+      e.name = val(g, 2); e.insertionPoint = pt(g, 10); e.xScale = num(g, 41, 1); e.yScale = num(g, 42, 1); e.zScale = num(g, 43, 1);
       e.rotation = num(g, 50) * D2R; e.columnCount = num(g, 70, 1); e.rowCount = num(g, 71, 1);
       e.columnSpacing = num(g, 44); e.rowSpacing = num(g, 45); e._attribsFollow = num(g, 66) === 1;
       break;
@@ -170,6 +217,18 @@ function toEntity(type, g) {
       e.name = val(g, 2); e.text = val(g, 1); e.textPoint = pt(g, 11); e.measurement = num(g, 42); e.styleName = val(g, 3);
       e.definitionPoint = pt(g, 10); e.subDefinitionPoint1 = pt(g, 13); e.subDefinitionPoint2 = pt(g, 14); e.dimensionType = num(g, 70); e.rotationAngle = num(g, 50) * D2R;
       break;
+    case "MESH": { // AcDbSubDMesh: 92 vertici (10/20/30), 93 lista delle facce (90: numero di lati, indici da 0)
+      const k92 = g.findIndex(x => x[0] === 92), k93 = g.findIndex(x => x[0] === 93);
+      e.vertices = [];
+      if (k92 >= 0) for (let k = k92 + 1; k + 2 < g.length && g[k][0] === 10; k += 3) e.vertices.push([parseFloat(g[k][1]), parseFloat(g[k + 1][1]), parseFloat(g[k + 2][1])]);
+      e.faces = [];
+      if (k93 >= 0) {
+        const n = parseInt(g[k93][1], 10), L = [];
+        for (let k = k93 + 1; k < g.length && L.length < n && g[k][0] === 90; k++) L.push(parseInt(g[k][1], 10));
+        for (let k = 0; k < L.length;) { const c = L[k]; e.faces.push(L.slice(k + 1, k + 1 + c)); k += c + 1; }
+      }
+      break;
+    }
     case "SOLID": case "TRACE": case "3DFACE":
       e.corner1 = pt(g, 10); e.corner2 = pt(g, 11); e.corner3 = pt(g, 12); e.corner4 = pt(g, 13); break;
     case "SPLINE": {

@@ -474,6 +474,12 @@ class Handler(BaseHTTPRequestHandler):
         p = self._path(qs)
         self._json({"ok": True, "job": jobs.start(inventor.convert, p, str(TEMP_DIR / "inventor"))})
 
+    def api_cad3d(self, qs):
+        # vista 3D dei DWG/DXF: solidi ACIS -> STEP, uno per entita' (mbvisual/cad3d.py, cache in TEMP_DIR/cad3d)
+        from . import cad3d
+        items = self._body_json().get("items") or []
+        self._json({"ok": True, "job": jobs.start(cad3d.convert, self._path(qs), items)})
+
     def api_onlyoffice(self, qs):
         self._json({"ok": True, "url": onlyoffice_url()})
 
