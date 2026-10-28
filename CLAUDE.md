@@ -716,6 +716,22 @@ LAS resta anche tra i testi e PTX tra i RAW Pentax: decide `misc.sniff` dal cont
   server locali (stesso host, porte diverse): con piu' sessioni aperte aggiungere `t=<token>` alle chiamate /api.
 
 
+## Autodesk ReCap .rcs / .rcp (28/10/2026) - FATTO
+Prima: .rcs/.rcp non erano nel registro -> si apriva la schermata "file sconosciuto". Ora categoria `pointcloud` (stesso motore,
+ottree e cache delle altre nuvole). Nessuna specifica pubblica ne' lettore open source: struttura ricavata da file veri, descritta in
+testa a `mbvisual/rcs.py` (NIENTE SDK o DLL Autodesk). "ADOCT" v3: tabella delle sezioni non allineata (si cerca), sezione 2 = voxel
+(u64 N + record da 368 byte: cubo, ingombro, punti, byte, nodi/punti per livello), sezione 1 = per voxel tabella dell'ottree
+(u32: bit 27 foglia, bit 19-26 figli) + 16 byte per punto: u64 con x/y/z da 18 bit in mm dal minimo del voxel, intensita', B, G, R,
+u16 normale. Coordinate = minimo del voxel + mm/1000 + traslazione dell'intestazione (rotazione/scala: nei file visti 0 e 1).
+Altre versioni / file troncati = messaggio chiaro con il consiglio "esporta da ReCap in E57" (chiavi `srv_pointcloud.rcs_*`, `rcp_*`).
+- `.rcp`: zip o XML con i percorsi degli .rcs (+ matrice 4x4 se presente); se non si capisce, tutti gli .rcs di "<progetto> Support".
+  NON verificato su un .rcp vero (nessun campione pubblico): da provare con i progetti dell'utente.
+- Web app: non abilitato (serve il motore Python). Riconoscimento dal contenuto in misc.sniff e recover.identify.
+- Collaudo: `python tests/test_rcs.py` (RCS sintetico scritto con la stessa struttura, .rcp, errori) e
+  `python tests/test_rcs.py <file.rcs> <file.e57>` (confronto con l'E57 dello stesso rilievo). Campione vero usato (NON nel repo, licenza
+  "solo prove, non ridistribuire"): rilievo di un edificio "Eka 15mm res" di arrival3d.com/laser-scanning-sample-downloads (RCS da 5,2 GB,
+  232 milioni di punti, + lo stesso in E57).
+
 ## Stampa professionale (22/10/2026) - FATTO (prova sul plotter vero: la fa l'utente)
 File -> Stampa (Ctrl+P, anche il pulsante/Ctrl+P di pdf.js) e Stampa a lotti (Ctrl+Maiusc+P). Solo app per PC.
 - `mbvisual/stampa.py` (API print_*): sorgente -> PDF di stampa (una pagina per foglio, gia' alla dimensione della carta,

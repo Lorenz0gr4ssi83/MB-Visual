@@ -19,7 +19,7 @@ const LOADERS = {
 const NAVIS = { nwd: 1, nwc: 1, nwf: 1 }; // Navisworks letto da nwd2mbv (senza Navisworks)
 const NEUTRAL = { jt: 1, u3d: 1 }; // lettori propri in un Web Worker, con cache (ui/js/neutral3d.js)
 // nuvole di punti da rilievo (ui/js/pointcloud.js); i PLY si aprono come nuvola se non hanno facce
-const PCLOUD = { las: 1, laz: 1, e57: 1, pts: 1, ptx: 1, xyz: 1, txt: 1, asc: 1, csv: 1, ply: 1 };
+const PCLOUD = { las: 1, laz: 1, e57: 1, pts: 1, ptx: 1, xyz: 1, txt: 1, asc: 1, csv: 1, ply: 1, rcs: 1, rcp: 1 };
 const INVENTOR = { ipt: 1, iam: 1 }; // Inventor letto da mbvisual/inventor.py (senza Inventor)
 const OCCT = { step: "step", stp: "step", p21: "step", stpz: "step", iges: "iges", igs: "iges", brep: "brep", brp: "brep" };
 

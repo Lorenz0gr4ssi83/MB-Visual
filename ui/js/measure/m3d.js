@@ -10,7 +10,7 @@ import { createSession } from "./mpanel.js";
 import { createEngine2d } from "./mtool.js";
 import { mbmisStore } from "./mcad.js";
 
-const METERS = ["ifc", "nwd", "nwc", "nwf", "glb", "gltf", "usdz", "vrm", "skp", "las", "laz", "e57", "pts", "ptx", "xyz"];
+const METERS = ["ifc", "nwd", "nwc", "nwf", "glb", "gltf", "usdz", "vrm", "skp", "las", "laz", "e57", "pts", "ptx", "xyz", "rcs", "rcp"];
 
 export async function attach3d(h) {
   loadCss("css/measure.css");

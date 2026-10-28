@@ -1805,7 +1805,7 @@
  "fmt.pdf.view": "Pages, thumbnails, text search, zoom, printing, PAdES digital signatures (signer information)",
  "fmt.pointcloud.edit": "Save as LAS, LAZ, E57, PLY, PTS, XYZ (all points or only the visible part of the section); classes can be hidden",
  "fmt.pointcloud.name": "Point clouds (laser scanner, LiDAR)",
- "fmt.pointcloud.view": "Clouds of even hundreds of millions of points read in blocks with levels of detail and a disk cache; RGB, intensity, elevation or classification colors; adjustable point size and detail; measurements snapping to points (distance, in plan, height difference); section; point coordinates; together with IFC and other 3D models (federated model, aligned coordinates)",
+ "fmt.pointcloud.view": "Clouds of even hundreds of millions of points (including Autodesk ReCap scans and projects) read in blocks with levels of detail and a disk cache; RGB, intensity, elevation or classification colors; adjustable point size and detail; measurements snapping to points (distance, in plan, height difference); section; point coordinates; together with IFC and other 3D models (federated model, aligned coordinates)",
  "fmt.pptx.edit": "Edit slide texts while keeping the formatting; save as PPTX",
  "fmt.pptx.name": "PowerPoint presentations",
  "fmt.pptx.view": "Slides with texts, images and shapes",
@@ -9224,5 +9224,16 @@
  "comp.pdf.nome": "PDF and signature",
  "comp.posta.desc": "Email and certified email (PEC), calendar and contacts in one place.",
  "comp.posta.nome": "Mail",
- "v_pdf.timbro_predefinito_0": "APPROVED\n{0}"
+ "v_pdf.timbro_predefinito_0": "APPROVED\n{0}",
+ "srv_misc.nuvola_rcs": "Autodesk ReCap scan (RCS)",
+ "srv_pointcloud.rcs_scansione": "Autodesk ReCap scan (RCS)",
+ "srv_pointcloud.rcp_progetto": "Autodesk ReCap project with {0} scans",
+ "srv_pointcloud.rcp_saltate": "({0} scans not found or unreadable)",
+ "srv_pointcloud.rcp_vuoto": "The ReCap project has no readable scans: the scans (.rcs) must be in the \"<project name> Support\" folder next to the .rcp file. Alternatively, export the project from ReCap to E57.",
+ "srv_pointcloud.rcs_id": "Scan ID",
+ "srv_pointcloud.rcs_voxel": "Blocks (voxels)",
+ "srv_pointcloud.rcs_non_rcs": "The file is not an Autodesk ReCap scan (the ADOCT header is missing).",
+ "srv_pointcloud.rcs_versione": "ReCap scan in a format version not supported yet ({0}). Export it from ReCap to E57 (File > Export) and open the E57 file.",
+ "srv_pointcloud.rcs_struttura": "This ReCap scan does not have the expected structure (perhaps a damaged file or a different version). Export it from ReCap to E57 (File > Export) and open the E57 file.",
+ "srv_pointcloud.rcs_troncato": "The ReCap scan is incomplete (truncated file: perhaps the copy or download did not finish)."
 }

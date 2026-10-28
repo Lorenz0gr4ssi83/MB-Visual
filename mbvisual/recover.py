@@ -118,6 +118,7 @@ SIGS = [
     (0, b"U3D\x00", "u3d", "3d", "U3D"),
     (0, b"LASF", "las", "3d", "LAS"),
     (0, b"ASTM-E57", "e57", "3d", "E57"),
+    (0, b"ADOCT", "rcs", "3d", "ReCap RCS"),
     (0, b"ply\n", "ply", "3d", "PLY"),
     (0, b"ply\r\n", "ply", "3d", "PLY"),
     (0, b"3D Geometry File Format", "3dm", "3d", "Rhino 3DM"),

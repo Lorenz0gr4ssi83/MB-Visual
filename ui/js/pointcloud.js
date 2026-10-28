@@ -8,7 +8,7 @@ import * as THREE from "three";
 import { api, el, extOf, readBytes, waitJob, WEB } from "./core.js";
 import { fmtNum, t } from "./i18n.js";
 
-export const PC_EXTS = new Set(["las", "laz", "e57", "pts", "ptx", "xyz", "txt", "asc", "csv"]);
+export const PC_EXTS = new Set(["las", "laz", "e57", "pts", "ptx", "xyz", "txt", "asc", "csv", "rcs", "rcp"]);
 
 // classi ASPRS (LAS 1.4): colore (nome nelle traduzioni pc.cls_<n>)
 const CLASSES = {
@@ -328,7 +328,7 @@ export function cloudControls(info, onChange) {
 // LAS non compresso, testo (XYZ/PTS/TXT) e PLY a soli punti letti nel browser; un solo nodo, al massimo 5 milioni di punti
 async function loadInBrowser(c, ld, info) {
   const ext = c.ext || extOf(c.name);
-  if (ext === "laz" || ext === "e57" || ext === "ptx") throw new Error(t("pc.solo_pc", ext));
+  if (["laz", "e57", "ptx", "rcs", "rcp"].includes(ext)) throw new Error(t("pc.solo_pc", ext));
   ld.set(0.2, t("pc.lettura"));
   const bytes = await readBytes(c.path);
   let d;

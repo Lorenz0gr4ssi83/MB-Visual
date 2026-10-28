@@ -1053,7 +1053,7 @@
    "id": "pointcloud",
    "name": "Nuvole di punti (laser scanner, LiDAR)",
    "viewer": "model3d",
-   "view": "Nuvole anche di centinaia di milioni di punti lette a blocchi con livelli di dettaglio e cache su disco; colori RGB, intensita', quota o classificazione; dimensione dei punti e dettaglio regolabili; misure con aggancio al punto (distanza, in pianta, dislivello); sezione; coordinate del punto; insieme a IFC e altri modelli 3D (modello federato, coordinate allineate)",
+   "view": "Nuvole anche di centinaia di milioni di punti (anche scansioni e progetti Autodesk ReCap) lette a blocchi con livelli di dettaglio e cache su disco; colori RGB, intensita', quota o classificazione; dimensione dei punti e dettaglio regolabili; misure con aggancio al punto (distanza, in pianta, dislivello); sezione; coordinate del punto; insieme a IFC e altri modelli 3D (modello federato, coordinate allineate)",
    "edit": "Salva con nome in LAS, LAZ, E57, PLY, PTS, XYZ (tutti i punti o solo la parte visibile della sezione); classi nascondibili",
    "exts": [
     "las",
@@ -1061,7 +1061,9 @@
     "e57",
     "pts",
     "ptx",
-    "xyz"
+    "xyz",
+    "rcs",
+    "rcp"
    ]
   },
   {

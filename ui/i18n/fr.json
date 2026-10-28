@@ -1805,7 +1805,7 @@
  "fmt.pdf.view": "Pages, miniatures, recherche de texte, zoom, impression, signatures numériques PAdES (informations sur le signataire)",
  "fmt.pointcloud.edit": "Enregistrer sous LAS, LAZ, E57, PLY, PTS, XYZ (tous les points ou seulement la partie visible de la coupe) ; classes masquables",
  "fmt.pointcloud.name": "Nuages de points (scanner laser, LiDAR)",
- "fmt.pointcloud.view": "Nuages même de centaines de millions de points lus par blocs avec niveaux de détail et cache sur disque ; couleurs RVB, intensité, altitude ou classification ; taille des points et détail réglables ; mesures avec accrochage au point (distance, en plan, dénivelé) ; coupe ; coordonnées du point ; avec IFC et d'autres modèles 3D (modèle fédéré, coordonnées alignées)",
+ "fmt.pointcloud.view": "Nuages même de centaines de millions de points (y compris scans et projets Autodesk ReCap) lus par blocs avec niveaux de détail et cache sur disque ; couleurs RVB, intensité, altitude ou classification ; taille des points et détail réglables ; mesures avec accrochage au point (distance, en plan, dénivelé) ; coupe ; coordonnées du point ; avec IFC et d'autres modèles 3D (modèle fédéré, coordonnées alignées)",
  "fmt.pptx.edit": "Modification des textes des diapositives en conservant la mise en forme ; enregistrement en PPTX",
  "fmt.pptx.name": "Présentations PowerPoint",
  "fmt.pptx.view": "Diapositives avec textes, images et formes",
@@ -9224,5 +9224,16 @@
  "comp.pdf.nome": "PDF et signature",
  "comp.posta.desc": "E-mail et PEC, agenda et contacts au même endroit.",
  "comp.posta.nome": "Messagerie",
- "v_pdf.timbro_predefinito_0": "APPROUVÉ\n{0}"
+ "v_pdf.timbro_predefinito_0": "APPROUVÉ\n{0}",
+ "srv_misc.nuvola_rcs": "Scan Autodesk ReCap (RCS)",
+ "srv_pointcloud.rcs_scansione": "Scan Autodesk ReCap (RCS)",
+ "srv_pointcloud.rcp_progetto": "Projet Autodesk ReCap avec {0} scans",
+ "srv_pointcloud.rcp_saltate": "({0} scans introuvables ou illisibles)",
+ "srv_pointcloud.rcp_vuoto": "Le projet ReCap ne contient aucun scan lisible : les scans (.rcs) doivent se trouver dans le dossier « <nom du projet> Support » à côté du fichier .rcp. Sinon, exportez le projet depuis ReCap en E57.",
+ "srv_pointcloud.rcs_id": "Identifiant du scan",
+ "srv_pointcloud.rcs_voxel": "Blocs (voxels)",
+ "srv_pointcloud.rcs_non_rcs": "Le fichier n'est pas un scan Autodesk ReCap (l'en-tête ADOCT est absent).",
+ "srv_pointcloud.rcs_versione": "Scan ReCap dans une version du format pas encore prise en charge ({0}). Exportez-le depuis ReCap en E57 (Fichier > Exporter) et ouvrez le fichier E57.",
+ "srv_pointcloud.rcs_struttura": "La structure de ce scan ReCap n'est pas celle attendue (fichier endommagé ou d'une autre version). Exportez-le depuis ReCap en E57 (Fichier > Exporter) et ouvrez le fichier E57.",
+ "srv_pointcloud.rcs_troncato": "Le scan ReCap est incomplet (fichier tronqué : la copie ou le téléchargement n'est peut-être pas terminé)."
 }

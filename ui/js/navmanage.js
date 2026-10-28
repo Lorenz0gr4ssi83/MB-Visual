@@ -22,7 +22,7 @@ export function attachNav(h, getBridge, onToggle) {
   const N = { h, THREE, br: null, doc: newDoc(h.partNames()), docPath: null, dirty: false };
   // unita' della scena: IFC, Navisworks, glTF, SketchUp in metri; CAD e mesh in millimetri (come l'esportazione)
   const src = (h.ctx.ext || "").toLowerCase();
-  N.mpu = ["ifc", "nwd", "nwc", "nwf", "glb", "gltf", "usdz", "vrm", "skp", "las", "laz", "e57"].includes(src) ? 1 : 0.001;
+  N.mpu = ["ifc", "nwd", "nwc", "nwf", "glb", "gltf", "usdz", "vrm", "skp", "las", "laz", "e57", "rcs", "rcp"].includes(src) ? 1 : 0.001;
   N.unit = N.mpu === 1 ? "m" : "mm";
   N.fmtLen = (d, digits) => (d == null || !isFinite(d) ? "—" : Number(d).toLocaleString(LOCALE, { maximumFractionDigits: digits ?? (N.unit === "m" ? 3 : 1) }) + " " + N.unit);
 

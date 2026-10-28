@@ -1,4 +1,4 @@
-"""Nuvole di punti da rilievo (LAS, LAZ, E57, PTS, PTX, XYZ/TXT/ASC/CSV, PLY a soli punti).
+"""Nuvole di punti da rilievo (LAS, LAZ, E57, PTS, PTX, XYZ/TXT/ASC/CSV, PLY a soli punti, ReCap RCS/RCP).
 
 Il file si legge a blocchi (anche centinaia di milioni di punti senza caricarli tutti in memoria) e si riordina in un
 ottree con livelli di dettaglio, salvato in una cache su disco (TEMP_DIR/nuvole/<chiave>): la seconda apertura e' immediata.
@@ -31,7 +31,7 @@ CHUNK = 2_000_000           # punti per blocco di lettura
 B = 21                      # bit per asse del codice di Morton (63 bit in tutto)
 S = 7                       # griglia di campionamento di un nodo: 128 celle per lato
 SMALL = 6000                # nodo con pochi punti: tutti nel nodo stesso (foglia)
-EXTS = {"las", "laz", "e57", "pts", "ptx", "xyz", "txt", "asc", "csv", "ply"}
+EXTS = {"las", "laz", "e57", "pts", "ptx", "xyz", "txt", "asc", "csv", "ply", "rcs", "rcp"}
 
 
 def _num(n: int) -> str:
@@ -462,6 +462,70 @@ def _read_ply(path):
     return info, gen()
 
 
+def _rcs_error(e):
+    return ValueError(t("srv_pointcloud.rcs_" + e.code, *e.args2))
+
+
+def _rcs_info(scans, descr):
+    """scans = [(percorso, intestazione, matrice o None)] -> info + generatore come gli altri lettori."""
+    total = sum(h["n"] for _, h, _ in scans)
+    has_rgb = any(h["rgb"] for _, h, _ in scans)
+    has_i = any(h["intensity"] for _, h, _ in scans)
+    first = scans[0][1]
+    c = (np.asarray(first["bbox"][:3]) + np.asarray(first["bbox"][3:])) / 2 + np.asarray(first["translation"])
+    if scans[0][2] is not None:
+        c = scans[0][2][:3, :3] @ c + scans[0][2][:3, 3]
+    extra = {}
+    if len(scans) == 1 and first["guid"]:
+        extra[t("srv_pointcloud.rcs_id")] = first["guid"]
+    extra[t("srv_pointcloud.rcs_voxel")] = _num(sum(h["voxels"] for _, h, _ in scans))
+    info = {"n": total, "rgb": has_rgb, "i": has_i, "c": False, "offset": np.round(c, 0).tolist(),
+            "descr": descr, "scans": len(scans), "extra": extra}
+
+    def gen():
+        from . import rcs
+        done = 0
+        for si, (p, h, m) in enumerate(scans):
+            try:
+                for xyz, attr, _ in rcs.iter_points(p, h, CHUNK, m):
+                    k = len(xyz)
+                    done += k
+                    yield {"xyz": xyz, "rgb": attr[:, [3, 2, 1]] if has_rgb else None,  # byte 1-3 = blu, verde, rosso
+                           "i": attr[:, 0].astype(np.float32) / 255.0 if has_i else None, "c": None,
+                           "done": done / max(total, 1), "scan": si}
+            except rcs.RcsError as e:
+                raise _rcs_error(e) from None
+    return info, gen()
+
+
+def _read_rcs(path):
+    from . import rcs
+    try:
+        h = rcs.read_header(path)
+    except rcs.RcsError as e:
+        raise _rcs_error(e) from None
+    return _rcs_info([(path, h, None)], t("srv_pointcloud.rcs_scansione"))
+
+
+def _read_rcp(path):
+    from . import rcs
+    found = rcs.read_project(path)
+    if not found:
+        raise ValueError(t("srv_pointcloud.rcp_vuoto"))
+    scans, bad = [], 0
+    for p, m in found:
+        try:
+            scans.append((p, rcs.read_header(p), m))
+        except (rcs.RcsError, OSError):
+            bad += 1
+    if not scans:
+        raise ValueError(t("srv_pointcloud.rcp_vuoto"))
+    descr = t("srv_pointcloud.rcp_progetto", len(scans))
+    if bad:
+        descr += " " + t("srv_pointcloud.rcp_saltate", bad)
+    return _rcs_info(scans, descr)
+
+
 def reader(path):
     ext = Path(path).suffix.lower().lstrip(".")
     with open(path, "rb") as f:
@@ -472,9 +536,13 @@ def reader(path):
         return _read_e57(path)
     if head.startswith(b"ply"):
         return _read_ply(path)
+    if head.startswith(b"ADOCT"):
+        return _read_rcs(path)
+    if ext == "rcp":
+        return _read_rcp(path)
     if ext == "ptx":
         return _read_ptx(path)
-    if ext in ("las", "laz", "e57"):
+    if ext in ("las", "laz", "e57", "rcs"):
         raise ValueError(t("srv_pointcloud.intestazione_mancante", ext))
     return _read_text(path, ext)
 
