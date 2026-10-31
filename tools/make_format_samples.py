@@ -478,7 +478,7 @@ def _ffmpeg_samples(base, index, tag, max_size):
         CACHE.mkdir(parents=True, exist_ok=True)
         idx.write_text(json.dumps(files), encoding="utf-8")
     files = json.loads(idx.read_text(encoding="utf-8"))
-    for cat in ("media", "audio", "image"):
+    for cat in ("media", "audio", "image", "archive"):
         best = {}
         for p, s in files:
             n = p.rsplit("/", 1)[-1].lower()
@@ -676,10 +676,6 @@ def gen_opendoc_flat():
             z.writestr("META-INF/manifest.xml", '<?xml version="1.0" encoding="UTF-8"?><manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.3">'
                        f'<manifest:file-entry manifest:full-path="/" manifest:media-type="{mime}"/><manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/></manifest:manifest>')
         put("office-lo", ext, b.getvalue(), "generato")
-    abw = ('<?xml version="1.0" encoding="UTF-8"?>\n<abiword xmlns="http://www.abisource.com/awml.dtd" version="3.0" fileformat="1.1">'
-           '<section><p>Campione AbiWord</p></section></abiword>\n')
-    put("office-lo", "abw", abw, "generato")
-    put("office-lo", "zabw", gzip.compress(abw.encode()), "generato")
     # MathML di LibreOffice Math (.mml)
     put("office-lo", "mml", '<?xml version="1.0" encoding="UTF-8"?>\n<math xmlns="http://www.w3.org/1998/Math/MathML"><mrow><mi>a</mi><mo>+</mo><mi>b</mi></mrow></math>\n', "generato")
 
@@ -743,7 +739,7 @@ def gen_signed_cert():
         ev = der(0xA0, der(0x30, token.dump()))  # Evidence: tstEvidence [0] SEQUENCE OF TimeStampAndCRL (RFC 5544)
         # TimeStampedData scritto a mano (asn1crypto non accetta l'etichetta [0] dentro un campo Any): versione, contenuto, evidenza
         tsd = der(0x30, b"\x02\x01\x01" + der(0x04, raw) + ev)
-        TimeStampedData.load(tsd).native  # stessa struttura che legge il motore (mbvisual/signed.py)
+        TimeStampedData.load(tsd)["content"].native  # stessa struttura che legge il motore (mbvisual/signed.py)
         oid = bytes.fromhex("2a864886f70d010910011f")  # 1.2.840.113549.1.9.16.1.31 id-ct-timestampedData
         put("signed", "tsd", der(0x30, der(0x06, oid) + der(0xA0, tsd)), "generato (marca di prova pyHanko)")
         tsr = tsp.TimeStampResp({"status": {"status": "granted"}, "time_stamp_token": token}).dump()
@@ -1051,14 +1047,14 @@ def gen_project():
                         return True
                     except BaseException:  # noqa: BLE001  (MppError non deriva da Exception)
                         return False
-                cands = next(([f] for f in cands if b"   114" in f.read_bytes()[:600_000] and _ok(f)), [])
+                cands = next(([f] for f in cands if _ok(f)), [])
             for p in cands[:1]:
                 put("project", ext, p, "project-campioni (MPXJ/GanttProject)")
 
 
 def gh_tree(repo, branch):
     """elenco dei file di un repository GitHub pubblico (gh autenticato), in cache."""
-    p = CACHE / ("tree_" + repo.replace("/", "_") + ".json")
+    p = CACHE / ("tree_" + repo.replace("/", "_") + ("" if branch in ("dev", "main", "master") else "_" + branch) + ".json")
     if not p.exists():
         if not DOWNLOAD:
             return []
@@ -1113,6 +1109,7 @@ def gen_public():
                                                    "dae": r"examples/models/collada/.*\.dae$", "usdz": r"examples/models/usdz/.*\.usdz$",
                                                    "lwo": r"examples/models/lwo/.*\.lwo$", "md2": r"examples/models/md2/.*\.md2$",
                                                    "3dm": r"examples/models/3dm/.*\.3dm$"})
+    gh_pick("mrdoob/three.js", "r169", "mesh3d", {"lwo": r"examples/models/lwo/.*\.lwo$"})  # tolto dagli esempi dopo la r169
     gh_pick("Arsanias/Delphi-JT-Loader", "main", "vis3d", {"jt": r"Examples/.*\.jt$"})
     gh_pick("ralovich/u3d-db", "main", "vis3d", {"u3d": r"u3ds/3D \(1\)\.stream-5\.u3d$"})
     gh_pick("aspose-cad/Aspose.CAD-for-.NET", "master", "dwf", {"dwf": r"blocks_and_tables\.dwf$", "dwfx": r"\.dwfx$"})
@@ -1157,7 +1154,7 @@ def gen_public():
         best = {}
         for p, s in files:
             e = p.rsplit(".", 1)[-1].lower()
-            if e in CATS["image-raw"]["exts"] and 0 < s < 40_000_000 and (e not in best or s < best[e][1]):
+            if e in CATS["image-raw"]["exts"] and 0 < s < 80_000_000 and (e not in best or s < best[e][1]):
                 best[e] = (p, s)
         for e, (p, _s) in sorted(best.items()):
             if want("image-raw", e):
@@ -1177,6 +1174,99 @@ def gen_public():
             b = io.BytesIO()
             c.save(b)
             put("font", "otc", b.getvalue(), "derivato da adobe-fonts/source-sans (OFL)")
+
+
+LO_TEST = "https://raw.githubusercontent.com/LibreOffice/core/master/"
+AOO_TEST = "https://raw.githubusercontent.com/apache/openoffice/trunk/main/"
+# documenti di prova dei filtri di LibreOffice (writerperfect, hwpfilter, lotuswordpro) e di Apache OpenOffice (qadevOOo):
+# file veri dei programmi originali (WordPerfect, Works, Write, CorelDRAW, Hangul, Word Pro, Lotus 1-2-3, StarOffice/OpenOffice 1)
+OFFICE_TESTS = [
+    ("office-lo", "wpd", LO_TEST + "writerperfect/qa/unit/data/writer/libwpd/pass/WP6.wpd"),
+    ("office-lo", "wps", LO_TEST + "writerperfect/qa/unit/data/writer/libwps/pass/Works_4.5.wps"),
+    ("office-lo", "wri", LO_TEST + "writerperfect/qa/unit/data/writer/libwps/pass/Write_3.1.wri"),
+    ("office-lo", "cdr", LO_TEST + "writerperfect/qa/unit/data/draw/libcdr/pass/fdo65220-2.cdr"),
+    ("office-lo", "hwp", LO_TEST + "hwpfilter/qa/cppunit/data/pass/hangul97-3.0.hwp"),
+    ("office-lo", "lwp", LO_TEST + "lotuswordpro/qa/cppunit/data/pass/wordpro.lwp"),
+    ("office-lo", "abw", LO_TEST + "writerperfect/qa/unit/data/writer/libabw/pass/hello.abw"),
+    ("office-lo", "zabw", LO_TEST + "writerperfect/qa/unit/data/writer/libabw/pass/hello.zabw"),
+    ("sheet", "wk1", LO_TEST + "writerperfect/qa/unit/data/calc/libwps/pass/Lotus.wk1"),
+    ("sheet", "wks", LO_TEST + "writerperfect/qa/unit/data/calc/libwps/pass/Works_Windows.wks"),
+    ("office-lo", "sxw", AOO_TEST + "qadevOOo/testdocs/XDocumentInsertable.sxw"),
+    ("office-lo", "sxc", AOO_TEST + "qadevOOo/testdocs/Calc_Link.sxc"),
+    ("office-lo", "sxd", AOO_TEST + "qadevOOo/testdocs/SvxShape.sxd"),
+    ("office-lo", "sxi", AOO_TEST + "qadevOOo/testdocs/TwoShapes.sxi"),
+]
+
+
+def gen_more():
+    for cat, ext, url in OFFICE_TESTS:
+        if want(cat, ext):
+            f = dl(url, ("lo_" if "LibreOffice" in url else "aoo_") + url.rsplit("/", 1)[-1])
+            if f:
+                put(cat, ext, f, url.split("githubusercontent.com/", 1)[1])
+    # ReCap: stesso scrittore del collaudo del lettore (tests/test_rcs.py), struttura ricavata dai file veri
+    if want("pointcloud", "rcs") or want("pointcloud", "rcp"):
+        sys.path.insert(0, str(ROOT / "tests"))
+        try:
+            import numpy as np
+            from test_rcs import write_rcs
+            rng = np.random.default_rng(7)
+            vox = [(np.array([10.0 + 2.25 * k, -5.0, 2.0]), 2.25, rng.integers(0, 2251, (1500, 3)), rng.integers(0, 256, (1500, 4)).astype(np.uint8)) for k in range(3)]
+            p = dest("pointcloud", "rcs")
+            write_rcs(p, vox, translation=(100, 200, 3))
+            done.add(("pointcloud", "rcs"))
+            items.append({"ext": "rcs", "cat": "pointcloud", "file": str(p.relative_to(OUT)), "fonte": "generato (scrittore di tests/test_rcs.py)"})
+            if want("pointcloud", "rcp"):
+                sup = dest("pointcloud", "rcp", "campione Support/s1.rcs")
+                sup.parent.mkdir(exist_ok=True)
+                write_rcs(sup, vox[:2], translation=(100, 200, 3))
+                write_rcs(sup.parent / "s2.rcs", vox[2:], translation=(100, 200, 3))
+                put("pointcloud", "rcp", '<?xml version="1.0"?><project><scan path="campione Support/s1.rcs"/><scan path="campione Support/s2.rcs"/></project>',
+                    "generato (progetto con due scansioni)")
+        except Exception as e:  # noqa: BLE001
+            print("  RCS non generato:", e)
+    # immagini disco ISO 9660 e UDF con il masterizzatore di Windows (IMAPI2, nessun programma in piu')
+    if os.name == "nt" and any(want("archive", e) for e in ("iso", "udf", "img")):
+        src = tmp("archivio")
+        for ext, fs in (("iso", 3), ("udf", 4), ("img", 3)):  # 1 = ISO 9660, 2 = Joliet, 4 = UDF
+            if not want("archive", ext):
+                continue
+            out = tmp(f"disco.{ext}")
+            ps = (
+                "$fs = New-Object -ComObject IMAPI2FS.MsftFileSystemImage; $fs.FileSystemsToCreate = %d; $fs.VolumeName = 'CAMPIONE';"
+                "$fs.Root.AddTree('%s', $false); $img = $fs.CreateResultImage();"
+                "Add-Type -TypeDefinition 'using System;using System.IO;using System.Runtime.InteropServices.ComTypes;public static class IsoW{public static void W(object s,string p,int bs,int n){IStream i=(IStream)s;var b=new byte[bs];using(var f=File.Create(p)){for(int k=0;k<n;k++){i.Read(b,bs,IntPtr.Zero);f.Write(b,0,bs);}}}}';"
+                "[IsoW]::W($img.ImageStream, '%s', $img.BlockSize, $img.TotalBlocks)") % (fs, str(src).replace("'", "''"), str(out).replace("'", "''"))
+            r = run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps])
+            if out.exists() and out.stat().st_size > 0:
+                put("archive", ext, out, "generato (IMAPI2 di Windows, " + ("UDF" if fs == 4 else "ISO 9660") + ")")
+            else:
+                print("  immagine disco non generata:", ext, r.stderr.decode("utf-8", "replace")[-200:])
+    # VHD "fisso" (specifica Microsoft Virtual Hard Disk): l'immagine ISO come contenuto del disco + piede di 512 byte
+    iso = OUT / "archive" / "iso" / "campione.iso"
+    if want("archive", "vhd") and iso.exists():
+        import time
+        import uuid
+        data = iso.read_bytes()
+        data += b"\0" * (-len(data) % 512)
+        size = len(data)
+        sectors = size // 512
+        cyl, heads, spt = min(sectors // (16 * 63), 65535), 16, 63
+        f = bytearray(struct.pack(">8sIIQI4sI4sQQHBBII16sB", b"conectix", 2, 0x00010000, 0xFFFFFFFFFFFFFFFF, int(time.time()) - 946684800,
+                                  b"mbd ", 0x00010000, b"Wi2k", size, size, cyl, heads, spt, 2, 0, uuid.uuid4().bytes, 0))
+        f += b"\0" * (512 - len(f))
+        csum = ~sum(f) & 0xFFFFFFFF  # complemento a uno della somma dei byte, con il campo del checksum a zero
+        f[64:68] = struct.pack(">I", csum)
+        put("archive", "vhd", data + bytes(f), "generato (VHD fisso con l'immagine ISO)")
+    # formula di LibreOffice Math (.odf) prodotta da LibreOffice dal campione MathML (--libreoffice <cartella di soffice.exe>)
+    lo = Path(args[args.index("--libreoffice") + 1]) / "soffice.exe" if "--libreoffice" in args else None
+    mml = OUT / "office-lo" / "mml" / "campione.mml"
+    if lo and lo.exists() and mml.exists() and want("office-lo", "odf"):
+        out = tmp("lo")
+        out.mkdir(exist_ok=True)
+        run([str(lo), "--headless", "--norestore", f"-env:UserInstallation=file:///{(OUT / '_lavoro' / 'lo-profilo').as_posix()}", "--convert-to", "odf", "--outdir", str(out), str(mml)], timeout=180)
+        if (out / "campione.odf").exists():
+            put("office-lo", "odf", out / "campione.odf", "generato (LibreOffice Math dal campione .mml)")
 
 
 def gen_fixes():
@@ -1208,6 +1298,28 @@ def gen_fixes():
             w[4:6] = b"\x04\x04"
             put("sheet", "wks", bytes(w), "generato (SheetJS, versione 1-2-3 v1)")
     put("sheet", "dbf", SAMPLES / "gis" / "province_gaussboaga.dbf", "tests/samples/gis")
+    # Parasolid: testo dal NIST (pubblico dominio, .xmt_txt), binario estratto da una parte Solid Edge (flusso PARASOLID/STREAM0.X_B);
+    # .p_t/.xmp_txt e .p_b/.xmp_bin sono gli stessi formati con il nome delle "partizioni"
+    gh_pick("usnistgov/engineering-design-models", "master", "solidcad", {"xmt_txt": r"PART1/part/part\.xmt_txt$"})
+    xt = OUT / "solidcad" / "xmt_txt" / "campione.xmt_txt"
+    if xt.exists():
+        for ext in ("p_t", "xmp_txt"):
+            put("solidcad", ext, xt, "NIST engineering-design-models (Parasolid testo)")
+    sc = Path.home() / ".mbvisual" / "solidcad-campioni"
+    if sc.exists() and any(want("solidcad", e) for e in ("x_b", "xmt_bin", "p_b", "xmp_bin")):
+        import olefile
+        for par in sorted(sc.rglob("*.par"), key=lambda f: f.stat().st_size):
+            try:
+                o = olefile.OleFileIO(str(par))
+                st = next(("/".join(e) for e in o.listdir() if e[-1].upper() == "STREAM0.X_B"), None)
+                data = o.openstream(st).read() if st else None
+                o.close()
+            except Exception:  # noqa: BLE001
+                data = None
+            if data and len(data) > 1000:
+                for ext in ("x_b", "xmt_bin", "p_b", "xmp_bin"):
+                    put("solidcad", ext, data, f"flusso Parasolid binario di {par.name} (Solid Edge)")
+                break
     # OpenXPS (ECMA-388): l'XPS di Word con gli spazi dei nomi di OpenXPS, come fa il convertitore di Microsoft
     xps = OUT / "dwf" / "xps" / "campione.xps"
     if want("dwf", "oxps") and xps.exists():
@@ -1274,6 +1386,8 @@ def gen_fixes():
     ffgen("media", "y4m", ["-map", "0:v", "-pix_fmt", "yuv420p", "-f", "yuv4mpegpipe"], True)
     ffgen("media", "mj2", ["-map", "0:v", "-c:v", "jpeg2000", "-pix_fmt", "yuv420p", "-f", "mj2"], True)
     ffgen("audio", "truehd", ["-f", "truehd", "-ar", "48000", "-strict", "-2"], False)
+    ffgen("audio", "g723_1", ["-ar", "8000", "-ac", "1", "-c:a", "g723_1", "-b:a", "6300", "-f", "g723_1"], False)
+    ffgen("audio", "daud", ["-ar", "96000", "-ac", "6", "-c:a", "pcm_s24daud", "-f", "daud"], False)  # D-Cinema: sempre 6 canali
     # VVC (H.266) grezzo: stesso flusso con le tre estensioni
     vvc = OUT / "media" / "vvc" / "campione.vvc"
     if vvc.exists():
@@ -1332,7 +1446,7 @@ def gen_reuse():
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for step in (gen_reuse, gen_repo, gen_text, gen_images, gen_media, gen_trackers, gen_archives, gen_office, gen_opendoc_flat, gen_signed_cert,
-                 gen_cad_3d, gen_project, gen_creo, gen_public, gen_fixes, gen_fate, gen_fixes, gen_extra):
+                 gen_cad_3d, gen_project, gen_creo, gen_more, gen_public, gen_fixes, gen_fate, gen_fixes, gen_extra):
         print("--", step.__name__)
         try:
             step()

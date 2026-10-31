@@ -6,7 +6,7 @@
 //
 // Campioni: python tools/make_format_samples.py <cartella>  (scrive <cartella>/manifest.json)
 // Uso:      node tests/test_all_formats.mjs <cartella campioni> [--out <cartella risultati>] [--only ext,ext] [--cat id,id]
-//                [--timeout 60] [--shots] [--keep-going] [--libreoffice <cartella con soffice.exe>]
+//                [--timeout 60] [--shots] [--keep-going] [--libreoffice <cartella con soffice.exe>] [--from N]
 // Esito:    <out>/risultati.json, <out>/risultati.md e, con --shots, una schermata per campione in <out>/schermate.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
@@ -18,7 +18,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const opt = (name, def) => { const i = args.indexOf("--" + name); return i < 0 ? def : args[i + 1]; };
 const flag = name => args.includes("--" + name);
-const POS = args.filter((a, i) => !a.startsWith("--") && !["--out", "--only", "--cat", "--timeout", "--libreoffice"].includes(args[i - 1]));
+const POS = args.filter((a, i) => !a.startsWith("--") && !["--out", "--only", "--cat", "--timeout", "--libreoffice", "--from"].includes(args[i - 1]));
 const SAMPLES = POS[0] ? path.resolve(POS[0]) : "";
 if (!SAMPLES || !fs.existsSync(path.join(SAMPLES, "manifest.json"))) {
   console.error("Uso: node tests/test_all_formats.mjs <cartella campioni con manifest.json> [--out cartella] [--only ext,...] [--cat id,...] [--shots]");
@@ -109,8 +109,7 @@ const PAGE_CHECK = async (file, timeout, expectCat, expectViewer, trySave, passw
     if (!accept || !modalBack || modalBack.hidden) return false;
     const b = [...modalBack.querySelectorAll("button.primary, .btn.primary")].find(visible);
     if (!b) return false;
-    modals.push("confermato: " + modalBack.innerText.trim().split("
-")[0].slice(0, 80));
+    modals.push("confermato: " + modalBack.innerText.trim().split(/\n/)[0].slice(0, 80));
     b.click();
     return true;
   };
@@ -203,7 +202,10 @@ for (let i = 0; i < 100; i++) { if (await cdp.eval("!!(window.MB && MB.tabs)", 5
 await sleep(1500);
 console.log(`${items.length} campioni, server ${srv.url.replace(/\?.*/, "")}`);
 
+// --from N: si riparte dal campione N (numerazione del registro di un giro interrotto)
+const FROM = Number(opt("from", 1));
 for (const [n, it] of items.entries()) {
+  if (n + 1 < FROM) continue;
   const file = path.resolve(SAMPLES, it.file);
   cur = { ext: it.ext, cat: it.cat, file: it.file, fonte: it.fonte || "", eccezioni: [], console: [] };
   const t0 = Date.now();
