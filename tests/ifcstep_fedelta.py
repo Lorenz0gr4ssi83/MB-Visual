@@ -298,8 +298,36 @@ def main():
     ap.add_argument("stp")
     ap.add_argument("--json")
     ap.add_argument("--forma", action="store_true", help="abbina per ingombro (STEP senza nomi IFC, coordinate spostate)")
+    ap.add_argument("--solo-guid", action="store_true", help="modelli enormi: solo GlobalId nel testo e chiusura del file (niente XCAF)")
     a = ap.parse_args()
     t0 = time.time()
+    if a.solo_guid:
+        import ifcopenshell
+        from mbvisual.ifcstep import EXCLUDE, _is_body
+        f = ifcopenshell.open(a.ifc)
+        excl = [c for c in EXCLUDE if _has(f, c)]
+        att = {p.GlobalId for p in f.by_type("IfcProduct") if not any(p.is_a(c) for c in excl) and p.Representation
+               and any(_is_body(r) for r in p.Representation.Representations or ())}
+        ids, tail = set(), b""
+        rx = re.compile(rb"PRODUCT\('((?:[^']|'')*)'")
+        with open(a.stp, "rb") as fh:
+            rest = b""
+            while True:
+                blk = fh.read(32 << 20)
+                if not blk:
+                    break
+                buf = rest + blk
+                cut = buf.rfind(b"\n")
+                rest, buf = buf[cut + 1:], buf[:cut + 1]
+                ids.update(m.group(1).decode("latin-1") for m in rx.finditer(buf))
+                tail = (tail + buf)[-64:]
+        r = {"attesi": len(att), "guid_presenti": len(att & ids), "chiuso": tail.rstrip().endswith(b"END-ISO-10303-21;"),
+             "tempo_misura": round(time.time() - t0, 1)}
+        print(json.dumps(r))
+        if a.json:
+            Path(a.json).write_text(json.dumps(r), encoding="utf-8")
+        sys.stdout.flush()
+        os._exit(0)
     i = ifc_side(a.ifc)
     s = step_side(a.stp)
     r = compare(i, s)
@@ -312,6 +340,14 @@ def main():
     print(json.dumps(short, ensure_ascii=False))
     sys.stdout.flush()
     os._exit(0)
+
+
+def _has(f, cls) -> bool:
+    try:
+        f.by_type(cls)
+        return True
+    except Exception:  # noqa: BLE001
+        return False
 
 
 if __name__ == "__main__":
