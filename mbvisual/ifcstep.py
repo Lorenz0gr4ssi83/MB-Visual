@@ -38,6 +38,7 @@ from .paths import NO_WINDOW, TEMP_DIR
 
 VERSION = "1"
 BLOCCO_MB = 24  # dati B-rep per blocco: ~1,2 GB di memoria per il processo di scrittura nel caso peggiore
+SEW_MAX = 5000  # oltre queste facce sciolte non si cuciono in solidi (lento e a rischio di crash)
 GRIGIO = [0.75, 0.75, 0.75, 1.0]  # colore degli elementi senza stile
 TAG = "@@MBD "  # righe di protocollo sull'uscita dei processi (OpenCascade scrive altro testo sulla stessa uscita)
 EXCLUDE = ("IfcOpeningElement", "IfcOpeningStandardCase", "IfcSpace", "IfcSpatialZone", "IfcVirtualElement")
@@ -919,7 +920,7 @@ class _Writer:
                         else:
                             res["linee"] += 1
                         continue
-                    polys = [_polyhedron(s) for s, _c in items]
+                    polys = [_polyhedron(s) or _polyhedron(s, open_ok=True) for s, _c in items]
                     if all(p is not None for p in polys):
                         pc = [(p, c) for p, (_s, c) in zip(polys, items)]
                         if kind == 3:
@@ -1008,8 +1009,25 @@ def _items(shape, meta: dict) -> list:
             loose.append(k)
             loose_col = loose_col or c
     if loose:
-        for s in _sew(loose):
-            out.append((s, loose_col))
+        nf = 0
+        for s in loose:
+            e = TopExp_Explorer(s, TopAbs_FACE)
+            while e.More() and nf <= SEW_MAX:
+                nf += 1
+                e.Next()
+        if nf > SEW_MAX:
+            # reti enormi di facce sciolte (es. grigliati "orsogrill" da 36.000 facce): la cucitura manda in crash
+            # OpenCascade; si scrivono come superficie, la geometria e' la stessa
+            from OCP.BRep import BRep_Builder
+            from OCP.TopoDS import TopoDS_Compound
+            comp, b = TopoDS_Compound(), BRep_Builder()
+            b.MakeCompound(comp)
+            for s in loose:
+                b.Add(comp, s)
+            out.append((comp, loose_col))
+        else:
+            for s in _sew(loose):
+                out.append((s, loose_col))
     return out
 
 
@@ -1063,8 +1081,9 @@ def _closed(shell) -> bool:
     return True
 
 
-def _polyhedron(shape):
-    """Solido chiuso a facce piane e lati dritti -> {pts, faces: [[anello esterno, fori...]]} in metri; altrimenti None."""
+def _polyhedron(shape, open_ok=False):
+    """Solido chiuso a facce piane e lati dritti -> {pts, faces: [[anello esterno, fori...]]} in metri; altrimenti None.
+    open_ok: anche facce sciolte (superficie aperta, "open": True)."""
     from OCP.BRep import BRep_Tool
     from OCP.BRepAdaptor import BRepAdaptor_Curve, BRepAdaptor_Surface
     from OCP.BRepTools import BRepTools, BRepTools_WireExplorer
@@ -1072,7 +1091,7 @@ def _polyhedron(shape):
     from OCP.TopAbs import TopAbs_FACE, TopAbs_SOLID, TopAbs_WIRE, TopAbs_REVERSED
     from OCP.TopExp import TopExp_Explorer
     from OCP.TopoDS import TopoDS
-    if shape.ShapeType() != TopAbs_SOLID:
+    if shape.ShapeType() != TopAbs_SOLID and not open_ok:
         return None
     pts: dict[tuple, int] = {}
     P: list[tuple] = []
@@ -1114,6 +1133,8 @@ def _polyhedron(shape):
                 pass  # TopExp_Explorer compone gia' l'orientamento: gli anelli seguono la faccia orientata
             faces.append(loops)
         fe.Next()
+    if open_ok and shape.ShapeType() != TopAbs_SOLID:
+        return {"P": P, "F": faces, "open": True} if faces else None
     if len(faces) < 4:
         return None
     return {"P": P, "F": faces}
@@ -1157,7 +1178,7 @@ class _Faceted:
         """Geometria condivisa (coordinate locali, metri): solo la rappresentazione, gli elementi la richiamano (MAPPED_ITEM)."""
         breps = self._breps(polys)
         ax = self.A("AXIS2_PLACEMENT_3D('',@10,@11,@12)")
-        sr = self.A(f"FACETED_BREP_SHAPE_REPRESENTATION('',({','.join('#%d' % b for b in breps)},#{ax}),@9)")
+        sr = self.A(f"{self._rep()}('',({','.join('#%d' % b for b in breps)},#{ax}),@9)")
         self.gmap[gi] = (sr, ax)
         self.ng += 1
         if len(self.lines) > 20000:
@@ -1167,7 +1188,7 @@ class _Faceted:
         A = self.A
         breps = self._breps(polys)
         ax = A("AXIS2_PLACEMENT_3D('',@10,@11,@12)")
-        sr = A(f"FACETED_BREP_SHAPE_REPRESENTATION('',({','.join('#%d' % b for b in breps)},#{ax}),@9)")
+        sr = A(f"{self._rep()}('',({','.join('#%d' % b for b in breps)},#{ax}),@9)")
         prod = A(f"PRODUCT('MBDE{el}','MBDE{el}','',(@3))")
         A(f"PRODUCT_RELATED_PRODUCT_CATEGORY('part',$,(#{prod}))")
         pdf = A(f"PRODUCT_DEFINITION_FORMATION('','',#{prod})")
@@ -1179,7 +1200,13 @@ class _Faceted:
         if len(self.lines) > 20000:
             self._flush()
 
+    def _rep(self) -> str:
+        r = "SHAPE_REPRESENTATION" if self.open_rep else "FACETED_BREP_SHAPE_REPRESENTATION"
+        self.open_rep = False
+        return r
+
     def _breps(self, polys: list) -> list:
+        self.open_rep = False
         A = self.A
         breps = []
         for poly, c in polys:
@@ -1224,8 +1251,12 @@ class _Faceted:
                 fids.append(A(f"FACE_SURFACE('',({','.join('#%d' % b for b in bounds)}),#{pl},.T.)"))
             if not fids:
                 continue
-            shell = A(f"CLOSED_SHELL('',({','.join('#%d' % f for f in fids)}))")
-            br = A(f"FACETED_BREP('',#{shell})")
+            if poly.get("open"):  # superficie aperta (facce sciolte)
+                br = A(f"SHELL_BASED_SURFACE_MODEL('',(#{A(f'OPEN_SHELL({chr(39)}{chr(39)},({chr(44).join(chr(35) + str(f) for f in fids)}))')}))")
+                self.open_rep = True
+            else:
+                shell = A(f"CLOSED_SHELL('',({','.join('#%d' % f for f in fids)}))")
+                br = A(f"FACETED_BREP('',#{shell})")
             breps.append(br)
             self.styled.append(A(f"STYLED_ITEM('color',(#{self.style(c)}),#{br})"))
         if not breps:
