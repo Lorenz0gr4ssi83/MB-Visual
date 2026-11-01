@@ -762,7 +762,7 @@ pulsante "Apri con"; percorsi NON provati: Creo non c'e' su questo PC). Creo Vie
 Collaudo: `python tests/test_creo.py [cartella]` (senza cartella scarica 4 esempi di github.com/mesh-iit/creo2urdf, BSD-3-Clause);
 19 file veri da Wildfire 2.0 a Creo 9.0 (creo2urdf + mesh-iit/cad-libraries via LFS, fuori dal repo in %USERPROFILE%\.mbvisual\creo-campioni).
 
-## Collaudo di TUTTE le estensioni nell'app vera (31/10/2026) - FATTO
+## Collaudo di TUTTE le estensioni nell'app vera (01/11/2026) - FATTO
 Segnalazione dell'utente: "ci sono ancora moltissime estensioni che non funzionano". Regola: un'estensione resta nel registro solo se
 e' stata aperta davvero; si toglie solo cio' che e' impossibile (motivo nel resoconto), mai per comodita'.
 - `tools/make_format_samples.py <cartella> [--riusa <giro precedente>] [--extra <cartella>]... [--libreoffice <cartella di soffice.exe>]
@@ -778,7 +778,15 @@ e' stata aperta davvero; si toglie solo cio' che e' impossibile (motivo nel reso
   riquadro di un'altra origine: i suoi errori arrivano solo come avviso), niente rotella dopo il tempo massimo, audio/video con i
   metadati letti, pdf.js con le pagine disegnate, categoria o visualizzatore attesi. Password dei .p12 e conferma della finestra dei file
   grezzi dal manifest (`password`, `accept`). Esito in risultati.json/.md e schermate.
-- Correzioni trovate dal collaudo: immagini a virgola mobile (.spi/.fits/.pfm: Pillow recente non accetta lambda in point()),
+- Risultato 01/11/2026: 949 campioni (coppie categoria/estensione) aperti nell'app, 942 riusciti dopo le correzioni; tolte 85 coppie
+  (7 impossibili con i motori inclusi: .evc .ac4 .binka .viv, .vgm e .spc audio = niente libgme in FFmpeg, .acm = in pratica driver
+  dei codec di Windows; 78 senza nessun file di prova pubblico: audio di giochi, moduli Amiga rari, dischi di macchine virtuali, volumi
+  divisi, .qpw .et .wpt .602 .dxb, RAW ptx/rwz/bay/cap/eip) -> registro 958 voci, 932 estensioni. Tenute senza nuovo collaudo perche'
+  stesso contenitore e stesso lettore di un formato provato: .nwc, .rte/.rft, .prtdot/.asmdot/.drwdot, .psm/.pwd (Solid Edge), .ipn.
+  I formati di office-lo si aprono SOLO con LibreOffice installato (collaudati con LibreOffice 26.2.6 estratto, non installato).
+- Correzioni trovate dal collaudo: TimeStampedData .tsd (asn1crypto recente restituisce la struttura gia' letta + campo meta_data Any
+  che inghiottiva il contenuto: nessun .tsd vero si apriva), PFM a colori ("PF", Pillow legge solo "Pf"), DV riconosciuto dal contenuto
+  (.dif e' anche il Data Interchange Format), LightWave .lwo ({meshes}), immagini a virgola mobile (.spi/.fits/.pfm: Pillow recente non accetta lambda in point()),
   VRML (chevrotain catturato da window.define di Monaco dopo l'apertura di un testo), AMF/BVH (testo e byte invertiti), VTK < 250 byte,
   VOX (VOXMesh), ONLYOFFICE con modelli/presentazioni/OpenDocument piatti (oo.js OPEN_AS: si passa all'editor il nome del formato con la
   stessa struttura), .oxps nel lettore XPS (namespace di OpenXPS), MIDI (sotto), file grezzi (sotto), .ram = testo (elenco di
