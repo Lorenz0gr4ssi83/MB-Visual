@@ -54,7 +54,7 @@ export async function mount(ctx) {
       for (const w of ln) { const sp = el("span", {}, w.s); sp.dataset.t = w.t; spans.push({ el: sp, t: w.t, line: p }); p.append(sp); }
       box.append(p);
     }
-    page.append(el("div", { style: { display: "grid", gap: "6px", minHeight: 0 } }, el("h3", { style: { margin: 0, fontSize: "14.5px" } }, tr("v_midi.testo_karaoke")), box));
+    page.append(el("div", { style: { display: "grid", gap: "6px", minHeight: 0, gridTemplateRows: "auto 1fr" } }, el("h3", { style: { margin: 0, fontSize: "14.5px" } }, tr("v_midi.testo_karaoke")), box));
     let lastLine = null;
     const tick = () => {
       const now = audio.currentTime;

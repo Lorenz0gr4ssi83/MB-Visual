@@ -29,6 +29,7 @@ const TIMEOUT = Number(opt("timeout", 60)) * 1000;
 const ONLY = opt("only", "") ? new Set(opt("only").split(",")) : null;
 const CATS = opt("cat", "") ? new Set(opt("cat").split(",")) : null;
 fs.mkdirSync(path.join(OUT, "schermate"), { recursive: true });
+fs.mkdirSync(path.join(OUT, "salvati"), { recursive: true });
 
 const manifest = JSON.parse(fs.readFileSync(path.join(SAMPLES, "manifest.json"), "utf8"));
 const VIEWER_OF = Object.fromEntries(JSON.parse(fs.readFileSync(path.join(ROOT, "ui", "formats.json"), "utf8")).categories.map(c => [c.id, c.viewer]));
@@ -124,7 +125,10 @@ const PAGE_CHECK = async (file, timeout, expectCat, expectViewer, trySave, passw
   let tab = null;
   while (!tab && performance.now() - t0 < timeout) { tab = MB.tabs.find(x => !before.has(x) && x.path === file); if (!tab) { closeModal(); await sleep(100); } }
   if (!tab) return { stato: "fallito", motivo: "nessuna scheda aperta" + (modals.length ? " (" + modals.join(" | ") + ")" : ""), modals };
-  await Promise.race([opening, sleep(timeout)]);
+  // l'apertura puo' aspettare una finestra (parametri dei file grezzi, password): le finestre si gestiscono mentre si aspetta
+  let opened = false;
+  opening.then(() => (opened = true), () => (opened = true));
+  while (!opened && performance.now() - t0 < timeout) { closeModal(); await sleep(150); }
   const labels = [t("app.apri_come_esadecimale"), t("v_office.serve_libreoffice_questo_formato")];
   let res = null, stable = 0, lastSig = "";
   while (performance.now() - t0 < timeout) {

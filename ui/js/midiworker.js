@@ -10,8 +10,11 @@ const dec = new TextDecoder("latin1");
 // "/" = a capo, "\" = paragrafo nuovo (convenzione dei file .kar)
 function lyricsOf(midi) {
   const out = [];
+  // nei .kar il testo sta nella traccia "Words" (o in quella con l'intestazione @KMIDI): le altre hanno note di servizio
+  const isWords = tr => /^words$/i.test(tr.name || "") || tr.events.some(e => e.statusByte === 0x01 && dec.decode(e.data).startsWith("@KMIDI"));
+  const karTracks = midi.tracks.filter(isWords);
   const pick = type => {
-    for (const tr of midi.tracks) for (const e of tr.events) {
+    for (const tr of type === 0x01 && karTracks.length ? karTracks : midi.tracks) for (const e of tr.events) {
       if (e.statusByte !== type) continue;
       const s = dec.decode(e.data);
       if (type === 0x01 && (s.startsWith("@") || !s.trim() && !s.includes(" "))) continue;
@@ -19,7 +22,7 @@ function lyricsOf(midi) {
     }
   };
   pick(0x05);
-  if (!out.length) pick(0x01);
+  if (!out.length && karTracks.length) pick(0x01);
   return out.sort((a, b) => a.t - b.t);
 }
 
