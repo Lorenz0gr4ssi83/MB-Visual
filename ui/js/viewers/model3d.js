@@ -319,6 +319,7 @@ async function loadMeshInner(ctx, bytes, ld) {
     const g = out.geometryAtoms;
     obj.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 0.6, vertexColors: true })));
     obj.add(new THREE.LineSegments(out.geometryBonds, new THREE.LineBasicMaterial({ color: 0x999999 })));
+  } else if (Array.isArray(out.meshes)) { obj = new THREE.Group(); out.meshes.forEach(m => obj.add(m)); // LightWave: { materials, meshes }
   } else if (ctx.ext === "vox" && Array.isArray(out)) { obj = new THREE.Group(); out.forEach(ch => obj.add(new mod.VOXMesh(ch))); // MagicaVoxel: un blocco di voxel per modello
   } else if (Array.isArray(out)) { obj = new THREE.Group(); out.forEach(c => obj.add(c.isMesh || c.isObject3D ? c : new THREE.Mesh(c, std()))); }
   else if (out.chunks || out.length) { obj = new THREE.Group(); }

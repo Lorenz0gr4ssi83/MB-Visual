@@ -1386,7 +1386,27 @@ def gen_fixes():
     ffgen("media", "y4m", ["-map", "0:v", "-pix_fmt", "yuv420p", "-f", "yuv4mpegpipe"], True)
     ffgen("media", "mj2", ["-map", "0:v", "-c:v", "jpeg2000", "-pix_fmt", "yuv420p", "-f", "mj2"], True)
     ffgen("audio", "truehd", ["-f", "truehd", "-ar", "48000", "-strict", "-2"], False)
-    ffgen("audio", "g723_1", ["-ar", "8000", "-ac", "1", "-c:a", "g723_1", "-b:a", "6300", "-f", "g723_1"], False)
+    ffgen("audio", "sd2", ["-f", "s16be", "-ac", "2"], False)  # Sound Designer II: su Windows arriva solo la parte dati (PCM grezzo)
+    # DSF (DSD Stream File, specifica pubblica Sony): 1 bit a 2,8224 MHz, modulatore delta-sigma del primo ordine su un seno
+    if want("audio", "dsf"):
+        import numpy as np
+        fs, n = 2_822_400, 2_822_400 // 2
+        x = 0.5 * np.sin(2 * np.pi * 440 * np.arange(n) / fs)
+        bits = np.empty(n, dtype=np.uint8)
+        acc, y = 0.0, 0.0
+        for i, v in enumerate(x.tolist()):
+            acc += v - y
+            y = 1.0 if acc >= 0 else -1.0
+            bits[i] = 1 if y > 0 else 0
+        blk = 4096
+        per = np.packbits(bits, bitorder="little")
+        per = np.concatenate([per, np.zeros(-len(per) % blk, np.uint8)])
+        data = b"".join(per[k:k + blk].tobytes() * 2 for k in range(0, len(per), blk))  # due canali, blocchi alternati
+        fmt = b"fmt " + struct.pack("<QIIIIIIQII", 52, 1, 0, 2, 2, fs, 1, n, blk, 0)
+        datac = b"data" + struct.pack("<Q", 12 + len(data)) + data
+        total = 28 + len(fmt) + len(datac)
+        put("audio", "dsf", b"DSD " + struct.pack("<QQQ", 28, total, 0) + fmt + datac, "generato (DSD 2,8 MHz)")
+    ffgen("audio", "g723_1",["-ar", "8000", "-ac", "1", "-c:a", "g723_1", "-b:a", "6300", "-f", "g723_1"], False)
     ffgen("audio", "daud", ["-ar", "96000", "-ac", "6", "-c:a", "pcm_s24daud", "-f", "daud"], False)  # D-Cinema: sempre 6 canali
     # VVC (H.266) grezzo: stesso flusso con le tre estensioni
     vvc = OUT / "media" / "vvc" / "campione.vvc"
@@ -1411,6 +1431,18 @@ def gen_creo():
                 put("creo", ext, c[0], "creo-campioni", name=f"campione.{ext}.1")
 
 
+def gen_assemblies():
+    """assiemi e tavole Inventor: restano nella loro cartella (le parti collegate si cercano li'); RespiraWorks, Apache-2.0."""
+    rw = Path.home() / ".mbvisual" / "ipt-campioni" / "respiraworks"
+    for ext, cat in (("iam", "inventor"), ("idw", "inventor-doc")):
+        if not want(cat, ext) or not rw.exists():
+            continue
+        c = sorted((p for p in rw.rglob("*." + ext) if p.stat().st_size < 5_000_000), key=lambda p: p.stat().st_size)
+        if c:
+            done.add((cat, ext))
+            items.append({"ext": ext, "cat": cat, "file": str(c[len(c) // 2]), "fonte": "ipt-campioni RespiraWorks (cartella originale)"})
+
+
 def gen_extra():
     """campioni delle altre sessioni (%USERPROFILE%/.mbvisual e %TEMP%): solo come ultima scelta."""
     roots = EXTRA or []
@@ -1431,7 +1463,7 @@ def gen_extra():
                     break
 
 
-RAW_ACCEPT = {("audio", e) for e in ("pcm", "s16le", "sw", "ub", "uw", "sln", "alaw", "ulaw", "al", "ul")} | {("media", "yuv")}
+RAW_ACCEPT = {("audio", e) for e in ("pcm", "s16le", "sw", "ub", "uw", "sln", "sd2", "alaw", "ulaw", "al", "ul")} | {("media", "yuv")}
 
 
 def gen_reuse():
@@ -1446,7 +1478,7 @@ def gen_reuse():
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for step in (gen_reuse, gen_repo, gen_text, gen_images, gen_media, gen_trackers, gen_archives, gen_office, gen_opendoc_flat, gen_signed_cert,
-                 gen_cad_3d, gen_project, gen_creo, gen_more, gen_public, gen_fixes, gen_fate, gen_fixes, gen_extra):
+                 gen_cad_3d, gen_project, gen_creo, gen_more, gen_public, gen_fixes, gen_fate, gen_fixes, gen_assemblies, gen_extra):
         print("--", step.__name__)
         try:
             step()

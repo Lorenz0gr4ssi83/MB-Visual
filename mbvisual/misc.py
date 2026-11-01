@@ -46,6 +46,9 @@ def image_to_png(path: str) -> dict:
             rgb = raw.postprocess(use_camera_wb=True, output_bps=8)
         im = Image.fromarray(rgb)
         info["formato"] = "RAW " + ext.upper()
+    elif _is_pfm_color(path):
+        im = _pfm_color(path)  # PFM a colori ("PF"): Pillow legge solo quello in scala di grigi ("Pf")
+        info["formato"] = "PFM"
     else:
         im = Image.open(path)
         info["formato"] = im.format
@@ -73,6 +76,38 @@ def image_to_png(path: str) -> dict:
             im = im.convert("RGBA")
         im.save(out, "PNG", compress_level=1)
     return {"path": str(out), "info": info}
+
+
+def _is_pfm_color(path: str) -> bool:
+    try:
+        with open(path, "rb") as f:
+            return f.read(3) in (b"PF\n", b"PF\r", b"PF ")
+    except OSError:
+        return False
+
+
+def _pfm_color(path: str):
+    """Portable FloatMap a colori: intestazione "PF", larghezza altezza, scala (negativa = little endian), poi float32 RGB
+    dal basso verso l'alto. Valori riportati a 8 bit con l'intervallo min-max dell'immagine."""
+    import numpy as np
+    from PIL import Image
+    data = Path(path).read_bytes()
+    parts, pos = [], 0
+    while len(parts) < 4:  # "PF", larghezza, altezza, scala separati da spazi o a capo
+        while data[pos:pos + 1].isspace():
+            pos += 1
+        end = pos
+        while end < len(data) and not data[end:end + 1].isspace():
+            end += 1
+        parts.append(data[pos:end])
+        pos = end
+    pos += 1
+    w, h, scale = int(parts[1]), int(parts[2]), float(parts[3])
+    a = np.frombuffer(data, dtype="<f4" if scale < 0 else ">f4", count=w * h * 3, offset=pos).reshape(h, w, 3)[::-1].astype(np.float64)
+    fin = a[np.isfinite(a)]
+    lo, hi = (float(fin.min()), float(fin.max())) if fin.size else (0.0, 1.0)
+    a = (a - lo) * (255.0 / (hi - lo)) if hi > lo else np.zeros_like(a)
+    return Image.fromarray(np.nan_to_num(np.clip(a, 0, 255)).astype(np.uint8), "RGB")
 
 
 def _to_8bit(im):
@@ -346,6 +381,7 @@ def sniff(path: str) -> dict:
         (len(h) > 376 and h[0] == 0x47 and h[188] == 0x47 and h[376] == 0x47, "media", tr("srv_misc.video_mpeg_ts")),
         (h.startswith(b"0&\xb2u\x8e\x66\xcf\x11"), "media", "Video/Audio Windows Media"),
         (h.startswith(b"FLV"), "media", tr("srv_misc.video_flash")),
+        (h[:3] == b"\x1f\x07\x00", "media", "Video DV"),  # blocchi DIF del DV (.dv/.dif: .dif e' anche il Data Interchange Format dei fogli)
         (h.startswith(b"MThd") or (h[:4] == b"RIFF" and h[8:12] == b"RMID"), "midi", tr("srv_misc.audio_midi")),
         (h.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"), "ole", tr("srv_misc.documento_office_97_2003_msg")),
         (h.startswith(b"SQLite format 3\x00"), "sqlite", tr("srv_misc.database_sqlite")),

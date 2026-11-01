@@ -7,9 +7,10 @@ const NATIVE_V = new Set(["mp4", "m4v", "webm", "ogv", "mov"]);
 const NATIVE_A = new Set(["mp3", "wav", "wave", "flac", "ogg", "oga", "opus", "m4a", "aac"]);
 
 // file grezzi senza intestazione: i parametri non si ricavano dal file. Valori proposti per estensione (SoX: .sw/.ub/.uw a
-// 8000 Hz mono; Asterisk .sln; G.711 .alaw/.ulaw), poi quelli scelti l'ultima volta (localStorage mbv-raw-<estensione>).
+// 8000 Hz mono; Asterisk .sln; G.711 .alaw/.ulaw; Sound Designer II .sd2 = solo la parte dati, i parametri stavano nella
+// "resource fork" del Mac che su Windows si perde), poi quelli scelti l'ultima volta (localStorage mbv-raw-<estensione>).
 const RAW_AUDIO = { pcm: ["s16le", 44100, 2], s16le: ["s16le", 44100, 2], sw: ["s16le", 8000, 1], ub: ["u8", 8000, 1], uw: ["u16le", 8000, 1],
-  sln: ["s16le", 8000, 1], alaw: ["alaw", 8000, 1], al: ["alaw", 8000, 1], ulaw: ["mulaw", 8000, 1], ul: ["mulaw", 8000, 1] };
+  sln: ["s16le", 8000, 1], sd2: ["s16be", 44100, 2], alaw: ["alaw", 8000, 1], al: ["alaw", 8000, 1], ulaw: ["mulaw", 8000, 1], ul: ["mulaw", 8000, 1] };
 const RAW_VIDEO = new Set(["yuv"]);
 const SAMPLE_FMTS = ["s16le", "s16be", "u8", "s8", "u16le", "s24le", "s32le", "f32le", "f64le", "alaw", "mulaw"];
 const PIX_FMTS = { yuv420p: 1.5, yuv422p: 2, yuv444p: 3, nv12: 1.5, uyvy422: 2, yuyv422: 2, rgb24: 3, gray: 1 };
