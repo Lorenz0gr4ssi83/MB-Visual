@@ -39,6 +39,10 @@ if __name__ == "__main__" and "--integrazione" in sys.argv:
 if __name__ == "__main__" and "--step-worker" in sys.argv:
     from mbvisual import stepnative
     sys.exit(stepnative.cli(sys.argv))
+# motore della modellazione 3D di solidi (mbvisual/modkernel.py): un processo per tutte le schede di modellazione
+if __name__ == "__main__" and "--modeler-kernel" in sys.argv:
+    from mbvisual import modkernel
+    sys.exit(modkernel.cli(sys.argv))
 # processi di lettura e scrittura della conversione IFC -> STEP (mbvisual/ifcstep.py)
 if __name__ == "__main__" and "--ifcstep" in sys.argv:
     from mbvisual import ifcstep

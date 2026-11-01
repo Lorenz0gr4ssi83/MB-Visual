@@ -78,6 +78,7 @@ WEB_EXTS = {
     "visio": ["vsdx", "vsdm", "vstx", "vstm"],          # i .vsd binari richiedono il motore
     "publisher": ["mbpub"],                              # i .pub di Publisher richiedono il motore
     "pointcloud": ["las", "pts", "xyz"],                 # LAZ/E57/PTX richiedono il motore
+    "mbmod": "*",                                        # modelli 3D di MB Desk: solo vista (anteprima glTF nel file)
 }
 WEB_NOTES = {
     "media": "Riproduzione dei formati supportati dal browser del dispositivo (la conversione di altri formati e' nella versione per PC)",

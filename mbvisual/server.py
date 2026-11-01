@@ -488,6 +488,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": False, "nativo": False})
         self._json({"ok": True, "job": jobs.start(stepnative.convert, self._path(qs))})
 
+    def api_modeler(self, qs):
+        # modellazione 3D di solidi: motore OpenCascade in un processo a parte (mbvisual/modeler.py, modkernel.py)
+        from . import modeler
+        modeler.api(self, qs)
+
     def api_ifc_step(self, qs):
         # IFC -> STEP con solidi esatti (IfcOpenShell + OpenCascade, mbvisual/ifcstep.py); senza i due motori risponde
         # nativo=false e il visualizzatore esporta come prima (facce piane dalla scena)

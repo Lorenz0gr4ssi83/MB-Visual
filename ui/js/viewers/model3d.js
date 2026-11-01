@@ -367,7 +367,7 @@ function rhinoTree(obj) {
 }
 
 // ---------------------------------------------------------------- visualizzatore
-async function loadAny(c, ld, info) {
+export async function loadAny(c, ld, info) {
   // Navisworks, Inventor, nuvole e STEP/IGES grandi nell'app per PC: li legge il motore nativo
   if (OCCT[c.ext] && !WEB && !c.info?.size && !c.preloaded) { try { c.info = { ...(c.info || {}), size: (await api("stat", { path: c.path })).size }; } catch { /* lettore WebAssembly */ } }
   const nativeCad = OCCT[c.ext] && !WEB && (c.info?.size || 0) >= NATIVE_MIN;
@@ -908,7 +908,37 @@ export async function mount(ctx) {
       } catch (e) { toast(`${name}: ${e.message}`, true, 6000); }
     }
   }
-  const addBtn = button(tr("v_model3d.aggiungi_modello"), "plus", async () => addModels(await pickFiles()), { title: tr("v_model3d.carica_altro_modello_ifc_step") });
+  const addBtn = button(tr("v_model3d.aggiungi_modello"), "plus", async () => addModels(await pickFiles()), { title: tr("v_model3d.carica_altro_modello_ifc_step") });
+  // modifica con il modellatore 3D (ui/js/modeler): B-rep esatto per STEP/IGES/BREP, Inventor, SolidWorks/Parasolid e i solidi
+  // ACIS dei DWG; per le mesh e gli altri formati i triangoli della scena (Z in alto, millimetri)
+  const editBtn = WEB ? null : button(tr("v_model3d.modifica_modello"), '<svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M8 16l1-3 6-6 2 2-6 6z"/></svg>', async () => {
+    try {
+      const base = ctx.name.replace(/\.[^.]+$/, "");
+      let importFrom;
+      if (OCCT[ctx.ext] || INVENTOR[ctx.ext] || ctx.solidSource) importFrom = { path: ctx.solidSource || ctx.path };
+      else {
+        const { meshParts } = await import("../modeler/mmesh.js");
+        const steps = [], meshPartsAll = [];
+        for (const pt of parts) {
+          const r = pt.loaded.root, solids = info.cad3dSolids || {};
+          r.updateMatrixWorld(true);
+          const inv = new THREE.Matrix4().copy(r.matrixWorld).invert();
+          // solidi ACIS dei DWG: STEP esatto con la posizione dell'entita'
+          r.traverse(o => {
+            const k = o.userData?.cad3dAcis;
+            if (k === undefined || !solids[k]?.step) return;
+            const m = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld).elements;
+            steps.push({ step: solids[k].step, m: [m[0], m[4], m[8], m[12], m[1], m[5], m[9], m[13], m[2], m[6], m[10], m[14]] });
+          });
+          const inAcis = o => { for (let x = o; x; x = x.parent) if (x.userData?.cad3dAcis !== undefined && solids[x.userData.cad3dAcis]?.step) return true; return false; };
+          meshPartsAll.push(...meshParts(r, pt.name ? pt.name.split(".").pop().toLowerCase() : ctx.ext, { skip: inAcis }));
+        }
+        importFrom = { path: ctx.path, steps: steps.length ? steps : null, meshParts: meshPartsAll.length ? meshPartsAll : null };
+        if (!importFrom.steps && !importFrom.meshParts) throw new Error(tr("v_model3d.nessun_oggetto_visibile_salvare"));
+      }
+      ctx.openFile(ctx.path, "modeler", { displayName: base + ".mbmod", importFrom, untitled: true, fresh: true });
+    } catch (e) { toast(e.message, true, 6000); }
+  }, { title: tr("v_model3d.modifica_modello_titolo"), comp: "mech" });
 
   // controlli delle nuvole di punti (colori, dimensione, dettaglio) quando nella scena ce n'e' almeno una
   const cloudBox = el("span", { style: { display: "contents" } });
@@ -918,7 +948,7 @@ export async function mount(ctx) {
     cloudBox.append(el("span", { class: "sep" }), cloudControls(info, () => {}));
   }
   cloudUi();
-  ctx.tb.append(seg, el("span", { class: "sep" }), addBtn, button(tr("v_model3d.adatta"), "fit", () => fit()), views, el("span", { class: "sep" }), wireBtn, mBtn, axisSel, slider, flipBtn, cloudBox,
+  ctx.tb.append(seg, el("span", { class: "sep" }), addBtn, editBtn, button(tr("v_model3d.adatta"), "fit", () => fit()), views, el("span", { class: "sep" }), wireBtn, mBtn, axisSel, slider, flipBtn, cloudBox,
     el("span", { class: "sep" }), exp, el("span", { class: "grow" }), el("span", { class: "note" }, tr("v_model3d.maiusc_cambia_modalita_destro_sposta")));
   // app per telefono: realta' aumentata (WebXR su Android, Quick Look su iPhone) - ui/js/ar.js
   if (window.MBV_WEB) ctx.tb.prepend(button(tr("ar.vedi"), '<svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>', async () => {
