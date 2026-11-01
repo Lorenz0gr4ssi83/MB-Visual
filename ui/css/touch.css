@@ -51,7 +51,6 @@ html.touch .modal input[type="text"], html.touch .modal input[type="password"], 
 html.touch .mini { height: 40px; padding: 0 14px; }
 html.touch .ex-item { min-height: 44px; }
 html.touch .ex-filter { height: 42px; }
-html.touch .new-chip { height: 46px; }
 html.touch .tree .node, html.touch label.node { min-height: 40px; }
 html.touch input[type="checkbox"], html.touch input[type="radio"] { width: 20px; height: 20px; }
 html.touch ::-webkit-scrollbar { width: 6px; height: 6px; }

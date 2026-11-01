@@ -699,7 +699,6 @@ function lockIfNeeded(t, ext, tb) {
 const openComponents = (opts = {}) => showComponents(opts);
 // dopo un cambio: i file aperti in visualizzazione del componente appena acceso si riaprono con tutte le funzioni
 function componentsChanged() {
-  renderHomeNew();
   for (const t of [...tabs]) {
     if (!t.lockedComp || !isOn(t.lockedComp)) continue;
     t.invite?.remove();
@@ -714,21 +713,6 @@ function startMailBadge() {
   if (WEB || mailBadge || !isOn("mail")) return;
   mailBadge = true;
   import("./mail/mailbadge.js").then(m => m.setupMailBadge()).catch(e => console.error(e)); // posta in background: messaggi da leggere, avvisi
-}
-
-// home: scorciatoie "Crea nuovo" dei componenti attivi
-const HOME_NEW = [["docx", "newfile.documento_word", "--t-doc", '<path d="M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M9 17h4"/>', "office"],
-  ["xlsx", "newfile.cartella_lavoro_excel", "--t-xls", '<rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 10h16M4 15h16M10 4v16"/>', "office"],
-  ["pptx", "newfile.presentazione_powerpoint", "--t-ppt", '<rect x="3" y="5" width="18" height="12" rx="1.5"/><path d="M12 17v3M8 20h8"/>', "office"],
-  ["dxf", "newfile.disegno_cad", "--t-cad", '<path d="M4 4h16v16H4zM14 14h6M14 14v6"/>', "cad"],
-  ["mbpub", "newfile.pubblicazione", "--t-av", '<path d="M4 4h16v16H4zM4 10h16M10 10v10"/>', "graphics"],
-  ["mbvid", "newfile.progetto_video", "--t-3d", '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/>', "video"]];
-function renderHomeNew() {
-  const row = $("home-newrow");
-  row.innerHTML = "";
-  row.append(el("span", { class: "label" }, tr("idx.crea_nuovo")),
-    ...HOME_NEW.filter(([ext, , , , comp]) => isOn(comp) && !(WEB && ext === "mbvid")).map(([ext, key, c, svg]) => el("button", { class: "new-chip", style: { "--c": `var(${c})` }, onclick: () => doNew(ext),
-      html: `<span class="ci"><svg viewBox="0 0 24 24">${svg}</svg></span>` }, tr(key))));
 }
 
 // ------------------------------------------------------------------ salvataggio
@@ -1180,7 +1164,6 @@ async function boot() {
   // home: il logo al centro; i tipi di file aperti si consultano nella scheda Formati
   const total = new Set(REG.categories.flatMap(c => c.exts)).size;
   $("home-note").append(el("i"), el("button", { class: "link", onclick: toggleFormats }, tr("app.0_estensioni_supportate_vedi_l", total)));
-  renderHomeNew();
   const keyHint = (k, text) => el("span", {}, ...keyCombos(k).map(x => el("kbd", {}, x)), text);
   $("home-keys").append(keyHint("Ctrl+K", tr("pal.cerca_breve")), keyHint("Ctrl+Tab", tr("app.file_successivo")), keyHint("F1", tr("app.scorciatoie_tastiera")));
   setupDrop();
