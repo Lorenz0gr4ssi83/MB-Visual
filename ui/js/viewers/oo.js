@@ -9,6 +9,9 @@ import { describeKeys } from "../shortcuts.js";
 const NATIVE = { word: ["docx", "odt", "rtf", "txt", "pdf"], cell: ["xlsx", "ods", "csv", "pdf"], slide: ["pptx", "odp", "pdf"] };
 const KIND = ext => (/^(xlsx|xlsm|xlsb|xls|xltx|xltm|xlt|ods|fods|csv|tsv)$/.test(ext) ? "cell" : /^(pptx|pptm|ppt|pps|ppsx|ppsm|potx|potm|pot|odp|otp|fodp)$/.test(ext) ? "slide" : "word");
 const MAIN = { word: "docx", cell: "xlsx", slide: "pptx" };
+// modelli, presentazioni "show" e OpenDocument piatti: il convertitore dell'editor sceglie dal nome, quindi gli si passa
+// l'estensione del formato con la stessa struttura (stessi byte: cambia solo il nome dato all'editor)
+const OPEN_AS = { dot: "doc", dotm: "docm", ott: "odt", xlt: "xls", pot: "ppt", pps: "ppt", potm: "pptm", ppsm: "pptm", otp: "odp", fodt: "odt", fods: "ods", fodp: "odp" };
 
 export async function mount(ctx) {
   ctx.fillBody(true);
@@ -61,7 +64,8 @@ export async function mount(ctx) {
 
   const bytes = await readBytes(ctx.path);
   try {
-    await send("document:open-buffer", { fileName: ctx.info?.nome || ctx.name, buffer: bytes.buffer, readonly: false }, [bytes.buffer]);
+    const fileName = (ctx.info?.nome || ctx.name).replace(/\.([^.]+)$/, (m, e) => "." + (OPEN_AS[e.toLowerCase()] || e));
+    await send("document:open-buffer", { fileName, buffer: bytes.buffer, readonly: false }, [bytes.buffer]);
   } catch (e) {
     wait.remove();
     throw e;

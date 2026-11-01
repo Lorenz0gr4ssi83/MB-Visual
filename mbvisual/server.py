@@ -642,6 +642,10 @@ class Handler(BaseHTTPRequestHandler):
         b = self._body_json()
         self._json({"ok": True, "path": media.frame(self._path(qs), float(b["t"]), b["out"])})
 
+    def api_media_raw(self, qs):
+        """parametri di un file grezzo senza intestazione (.pcm, .yuv...), scelti nella finestra del lettore"""
+        self._json({"ok": True, "raw": media.set_raw(self._path(qs), self._body_json())})
+
     def api_media_waveform(self, qs):
         self._json({"ok": True, "peaks": media.waveform(self._path(qs))})
 

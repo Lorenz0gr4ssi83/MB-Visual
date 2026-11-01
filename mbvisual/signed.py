@@ -29,10 +29,19 @@ class TimeStampedData(core.Sequence):
     _fields = [
         ("version", core.Integer),
         ("data_uri", core.IA5String, {"optional": True}),
-        ("meta_data", core.Any, {"optional": True}),
+        ("meta_data", tsp.MetaData, {"optional": True}),  # RFC 5544: SEQUENCE (con Any inghiottiva il contenuto)
         ("content", core.OctetString, {"optional": True}),
         ("temporal_evidence", core.Any),
     ]
+
+
+def _untag(der: bytes) -> bytes:
+    """toglie l'etichetta esplicita [0] (A0 + lunghezza) davanti a un oggetto DER, se c'e'."""
+    if not der or der[0] != 0xA0:
+        return der
+    n = der[1]
+    head = 2 + (n & 0x7F if n & 0x80 else 0)
+    return der[head:]
 
 
 def _maybe_base64(data: bytes) -> bytes:
@@ -253,7 +262,14 @@ def open_signed(path: str) -> dict:
     try:
         ci0 = cms.ContentInfo.load(data)
         if ci0["content_type"].dotted == "1.2.840.113549.1.9.16.1.31":
-            tsd = TimeStampedData.load(ci0["content"].contents)
+            c = ci0["content"]
+            # le versioni recenti di asn1crypto conoscono gia' TimeStampedData e restituiscono la struttura letta: .contents
+            # sarebbe il contenuto senza l'intestazione SEQUENCE (prima ogni .tsd vero finiva in "nessuna busta di firma")
+            try:
+                tsd = TimeStampedData.load(_untag(c.dump()))
+                tsd["content"].native
+            except Exception:
+                tsd = TimeStampedData.load(c.contents)
             inner = tsd["content"].native
             ts = None
             try:

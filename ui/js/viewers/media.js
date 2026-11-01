@@ -1,12 +1,58 @@
 // Audio e video: riproduzione nativa o conversione automatica con FFmpeg; taglio, rotazione, estrazione audio, fotogrammi, conversione.
 import { t as tr } from "../i18n.js";
-import { api, button, dirName, el, fileUrl, fmtTime, loading, modal, pickSavePath, toast, waitJob, withExt } from "../core.js";
+import { api, button, dirName, el, fileUrl, fmtTime, loading, modal, pickSavePath, toast, waitJob, WEB, withExt } from "../core.js";
 import { keymap } from "../shortcuts.js";
 
 const NATIVE_V = new Set(["mp4", "m4v", "webm", "ogv", "mov"]);
 const NATIVE_A = new Set(["mp3", "wav", "wave", "flac", "ogg", "oga", "opus", "m4a", "aac"]);
 
+// file grezzi senza intestazione: i parametri non si ricavano dal file. Valori proposti per estensione (SoX: .sw/.ub/.uw a
+// 8000 Hz mono; Asterisk .sln; G.711 .alaw/.ulaw; Sound Designer II .sd2 = solo la parte dati, i parametri stavano nella
+// "resource fork" del Mac che su Windows si perde), poi quelli scelti l'ultima volta (localStorage mbv-raw-<estensione>).
+const RAW_AUDIO = { pcm: ["s16le", 44100, 2], s16le: ["s16le", 44100, 2], sw: ["s16le", 8000, 1], ub: ["u8", 8000, 1], uw: ["u16le", 8000, 1],
+  sln: ["s16le", 8000, 1], sd2: ["s16be", 44100, 2], alaw: ["alaw", 8000, 1], al: ["alaw", 8000, 1], ulaw: ["mulaw", 8000, 1], ul: ["mulaw", 8000, 1] };
+const RAW_VIDEO = new Set(["yuv"]);
+const SAMPLE_FMTS = ["s16le", "s16be", "u8", "s8", "u16le", "s24le", "s32le", "f32le", "f64le", "alaw", "mulaw"];
+const PIX_FMTS = { yuv420p: 1.5, yuv422p: 2, yuv444p: 3, nv12: 1.5, uyvy422: 2, yuyv422: 2, rgb24: 3, gray: 1 };
+const SIZES = [[176, 144], [320, 240], [352, 288], [640, 480], [720, 480], [720, 576], [1280, 720], [1920, 1080], [3840, 2160]];
+
+function rawProposal(ext, size) {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem("mbv-raw-" + ext) || "null"); } catch { /* */ }
+  if (RAW_AUDIO[ext]) { const [f, ar, ac] = RAW_AUDIO[ext]; return { f, ar, ac, ...(saved || {}) }; }
+  // video: la prima dimensione comune per cui il file contiene un numero intero di fotogrammi
+  const fit = SIZES.find(([w, h]) => size % (w * h * 1.5) === 0) || [352, 288];
+  return saved ? { ...saved } : { f: "rawvideo", pix_fmt: "yuv420p", s: `${fit[0]}x${fit[1]}`, r: 25 };
+}
+
+async function rawDialog(ctx) {
+  const p = rawProposal(ctx.ext, ctx.info?.size || 0);
+  const video = RAW_VIDEO.has(ctx.ext);
+  const sel = (vals, cur) => el("select", {}, ...vals.map(v => el("option", { value: v, selected: String(v) === String(cur) }, v)));
+  const row = (label, input) => el("label", { style: { display: "grid", gridTemplateColumns: "160px 1fr", gap: "10px", alignItems: "center" } }, el("span", {}, label), input);
+  const inputs = video
+    ? { s: el("input", { value: p.s, list: "mbv-raw-sizes" }), pix_fmt: sel(Object.keys(PIX_FMTS), p.pix_fmt), r: el("input", { type: "number", min: 1, max: 240, value: p.r }) }
+    : { f: sel(SAMPLE_FMTS, p.f), ar: el("input", { type: "number", min: 1000, max: 384000, value: p.ar, list: "mbv-raw-rates" }), ac: el("input", { type: "number", min: 1, max: 8, value: p.ac }) };
+  const body = el("div", { class: "mbv-raw", style: { display: "grid", gap: "10px", minWidth: "min(460px, 80vw)" } },
+    el("p", { class: "note", style: { margin: 0 } }, tr(video ? "v_media.raw_video_spiegazione" : "v_media.raw_audio_spiegazione", "." + ctx.ext)),
+    ...(video ? [row(tr("v_media.raw_dimensioni"), inputs.s), row(tr("v_media.raw_formato_pixel"), inputs.pix_fmt), row(tr("v_media.raw_fotogrammi_secondo"), inputs.r)]
+      : [row(tr("v_media.raw_formato_campione"), inputs.f), row(tr("v_media.raw_frequenza"), inputs.ar), row(tr("v_media.raw_canali"), inputs.ac)]),
+    el("datalist", { id: "mbv-raw-sizes" }, ...SIZES.map(([w, h]) => el("option", { value: `${w}x${h}` }))),
+    el("datalist", { id: "mbv-raw-rates" }, ...[8000, 11025, 16000, 22050, 32000, 44100, 48000, 96000].map(v => el("option", { value: v }))));
+  const ok = await modal(tr("v_media.raw_titolo"), body, [{ label: tr("common.annulla"), value: false }, { label: tr("v_media.raw_apri"), value: true, primary: true }]);
+  if (!ok) return null;
+  const out = video ? { f: "rawvideo", s: inputs.s.value.trim(), pix_fmt: inputs.pix_fmt.value, r: inputs.r.value } : { f: inputs.f.value, ar: inputs.ar.value, ac: inputs.ac.value };
+  try { localStorage.setItem("mbv-raw-" + ctx.ext, JSON.stringify(out)); } catch { /* */ }
+  return out;
+}
+
 export async function mount(ctx) {
+  const isRaw = !!(RAW_AUDIO[ctx.ext] || RAW_VIDEO.has(ctx.ext)) && !WEB;
+  if (isRaw) {
+    const p = await rawDialog(ctx);
+    if (!p) throw new Error(tr("v_media.raw_annullato"));
+    await api("media_raw", { path: ctx.path }, { json: p });
+  }
   const ld = loading(ctx.el, tr("v_media.analisi_file_multimediale"));
   const probe = await api("media_probe", { path: ctx.path });
   const isVideo = probe.video;
@@ -80,6 +126,8 @@ export async function mount(ctx) {
     button(tr("v_media.azzera"), null, () => { inP = outP = null; showMarks(); }), marks,
     el("span", { class: "sep" }),
     button(tr("v_media.esporta_converti"), "download", () => exportDialog(), { comp: "video" }),
+    // file grezzo: si riapre con la finestra dei parametri (valori proposti = gli ultimi scelti)
+    isRaw ? button(tr("v_media.raw_parametri"), null, () => window.MB?.reloadTab?.(ctx.tab), { title: tr("v_media.raw_titolo") }) : null,
     button(tr("v_media.apri_montaggio"), "edit", () => openInEditor(), { title: tr("v_media.crea_progetto_montaggio_video_stile"), comp: "video" }),
     isVideo ? button(tr("v_media.fotogramma"), "camera", async () => {
       const out = await pickSavePath(withExt(ctx.name.replace(/\.[^.]+$/, "") + "_" + Math.round(media.currentTime) + "s.x", "png"), dirName(ctx.path));

@@ -46,6 +46,9 @@ def image_to_png(path: str) -> dict:
             rgb = raw.postprocess(use_camera_wb=True, output_bps=8)
         im = Image.fromarray(rgb)
         info["formato"] = "RAW " + ext.upper()
+    elif _is_pfm_color(path):
+        im = _pfm_color(path)  # PFM a colori ("PF"): Pillow legge solo quello in scala di grigi ("Pf")
+        info["formato"] = "PFM"
     else:
         im = Image.open(path)
         info["formato"] = im.format
@@ -68,11 +71,61 @@ def image_to_png(path: str) -> dict:
     info["modalita"] = im.mode
     if not out.exists():
         if im.mode in ("I;16", "I;16B", "I;16L", "I", "F"):
-            im = im.point(lambda v: v / 256 if v > 255 else v).convert("L")
+            im = _to_8bit(im)
         if im.mode not in ("RGB", "RGBA", "L", "LA"):
             im = im.convert("RGBA")
         im.save(out, "PNG", compress_level=1)
     return {"path": str(out), "info": info}
+
+
+def _is_pfm_color(path: str) -> bool:
+    try:
+        with open(path, "rb") as f:
+            return f.read(3) in (b"PF\n", b"PF\r", b"PF ")
+    except OSError:
+        return False
+
+
+def _pfm_color(path: str):
+    """Portable FloatMap a colori: intestazione "PF", larghezza altezza, scala (negativa = little endian), poi float32 RGB
+    dal basso verso l'alto. Valori riportati a 8 bit con l'intervallo min-max dell'immagine."""
+    import numpy as np
+    from PIL import Image
+    data = Path(path).read_bytes()
+    parts, pos = [], 0
+    while len(parts) < 4:  # "PF", larghezza, altezza, scala separati da spazi o a capo
+        while data[pos:pos + 1].isspace():
+            pos += 1
+        end = pos
+        while end < len(data) and not data[end:end + 1].isspace():
+            end += 1
+        parts.append(data[pos:end])
+        pos = end
+    pos += 1
+    w, h, scale = int(parts[1]), int(parts[2]), float(parts[3])
+    a = np.frombuffer(data, dtype="<f4" if scale < 0 else ">f4", count=w * h * 3, offset=pos).reshape(h, w, 3)[::-1].astype(np.float64)
+    fin = a[np.isfinite(a)]
+    lo, hi = (float(fin.min()), float(fin.max())) if fin.size else (0.0, 1.0)
+    a = (a - lo) * (255.0 / (hi - lo)) if hi > lo else np.zeros_like(a)
+    return Image.fromarray(np.nan_to_num(np.clip(a, 0, 255)).astype(np.uint8), "RGB")
+
+
+def _to_8bit(im):
+    """immagini a 16/32 bit o in virgola mobile (TIFF 16 bit, FITS, PFM, SPIDER) -> scala di grigi a 8 bit.
+    Interi fino a 65535: si divide per 256 come prima; valori in virgola mobile o fuori scala: intervallo min-max del file.
+    (Pillow recente non accetta piu' una lambda qualsiasi in point() per questi modi.)"""
+    import numpy as np
+    from PIL import Image
+    a = np.asarray(im, dtype=np.float64)
+    fin = a[np.isfinite(a)]
+    if not fin.size:
+        return Image.new("L", im.size)
+    lo, hi = float(fin.min()), float(fin.max())
+    if im.mode != "F" and lo >= 0 and hi <= 65535:
+        a = np.where(a > 255, a / 256, a)
+    else:
+        a = (a - lo) * (255.0 / (hi - lo)) if hi > lo else np.zeros_like(a)
+    return Image.fromarray(np.nan_to_num(np.clip(a, 0, 255)).astype(np.uint8), "L")
 
 
 PIL_FORMATS = {"jpg": "JPEG", "jpeg": "JPEG", "jpe": "JPEG", "jfif": "JPEG", "png": "PNG", "gif": "GIF", "bmp": "BMP",
@@ -328,7 +381,8 @@ def sniff(path: str) -> dict:
         (len(h) > 376 and h[0] == 0x47 and h[188] == 0x47 and h[376] == 0x47, "media", tr("srv_misc.video_mpeg_ts")),
         (h.startswith(b"0&\xb2u\x8e\x66\xcf\x11"), "media", "Video/Audio Windows Media"),
         (h.startswith(b"FLV"), "media", tr("srv_misc.video_flash")),
-        (h.startswith(b"MThd"), "media", tr("srv_misc.audio_midi")),
+        (h[:3] == b"\x1f\x07\x00", "media", "Video DV"),  # blocchi DIF del DV (.dv/.dif: .dif e' anche il Data Interchange Format dei fogli)
+        (h.startswith(b"MThd") or (h[:4] == b"RIFF" and h[8:12] == b"RMID"), "midi", tr("srv_misc.audio_midi")),
         (h.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"), "ole", tr("srv_misc.documento_office_97_2003_msg")),
         (h.startswith(b"SQLite format 3\x00"), "sqlite", tr("srv_misc.database_sqlite")),
         (h[:4] == b"AC10" or h[:6] == b"AC1.40", "cad2d", tr("srv_misc.disegno_autocad_dwg")),
@@ -339,6 +393,7 @@ def sniff(path: str) -> dict:
         (h.startswith(b"ASTM-E57"), "pointcloud", tr("srv_misc.nuvola_e57")),
         (h.startswith(b"ADOCT"), "pointcloud", tr("srv_misc.nuvola_rcs")),
         (h.startswith(b"\xff\xfe\xff\x0e" + "SketchUp Model".encode("utf-16-le")), "sketchup", tr("srv_misc.modello_sketchup")),
+        (h.startswith(b"#UGC:"), "creo", tr("srv_misc.modello_creo")),  # PTC Creo / Pro/ENGINEER (mbvisual/fx_creo.py)
         (b"ISO-10303-21" in h[:200] and b"IFC" in h[:4000].upper(), "ifc", tr("srv_misc.modello_bim_ifc")),
         (b"ISO-10303-21" in h[:200], "cad3d", tr("srv_misc.modello_cad_step")),
         (h.startswith(b"MZ"), "exe", tr("srv_misc.programma_windows_eseguibile")),

@@ -149,7 +149,7 @@ l'exe x64 funziona anche sugli altri PC aziendali). L'ambiente `%USERPROFILE%\.m
   Interfaccia: rifatta il 22/10/2026, vedi sezione "Editor PDF in stile Acrobat Pro". Ogni modifica scrive un file NUOVO
   (mai sostituire quello aperto da pdf.js). apply_ops lavora in `_apply_ops` + gc + nuovi tentativi: i campi di PyMuPDF
   tengono aperto il file. `_page_draws` esclude dai disegni l'aspetto di campi e annotazioni (get_drawings li riporta).
-- Inventor: vedi sezione "Autodesk Inventor senza Inventor" (22/10/2026). Creo: nessun lettore realistico.
+- Inventor: vedi sezione "Autodesk Inventor senza Inventor" (22/10/2026). Creo: vedi sezione "PTC Creo Parametric" (31/10/2026).
 - Migliorie rimandate dall'utente (21/10/2026): pulsanti "Modifica in AutoCAD/BricsCAD/Inventor"; motore ODA (a pagamento).
   Funzioni Navisworks Manage: FATTE il 22/10/2026 (sezione "Funzioni di Navisworks Manage nel 3D").
 - Editor CAD professionale (21/10/2026) - FATTO. `ui/js/cadgeom.js` = geometria condivisa (matrici, impaginazione esatta dei
@@ -749,6 +749,57 @@ web app, Mac, .brep/.stpz e file piccoli restano su occt-import-js (WebAssembly,
 - Collaudo: `python tests/test_stepnative.py` (17 prove su un assieme sintetico: parte ripetuta, parte con 5 solidi, solido diviso
   per facce) e `python tests/test_stepnative.py <file.step>...` (un processo contro N, confronto per parte). File veri in
   %USERPROFILE%\.mbvisual\step-prove (NON nel repo).
+
+## PTC Creo Parametric / Pro/ENGINEER (31/10/2026) - FATTO (apertura con Creo installato da provare)
+Categoria `creo` (prt asm drw frm, anche con il numero di versione: pezzo.prt.3 -> app.js CREO_VERSIONED), riconoscimento dal
+contenuto "#UGC:" in misc.sniff (NX/Solid Edge .prt/.asm non lo hanno). `mbvisual/fx_creo.py` legge SOLO le parti in chiaro:
+intestazione UGC (tipo, nome CMNM con 3 cifre ESADECIMALI di lunghezza, piattaforma), riga di copyright con programma e versione
+(subito dopo l'intestazione nei Creo, piu' avanti nei Wildfire), nomi delle sezioni del #UGC_TOC, anteprima = JPEG 256x256 non compresso
+nella sezione #THMB_IMG_MAIN (Creo 2.0 e successivi; i Wildfire non ce l'hanno). Geometria e parametri sono in sezioni compresse con un
+formato PTC non documentato: NON decodificate (niente reverse engineering). Strade offerte nel visualizzatore `ui/js/viewers/creo.js`:
+STEP esportato con lo stesso nome nella cartella (si apre in 3D), Creo Parametric / Creo View installati (cercati in Program Files\PTC,
+pulsante "Apri con"; percorsi NON provati: Creo non c'e' su questo PC). Creo View Express non esporta STEP: utile solo per guardare.
+Collaudo: `python tests/test_creo.py [cartella]` (senza cartella scarica 4 esempi di github.com/mesh-iit/creo2urdf, BSD-3-Clause);
+19 file veri da Wildfire 2.0 a Creo 9.0 (creo2urdf + mesh-iit/cad-libraries via LFS, fuori dal repo in %USERPROFILE%\.mbvisual\creo-campioni).
+
+## Collaudo di TUTTE le estensioni nell'app vera (01/11/2026) - FATTO
+Segnalazione dell'utente: "ci sono ancora moltissime estensioni che non funzionano". Regola: un'estensione resta nel registro solo se
+e' stata aperta davvero; si toglie solo cio' che e' impossibile (motivo nel resoconto), mai per comodita'.
+- `tools/make_format_samples.py <cartella> [--riusa <giro precedente>] [--extra <cartella>]... [--libreoffice <cartella di soffice.exe>]
+  [--only ext,ext]`: un campione per ogni coppia (categoria, estensione) -> <cartella>/manifest.json. Fonti in ordine: generati
+  (Pillow, FFmpeg, 7-Zip, Office via COM, OpenCascade, ezdxf, IMAPI2 di Windows per ISO/UDF, SheetJS...), tests/samples, file pubblici
+  scaricati in <cartella>/_scaricati (fate-suite e samples.ffmpeg.org, prove di Pillow, libxmp/OpenMPT, three.js, libarchive,
+  raw.pixls.us CC0, documenti di prova di LibreOffice e Apache OpenOffice, NIST; elenco in FONTI.md), cartelle --extra. Mai nel repo.
+  Office via COM a volte si scollega (0x80010108) e blocca il giro: `--riusa` riprende i file fatti da Office la volta prima.
+  Le coppie irraggiungibili (estensioni che vanno sempre alla mappa GIS) si saltano; con --only il manifest si unisce al precedente.
+- `node tests/test_all_formats.mjs <cartella> [--out <esito>] [--only ext] [--cat id] [--shots] [--libreoffice <cartella>]`: server con
+  dati di prova (`tests/format_server.py`, LOCALAPPDATA in una cartella di prova: la posta non parte sui dati veri) + Edge senza finestra
+  (DevTools). Per ogni campione MB.openFile, poi: niente schermata di recupero, niente errore, niente avviso rosso (ONLYOFFICE e' in un
+  riquadro di un'altra origine: i suoi errori arrivano solo come avviso), niente rotella dopo il tempo massimo, audio/video con i
+  metadati letti, pdf.js con le pagine disegnate, categoria o visualizzatore attesi. Password dei .p12 e conferma della finestra dei file
+  grezzi dal manifest (`password`, `accept`). Esito in risultati.json/.md e schermate.
+- Risultato 01/11/2026: 949 campioni (coppie categoria/estensione) aperti nell'app, 942 riusciti dopo le correzioni; tolte 85 coppie
+  (7 impossibili con i motori inclusi: .evc .ac4 .binka .viv, .vgm e .spc audio = niente libgme in FFmpeg, .acm = in pratica driver
+  dei codec di Windows; 78 senza nessun file di prova pubblico: audio di giochi, moduli Amiga rari, dischi di macchine virtuali, volumi
+  divisi, .qpw .et .wpt .602 .dxb, RAW ptx/rwz/bay/cap/eip) -> registro 958 voci, 932 estensioni. Tenute senza nuovo collaudo perche'
+  stesso contenitore e stesso lettore di un formato provato: .nwc, .rte/.rft, .prtdot/.asmdot/.drwdot, .psm/.pwd (Solid Edge), .ipn.
+  I formati di office-lo si aprono SOLO con LibreOffice installato (collaudati con LibreOffice 26.2.6 estratto, non installato).
+- Correzioni trovate dal collaudo: TimeStampedData .tsd (asn1crypto recente restituisce la struttura gia' letta + campo meta_data Any
+  che inghiottiva il contenuto: nessun .tsd vero si apriva), PFM a colori ("PF", Pillow legge solo "Pf"), DV riconosciuto dal contenuto
+  (.dif e' anche il Data Interchange Format), LightWave .lwo ({meshes}), immagini a virgola mobile (.spi/.fits/.pfm: Pillow recente non accetta lambda in point()),
+  VRML (chevrotain catturato da window.define di Monaco dopo l'apertura di un testo), AMF/BVH (testo e byte invertiti), VTK < 250 byte,
+  VOX (VOXMesh), ONLYOFFICE con modelli/presentazioni/OpenDocument piatti (oo.js OPEN_AS: si passa all'editor il nome del formato con la
+  stessa struttura), .oxps nel lettore XPS (namespace di OpenXPS), MIDI (sotto), file grezzi (sotto), .ram = testo (elenco di
+  indirizzi RealAudio), .sln deciso dal contenuto (binario = audio, testo = soluzione di Visual Studio: app.js resolveCategory),
+  key/pages/numbers solo nella categoria iWork (le copie in office-lo e sheet non venivano mai usate).
+- MIDI (.mid .midi .kar .rmi, categoria `midi`): `ui/js/viewers/midi.js` + `ui/js/midiworker.js` = spessasynth_core 4.3.22 (Apache-2.0)
+  con stb-vorbis (Apache-2.0) e i suoni FluidR3Mono_GM.sf3 (MIT, MuseScore, commit fissato) in ui/vendor (fetch_vendor.py). Sintesi
+  fuori dalla pagina in WAV (volume portato a picco 0,89), lettore audio, testo karaoke sincronizzato (eventi lyric o testo dei .kar,
+  "/" a capo, "\" paragrafo), Salva con nome WAV (subito) o MP3/OGG/FLAC/M4A (WAV temporaneo + media_edit).
+- File grezzi senza intestazione (.pcm .s16le .sw .ub .uw .sln .alaw .ulaw .al .ul .yuv): finestra dei parametri in media.js (formato del
+  campione/frequenza/canali; per il video dimensioni, formato dei pixel, fotogrammi al secondo) con valori proposti per estensione
+  (G.711 8000 Hz mono, SoX 8000 Hz, .pcm 44,1 kHz stereo, dimensione del video che divide la lunghezza del file) e ricordati in
+  localStorage `mbv-raw-<ext>`; pulsante "Parametri..." per cambiarli. Motore: media.set_raw (api media_raw, valori controllati) e _inp().
 
 ## Autodesk ReCap .rcs / .rcp (28/10/2026) - FATTO
 Prima: .rcs/.rcp non erano nel registro -> si apriva la schermata "file sconosciuto". Ora categoria `pointcloud` (stesso motore,

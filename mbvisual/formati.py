@@ -59,6 +59,19 @@ def handle(op: str, path: str | None, qs: dict, body: bytes):
         from . import fx_iwork
         b = js()
         return fx_iwork.export(path, b["out"])
+    # ---------------------------------------------------------------- PTC Creo / Pro/ENGINEER
+    if op == "creo_read":
+        from . import fx_creo
+        return {**fx_creo.read(path), "programmi": fx_creo.programs()}
+    if op == "creo_preview":
+        from . import fx_creo
+        return fx_creo.preview(path)
+    if op == "creo_open":
+        from . import fx_creo
+        return fx_creo.open_with(path, js()["exe"])
+    if op == "creo_export":
+        from . import fx_creo
+        return fx_creo.export(path, js()["out"])
     # ---------------------------------------------------------------- Revit
     if op == "revit_read":
         from . import fx_revit
