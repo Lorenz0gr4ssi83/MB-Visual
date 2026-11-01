@@ -1046,21 +1046,34 @@ export async function mount(ctx) {
     async save(target) {
       const ext = target.split(".").pop().toLowerCase();
       if (!this.saveFormats.includes(ext)) throw new Error(tr("v_model3d.formati_modello_3d") + this.saveFormats.join(", ").toUpperCase());
-      if (["stp", "step", "ifc", "3mf", "dxf", "wrl"].includes(ext)) {
+      const src = (ctx.ext || "").toLowerCase();
+      const hasHidden = () => { // elementi nascosti dall'utente (le copie di selezione dei modelli uniti sono invisibili di proposito)
+        let h = false;
+        model.traverse(o => { if (!h && o.isMesh && !o.userData.proxy) for (let x = o; x && x !== model; x = x.parent) if (!x.visible) { h = true; break; } });
+        return h;
+      };
+      // IFC -> STEP nell'app per PC: il motore rilegge l'IFC con IfcOpenShell e scrive solidi esatti (mbvisual/ifcstep.py),
+      // con struttura, nomi, GlobalId e colori; qui solo se non ci sono elementi nascosti (altrimenti si esporta il visibile)
+      if (!WEB && src === "ifc" && (ext === "stp" || ext === "step") && !hasHidden()) {
+        const r = await api("ifc_step", { path: ctx.path }, { json: { out: target }, allowFail: true });
+        if (r.ok && r.job) {
+          const rep = await waitJob(r.job, (p, m) => ctx.status(m || tr("v_model3d.ifc_step_corso", Math.round(p * 100))));
+          ctx.status(tr("v_model3d.ifc_step_fatto", rep.convertiti, rep.attesi));
+          if (rep.approssimati?.length) toast(tr("v_model3d.ifc_step_approssimati", rep.approssimati.length, rep.approssimati.slice(0, 3).map(f => f.n || f.c).join(", ")), false, 8000);
+          if (rep.falliti?.length) toast(tr("v_model3d.ifc_step_non_convertiti", rep.falliti.length, rep.falliti.slice(0, 3).map(f => f.n || f.c).join(", ")), true, 8000);
+          return { switchTo: false };
+        }
+      }
+      const { saveChunks } = await import("../bigout.js");
+      if (["stp", "step", "ifc", "3mf", "dxf", "wrl", "obj"].includes(ext)) {
         // unita' della scena secondo il formato d'origine: IFC, Navisworks e glTF in metri, CAD e mesh in millimetri
-        const src = (ctx.ext || "").toLowerCase();
         const mpu = ["ifc", "nwd", "nwc", "nwf", "glb", "gltf", "usdz", "vrm", "skp"].includes(src) ? 1 : 0.001;
         const X = await import("../export3d.js");
         const els = X.collectElements(model, mpu);
         if (!els.length) throw new Error(tr("v_model3d.nessun_oggetto_visibile_salvare"));
-        const stem = ctx.name.replace(/\.[^.]+$/, "");
-        let out;
-        if (ext === "stp" || ext === "step") out = X.toSTEP(els, stem);
-        else if (ext === "ifc") out = X.toIFC(els, stem);
-        else if (ext === "3mf") out = await X.to3MF(els);
-        else if (ext === "dxf") out = X.toDXF(els);
-        else out = X.toVRML(els);
-        await api("save", { path: target }, { body: typeof out === "string" ? new TextEncoder().encode(out) : out });
+        // scrittura a pezzi (ui/js/bigout.js): nessun limite di dimensione delle stringhe
+        await saveChunks(target, X.exportChunks(ext, els, ctx.name.replace(/\.[^.]+$/, ""), 1 / mpu),
+          n => ctx.status(tr("v_model3d.salvataggio_mb", fmtNum(Math.round(n / 1048576)))));
         return { switchTo: false };
       }
       // si esporta solo cio' che e' visibile (niente elementi nascosti, niente copie di servizio dei modelli uniti)
@@ -1070,11 +1083,25 @@ export async function mount(ctx) {
       drop.forEach(o => o.parent?.remove(o));
       let data;
       if (ext === "stl") { const { STLExporter } = await import("three/addons/exporters/STLExporter.js"); data = new STLExporter().parse(copy, { binary: true }); }
-      else if (ext === "obj") { const { OBJExporter } = await import("three/addons/exporters/OBJExporter.js"); data = new TextEncoder().encode(new OBJExporter().parse(copy)); }
       else if (ext === "ply") { const { PLYExporter } = await import("three/addons/exporters/PLYExporter.js"); data = await new Promise(r => new PLYExporter().parse(copy, r, { binary: true })); }
       else if (ext === "usdz") { const { USDZExporter } = await import("three/addons/exporters/USDZExporter.js"); data = await new USDZExporter().parseAsync(copy); }
-      else { const { GLTFExporter } = await import("three/addons/exporters/GLTFExporter.js"); const out = await new GLTFExporter().parseAsync(copy, { binary: ext === "glb", onlyVisible: true, embedImages: true }); data = ext === "glb" ? out : new TextEncoder().encode(JSON.stringify(out)); }
-      await api("save", { path: target }, { body: new Uint8Array(data.buffer ? data.buffer : data) });
+      else {
+        // glTF: sempre il binario di three.js (il testo con i dati in base64 dentro il JSON non ha limiti pratici);
+        // .gltf = JSON + file .bin accanto
+        const { GLTFExporter } = await import("three/addons/exporters/GLTFExporter.js");
+        data = await new GLTFExporter().parseAsync(copy, { binary: true, onlyVisible: true, embedImages: true });
+        if (ext === "gltf") {
+          const { json, bin } = glbSplit(data);
+          const binName = target.replace(/^.*[\\/]/, "").replace(/\.[^.]+$/, "") + ".bin";
+          if (bin) {
+            json.buffers = [{ ...(json.buffers?.[0] || {}), byteLength: bin.byteLength, uri: encodeURI(binName) }];
+            await saveChunks(target.replace(/\.[^.]+$/, "") + ".bin", [bin]);
+          }
+          await saveChunks(target, [JSON.stringify(json)]);
+          return { switchTo: false };
+        }
+      }
+      await saveChunks(target, [data]);
       return { switchTo: false };
     },
     dispose: disposeAll,
@@ -1082,3 +1109,16 @@ export async function mount(ctx) {
 }
 
 const fmt = v => Number(v).toLocaleString(LOCALE, { maximumFractionDigits: 3 });
+
+// GLB -> { json, bin }: intestazione di 12 byte, poi blocchi [lunghezza, tipo] (JSON = 0x4E4F534A, BIN = 0x004E4942)
+function glbSplit(buf) {
+  const dv = new DataView(buf);
+  let o = 12, json = null, bin = null;
+  while (o + 8 <= dv.byteLength) {
+    const len = dv.getUint32(o, true), type = dv.getUint32(o + 4, true);
+    if (type === 0x4E4F534A) json = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, o + 8, len)));
+    else if (type === 0x004E4942) bin = new Uint8Array(buf, o + 8, len);
+    o += 8 + len;
+  }
+  return { json, bin };
+}

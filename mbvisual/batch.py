@@ -25,6 +25,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import convert
+from .longpath import safe_name
 from .paths import NO_WINDOW, TEMP_DIR
 from .i18n import t as tr
 
@@ -310,13 +311,13 @@ class Batch:
         folder = src.parent if self.mode == "accanto" else Path(self.dest) / Path(it["rel"]).parent
         folder.mkdir(parents=True, exist_ok=True)
         stem = src.stem + self.suffix
-        out = folder / f"{stem}.{ext}"
+        out = folder / safe_name(f"{stem}.{ext}")  # nomi oltre il limite di Windows accorciati, mai un errore
         if out.resolve() == src.resolve():  # mai sopra l'originale
-            out = folder / f"{stem}{tag or ' (convertito)'}.{ext}"
+            out = folder / safe_name(f"{stem}{tag or ' (convertito)'}.{ext}")
         if str(out).lower() in self.used_outputs or (out.exists() and self.collision == "rinomina"):
             n = 1
             while True:
-                cand = folder / f"{out.stem} ({n}){out.suffix}"
+                cand = folder / safe_name(f"{out.stem} ({n}){out.suffix}")
                 if not cand.exists() and str(cand).lower() not in self.used_outputs:
                     out = cand
                     break
@@ -393,6 +394,23 @@ class Batch:
         fam, src = it["fam"], it["src"]
         if fam == "cad":
             return self._cad(it, to, out)
+        if fam == "model3d" and to in ("step", "stp") and Path(src).suffix.lower() == ".ifc":
+            # IFC -> STEP nel motore (mbvisual/ifcstep.py): solidi esatti, senza la finestra e senza limiti di tempo/dimensione
+            from . import ifcstep
+            if ifcstep.available():
+                try:
+                    rep = ifcstep.convert(src, out, update=self.update, cancelled=lambda: self.cancelled)
+                except ifcstep.Cancel:
+                    raise Cancelled() from None
+                msg = tr("srv_batch.ifc_step_esito", rep["convertiti"], rep["attesi"])
+                if rep["falliti"]:
+                    f = rep["falliti"]
+                    msg += " - " + tr("srv_batch.ifc_step_non_convertiti", len(f), "; ".join(
+                        f"{x.get('c', '')} {x.get('n') or x.get('g', '')}: {x.get('motivo', '')}" for x in f[:5]))
+                if rep.get("approssimati"):
+                    a = rep["approssimati"]
+                    msg += " - " + tr("srv_batch.ifc_step_approssimati", len(a), "; ".join(f"{x['c']} {x['n'] or x['g']}" for x in a[:5]))
+                return {"msg": msg}
         if fam == "model3d":
             self._client(it, "model3d", {"out": out, "to": to})
             if not os.path.exists(out):

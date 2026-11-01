@@ -243,8 +243,18 @@ export async function mount(ctx) {
       const ext = extOf(target);
       let data;
       if (ext === "csv" || ext === "tsv") {
-        const text = X.utils.sheet_to_csv(ws(), { FS: ext === "tsv" ? "\t" : sep });
-        data = new TextEncoder().encode("﻿" + text);
+        // a blocchi di 20.000 righe (intervallo !ref ristretto): un foglio enorme in una stringa sola supererebbe il limite
+        const sh = ws(), ref = sh["!ref"], parts = ["﻿"];
+        if (ref) {
+          const r = X.utils.decode_range(ref);
+          try {
+            for (let y = r.s.r; y <= r.e.r; y += 20000) {
+              sh["!ref"] = X.utils.encode_range({ s: { r: y, c: r.s.c }, e: { r: Math.min(r.e.r, y + 19999), c: r.e.c } });
+              parts.push((y > r.s.r ? "\n" : "") + X.utils.sheet_to_csv(sh, { FS: ext === "tsv" ? "\t" : sep }));
+            }
+          } finally { sh["!ref"] = ref; }
+        }
+        data = new Blob(parts);
       } else {
         const bookType = WRITE[ext] || "xlsx";
         data = new Uint8Array(X.write(wb, { bookType, type: "array", compression: true, bookVBA: true }));

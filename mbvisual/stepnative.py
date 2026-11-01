@@ -670,6 +670,8 @@ def worker(src: str, out: str, status: str, defl_path: str, parent: int, go: str
 
 
 def cli(argv: list[str]) -> int:
+    from . import longpath
+    longpath.install()  # percorsi lunghi anche nel processo di lavoro
     i = argv.index("--step-worker")
     a = argv[i + 1:]
     return worker(a[0], a[1], a[2], a[3], int(a[4]) if len(a) > 4 else 0, a[5] if len(a) > 5 else "")

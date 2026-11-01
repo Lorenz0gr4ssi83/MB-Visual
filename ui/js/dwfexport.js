@@ -80,7 +80,8 @@ export async function sheetToSvg(sheet, opts = {}) {
   }
   if (layerOpen !== null) out.push("</g>");
   out.push("</g></svg>");
-  return new Blob([out.join("\n")], { type: "image/svg+xml" });
+  // Blob dai pezzi (non una stringa unica: i fogli grandi supererebbero il limite delle stringhe di JavaScript)
+  return new Blob(out.map(s => s + "\n"), { type: "image/svg+xml" });
 }
 function ringD(r, close) {
   if (r.length < 2) return "";

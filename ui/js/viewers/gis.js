@@ -685,9 +685,10 @@ export async function mount(ctx) {
   async function exportCsv() {
     if (!active) return;
     const q = v => { const s = v === null || v === undefined ? "" : typeof v === "number" ? String(v).replace(".", ",") : String(v); return /[;\x22\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s; };
-    const lines = [cols.map(q).join(";"), ...rowsView.map(i => cols.map(c => q(active.features[i].get(c))).join(";"))];
+    // una riga per pezzo del Blob (niente stringa unica: tabelle con milioni di righe)
+    const lines = ["﻿" + cols.map(q).join(";"), ...rowsView.map(i => "\r\n" + cols.map(c => q(active.features[i].get(c))).join(";"))];
     const { saveBlobAs } = await import("../core.js");
-    await saveBlobAs(active.name + ".csv", new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv" }), dirName(ctx.path));
+    await saveBlobAs(active.name + ".csv", new Blob(lines, { type: "text/csv" }), dirName(ctx.path));
   }
   // divisore trascinabile tra mappa e tabella
   splitter.addEventListener("pointerdown", e => {
@@ -850,10 +851,13 @@ export async function mount(ctx) {
     const enc = new TextEncoder();
     if (ext === "geojson" || ext === "json") {
       const feats = opt.layers.flatMap(L => exportFeatures(L, "EPSG:4326", opt.onlySel));
-      const txt = new ol.format.GeoJSON().writeFeatures(feats, { dataProjection: "EPSG:4326", featureProjection: "EPSG:4326", decimals: 9 });
-      const obj = JSON.parse(txt);
-      obj.name = opt.layers.length === 1 ? opt.layers[0].name : baseName(target).replace(/\.[^.]+$/, "");
-      return enc.encode(JSON.stringify(obj));
+      // un elemento alla volta (niente stringa unica: livelli con milioni di elementi)
+      const fmt = new ol.format.GeoJSON(), o = { dataProjection: "EPSG:4326", featureProjection: "EPSG:4326", decimals: 9 };
+      const name = opt.layers.length === 1 ? opt.layers[0].name : baseName(target).replace(/\.[^.]+$/, "");
+      const parts = [`{"type":"FeatureCollection","name":${JSON.stringify(name)},"features":[`];
+      feats.forEach((f, i) => parts.push((i ? "," : "") + JSON.stringify(fmt.writeFeatureObject(f, o))));
+      parts.push("]}");
+      return new Blob(parts, { type: "application/geo+json" });
     }
     if (ext === "kml" || ext === "kmz") {
       const feats = opt.layers.flatMap(L => exportFeatures(L, "EPSG:4326", opt.onlySel, true));

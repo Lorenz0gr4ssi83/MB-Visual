@@ -251,10 +251,14 @@ def _pdf(src, out, ext, to, update):
 
 def _mupdf_out(doc, out, to, update):
     import pymupdf
-    if to == "txt":
-        Path(out).write_text("\n\f".join(p.get_text() for p in doc), encoding="utf-8")
-    elif to == "html":
-        Path(out).write_text("<!doctype html><meta charset='utf-8'>" + "".join(p.get_text("html") for p in doc), encoding="utf-8")
+    if to in ("txt", "html"):  # pagina per pagina sul disco: nessun testo intero in memoria (PDF di migliaia di pagine)
+        with open(out, "w", encoding="utf-8") as f:
+            if to == "html":
+                f.write("<!doctype html><meta charset='utf-8'>")
+            for i, p in enumerate(doc):
+                if to == "txt" and i:
+                    f.write("\n\f")
+                f.write(p.get_text() if to == "txt" else p.get_text("html"))
     elif to == "svg":
         stem, folder = Path(out).stem, Path(out).parent
         for i, p in enumerate(doc, 1):

@@ -947,6 +947,79 @@ agli originali o in una cartella con la struttura replicata; mai sopra l'origina
 - Prove nel browser con piu' sessioni: il cookie `mbv` e' per host (non per porta), le app di prova delle altre sessioni lo
   sovrascrivono -> aprire l'app con un nome unico, es. http://mbvlotti.localhost:PORTA/?t=TOKEN.
 
+## IFC -> STEP nel motore e uscite senza limiti di stringa (28/10/2026) - FATTO
+Richiesta dell'utente: "nessun limite di stringa nelle conversioni; il lotto IFC -> STEP deve funzionare sempre e dare il 100%".
+Prima: la pagina (web-ifc + three.js) esportava triangoli raccolti in UNA stringa (`toSTEP` & co. di export3d.js: si fermava con
+"RangeError: Invalid string length" oltre ~512 MB o esauriva la memoria), coordinate della scena (spostate vicino all'origine)
+e niente struttura; il lotto dipendeva dalla finestra (45 s / 30 min).
+- `mbvisual/ifcstep.py` (API `ifc_step`, job; lotto: `batch._convert_to` per IFC -> step/stp): IfcOpenShell 0.9 (LGPL-3.0, ruota
+  pip non modificata, ~43 MB) + OCP (gia' nell'app per stepnative). Processo di LETTURA (`--ifcstep read`, anche in app.py per
+  l'eseguibile): apre l'IFC, struttura (IfcRelAggregates, ContainedInSpatialStructure, Nests; porte/finestre solo in un'apertura
+  -> dove sta l'elemento forato), elementi ATTESI = IfcProduct con rappresentazione Body/Facetation/... (`_is_body`), esclusi
+  IfcOpeningElement, IfcSpace, IfcSpatialZone, IfcVirtualElement (come il visualizzatore); iteratore geometrico in parallelo
+  con uscita NATIVE e coordinate locali + matrice (la SERIALIZED serializzava ogni copia: modello elettrico da 57 MB = 4,5 GB
+  di testo B-rep e 17 min, con solo 69 MB di geometrie diverse); `W.serialization(native)` SOLO per le geometrie nuove.
+  ISTANZE: geometria a facce piane (`_planar_text`: curve e superfici di tipo 1 nel testo B-rep) con posizione rigida
+  (`_rigid`) -> record "geometria" (kind 3) scritto una volta + elenco `istanze` [elemento, geometria, matrice]; all'unione
+  (`_write_instances`) usata da 1 elemento = MAPPED_ITEM, da piu' elementi = parte propria + assieme dell'elemento con NAUO
+  (con MAPPED_ITEM condivisi il lettore di OpenCascade unisce le forme identiche e i nomi degli elementi si perdevano).
+  Superfici curve o matrici con scala/specchio: forma propria per elemento, posizionata nel processo (`_place`). Blocchi da
+  24 MB su disco, cancellati appena scritti. Elementi non calcolati: secondo giro senza sottrazione delle aperture, poi uno alla volta; i restanti nel rapporto
+  con il motivo. Processi di SCRITTURA (`--ifcstep write`, quanti la memoria consente, max 6; righe di protocollo "@@MBD"):
+  solidi a facce piane e lati dritti -> FACETED_BREP scritto a mano (`_Faceted`, ~5 volte piu' leggero e veloce), il resto
+  (cilindri, B-spline, sweep) -> STEPCAFControl (`_Occ`, write.surfacecurve.mode=0: -40% di file). UNIONE in streaming
+  (`_merge`): entita' globali fisse #1-#13 (i pezzi a facce piane le citano come @n), pezzi rinumerati a blocchi da 16 MB,
+  nomi provvisori MBDE<id> -> PRODUCT(GlobalId, Name, classe IFC), poi l'albero progetto/sito/edificio/piano/elemento/parti
+  (NAUO + CDSR con trasformazione identita'). Millimetri. Un crash di un processo di scrittura: si rifa' il blocco saltando
+  l'elemento (rapporto "crash"); `MBV_IFCSTEP_CRASH=<nome>` lo simula. `MBV_IFCSTEP_PROCESSI` = numero di processi.
+- Insidie: una forma con posizione propria in XCAF diventa un sotto-assieme "SOLID" (si mette in un compound); OCCT stampa
+  messaggi sull'uscita (tolti i printer, protocollo con prefisso); `os._exit` alla fine dei processi (i distruttori di OCCT a
+  volte vanno in crash). Alcuni solidi di Revit hanno il guscio con orientamento ambiguo: rileggendo lo STEP OpenCascade li
+  "ripara" girati al contrario (volume negativo, geometria identica): la misura usa il volume di materiale (valori assoluti).
+- Pagina: `ui/js/bigout.js` = `saveChunks` (blocchi da 32 MB ad `api/save?part=n&last=0|1`, il motore li accoda in
+  <file>.mbv-parti e lo mette al suo posto con l'ultimo), `chunkBlob`, `jsonChunks` (JSON.stringify a pezzi). `core.saveBytes`
+  manda a blocchi i dati oltre 64 MB. `ui/js/export3dfmt.js` = scrittori a GENERATORI (STEP, IFC con insiemi di triangoli da
+  max 200.000, DXF, VRML, OBJ, testo 3MF), `export3d.js exportChunks` (3MF compresso a flusso con fflate Zip). model3d.js:
+  STEP da IFC (senza elementi nascosti) -> motore; glTF = GLB di three.js diviso in .gltf + .bin (niente base64 nel JSON).
+  Lotto: il database DWG torna al motore con jsonChunks. Anche: SVG del CAD 2D (tracciati a gruppi di 5000) e dei DWF, CSV e
+  GeoJSON del GIS (un elemento per pezzo del Blob), CSV dei fogli (20.000 righe per volta).
+- Collaudo: `python tests/test_ifcstep.py [ifc|cartella]` (IFC sintetico con aperture, istanze, FacetedBrep, AdvancedBrep
+  B-spline, CSG, sweep, elemento composto, trasparenza + crash simulato, interruzione, file non IFC: 32 prove);
+  `python tests/ifcstep_fedelta.py <ifc> <stp>` = misura (rilettura XCAF come un CAD: elementi per nome+ingombro, GlobalId,
+  colori, radice; riferimento = B-rep esatto di IfcOpenShell: ingombro 1 mm, volume 0,1%); `node tests/test_bigout.mjs
+  [--grande]` (JSON a pezzi, formati 3D; --grande = STEP sintetico da 2,49 GB in 959 MB di memoria, la stringa unica si ferma).
+- Campioni (fuori dal repo, %USERPROFILE%\.mbvisual\ifc-step-campioni): buildingSMART Sample-Test-Files Simple-Scene IFC2x3/4/4.3
+  (CC BY 4.0) e copie dei modelli della commessa 1399 dell'utente (OneDrive 2.0Documenti\7_MODELLI BIM-IFC; solo prove locali).
+- Ripieghi del lettore per gli elementi non calcolati (in ordine): precisione x10, x1000 (profili con curve non unite), senza
+  aperture, senza tagli (`disable-boolean-result`: muri di Revit tagliati a vuoto); gli ultimi due finiscono nel rapporto come
+  "approssimati". Una geometria SENZA facce non conta come fatta (si ritenta). Reti di facce sciolte oltre SEW_MAX (5000) non si
+  cuciono (crash di OpenCascade su 36.000 facce): superficie aperta a facce piane (SHELL_BASED_SURFACE_MODEL, `open_ok`).
+- Risultati 01/11/2026 (PC carico da altre sessioni): 30 campioni pubblici + 3 del repo 100%; commessa 1399: 306/306, 381/381,
+  629/629, 544/544, elettrico 57 MB 9.167/9.167 (181 s, prima: pagina chiusa per memoria), meccanico 152 MB 13.572/13.572 (119 s),
+  157 MB 13.393/13.393 (221 s), strutturale 245 MB 25.098/25.098 (370 s), 730 MB 28.237/28.237 convertiti (STEP 1,37 GB; tempo non
+  misurato in modo affidabile). Ingombri, volumi, colori e GlobalId identici (rilettura XCAF). Prima (pagina): nessun nome/GlobalId,
+  coordinate spostate di ~645 km / 5.001 km, struttura piatta.
+
+## Percorsi e nomi lunghi (28/10/2026) - REGOLA PER TUTTE LE SESSIONI
+Richiesta dell'utente: mai un avviso di "nome o percorso troppo lungo". Windows: percorsi oltre 260 caratteri falliscono se
+LongPathsEnabled (HKLM, richiede amministratore) e' spento, cioe' nel predefinito; un nome di file/cartella non supera MAI 255.
+- `mbvisual/longpath.py`, `install()` all'avvio di app.py e nei processi di lavoro (ifcstep, stepnative): open/io.open,
+  os.stat/listdir/scandir/walk/rename/replace/remove/mkdir/..., os.path.exists/isfile/isdir/getsize/realpath, subprocess
+  (argomenti percorso, anche "-o<percorso>" di 7-Zip) e, dopo l'import, PyMuPDF (Document/save), sqlite3.connect,
+  ifcopenshell.open ricevono la forma estesa \\?\ (\\?\UNC\ in rete) per i percorsi >= 240 caratteri; scandir/walk/realpath
+  restituiscono percorsi SENZA prefisso. Componenti oltre 255 caratteri: `safe_name` (radice + "~" + 8 cifre di sha1 +
+  estensione, 240 caratteri) applicato in modo deterministico dentro `lp()`, quindi chi scrive e chi rilegge con il nome lungo
+  trovano lo stesso file (anche i programmi esterni). Nomi in uscita prodotti dall'app: `safe_name` esplicito (lotto, allegati
+  della posta: prima perdevano l'estensione oltre 120 caratteri).
+- Nel codice nuovo: niente controlli di lunghezza ne' messaggi "troppo lungo"; per comporre un nome da un nome sorgente usare
+  `safe_name`; per mostrare un percorso `unlp`. Interfaccia: nomi lunghi con ellissi + title (schede, Esplora, recenti, barra
+  di stato), testi degli avvisi a capo ovunque (app.css).
+- Sondato (percorso 752 caratteri, nomi 250): Python, PyMuPDF, Pillow, ezdxf, 7-Zip, FFmpeg, IfcOpenShell, OCP, openpyxl.
+  Collaudo `python tests/test_longpath.py` (28 prove: cartella da 500 caratteri, nomi 250-325, lotto, conversione, recupero,
+  ricerca nel progetto, allegati della posta, IFC -> STEP); `python tests/con_longpath.py tests/test_x.py` = un altro collaudo
+  con l'aggancio attivo (recupero 95, formati 45, disegno 77, posta 73: nessuna regressione). Su questo PC LongPathsEnabled=1:
+  il caso "spento" e' coperto dalla forma estesa (non simulabile qui senza modificare il registro).
+
 ## Integrazione con Esplora risorse (22/10/2026)
 Miniature, riquadro di anteprima, "Apri con", icone dei tipi e "Apri con MB Visual" nel tasto destro, SOLO per l'utente (HKCU).
 - `tools/mbvshell/` DLL COM in C++ (MSVC, `build.cmd` -> `bin/shell/mbvshell-arm64.dll` e `-x64.dll`, si caricano quella

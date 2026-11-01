@@ -49,6 +49,14 @@ export async function readRange(path, start, end) {
 }
 
 export async function saveBytes(path, bytes) {
+  // dati grandi (Blob composti a pezzi, ui/js/bigout.js): al motore a blocchi da 32 MB, accodati su disco
+  const size = bytes?.size ?? bytes?.byteLength ?? 0;
+  if (!WEB && size > 64 << 20) {
+    const blob = bytes instanceof Blob ? bytes : new Blob([bytes]), P = 32 << 20;
+    let r;
+    for (let o = 0, n = 0; o < size; o += P, n++) r = await api("save", { path, part: n, last: o + P >= size ? 1 : 0 }, { body: blob.slice(o, o + P) });
+    return r;
+  }
   return api("save", { path }, { body: bytes });
 }
 
