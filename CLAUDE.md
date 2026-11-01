@@ -939,6 +939,15 @@ e niente struttura; il lotto dipendeva dalla finestra (45 s / 30 min).
   [--grande]` (JSON a pezzi, formati 3D; --grande = STEP sintetico da 2,49 GB in 959 MB di memoria, la stringa unica si ferma).
 - Campioni (fuori dal repo, %USERPROFILE%\.mbvisual\ifc-step-campioni): buildingSMART Sample-Test-Files Simple-Scene IFC2x3/4/4.3
   (CC BY 4.0) e copie dei modelli della commessa 1399 dell'utente (OneDrive 2.0Documenti\7_MODELLI BIM-IFC; solo prove locali).
+- Ripieghi del lettore per gli elementi non calcolati (in ordine): precisione x10, x1000 (profili con curve non unite), senza
+  aperture, senza tagli (`disable-boolean-result`: muri di Revit tagliati a vuoto); gli ultimi due finiscono nel rapporto come
+  "approssimati". Una geometria SENZA facce non conta come fatta (si ritenta). Reti di facce sciolte oltre SEW_MAX (5000) non si
+  cuciono (crash di OpenCascade su 36.000 facce): superficie aperta a facce piane (SHELL_BASED_SURFACE_MODEL, `open_ok`).
+- Risultati 01/11/2026 (PC carico da altre sessioni): 30 campioni pubblici + 3 del repo 100%; commessa 1399: 306/306, 381/381,
+  629/629, 544/544, elettrico 57 MB 9.167/9.167 (181 s, prima: pagina chiusa per memoria), meccanico 152 MB 13.572/13.572 (119 s),
+  157 MB 13.393/13.393 (221 s), strutturale 245 MB 25.098/25.098 (370 s), 730 MB 28.237/28.237 convertiti (STEP 1,37 GB; tempo non
+  misurato in modo affidabile). Ingombri, volumi, colori e GlobalId identici (rilettura XCAF). Prima (pagina): nessun nome/GlobalId,
+  coordinate spostate di ~645 km / 5.001 km, struttura piatta.
 
 ## Percorsi e nomi lunghi (28/10/2026) - REGOLA PER TUTTE LE SESSIONI
 Richiesta dell'utente: mai un avviso di "nome o percorso troppo lungo". Windows: percorsi oltre 260 caratteri falliscono se
