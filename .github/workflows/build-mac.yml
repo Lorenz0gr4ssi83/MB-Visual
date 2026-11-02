@@ -53,6 +53,8 @@ jobs:
           python - <<'PY'
           import importlib, pkgutil, mbvisual
           for m in pkgutil.iter_modules(mbvisual.__path__):
+              if m.name == "modkernel":  # processo del motore di modellazione: OpenCascade nativo c'e' solo su Windows x64
+                  continue
               importlib.import_module(f"mbvisual.{m.name}")
               print("ok", m.name)
           from mbvisual import license, paths, update
