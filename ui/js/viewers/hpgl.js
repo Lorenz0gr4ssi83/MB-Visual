@@ -12,8 +12,7 @@ export async function mount(ctx) {
   if (!model.prims.length) {
     ctx.el.append(el("div", { class: "fx-empty" }, model.raster
       ? tr("v_hpgl.file_contiene_immagine_raster_stampante")
-      : tr("v_hpgl.file_non_ci_sono_comandi"),
-    el("br"), el("br"), el("button", { class: "btn", onclick: () => ctx.openAs("text") }, tr("v_hpgl.apri_come_testo"))));
+      : tr("v_hpgl.file_non_ci_sono_comandi")));
     return {};
   }
   const pens = {};

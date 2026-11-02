@@ -51,7 +51,6 @@ export async function mount(ctx) {
   box.append(el("dl", { class: "kv panel" }, el("dt", {}, t("v_inventor.file")), el("dd", {}, ctx.name), el("dt", {}, t("v_inventor.dimensione")), el("dd", {}, fmtSize(ctx.info.size)),
     el("dt", {}, t("v_inventor.cartella")), el("dd", {}, ctx.info.cartella)));
   ctx.el.append(box);
-  ctx.tb.append(el("button", { class: "btn", onclick: () => ctx.openAs("hex") }, t("v_inventor.vedi_byte_grezzi")));
   if (refs.some(r => !r.file)) toast(t("v_inventor.alcuni_modelli_collegati_non_sono"), true, 6000);
   return {};
 }
