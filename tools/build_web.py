@@ -70,7 +70,7 @@ WEB_EXTS = {
     "audio": ["mp3", "wav", "wave", "flac", "ogg", "oga", "opus", "m4a", "aac"],
     "cad2d": ["dwg", "dxf", "dwt"], "cad3d": "*", "mesh3d": "*", "bcf": "*",
     "archive": ["zip", "zipx", "7z", "rar", "tar", "ova", "gz", "gzip", "tgz", "tpz", "bz2", "bzip2", "tbz", "tbz2", "xz", "txz", "lzma", "z", "taz",
-                "cab", "lzh", "lha", "cpio", "rpm", "deb", "ar", "a", "iso", "xar", "jar", "war", "ear", "apk", "aab", "xapk", "ipa",
+                "cab", "lzh", "lha", "cpio", "rpm", "deb", "ar", "a", "iso", "xar", "pkg", "xip", "jar", "war", "ear", "apk", "aab", "xapk", "ipa",
                 "appx", "msix", "appxbundle", "nupkg", "vsix", "xpi", "whl", "egg", "cbz", "cbr", "cb7"],
     "email": ["eml", "mbox", "mbx"], "ebook": "*", "font": ["ttf", "otf", "woff", "woff2"], "database": "*", "gis": "*",
     # visualizzatori che funzionano anche senza il motore Python (22/10/2026)

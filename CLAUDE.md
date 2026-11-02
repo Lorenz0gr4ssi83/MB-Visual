@@ -37,7 +37,7 @@ Interfaccia in italiano. Logo: `ui/img/logo.png` (marchio MB Group con "VISUAL" 
   `office.py` (PowerPoint, Word da HTML, LibreOffice), `misc.py` (immagini, testo, email, SQLite, riconoscimento tipo), `paths.py`, `jobs.py`.
 - `ui/` - interfaccia: `index.html`, `css/app.css`, `js/app.js` (schede, scelta visualizzatore), `js/core.js`, `js/viewers/*.js` (uno per tipo).
 - `ui/formats.json` - **registro unico dei formati**: l'app sceglie il visualizzatore solo da qui; `ELENCO_FORMATI.md` si rigenera con `python tools/gen_elenco.py`.
-  Regola chiesta dall'utente: un'estensione non in elenco NON si apre (solo byte grezzi). Aggiungere estensioni solo dopo averle provate.
+  Regola chiesta dall'utente: un'estensione non in elenco NON si apre (solo byte grezzi). Aggiungere estensioni solo dopo averle provate. MAI togliere estensioni, formati o funzioni senza chiederlo prima all'utente (decisione del 02/11/2026).
 - `ui/vendor/` - librerie JS con versioni fisse, scaricate da `tools/fetch_vendor.py`.
 - `bin/7zip/` - 7-Zip incluso. FFmpeg arriva da `imageio-ffmpeg`.
 - `tests/samples/` - file di prova (`tools/make_samples.py`).
@@ -781,7 +781,7 @@ e' stata aperta davvero; si toglie solo cio' che e' impossibile (motivo nel reso
 - Risultato 01/11/2026: 949 campioni (coppie categoria/estensione) aperti nell'app, 942 riusciti dopo le correzioni; tolte 85 coppie
   (7 impossibili con i motori inclusi: .evc .ac4 .binka .viv, .vgm e .spc audio = niente libgme in FFmpeg, .acm = in pratica driver
   dei codec di Windows; 78 senza nessun file di prova pubblico: audio di giochi, moduli Amiga rari, dischi di macchine virtuali, volumi
-  divisi, .qpw .et .wpt .602 .dxb, RAW ptx/rwz/bay/cap/eip) -> registro 958 voci, 932 estensioni. Tenute senza nuovo collaudo perche'
+  divisi, .qpw .et .wpt .602 .dxb, RAW ptx/rwz/bay/cap/eip) -> registro 958 voci, 932 estensioni. RIMESSE TUTTE il 02/11/2026 per decisione dell'utente (la rimozione non gli era stata chiesta): registro 1043 voci, 1013 estensioni; le 85 coppie restano non collaudate. Tenute senza nuovo collaudo perche'
   stesso contenitore e stesso lettore di un formato provato: .nwc, .rte/.rft, .prtdot/.asmdot/.drwdot, .psm/.pwd (Solid Edge), .ipn.
   I formati di office-lo si aprono SOLO con LibreOffice installato (collaudati con LibreOffice 26.2.6 estratto, non installato).
 - Correzioni trovate dal collaudo: TimeStampedData .tsd (asn1crypto recente restituisce la struttura gia' letta + campo meta_data Any
