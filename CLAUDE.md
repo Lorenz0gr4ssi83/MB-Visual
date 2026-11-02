@@ -801,6 +801,54 @@ e' stata aperta davvero; si toglie solo cio' che e' impossibile (motivo nel reso
   (G.711 8000 Hz mono, SoX 8000 Hz, .pcm 44,1 kHz stereo, dimensione del video che divide la lunghezza del file) e ricordati in
   localStorage `mbv-raw-<ext>`; pulsante "Parametri..." per cambiarli. Motore: media.set_raw (api media_raw, valori controllati) e _inp().
 
+## Modellazione 3D di solidi (01/11/2026) - FATTO (fase 1 completa, fase 2 con schizzi vincolati e albero ricalcolabile)
+Richiesta dell'utente: creare modelli da zero e modificare quelli aperti, libera come SketchUp/Fusion e parametrica come
+SolidWorks/Inventor. Formato proprio `.mbmod` (categoria `mbmod` in formats.json, viewer `modeler`, applicazione "modelli"
+= alias mech; "Modello 3D" in Crea nuovo = file vuoto). Solo app per PC; web app/telefono e PC senza OCP = sola vista
+dell'anteprima glTF salvata nel file (`viewOnly` di viewers/modeler.js, WEB_EXTS "mbmod").
+- Motore `mbvisual/modkernel.py` (OCP, LGPL; niente CadQuery/FreeCAD) in un PROCESSO SEPARATO avviato da `mbvisual/modeler.py`
+  (`--modeler-kernel` in app.py; in sviluppo `python -m mbvisual.modkernel`): richieste JSON su stdin, risposte su stdout con
+  TAG "@@MBK ", dati binari in un file. API unica `api/modeler?op=regen|measure|export|import|import_steps|import_mesh|to_brep|
+  open|save|close|stop|status|preview`. Il processo si riavvia da solo se si ferma (il documento sta nell'interfaccia).
+- Documento = cronologia di lavorazioni (schema in testa a `ui/js/modeler/mdoc.js`): sketch, extrude, revolve, primitive, hole
+  (semplice/lamato/svasato, punta), fillet, chamfer, shell, pushpull (piane = prisma unito/sottratto; cilindri = offset sulla
+  faccia), delface (BRepAlgoAPI_Defeaturing: toglie fori/raccordi anche dai modelli importati), boolean, transform (sposta/
+  ruota/scala anche non uniforme/specchia, copia), pattern (lineare 2 direzioni, circolare), mate (facce a contatto, assi
+  concentrici: assieme semplice tra corpi), split, delbody, import (forme in blob BREP binario o mesh, content-addressed in
+  TEMP_DIR/modellatore/blob, nel .mbmod sotto forme/). Campi numerici = numero o espressione con i parametri (`mexpr.js`).
+- `compile()` (mdoc.js) prima di ogni ricalcolo: parametri valutati, schizzi risolti, regioni trovate, profili passati al motore
+  come contorni ESPLICITI (segmenti/archi con nodi identici). Il motore valuta lavorazione per lavorazione con cache per
+  impronta del prefisso (cambiando l'ultima si ricalcola solo l'ultima); un errore ferma solo quella lavorazione.
+- Riferimenti a facce/spigoli = firma (tipo, baricentro assoluto e relativo all'ingombro, normale/direzione, area/lunghezza,
+  raggio), ritrovata dopo ogni ricalcolo (`resolve`, soglia 0,9; altrimenti "riferimento perso"). Facce piane: area e
+  baricentro esatti (GProp); normale = XDirection x YDirection del piano (Direction e' sbagliata con riferimenti sinistrorsi);
+  `_orient` gira i solidi a volume negativo (rivoluzioni/estrusioni nel verso opposto alla normale).
+- Schizzi: `msolver.js` (Newton con passo di norma minima pesata: trascinando, gli altri punti si muovono il meno possibile;
+  gradi di liberta' dal nucleo dello jacobiano; vincoli hor/ver/par/perp/equal/tan/conc/pon/mid/sym/fisso, quote dist/hdist/
+  vdist/len/rad/dia/ang/pdist, pilotanti o di riferimento), `mregions.js` (grafo planare con incroci, fori, firme delle regioni
+  per ritrovarle dopo le modifiche), `msketch.js` (strumenti, aggancio, inferenze, valori digitati -> quote pilotanti; piano su
+  faccia: origine = proiezione dell'origine, X orizzontale, stessa regola in facePlane/plane_from_normal).
+- Interfaccia: `mapp.js` (documento, cronologia annulla/ripeti a istantanee, ricalcolo in fila, strumenti, schizzi, import,
+  salvataggio), `mview.js` (three.js Z in alto; scelta e aggancio calcolati sullo schermo; evidenziazioni e disegni 2D su una
+  tela sopra la vista), `mtools.js` (FeatureTool = finestra comune con scelte nella vista + anteprima dal motore; le scelte si
+  confrontano per posizione, non per numero: l'anteprima rinumera facce e spigoli; PushPull interattivo; Measure), `mpanel.js`
+  (cronologia con modifica/sospendi/sposta/ferma qui/elimina, corpi con colore e visibilita', parametri, proprieta', pannello
+  dello schizzo con le quote), `mmesh.js` (triangoli delle scene three.js -> Z in alto, mm), `ui/css/modeler.css`.
+- Modifica dei file aperti: pulsante "Modifica modello" in model3d.js -> scheda modeler con `importFrom`: B-rep esatto per STEP/
+  IGES/BREP, Inventor (ipt e iam con le matrici), SolidWorks/Solid Edge/Parasolid (solidcad.to_step), solidi ACIS dei DWG
+  (STEP di cad3d.py con la matrice dell'entita', `info.cad3dSolids`); mesh e altri formati = triangoli -> solido cucito se
+  chiuso e <= 20.000 triangoli, altrimenti corpo mesh (sposta/ruota/scala/elimina). app.js doSave: `switchTo: true` porta la
+  scheda sul .mbmod salvato.
+- Salvataggio: .mbmod (zip: document.json, forme/, anteprima.glb, anteprima.png), STEP AP214 e IGES con nomi e colori (XCAF),
+  BREP, STL, OBJ (+mtl), glTF/GLB (metri, Y in alto).
+- Collaudo: `node tests/test_modeler.mjs` (29: espressioni, vincoli, gradi di liberta', regioni), `python tests/test_modeler.py
+  [file.step...]` (37: volumi teorici di ogni lavorazione, ricalcolo con riferimenti, esportazioni rilette, import, processo
+  separato, .mbmod), `node tests/test_modeler_ui.mjs [cartella]` (69, app vera in Edge senza finestra: scenari in
+  tests/modeler_ui con clic sul canvas, valori digitati, finestre; file veri da %USERPROFILE%\.mbvisual se presenti).
+- Limiti: niente sposta faccia laterale (solo lungo la normale), schizzi senza taglia/raccorda/offset/spline, vincoli solo
+  globali (nessun "definito" per singola quota oltre al colore), assiemi = corpi con accoppiamenti nello stesso file (non
+  componenti esterni), import del modello come blocco (la cronologia degli altri CAD non si legge). Build PyInstaller NON provata.
+
 ## Autodesk ReCap .rcs / .rcp (28/10/2026) - FATTO
 Prima: .rcs/.rcp non erano nel registro -> si apriva la schermata "file sconosciuto". Ora categoria `pointcloud` (stesso motore,
 ottree e cache delle altre nuvole). Nessuna specifica pubblica ne' lettore open source: struttura ricavata da file veri, descritta in

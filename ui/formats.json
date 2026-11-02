@@ -1023,6 +1023,16 @@
    ]
   },
   {
+   "id": "mbmod",
+   "name": "Modelli 3D di MB Desk (.mbmod)",
+   "viewer": "modeler",
+   "view": "Modello 3D di solidi con la cronologia delle lavorazioni (sul telefono: anteprima navigabile)",
+   "edit": "Modellazione di solidi: schizzi con vincoli e quote, estrusione, rivoluzione, fori, raccordi, smussi, guscio, spingi/tira, booleane, sposta/ruota/scala/specchia, serie, accoppiamenti, parametri; salvataggio in STEP, IGES, BREP, STL, OBJ, glTF",
+   "exts": [
+    "mbmod"
+   ]
+  },
+  {
    "id": "mesh3d",
    "name": "Modelli 3D e BIM",
    "viewer": "model3d",

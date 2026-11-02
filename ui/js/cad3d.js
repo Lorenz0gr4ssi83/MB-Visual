@@ -358,6 +358,7 @@ export async function loadCad3d(ctx, db, ld, info, { ACI, dark }) {
       res = await waitJob(job, p => ld.set(0.25 + 0.3 * p, tr("cad3d.conversione_solidi", acis.size)));
     } catch (e) { console.error(e); info.cad3dError = e.message; }
     const solids = res?.solids || {};
+    info.cad3dSolids = solids; // STEP esatti dei solidi: li usa "Modifica modello" (ui/js/modeler)
     const { makePool, missLabel } = await import("./inventor3d.js");
     const keys = Object.keys(solids).filter(k => solids[k].step);
     const pool = keys.length ? makePool(Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 2) - 1, keys.length))) : null;

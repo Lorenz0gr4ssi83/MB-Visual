@@ -146,7 +146,7 @@ def main() -> int:
         "--collect-submodules", "pydicom", "--collect-all", "gdcm", "--collect-submodules", "h5py", "--collect-submodules", "pyarrow", "--hidden-import", "olefile",
         "--exclude-module", "tkinter", "--exclude-module", "matplotlib",
         # STEP/IGES grandi con OpenCascade nativo (mbvisual/stepnative.py): OCP si copia a mano dopo (copy_ocp), senza VTK Python
-        "--hidden-import", "mbvisual.stepnative", "--exclude-module", "OCP", "--exclude-module", "vtk", "--exclude-module", "vtkmodules",
+        "--hidden-import", "mbvisual.stepnative", "--hidden-import", "mbvisual.modeler", "--hidden-import", "mbvisual.modkernel", "--exclude-module", "OCP", "--exclude-module", "vtk", "--exclude-module", "vtkmodules",
         # IFC -> STEP (mbvisual/ifcstep.py): IfcOpenShell (LGPL-3.0) con i suoi moduli e la libreria nativa
         "--hidden-import", "mbvisual.ifcstep", "--collect-all", "ifcopenshell", "--hidden-import", "isodate", "--hidden-import", "lark",
         "--exclude-module", "cadquery_ocp",

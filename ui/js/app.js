@@ -743,7 +743,7 @@ async function doSave(t, a, target) {
     const res = (await a.save(target)) || {};
     t.dirty = false;
     await syncStat(t); // il salvataggio fatto da MB Desk non deve sembrare una modifica esterna
-    if (target !== t.path && res.switchTo !== false && extOf(target) === extOf(t.path) && !target.startsWith("download://")) {
+    if (target !== t.path && (res.switchTo === true || (res.switchTo !== false && extOf(target) === extOf(t.path))) && !target.startsWith("download://")) {
       t.path = target;
       t.name = baseName(target);
       t.untitled = false;

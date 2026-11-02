@@ -31,19 +31,20 @@ const TYPES = [
     ["mbvid", tr("newfile.progetto_video"), tr("newfile.nuovo_progetto_video"), () => import("./vidmodel.js").then(m => enc(JSON.stringify(m.newProject(), null, 1))), "video-l", tr("newfile.montaggio_video_audio_titoli_transizioni")],
     ["pdf", tr("newfile.documento_pdf"), tr("newfile.nuovo_pdf"), () => tpl("vuoto_A4.pdf"), "page", tr("newfile.moduli_testi_immagini")],
     ["dxf", tr("newfile.disegno_cad"), tr("newfile.nuovo_disegno"), () => tpl("vuoto.dxf"), "cad", tr("newfile.si_apre_autocad_ogni_cad")],
+    ["mbmod", tr("newfile.modello_3d"), tr("newfile.nuovo_modello_3d"), () => enc(""), "model3d", tr("newfile.solidi_schizzi_estrusioni")],
     ["png", tr("newfile.immagine"), tr("newfile.nuova_immagine"), () => canvasImage(1920, 1080, "image/png"), "image-l", tr("newfile.disegno_fotoritocco_livelli")],
     ["txt", tr("newfile.testo"), tr("newfile.nuovo_testo"), () => enc(""), "text", tr("newfile.note_appunti_codice")],
   ]],
 ];
 
 // nella web app (telefono) il montaggio video non c'e' (serve il motore dell'app per PC): niente modello che poi non si apre
-const WEB_SKIP = new Set(["mbvid"]);
+const WEB_SKIP = new Set(["mbvid", "mbmod"]);
 // tipi che richiedono un componente (ui/components.json): con il componente spento non compaiono
-const NEEDS = { docx: "office", xlsx: "office", pptx: "office", mbpub: "graphics", vsdx: "graphics", png: "graphics", mbvid: "video", dxf: "cad", xml: "office" };
+const NEEDS = { docx: "office", xlsx: "office", pptx: "office", mbpub: "graphics", vsdx: "graphics", png: "graphics", mbvid: "video", dxf: "cad", xml: "office", mbmod: "mech" };
 
 // icona del programma (colori e iniziale come le app originali, senza marchi)
 const APP = {
-  docx: ["#185abd", "W"], xlsx: ["#107c41", "X"], csv: ["#107c41", "a,b"], pptx: ["#c43e1c", "P"], mbpub: ["#077568", "P"], vsdx: ["#3955a3", "V"], mbvid: ["#3b2d8f", "VID"], mbcomm: ["#8a5a2b", "PE"], pdf: ["#d93025", "PDF"], dxf: ["#c0392b", "DXF"],
+  docx: ["#185abd", "W"], xlsx: ["#107c41", "X"], csv: ["#107c41", "a,b"], pptx: ["#c43e1c", "P"], mbpub: ["#077568", "P"], vsdx: ["#3955a3", "V"], mbvid: ["#3b2d8f", "VID"], mbcomm: ["#8a5a2b", "PE"], pdf: ["#d93025", "PDF"], dxf: ["#c0392b", "DXF"], mbmod: ["#5b4fb8", "3D"],
   txt: ["#5f6b76", "TXT"], md: ["#37474f", "MD"], html: ["#e65100", "</>"], json: ["#6a4fb3", "{ }"], xml: ["#31752f", "P"], py: ["#2b6cb0", "PY"], bat: ["#3c3c3c", "BAT"],
   png: ["#0078d4", "PNG"], jpg: ["#0078d4", "JPG"], svg: ["#f57c00", "SVG"], sqlite: ["#0f6d8c", "DB"],
 };
@@ -53,7 +54,7 @@ function appIcon(ext) {
 }
 // miniatura del modello (pagina, foglio, diapositiva, disegno...)
 function thumb(kind, color) {
-  const portrait = !/-l$|slide|sheet|cad$/.test(kind);
+  const portrait = !/-l$|slide|sheet|cad$|model3d/.test(kind);
   const W = portrait ? 74 : 112, H = portrait ? 100 : 74, x = (120 - W) / 2, y = (110 - H) / 2;
   const page = `<rect x="${x}" y="${y}" width="${W}" height="${H}" rx="2" fill="#fff" stroke="#c9ced3"/>`;
   const lines = n => Array.from({ length: n }, (_, i) => `<rect x="${x + 9}" y="${y + 14 + i * 9}" width="${W - 18 - (i % 3 === 2 ? 18 : 0)}" height="3" rx="1.5" fill="#dfe3e7"/>`).join("");
@@ -91,6 +92,7 @@ function thumb(kind, color) {
   }
 
   else if (kind.startsWith("page")) inner = "";
+  else if (kind === "model3d") inner = `<path d="M${x + 56} ${y + 14} l26 14 v26 l-26 14 -26 -14 v-26z" fill="${color}" fill-opacity=".12" stroke="${color}" stroke-width="1.4"/><path d="M${x + 30} ${y + 28} l26 14 26 -14 M${x + 56} ${y + 42} v26" fill="none" stroke="${color}" stroke-width="1.4"/><circle cx="${x + 56}" cy="${y + 42}" r="6" fill="none" stroke="#7a8691"/>`;
   else if (kind === "cad") inner = `<path d="M${x + 20} ${y + 55} L${x + 50} ${y + 25} L${x + 85} ${y + 45}" fill="none" stroke="${color}" stroke-width="1.4"/><circle cx="${x + 50}" cy="${y + 25}" r="2" fill="${color}"/><circle cx="${x + 68}" cy="${y + 50}" r="12" fill="none" stroke="#7a8691"/>`;
   else if (kind === "cad-sheet") inner = `<rect x="${x + 4}" y="${y + 4}" width="${W - 8}" height="${H - 8}" fill="none" stroke="#7a8691" stroke-width="1.2"/><rect x="${x + W - 48}" y="${y + H - 22}" width="44" height="18" fill="none" stroke="#7a8691"/><line x1="${x + W - 48}" y1="${y + H - 13}" x2="${x + W - 4}" y2="${y + H - 13}" stroke="#7a8691"/><line x1="${x + W - 20}" y1="${y + H - 22}" x2="${x + W - 20}" y2="${y + H - 13}" stroke="#7a8691"/>`;
   else if (kind === "text") inner = lines(9);
