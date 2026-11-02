@@ -264,7 +264,8 @@ class Handler(BaseHTTPRequestHandler):
     def api_license_request(self, qs):
         from . import license as lic
         b = self._body_json()
-        self._json(lic.request(b.get("type", "report"), str(b.get("message", "")), str(b.get("key", ""))))
+        self._json(lic.request(b.get("type", "report"), str(b.get("message", "")), str(b.get("key", "")),
+                               {k: str(b[k]) for k in ("topic", "ext", "detail") if b.get(k)}))
 
     # ------------------------------------------------------------ API: archivi cloud (mbvisual/cloud.py, ui/js/cloud.js)
     def api_cloud(self, qs):

@@ -212,10 +212,10 @@ def account() -> dict:
     return r
 
 
-def request(kind: str, message: str = "", key: str = "") -> dict:
+def request(kind: str, message: str = "", key: str = "", extra: dict | None = None) -> dict:
     """Cambio dispositivo ("change") o segnalazione ("report"). Senza attivazione valida serve la chiave."""
     data = _load()
-    body = {"type": kind, "message": message, "name": device_name()}
+    body = {"type": kind, "message": message, "name": device_name(), **(extra or {})}
     if key:
         body["key"] = key
     elif data.get("token") and not data.get("bloccata"):

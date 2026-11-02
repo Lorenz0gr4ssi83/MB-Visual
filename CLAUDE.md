@@ -781,7 +781,7 @@ e' stata aperta davvero; si toglie solo cio' che e' impossibile (motivo nel reso
 - Risultato 01/11/2026: 949 campioni (coppie categoria/estensione) aperti nell'app, 942 riusciti dopo le correzioni; tolte 85 coppie
   (7 impossibili con i motori inclusi: .evc .ac4 .binka .viv, .vgm e .spc audio = niente libgme in FFmpeg, .acm = in pratica driver
   dei codec di Windows; 78 senza nessun file di prova pubblico: audio di giochi, moduli Amiga rari, dischi di macchine virtuali, volumi
-  divisi, .qpw .et .wpt .602 .dxb, RAW ptx/rwz/bay/cap/eip) -> registro 958 voci, 932 estensioni. RIMESSE TUTTE il 02/11/2026 per decisione dell'utente (la rimozione non gli era stata chiesta): registro 1043 voci, 1013 estensioni; le 85 coppie restano non collaudate. Tenute senza nuovo collaudo perche'
+  divisi, .qpw .et .wpt .602 .dxb, RAW ptx/rwz/bay/cap/eip) -> registro 958 voci, 932 estensioni. Il 02/11/2026 l'utente (la rimozione non gli era stata chiesta) ha fatto rimettere le 78 coppie senza prova, che restano non collaudate, e togliere solo le 7 impossibili: registro 1036 voci, 1007 estensioni. Tenute senza nuovo collaudo perche'
   stesso contenitore e stesso lettore di un formato provato: .nwc, .rte/.rft, .prtdot/.asmdot/.drwdot, .psm/.pwd (Solid Edge), .ipn.
   I formati di office-lo si aprono SOLO con LibreOffice installato (collaudati con LibreOffice 26.2.6 estratto, non installato).
 - Correzioni trovate dal collaudo: TimeStampedData .tsd (asn1crypto recente restituisce la struttura gia' letta + campo meta_data Any
@@ -1404,6 +1404,7 @@ Codice Python indipendente da Windows: ogni parte solo-Windows si spegne con gar
 Motore `mbvisual/recover.py` (+ `recover_zip.py`, `recover_sqlite.py`), API unica `api/recover?op=check|identify|start|carve|text|
 as_ext|save|put|out`, schermata `ui/js/viewers/recover.js` + `ui/css/recover.css` (viewer "recover"). Solo app per PC (la web app
 resta con l'errore semplice ed esadecimale). Testi: chiavi `rec.*` e `srv_recover.*` (5 lingue).
+- File non supportato (02/11/2026, richiesta dell'utente): estensione non in elenco e visualizzatore che non riesce NON mostrano piu' riconoscimento, esadecimale o testo: `ui/js/unsupported.js` = solo "File non supportato" + Segnala (anche web app e anteprime). I punti (2) e (3) qui sotto valgono ora solo da "Apri come -> Recupero e analisi"; il file danneggiato (1) tiene il recupero. Conversioni non riuscite: finestra "Operazione non supportata" con il motivo + Segnala. Segnalazioni: `license.sendFeedback` -> /v1/request type report con topic unsupported|idea (+ ext, detail senza nome ne' percorsi): il server compone "[File non supportato] .ext" o "[Miglioria o richiesta] testo" e arrivano in MB Desk Admin (Richieste + notifica "report"). Pulsante "Migliorie e richieste" (`btn-feedback`) accanto ad "Apri con programma predefinito".
 - Quando compare: (1) all'apertura `check` (letture veloci: %%EOF/startxref dei PDF, indice finale degli ZIP e testzip < 25 MB,
   fine di JPEG/PNG/GIF e PIL < 40 MB, atomi MP4/MOV, intestazione e quick_check SQLite < 50 MB, intestazione DWG, contenitore
   .msg) -> se danneggiato si apre "recover" con "Apri comunque l'originale"; (2) il visualizzatore lancia un errore: `showError`

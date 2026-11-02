@@ -137,6 +137,22 @@ async function report() {
   try { const r = await remote("request", { type: "report", message: ta.value }); toast(r.messaggio || tr("license.segnalazione_inviata")); } catch (e) { toast(e.message, true, 7000); }
 }
 
+// segnalazioni che arrivano a MB Desk Admin: file non supportati (topic "unsupported", testo facoltativo: bastano
+// estensione e dettaglio) e migliorie o richieste (topic "idea", dal pulsante della barra comandi)
+export async function sendFeedback({ topic, title, intro, placeholder, ext, detail }) {
+  const ta = el("textarea", { rows: 5, class: "field", style: { width: "100%" }, placeholder });
+  const body = el("div", { style: { display: "grid", gap: "8px", width: "min(480px, 86vw)" } }, intro ? el("p", { class: "note", style: { margin: 0 } }, intro) : "", ta);
+  while (await modal(title, body, [{ label: tr("common.annulla"), value: false }, { label: tr("license.invia"), value: true, primary: true }])) {
+    if (topic === "idea" && !ta.value.trim()) { toast(tr("license.scrivi_testo_segnalazione"), true); continue; }
+    try {
+      await remote("request", { type: "report", topic, message: ta.value.trim(), ext, detail });
+      toast(tr("feedback.inviata"));
+      return true;
+    } catch (e) { toast(e.message, true, 7000); } // senza rete la finestra si riapre con il testo gia' scritto
+  }
+  return false;
+}
+
 async function changeFromAccount() {
   const ta = el("textarea", { rows: 3, class: "field", style: { width: "100%" }, placeholder: tr("license.quale_dispositivo_cambi_perche_es") });
   const ok = await modal(tr("license.cambio_pc_cellulare_2"), el("div", { style: { display: "grid", gap: "8px", minWidth: "400px" } },

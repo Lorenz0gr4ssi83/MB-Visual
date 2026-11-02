@@ -72,6 +72,10 @@ if (process.argv[2] === "serve") {
 
   const rep = await call("/v1/request", { token: m1.token, type: "report", message: "Il PDF non si apre" });
   ok(rep.ok, "segnalazione inviata");
+  await call("/v1/request", { token: pc1.token, type: "report", topic: "unsupported", ext: ".XYZ<b>", detail: "recover: errore", message: "" });
+  await call("/v1/request", { token: pc1.token, type: "report", topic: "idea", message: "Vorrei il formato ABC" });
+  const motivi = JSON.stringify(await call("/admin/requests", undefined, true));
+  ok(motivi.includes("[File non supportato] .xyzb (recover: errore)") && motivi.includes("[Miglioria o richiesta] Vorrei il formato ABC"), "segnalazioni con argomento per MB Desk Admin");
 
   // cambio dispositivo: chiave nuova, vecchia sostituita, tutti i dispositivi della vecchia bloccati
   const ch1 = await call("/v1/request", { token: pc1.token, type: "change", message: "PC nuovo" });

@@ -3,7 +3,7 @@ import {
   api, baseName, button, confirmBox, dirName, el, extOf, fmtSize, isDesktop, modal, pickFiles, pickFolder,
   pickSavePath, readRange, toast, waitJob, WEB,
 } from "./core.js";
-import { licenseGate, showAccount, accountInfo, licenseReport, licenseChange, licenseNewKey } from "./license.js";
+import { licenseGate, showAccount, accountInfo, licenseReport, licenseChange, licenseNewKey, sendFeedback } from "./license.js";
 import { setupMobileQr } from "./mobileqr.js";
 import { initTouch, afterMount } from "./touch.js";
 import { initStats, track, trackError, showStatsSettings } from "./stats.js";
@@ -572,7 +572,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   const { cat } = resolveCategory(extraCtx.displayName && !extOf(extraCtx.displayName) ? info.nome : name, info.sniff);
   const ext = extFor(info.nome);
   // estensione non in elenco: schermata di riconoscimento e recupero (ui/js/viewers/recover.js); i byte grezzi restano a un clic
-  let viewer = forcedViewer || (cat ? cat.viewer : WEB ? "hex" : "recover");
+  let viewer = forcedViewer || (cat ? cat.viewer : "recover");
   if (!forcedViewer && !WEB && TOOLS.onlyoffice && isOn("office") && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
   // Navisworks senza Navisworks: NWD e NWC si aprono nel visualizzatore 3D (lettore nwd2mbv)
   if (!forcedViewer && !WEB && TOOLS.nwdreader && ["nwd", "nwc", "nwf"].includes(ext)) viewer = "model3d";
@@ -628,7 +628,7 @@ export async function mountPreview(path, host, extra = {}) {
   const info = await api("info", { path });
   const { cat } = resolveCategory(info.nome, info.sniff);
   const ext = extFor(info.nome);
-  let viewer = cat ? cat.viewer : "hex";
+  let viewer = cat ? cat.viewer : "recover";
   if (!WEB && TOOLS.onlyoffice && isOn("office") && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
   if (!WEB && TOOLS.nwdreader && ["nwd", "nwc", "nwf"].includes(ext)) viewer = "model3d";
   viewer = await gisViewer(path, ext, viewer);
@@ -671,20 +671,12 @@ async function gisViewer(path, ext, viewer) {
 export function showError(ctx, e) {
   trackError(ctx.tab?.viewer, e, ctx.cat ? ctx.ext : ""); // statistiche anonime: solo visualizzatore, tipo di errore ed estensione
   // al posto del messaggio di errore: schermata di recupero (cosa e' successo, cosa si e' salvato, Apri il recuperato...)
-  if (!WEB) return import("./viewers/recover.js").then(m => m.showRecovery(ctx, e)).then(a => { if (ctx.tab) ctx.tab.api = a || {}; }).catch(err => { console.error(err); showErrorPlain(ctx, e); });
-  showErrorPlain(ctx, e);
+  return import("./viewers/recover.js").then(m => m.showRecovery(ctx, e)).then(a => { if (ctx.tab) ctx.tab.api = a || {}; }).catch(err => { console.error(err); showErrorPlain(ctx); });
 }
 
-function showErrorPlain(ctx, e) {
+function showErrorPlain(ctx) {
   ctx.el.innerHTML = "";
-  ctx.el.append(el("div", { class: "center" }, el("div", { class: "panel", style: { maxWidth: "560px", textAlign: "left" } },
-    el("h3", { style: { marginTop: 0 } }, tr("app.non_stato_possibile_mostrare_contenuto")),
-    el("p", { class: "err" }, String(e?.message || e)),
-    el("p", {}, tr("app.file_resta_comunque_apribile_come")),
-    el("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
-      el("button", { class: "btn primary", onclick: () => ctx.openAs("hex") }, tr("app.apri_come_esadecimale")),
-      el("button", { class: "btn", onclick: () => ctx.openAs("text") }, tr("app.apri_come_testo")),
-      el("button", { class: "btn", onclick: () => api("open_external", { path: ctx.path }).catch(err => toast(err.message, true)) }, tr(TOOLS.mac ? "app.apri_programma_predefinito" : "app.apri_programma_windows"))))));
+  ctx.el.append(el("div", { class: "center" }, el("h3", {}, tr("feedback.file_non_supportato"))));
 }
 
 // ------------------------------------------------------------------ componenti (ui/js/components.js)
@@ -822,7 +814,10 @@ async function convertTo(t, a, target) {
     updateStatus();
   } catch (e) {
     console.error(e);
-    toast(tr("app.conversione_non_riuscita") + e.message, true, 8000);
+    $("toast").hidden = true; // toglie l'avviso "Conversione in corso"
+    const un = await import("./unsupported.js"), from = extOf(t.info?.nome || t.path);
+    if (await modal(tr("feedback.operazione_non_supportata"), el("p", { style: { margin: 0, maxWidth: "480px", overflowWrap: "anywhere" } }, e.message),
+      [{ label: tr("common.chiudi"), value: false }, { label: tr("feedback.segnala"), value: true, primary: true }])) un.reportUnsupported(from, `${from} -> ${extOf(target)}: ${un.cleanDetail(e, baseName(target))}`);
   }
 }
 
@@ -1210,6 +1205,7 @@ async function boot() {
   $("btn-file").addEventListener("click", e => fileMenu(e.currentTarget));
   $("btn-as").addEventListener("click", e => openAsMenu(e.currentTarget));
   $("btn-folder").addEventListener("click", () => active && api("reveal", { path: active.path }));
+  $("btn-feedback").addEventListener("click", () => sendFeedback({ topic: "idea", title: tr("feedback.migliorie_richieste"), placeholder: tr("feedback.descrivi_miglioria") }));
   $("btn-external").addEventListener("click", () => active && api("open_external", { path: active.path }).catch(e => toast(e.message, true)));
   $("btn-formats").addEventListener("click", toggleFormats);
   $("btn-home").addEventListener("click", () => activate(null));

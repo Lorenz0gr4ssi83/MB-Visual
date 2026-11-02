@@ -39,6 +39,8 @@ export async function mount(ctx) {
   const R = ctx.recovery || { mode: "unknown" };
   const mode = R.mode;
   ctx.fillBody(false);
+  // estensione non in elenco o visualizzatore che non riesce: "File non supportato". Il recupero resta per i file danneggiati e da Apri come
+  if (mode === "unknown" || mode === "error") return (await import("../unsupported.js")).mountUnsupported(ctx, R.error);
   const page = el("div", { class: "rc" });
   ctx.el.append(page);
 
