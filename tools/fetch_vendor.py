@@ -7,6 +7,8 @@ import io
 import shutil
 import sys
 import tarfile
+import time
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -92,8 +94,17 @@ APPEND = {
 
 def download(url: str) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": "mb-visual-fetch"})
-    with urllib.request.urlopen(req, timeout=300) as r:
-        return r.read()
+    # i siti delle librerie a volte rispondono con errori momentanei (503): si riprova prima di fermare la build
+    for attempt in range(1, 7):
+        try:
+            with urllib.request.urlopen(req, timeout=300) as r:
+                return r.read()
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+            if attempt == 6 or (isinstance(e, urllib.error.HTTPError) and e.code < 500 and e.code != 429):
+                raise
+            print(f"riprovo ({attempt}): {url}: {e}", flush=True)
+            time.sleep(10 * attempt)
+    raise AssertionError
 
 
 def strip_package(name: str) -> str:
