@@ -536,6 +536,8 @@ def save(src: str, out: str, edits: dict) -> dict:
                     skipped += 1
             except Exception:  # noqa: BLE001
                 skipped += 1
+        from .batch import add_sheets
+        add_sheets(doc, cx, db)  # i layout del disegno restano nel file
     ext = Path(out).suffix.lower()
     if ext == ".dxf":
         doc.saveas(out)

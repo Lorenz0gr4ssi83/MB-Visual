@@ -823,6 +823,21 @@ def doc_from_db(db: dict):
             cadedit._create(msp, e, doc, cx)
         except Exception:  # noqa: BLE001
             pass
+    add_sheets(doc, cx, db, by_owner)
+    return doc
+
+
+def add_sheets(doc, cx, db: dict, by_owner: dict | None = None):
+    """Fogli del disegno (spazio carta) con le loro finestre, dal database di libredwg."""
+    from . import cadedit
+    brs = ((db.get("tables") or {}).get("BLOCK_RECORD") or {}).get("entries", [])
+    paper = {b.get("handle"): b for b in brs if b.get("handle") and str(b.get("name", "")).lower().startswith("*paper_space")}
+    if by_owner is None:
+        by_owner = {}
+        for e in db.get("entities") or []:
+            owner = e.get("ownerBlockRecordSoftId")
+            if e.get("isInPaperSpace") or owner in paper:
+                by_owner.setdefault(owner, []).append(e)
     # entita' dei fogli rimaste dentro il loro blocco (*Paper_Space0...)
     for h, b in paper.items():
         if b.get("entities") and not by_owner.get(h):
@@ -842,9 +857,13 @@ def doc_from_db(db: dict):
             name = f"{base} ({n})"
         lay = doc.layouts.new(name)
         lay.dxf.taborder = len(made) + 1
-        w, h_ = _paper_size(L, ents)
+        w, h_, unit = _paper_size(L, ents)
         try:
-            lay.page_setup(size=(w, h_), margins=(0, 0, 0, 0), units="mm")
+            lay.page_setup(size=(w, h_), margins=(0, 0, 0, 0), units=unit)
+            lo = _xy(L.get("minLimit"))
+            lay.dxf.plot_origin_x_offset, lay.dxf.plot_origin_y_offset = 0, 0
+            lay.dxf.left_margin, lay.dxf.bottom_margin = -lo[0] * (25.4 if unit == "inch" else 1), -lo[1] * (25.4 if unit == "inch" else 1)
+            lay.dxf.limmin, lay.dxf.limmax = (lo[0], lo[1]), (lo[0] + w, lo[1] + h_)
         except Exception:  # noqa: BLE001
             pass
         vps = sorted([e for e in ents if e.get("type") == "VIEWPORT"], key=lambda e: int(str(e.get("handle") or "0"), 16) if str(e.get("handle") or "").strip() else 0)
@@ -865,7 +884,6 @@ def doc_from_db(db: dict):
             doc.layouts.delete("Layout1")
         except Exception:  # noqa: BLE001
             pass
-    return doc
 
 
 def _xy(p, z=False):
@@ -877,9 +895,11 @@ def _xy(p, z=False):
 def _paper_size(L, ents):
     lo, hi = _xy(L.get("minLimit")), _xy(L.get("maxLimit"))
     w, h = hi[0] - lo[0], hi[1] - lo[1]
-    if 50 < w < 5000 and 50 < h < 5000:
-        return w, h
-    return 420.0, 297.0
+    if 50 < max(w, h) < 5000 and min(w, h) > 0:
+        return w, h, "mm"
+    if 0 < max(w, h) <= 50 and min(w, h) > 0:  # fogli americani: limiti in pollici (11 x 8,5)
+        return w, h, "inch"
+    return 420.0, 297.0, "mm"
 
 
 def _add_viewport(lay, e):
@@ -889,6 +909,11 @@ def _add_viewport(lay, e):
     vh = float(e.get("viewHeight") or 0) or h
     try:
         vp = lay.add_viewport(center=_xy(e.get("viewportCenter"), True), size=(w, h), view_center_point=_xy(e.get("displayCenter")), view_height=vh)
+        vp.dxf.view_target_point = _xy(e.get("targetPoint"), True)
+        if e.get("viewDirection"):
+            vp.dxf.view_direction_vector = _xy(e["viewDirection"], True)
+        if e.get("frozenLayers"):
+            vp.frozen_layers = [str(n) for n in e["frozenLayers"]]
         tw = e.get("viewTwistAngle")
         if tw:
             vp.dxf.view_twist_angle = float(tw) * 57.29577951308232 if abs(float(tw)) <= 6.3 else float(tw)

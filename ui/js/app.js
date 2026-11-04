@@ -6,6 +6,7 @@ import {
 import { licenseGate, showAccount, accountInfo, licenseReport, licenseChange, licenseNewKey, sendFeedback } from "./license.js";
 import { setupMobileQr } from "./mobileqr.js";
 import { initTouch, afterMount } from "./touch.js";
+import { attachSidePanels } from "./sidepanel.js";
 import { initStats, track, trackError, showStatsSettings } from "./stats.js";
 import { initComponents, isOn, compFor, inviteChip, needComp, showComponents, needsFirstRun, ICON as COMP_ICON } from "./components.js";
 import { t as tr, tn, has as trHas, LANG, LANGS, LOCALE, MANUAL, keyName, setLanguage } from "./i18n.js";
@@ -603,6 +604,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
     addDrawingButton(tab, tb);
     lockIfNeeded(tab, ext, tb);
     afterMount(ctx); // tablet: pannello laterale a scomparsa
+    attachSidePanels(ctx.el, viewer); // con il mouse: pannello laterale ridimensionabile e richiudibile
     phoneUi?.afterMount(ctx); // telefono: strumenti e pannello in fogli dal basso, recenti
     if (extraCtx.untitled) { tab.untitled = true; tab.dirty = true; renderTabs(); } // file nuovo: si salva quando e dove si vuole
   } catch (e) {

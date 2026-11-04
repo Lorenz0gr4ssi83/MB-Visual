@@ -63,7 +63,7 @@ export function normalize(db, kind) {
 // Ogni entita' produce: tratti da disegnare (gruppi per layer/colore/tipo linea), testi impaginati, e "elementi" per
 // selezione e aggancio: L linea, A arco, P polilinea tessellata, Q riquadro di testo, F area piena, N punto notevole.
 // Ogni elemento ricorda l'entita' di primo livello (o) e il percorso dentro i blocchi (s: "/3/a1" ...).
-function build(db) {
+function build(db, paperSpace = false) {
   const H = db.header || {};
   const LTS = H.LTSCALE > 0 ? H.LTSCALE : 1;
   const layers = new Map();
@@ -157,7 +157,7 @@ function build(db) {
     for (const [k, e] of list.entries()) {
       if (depth === 0) { owner = k; sub = ""; if (e._deleted || e.type === "_skip") continue; }
       else if (sel) sub = path + "/" + (e._attr ? "a" : "") + k;
-      if (e._deleted || e.isVisible === false || e.isInPaperSpace) continue;
+      if (e._deleted || e.isVisible === false || (e.isInPaperSpace && !(paperSpace && depth === 0))) continue;
       const lname = e.layer === "0" && inh.layer ? inh.layer : e.layer || "0";
       const L = layerOf(lname);
       L.count++;
@@ -382,6 +382,54 @@ function gridIndex(items, bbox) {
 }
 function ptsBB(P) { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const [x, y] of P) { if (x < a) a = x; if (y < b) b = y; if (x > c) c = x; if (y > d) d = y; } return [a, b, c, d]; }
 
+// ---------------------------------------------------------------- layout (spazio carta)
+// Fogli del disegno nell'ordine delle schede di AutoCAD: entita' di ognuno, limiti del foglio dal layout e finestre sul modello.
+export function sheetsOf(db) {
+  const recs = new Map((db.tables.BLOCK_RECORD?.entries || []).filter(b => /^\*paper_space/i.test(b.name || "")).map(b => [b.handle || b.name, b]));
+  const active = [...recs].find(([, b]) => /^\*paper_space$/i.test(b.name))?.[0] ?? "*";
+  const byOwner = new Map();
+  for (const e of db.entities) {
+    if (!e.isInPaperSpace || e._deleted) continue;
+    const k = recs.has(e.ownerBlockRecordSoftId) ? e.ownerBlockRecordSoftId : active; // nei DXF: entita' del foglio attivo
+    if (!byOwner.has(k)) byOwner.set(k, []);
+    byOwner.get(k).push(e);
+  }
+  for (const [h, b] of recs) if (!byOwner.get(h)?.length && b.entities?.length) byOwner.set(h, b.entities); // fogli rimasti dentro il loro blocco
+  const out = [], used = new Set();
+  for (const L of [...(db.objects?.LAYOUT || [])].sort((a, b) => (a.tabOrder ?? 999) - (b.tabOrder ?? 999))) {
+    if (!recs.has(L.paperSpaceTableId)) continue; // il layout "Model"
+    used.add(L.paperSpaceTableId);
+    out.push({ name: L.layoutName, layout: L, ents: byOwner.get(L.paperSpaceTableId) || [] });
+  }
+  for (const [h, ents] of byOwner) if (!used.has(h)) out.push({ name: null, layout: null, ents }); // DXF senza oggetti LAYOUT (R12)
+  return out;
+}
+
+// Finestra -> dati per disegnarla. Modello -> foglio: togli il punto di mira, scala, ruota, porta il centro della vista al centro della finestra.
+function viewportOf(e, names) {
+  const dir = e.viewDirection || {}, k = e.height / (e.viewHeight || e.height), tw = e.viewTwistAngle || 0;
+  const c = Math.cos(tw) * k, s = Math.sin(tw) * k, T = e.targetPoint || {}, C = e.viewportCenter, D = e.displayCenter || C;
+  const ox = T.x || 0, oy = T.y || 0;
+  return {
+    x0: C.x - e.width / 2, y0: C.y - e.height / 2, x1: C.x + e.width / 2, y1: C.y + e.height / 2, k, layer: e.layer,
+    plan: Math.hypot(dir.x || 0, dir.y || 0) < 1e-6, // le viste 3D non si possono ricavare dalla pianta
+    M: [c, s, -s, c, C.x - D.x * k - (c * ox - s * oy), C.y - D.y * k - (s * ox + c * oy)],
+    frozen: new Set(e.frozenLayers || (e.frozenHandles || []).map(h => names.get(h)).filter(Boolean)),
+  };
+}
+
+// La prima finestra di ogni foglio e' il foglio stesso, come si vede a schermo: non mostra il modello.
+export function sheetViewports(ents, db) {
+  const names = new Map((db.tables.LAYER?.entries || []).filter(l => l.handle).map(l => [String(l.handle).toUpperCase(), l.name]));
+  const hx = e => parseInt(e.handle || "0", 16) || 0;
+  // finestre spente: nei DXF stato 0; nei DWG libredwg non da' lo stato (sempre 0), quindi vale solo per i DXF (frozenHandles = letto da dxf.js)
+  const vps = ents.filter(e => e.type === "VIEWPORT" && !e._deleted && e.isVisible !== false && !(e.frozenHandles && e.status === 0)).sort((a, b) => hx(a) - hx(b));
+  const near = (a, b) => Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(a));
+  const first = vps[0];
+  const overall = first && (first.viewportId === 1 || (near(first.viewHeight, first.height) && near(first.displayCenter?.x, first.viewportCenter.x) && near(first.displayCenter?.y, first.viewportCenter.y)));
+  return (overall ? vps.slice(1) : vps).filter(e => e.width > 0 && e.height > 0).map(e => viewportOf(e, names));
+}
+
 // ---------------------------------------------------------------- decodifica DWG
 // Un motore nuovo per ogni disegno: la sua memoria si libera quando il disegno e' letto. Con un motore condiviso
 // la memoria cresceva a ogni file aperto fino a esaurirsi ("out of WASM memory").
@@ -422,10 +470,21 @@ function dwg3dEntities(lib, data, m, db) {
   const hex = v => (typeof v === "bigint" ? v : BigInt(Math.round(Number(v) || 0))).toString(16).toUpperCase();
   const layerByHandle = new Map((db.tables.LAYER?.entries || []).filter(l => l.handle).map(l => [String(l.handle).toUpperCase(), l.name]));
   const n = lib.dwg_get_num_objects(data);
-  const acisOf = new Map(), made = [], verts = new Map();
+  const acisOf = new Map(), made = [], verts = new Map(), vpFrozen = new Map();
   for (let i = 0; i < n; i++) {
     const o = lib.dwg_get_object(data, i);
     const t = lib.dwg_object_get_fixedtype(o);
+    if (t === T.DWG_TYPE_VIEWPORT) { // layer congelati in questa finestra: libredwg-web non li converte
+      const ent = lib.dwg_object_to_entity(o), tio = lib.dwg_object_to_entity_tio(o);
+      try {
+        const nf = ent && tio ? lib.dwg_dynapi_entity_data(tio, "num_frozen_layers") : 0;
+        if (nf > 0) {
+          const refs = lib.dwg_ptr_to_object_ref_ptr_array(lib.dwg_dynapi_entity_data(tio, "frozen_layers"), nf);
+          vpFrozen.set(hex(lib.dwg_object_entity_get_handle_object(ent).value), [...refs].map(r => layerByHandle.get(hex(lib.dwg_ref_get_absref(r)))).filter(Boolean));
+        }
+      } catch (e) { console.warn(e); }
+      continue;
+    }
     if (!ACIS.has(t) && !MESHT[t] && !VX.has(t)) continue;
     const ent = lib.dwg_object_to_entity(o), tio = lib.dwg_object_to_entity_tio(o);
     if (!ent || !tio) continue;
@@ -471,6 +530,7 @@ function dwg3dEntities(lib, data, m, db) {
     if (!b || /^\*(model|paper)_space/i.test(b.name || "")) db.entities.push(e);
     else (b.entities ||= []).push(e);
   }
+  if (vpFrozen.size) for (const list of [db.entities, ...brs.map(b => b.entities || [])]) for (const e of list) if (e.type === "VIEWPORT" && vpFrozen.has(String(e.handle).toUpperCase())) e.frozenLayers = vpFrozen.get(String(e.handle).toUpperCase());
   if (acisOf.size) for (const list of [db.entities, ...brs.map(b => b.entities || [])]) for (const e of list) {
     if (e.type !== "3DSOLID") continue;
     const k = String(e.handle || "").toUpperCase();
@@ -516,14 +576,15 @@ export async function mount(ctx) {
   normalize(db, dxfText ? "dxf" : "dwg");
   ld.set(0.7, tr("v_cad2d.preparazione_disegno"));
   await new Promise(r => setTimeout(r, 0));
-  let model = build(db);
+  let main = build(db), model = main; // main = spazio modello; model = cio' che si vede (modello o foglio del layout)
+  let sheets = sheetsOf(db), sheet = null;
   const scan3d = analyze3d(db); // contenuto 3D: solidi, mesh, facce, oggetti con spessore (ui/js/cad3d.js)
   // file delle immagini: relativi alla cartella del disegno (come in AutoCAD), poi assoluti, poi solo il nome
   const imgCache = new Map();
   const loadImages = () => {
     if (WEB || !ctx.path) return;
     const dir = ctx.path.replace(/[\\/][^\\/]*$/, "");
-    for (const im of model.images || []) {
+    for (const im of [...(main.images || []), ...(model.images || [])]) {
       const f = im.file.replace(/\//g, "\\");
       const name = f.split("\\").pop();
       const tries = /^([a-z]:|\\\\)/i.test(f) ? [f, dir + "\\" + name] : [dir + "\\" + f.replace(/^\.\\/, ""), dir + "\\" + name];
@@ -541,7 +602,7 @@ export async function mount(ctx) {
   };
   loadImages();
   ctx.el.innerHTML = "";
-  ctx.el.__cad = { db, get model() { return model; }, get view() { return view; }, get editor() { return editor; }, zoom: bb => zoomBox(bb), canvas: () => canvas }; // per i collaudi dalla console
+  ctx.el.__cad = { db, get model() { return model; }, get view() { return view; }, get editor() { return editor; }, zoom: bb => zoomBox(bb), canvas: () => canvas, get sheets() { return sheets; }, get sheet() { return sheet; }, setSpace: i => setSpace(i) }; // per i collaudi dalla console
 
   // ---- interfaccia
   const canvas = el("canvas", { class: "fill", style: { touchAction: "none" } });
@@ -551,16 +612,18 @@ export async function mount(ctx) {
   // editor del disegno (solo app per PC: il salvataggio usa il motore ezdxf)
   // senza il componente CAD 2D il disegno si apre in visualizzazione (misura, layer, esportazioni)
   const editor = WEB || !isOn("cad") ? null : createCadEditor({
-    ctx, db, sourceKind: dxfText ? "dxf" : "dwg", ACI, getModel: () => model,
-    rebuild: () => { model = build(db); loadImages(); refreshLayers(); draw(); },
+    ctx, db, sourceKind: dxfText ? "dxf" : "dwg", ACI, getModel: () => main,
+    rebuild: () => { main = build(db); if (!sheet) model = main; loadImages(); refreshLayers(); draw(); },
     draw: () => draw(), toWorld: (x, y) => toWorld(x, y), toScreen: (x, y) => toScreen(x, y), get view() { return view; },
     zoomTo: bb => zoomBox(bb), canvasSize: () => ({ w: canvas.width, h: canvas.height }),
     temp: ents => build({ ...db, entities: ents }),
   });
   if (editor) side.append(editor.props);
   const stage = el("div", { style: { position: "relative", overflow: "hidden", flex: "1 1 auto", minHeight: 0 } }, canvas);
+  // schede in basso, come in AutoCAD: Modello e i layout del disegno
+  const spaceBar = el("div", { class: "cad-spaces", role: "tablist" });
   const wrap = el("div", { class: "side" }, side, el("div", { style: { display: "flex", flexDirection: "column", minHeight: 0, minWidth: 0 } },
-    editor ? editor.bar : el("span"), stage, editor ? editor.cmdline : el("span")));
+    editor ? editor.bar : el("span"), stage, editor ? editor.cmdline : el("span"), spaceBar));
   // vista 3D (model3d.js con la scena costruita da cad3d.js), al posto della vista 2D
   const host3d = el("div", { style: { display: "none", flex: "1 1 auto", minHeight: 0, minWidth: 0, flexDirection: "column", height: "100%" } });
   ctx.el.append(wrap, host3d);
@@ -576,7 +639,7 @@ export async function mount(ctx) {
   if (!WEB && ctx.path) api("stat", { path: mbmisOf(ctx.path) }, { allowFail: true }).then(r => { if (r?.ok) measGet().then(() => draw()); }).catch(() => {});
   const lineScale = { v: 1 };
   // revisioni a mano libera (web app: tablet con penna) sul layer MARKUP del disegno (ui/js/ink.js, inkdxf.js)
-  let ink = null;
+  let ink = null, inkOn = false;
   const inkBtn = editor || !WEB ? null : button(tr("ink.penna"), INK_ICON, () => toggleInk(), { class: "ink-toggle", title: tr("ink.annota_cad") });
   async function toggleInk() {
     if (!ink) {
@@ -588,7 +651,7 @@ export async function mount(ctx) {
         pan: (dx, dy) => { view.tx += dx * dpr(); view.ty += dy * dpr(); draw(); },
         zoom: (f, cx, cy) => zoomAt(f, cx * dpr(), cy * dpr()),
         onChange: () => ctx.setDirty(true),
-        onToggle: on => inkBtn.classList.toggle("on", on),
+        onToggle: on => { inkOn = on; inkBtn.classList.toggle("on", on); },
       });
     }
     ink.toggle();
@@ -606,19 +669,29 @@ export async function mount(ctx) {
   if (scan3d.any) viewBtn.classList.add("cad3d-has");
   ctx.tb.append(viewBtn, el("span", { class: "sep" }), tb2d, tb3d);
   tb2d.append(...[button(tr("v_cad2d.adatta"), "fit", fit), button("", "zoomIn", () => zoomAt(1.4), { iconOnly: true, title: tr("v_cad2d.ingrandisci") }), button("", "zoomOut", () => zoomAt(1 / 1.4), { iconOnly: true, title: tr("v_cad2d.riduci") }),
-    el("span", { class: "sep" }), editor ? null : mBtn, measBtn, inkBtn, tBtn, lwBtn, bgBtn, el("span", { class: "sep" }),
+    el("span", { class: "sep" }), mBtn, measBtn, inkBtn, tBtn, lwBtn, bgBtn, el("span", { class: "sep" }),
     button("PNG", "download", () => exportPng()), button("SVG", "download", () => exportSvg()), button("PDF", "download", () => exportPdf()),
     button(tr("gisdraw.mostra_mappa"), '<svg viewBox="0 0 24 24"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>', () => ctx.openAs("gis"), { title: tr("gisdraw.mostra_mappa_tip"), comp: "gis" }),
     ctx.ext === "dxf" ? button(tr("v_cad2d.modifica_dxf_testo"), "code", () => ctx.openAs("text"), { comp: "cad" }) : null,
     ctx.tools.trueview ? button(tr("v_cad2d.apri_dwg_trueview"), "open", () => api("open_external", { path: ctx.path, app: "trueview" })) : null,
     el("span", { class: "grow" }), el("span", { class: "note" }, tr("v_cad2d.rotella_zoom_trascina_tasto_centrale"))].filter(Boolean));
 
+  if (editor) mBtn.style.display = "none"; // nel modello la misura e' nel pannello Utilita' dell'editor
+
   // ---- elenco layer
   let sortedLayers = [];
+  const offMemo = new Map();
   function refreshLayers() {
-    const off = new Map(sortedLayers.map(L => [L.name, L.off]));
-    sortedLayers = [...model.layers.values()].filter(l => l.count).sort((a, b) => a.name.localeCompare(b.name));
-    for (const L of sortedLayers) if (off.has(L.name)) L.off = off.get(L.name);
+    for (const L of sortedLayers) offMemo.set(L.name, L.off);
+    // nel modello gli oggetti stessi del modello (l'editor li accende e spegne); in un layout i layer del foglio e quelli delle finestre
+    const all = new Map();
+    if (sheet) for (const m of [main, sheet.model]) for (const l of m.layers.values()) {
+      if (!l.count) continue;
+      const a = all.get(l.name);
+      if (a) a.count += l.count; else all.set(l.name, { ...l });
+    }
+    sortedLayers = (sheet ? [...all.values()] : [...main.layers.values()].filter(l => l.count)).sort((a, b) => a.name.localeCompare(b.name));
+    for (const L of sortedLayers) if (offMemo.has(L.name)) L.off = offMemo.get(L.name);
     renderLayers();
   }
   function renderLayers() {
@@ -626,7 +699,7 @@ export async function mount(ctx) {
     for (const L of sortedLayers) {
       const c = ACI[Math.abs(L.aci ?? 7)] || ACI[7];
       const cb = el("input", { type: "checkbox", checked: !L.off });
-      cb.addEventListener("change", () => { L.off = !cb.checked; const M = model.layers.get(L.name); if (M) M.off = L.off; draw(); });
+      cb.addEventListener("change", () => { L.off = !cb.checked; draw(); });
       layerList.append(el("label", { class: "node" }, cb, el("span", { style: { width: "10px", height: "10px", background: rgb(c), border: "1px solid var(--line)", flex: "none" } }), el("span", {}, L.name), el("span", { class: "note", style: { marginLeft: "auto" } }, String(L.count))));
     }
   }
@@ -657,13 +730,61 @@ export async function mount(ctx) {
 
   function render(c2, W, H, s, tx, ty, isDark, lwPx = 0) {
     c2.setTransform(1, 0, 0, 1, 0, 0);
+    if (sheet) return renderSheet(c2, W, H, s, tx, ty, isDark, lwPx);
     c2.fillStyle = isDark ? "#1e2021" : "#ffffff";
     c2.fillRect(0, 0, W, H);
     c2.setTransform(s, 0, 0, -s, tx, ty);
+    paintModel(c2, model, s, isDark, lwPx);
+  }
+
+  // layout: foglio bianco sul fondo grigio (come in AutoCAD), poi le finestre sul modello ritagliate e sopra di loro cio' che sta sul foglio
+  function renderSheet(c2, W, H, s, tx, ty, isDark, lwPx) {
+    const [x0, y0, x1, y1] = sheet.model.bbox;
+    const onScreen = c2 === g2;
+    c2.fillStyle = !onScreen ? "#ffffff" : isDark ? "#3a3d40" : "#c9ccce";
+    c2.fillRect(0, 0, W, H);
+    const a = x0 * s + tx, b = ty - y1 * s, w = (x1 - x0) * s, h = (y1 - y0) * s;
+    c2.save();
+    if (onScreen) { c2.shadowColor = "rgba(0,0,0,.45)"; c2.shadowBlur = 14 * (devicePixelRatio || 1); c2.shadowOffsetY = 3 * (devicePixelRatio || 1); }
+    c2.fillStyle = "#ffffff";
+    c2.fillRect(a, b, w, h);
+    c2.restore();
+    const base = [s, 0, 0, -s, tx, ty];
+    for (const v of sheet.vps) {
+      c2.save();
+      c2.setTransform(...base);
+      c2.beginPath();
+      c2.rect(v.x0, v.y0, v.x1 - v.x0, v.y1 - v.y0);
+      c2.clip();
+      if (v.plan) {
+        c2.transform(...v.M);
+        paintModel(c2, main, s * v.k, false, lwPx, v.frozen);
+      }
+      c2.restore();
+      if (!sheet.model.layers.get(v.layer)?.off) {
+        c2.setTransform(1, 0, 0, 1, 0, 0);
+        c2.strokeStyle = "#6b6e70";
+        c2.lineWidth = 1;
+        c2.strokeRect(v.x0 * s + tx, ty - v.y1 * s, (v.x1 - v.x0) * s, (v.y1 - v.y0) * s);
+      }
+      if (!v.plan) {
+        c2.setTransform(1, 0, 0, 1, 0, 0);
+        c2.fillStyle = "#6b6e70";
+        c2.textAlign = "center";
+        c2.font = `${12 * (devicePixelRatio || 1)}px Arial, sans-serif`;
+        c2.fillText(tr("v_cad2d.finestra_vista_3d"), (v.x0 + v.x1) / 2 * s + tx, ty - (v.y0 + v.y1) / 2 * s);
+        c2.textAlign = "left";
+      }
+    }
+    c2.setTransform(...base);
+    paintModel(c2, sheet.model, s, false, lwPx);
+  }
+
+  function paintModel(c2, model, s, isDark, lwPx, frozen = null) {
     c2.lineJoin = "round";
     for (const im of model.images || []) { // immagini sotto al disegno (loghi, foto, timbri)
       const L = model.layers.get(im.layer);
-      if ((L && L.off) || !im.img?.complete || !im.img.naturalWidth) continue;
+      if ((L && L.off) || frozen?.has(im.layer) || !im.img?.complete || !im.img.naturalWidth) continue;
       c2.save();
       c2.transform(...im.A);
       c2.drawImage(im.img, 0, 0, im.w, im.h);
@@ -671,7 +792,7 @@ export async function mount(ctx) {
     }
     for (const g of model.groups) {
       const L = model.layers.get(g.layer);
-      if (L && L.off) continue;
+      if ((L && L.off) || frozen?.has(g.layer)) continue;
       let col = g.color;
       if (!isDark && col[0] > 230 && col[1] > 230 && col[2] > 230) col = [20, 20, 20];
       c2.strokeStyle = c2.fillStyle = rgb(col);
@@ -690,7 +811,7 @@ export async function mount(ctx) {
     if (showText) {
       for (const t of model.texts) {
         const L = model.layers.get(t.layer);
-        if (L && L.off) continue;
+        if ((L && L.off) || frozen?.has(t.layer)) continue;
         if (t.h * s < 2.5) continue; // illeggibile a questa scala
         let col = t.color;
         if (!isDark && col[0] > 230 && col[1] > 230 && col[2] > 230) col = [20, 20, 20];
@@ -710,13 +831,13 @@ export async function mount(ctx) {
 
   function draw() {
     ensureSize();
-    for (const L of sortedLayers) { const M = model.layers.get(L.name); if (M) M.off = L.off; }
+    for (const L of sortedLayers) for (const m of [main, model]) { const M = m.layers.get(L.name); if (M) M.off = L.off; }
     const dpr = devicePixelRatio || 1;
     render(g2, canvas.width, canvas.height, view.s, view.tx, view.ty, dark, showLw ? 3.78 * dpr : 0);
     g2.setTransform(1, 0, 0, 1, 0, 0);
-    editor?.overlay(g2);
+    ed()?.overlay(g2);
     ink?.refresh();
-    meas?.paint(g2);
+    ms()?.paint(g2);
     if (measure && (mpts.length || msnap)) {
       g2.strokeStyle = "#ff9f1a";
       g2.fillStyle = "#ff9f1a";
@@ -760,13 +881,16 @@ export async function mount(ctx) {
     return osnap(model, wx, wy, tol, MSNAP, null, it => model.layers.get(it.l)?.off);
   }
 
+  // nei layout niente editor e pannello Misure: lavorano sul modello
+  function ed() { return sheet ? null : editor; }
+  function ms() { return sheet ? null : meas; }
   let drag = null;
   const capture = e => { try { canvas.setPointerCapture(e.pointerId); } catch { /* eventi sintetici */ } };
   const pos = e => { const r = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1; return [(e.clientX - r.left) * dpr, (e.clientY - r.top) * dpr]; };
   canvas.addEventListener("pointerdown", e => {
     const [px, py] = pos(e);
-    if (e.button === 0 && meas?.down(e, px, py)) { capture(e); return; }
-    if (e.button === 0 && editor?.pointerDown(e, px, py)) { capture(e); return; }
+    if (e.button === 0 && ms()?.down(e, px, py)) { capture(e); return; }
+    if (e.button === 0 && ed()?.pointerDown(e, px, py)) { capture(e); return; }
     if (measure && e.button === 0) {
       if (mpts.length === 2) mpts = [];
       const s = snapM(px, py);
@@ -787,25 +911,70 @@ export async function mount(ctx) {
       if (drag.moved) { view.tx = drag.tx + (px - drag.px); view.ty = drag.ty + (py - drag.py); draw(); }
       return;
     }
-    if (!measure && !editor?.on) ctx.status(`X ${fmt(wx)}  Y ${fmt(wy)}`);
-    if (meas?.move(e, px, py)) return;
-    if (editor?.pointerMove(e, px, py)) return;
+    if (!measure && !ed()?.on) ctx.status(`X ${fmt(wx)}  Y ${fmt(wy)}`);
+    if (ms()?.move(e, px, py)) return;
+    if (ed()?.pointerMove(e, px, py)) return;
     if (measure) { msnap = snapM(px, py); draw(); }
   });
   canvas.addEventListener("pointerup", e => {
     const [px, py] = pos(e);
-    if (drag) { const d = drag; drag = null; if (!d.moved && d.button === 2 && !meas?.context()) editor?.rightClick(); return; }
-    if (meas?.up(e, px, py)) return;
-    editor?.pointerUp(e, px, py);
+    if (drag) { const d = drag; drag = null; if (!d.moved && d.button === 2 && !ms()?.context()) ed()?.rightClick(); return; }
+    if (ms()?.up(e, px, py)) return;
+    ed()?.pointerUp(e, px, py);
   });
-  canvas.addEventListener("pointerleave", () => editor?.pointerLeave());
+  canvas.addEventListener("pointerleave", () => ed()?.pointerLeave());
   // tablet: pizzico = zoom, due dita = sposta (il primo dito resta per spostare, misurare e modificare)
   pinchPan(canvas, {
-    onStart: () => { drag = null; editor?.pointerLeave(); },
+    onStart: () => { drag = null; ed()?.pointerLeave(); },
     onPan: (dx, dy) => { const d = devicePixelRatio || 1; view.tx += dx * d; view.ty += dy * d; draw(); },
     onZoom: (f, cx, cy) => { const d = devicePixelRatio || 1; zoomAt(f, cx * d, cy * d); },
   });
   canvas.addEventListener("contextmenu", e => e.preventDefault());
+  // ---- schede Modello / layout
+  const views = new Map(); // ogni spazio ricorda la sua inquadratura
+  const spaceBtns = [];
+  function setSpace(i) {
+    const next = i >= 0 ? sheets[i] : null;
+    if (next === sheet && spaceBtns.length) return;
+    views.set(sheet, { ...view });
+    if (next && !next.model) {
+      next.model = build({ ...db, entities: next.ents }, true);
+      next.vps = sheetViewports(next.ents, db);
+      const L = next.layout, lo = L?.minLimit, hi = L?.maxLimit;
+      if (lo && hi && hi.x > lo.x && hi.y > lo.y) next.model.bbox = [lo.x, lo.y, hi.x, hi.y];
+      else if (next.vps.length) { // senza limiti: il foglio contiene finestre e disegno
+        const b = next.ents.some(e => e.type !== "VIEWPORT") ? [...next.model.bbox] : [Infinity, Infinity, -Infinity, -Infinity];
+        for (const v of next.vps) { b[0] = Math.min(b[0], v.x0); b[1] = Math.min(b[1], v.y0); b[2] = Math.max(b[2], v.x1); b[3] = Math.max(b[3], v.y1); }
+        next.model.bbox = b;
+      }
+    }
+    if (next && inkOn) ink.toggle();
+    if (next && measBtn.classList.contains("on")) meas?.toggle();
+    if (next && measure) mBtn.click();
+    sheet = next;
+    model = next ? next.model : main;
+    loadImages();
+    if (editor) for (const x of [editor.bar, editor.cmdline, editor.props]) { if (next) { x._disp ??= x.style.display; x.style.display = "none"; } else { x.style.display = x._disp ?? ""; x._disp = undefined; } }
+    mBtn.style.display = editor && !next ? "none" : "";
+    measBtn.style.display = next ? "none" : "";
+    if (inkBtn) inkBtn.style.display = next ? "none" : "";
+    bgBtn.style.display = next ? "none" : ""; // il foglio e' sempre bianco, come la carta
+    spaceBtns.forEach((b, k) => { const on = k - 1 === i; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
+    ctx.status(next ? tr("v_cad2d.layout_tip") : "");
+    refreshLayers();
+    const v = views.get(next);
+    if (v) { Object.assign(view, v); resize(); draw(); } else fit();
+  }
+  if (sheets.length) {
+    const add = (name, i) => {
+      const b = el("button", { type: "button", class: "cad-space" + (i < 0 ? " on" : ""), role: "tab", title: i < 0 ? tr("v_cad2d.spazio_modello") : tr("v_cad2d.layout_tip"), onclick: () => setSpace(i) }, name);
+      spaceBtns.push(b);
+      spaceBar.append(b);
+    };
+    add(tr("v_cad2d.modello"), -1);
+    sheets.forEach((s, i) => add(s.name || tr("v_cad2d.layout_n", i + 1), i));
+  } else spaceBar.hidden = true;
+
   // ---- passaggio 2D / 3D
   let mode3d = false, api3d = null, built3d = false;
   async function show3d() {
@@ -843,10 +1012,10 @@ export async function mount(ctx) {
   if (scan3d.mostly) setTimeout(show3d, 0);
   else if (scan3d.solids + scan3d.meshes + scan3d.thick > 0) toast(tr("cad3d.contiene_3d"), false, 7000);
 
-  const onKey = e => { if (ctx.tab.view.hidden || mode3d) return; if (meas?.key(e)) { e.preventDefault(); return; } if (editor?.key(e)) e.preventDefault(); };
+  const onKey = e => { if (ctx.tab.view.hidden || mode3d) return; if (ms()?.key(e)) { e.preventDefault(); return; } if (ed()?.key(e)) e.preventDefault(); };
   window.addEventListener("keydown", onKey);
   canvas.addEventListener("wheel", e => { e.preventDefault(); const [px, py] = pos(e); zoomAt(e.deltaY < 0 ? 1.2 : 1 / 1.2, px, py); }, { passive: false });
-  canvas.addEventListener("dblclick", e => { if (meas?.dbl(e, ...pos(e))) return; if (editor?.dblclick(e)) return; if (!measure && !editor?.on) fit(); });
+  canvas.addEventListener("dblclick", e => { if (ms()?.dbl(e, ...pos(e))) return; if (ed()?.dblclick(e)) return; if (!measure && !ed()?.on) fit(); });
   new ResizeObserver(() => { const s = canvas.width; resize(); if (s <= 1) fit(); else draw(); }).observe(canvas);
   requestAnimationFrame(fit);
 
@@ -855,13 +1024,16 @@ export async function mount(ctx) {
     const [x0, y0, x1, y1] = model.bbox, w = x1 - x0, h = y1 - y0;
     const k = maxSide / Math.max(w, h);
     const c = document.createElement("canvas");
-    c.width = Math.ceil(w * k * 1.04);
-    c.height = Math.ceil(h * k * 1.04);
+    const m = sheet ? 1 : 1.04; // il foglio di un layout esce intero e senza margini
+    c.width = Math.ceil(w * k * m);
+    c.height = Math.ceil(h * k * m);
     const tx = c.width / 2 - k * (x0 + x1) / 2, ty = c.height / 2 + k * (y0 + y1) / 2;
-    render(c.getContext("2d"), c.width, c.height, k, tx, ty, false);
+    render(c.getContext("2d"), c.width, c.height, k, tx, ty, false, sheet ? k / paperMm() : 0);
     if (ink?.hasStrokes()) for (const st of ink.strokes) paintInk(c.getContext("2d"), st, (x, y) => [x * k + tx, ty - y * k], k);
     return c;
   }
+  // unita' del foglio: millimetri, o pollici se e' piccolo (i layout americani hanno limiti come 11 x 8,5)
+  function paperMm() { const [x0, y0, x1, y1] = sheet.model.bbox; return Math.max(x1 - x0, y1 - y0) < 60 ? 25.4 : 1; }
   async function exportPng() {
     const c = offscreen();
     const blob = await new Promise(r => c.toBlob(r, "image/png"));
@@ -873,31 +1045,23 @@ export async function mount(ctx) {
   async function pdfBytes() {
     const c = offscreen(5000);
     const jpg = await new Promise(r => c.toBlob(r, "image/jpeg", 0.92));
-    return jpegToPdf(new Uint8Array(await jpg.arrayBuffer()), c.width, c.height);
+    const pw = sheet ? (model.bbox[2] - model.bbox[0]) * paperMm() * 72 / 25.4 : 842; // layout: pagina grande come il foglio
+    return jpegToPdf(new Uint8Array(await jpg.arrayBuffer()), c.width, c.height, pw);
   }
   async function exportSvg() {
+    await saveBlobAs(withExt(ctx.name, "svg"), svgBlob(), ctx.path.replace(/[\\/][^\\/]*$/, ""));
+  }
+  function svgBlob() {
     const [x0, y0, x1, y1] = model.bbox;
     const parts = [`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x0} ${-y1} ${x1 - x0} ${y1 - y0}" style="background:#fff">`];
-    for (const g of model.groups) {
-      const L = model.layers.get(g.layer);
-      if (L?.off) continue;
-      let col = g.color;
-      if (col[0] > 230 && col[1] > 230 && col[2] > 230) col = [0, 0, 0];
-      // tracciati a gruppi di 5000 linee: milioni di linee in un solo attributo "d" supererebbero il limite delle stringhe
-      const pathD = (list, close) => { const out = []; for (let i = 0; i < list.length; i += 5000) out.push(list.slice(i, i + 5000).map(({ pts, closed }) => "M" + pts.map(p => p[0].toFixed(4) + " " + (-p[1]).toFixed(4)).join("L") + (close || closed ? "Z" : "")).join("")); return out; };
-      parts.push(`<g data-layer="${esc(g.layer)}">`);
-      for (const f of pathD(g.fills, true)) parts.push(`<path d="${f}" fill="${rgb(col)}"/>`);
-      for (const d of pathD(g.lines, false)) parts.push(`<path d="${d}" fill="none" stroke="${rgb(col)}" stroke-width="${(x1 - x0) / 2500}"/>`);
-      parts.push("</g>");
-    }
-    for (const t of model.texts) {
-      if (model.layers.get(t.layer)?.off) continue;
-      let col = t.color;
-      if (col[0] > 230 && col[1] > 230 && col[2] > 230) col = [0, 0, 0];
-      const k = t.F / 100, m = mul([1, 0, 0, -1, 0, 0], mul(t.A, [k, 0, 0, -k, 0, 0]));
-      for (const r of t.rows) parts.push(`<text x="${(r.x / k).toFixed(3)}" y="${(-r.y / k).toFixed(3)}" font-size="100" font-family="Arial" fill="${rgb(col)}" transform="matrix(${m.map(v => +v.toFixed(6)).join(" ")})">${esc(r.s)}</text>`);
-    }
-    if (ink?.hasStrokes()) {
+    if (sheet) sheet.vps.forEach((v, n) => { // finestre del layout: disegno del modello ritagliato (y verso il basso, come in tutto l'SVG)
+      if (!v.plan) return;
+      parts.push(`<clipPath id="vp${n}"><rect x="${v.x0}" y="${-v.y1}" width="${v.x1 - v.x0}" height="${v.y1 - v.y0}"/></clipPath><g clip-path="url(#vp${n})"><g transform="matrix(${[v.M[0], -v.M[1], -v.M[2], v.M[3], v.M[4], -v.M[5]].map(x => +x.toFixed(9)).join(" ")})">`);
+      svgModel(parts, main, (x1 - x0) / 2500 / v.k, v.frozen);
+      parts.push("</g></g>");
+    });
+    svgModel(parts, model, (x1 - x0) / 2500);
+    if (!sheet && ink?.hasStrokes()) {
       parts.push(`<g data-layer="${LAYER_PEN}" fill="none" stroke-linecap="round" stroke-linejoin="round">`);
       for (const st of ink.strokes) {
         const P = st.pts, op = st.o < 1 ? ` stroke-opacity="${st.o}"` : "";
@@ -907,7 +1071,28 @@ export async function mount(ctx) {
       parts.push("</g>");
     }
     parts.push("</svg>");
-    await saveBlobAs(withExt(ctx.name, "svg"), new Blob(parts, { type: "image/svg+xml" }), ctx.path.replace(/[\\/][^\\/]*$/, ""));
+    return new Blob(parts, { type: "image/svg+xml" });
+  }
+  function svgModel(parts, model, sw, frozen = null) {
+    for (const g of model.groups) {
+      const L = model.layers.get(g.layer);
+      if (L?.off || frozen?.has(g.layer)) continue;
+      let col = g.color;
+      if (col[0] > 230 && col[1] > 230 && col[2] > 230) col = [0, 0, 0];
+      // tracciati a gruppi di 5000 linee: milioni di linee in un solo attributo "d" supererebbero il limite delle stringhe
+      const pathD = (list, close) => { const out = []; for (let i = 0; i < list.length; i += 5000) out.push(list.slice(i, i + 5000).map(({ pts, closed }) => "M" + pts.map(p => p[0].toFixed(4) + " " + (-p[1]).toFixed(4)).join("L") + (close || closed ? "Z" : "")).join("")); return out; };
+      parts.push(`<g data-layer="${esc(g.layer)}">`);
+      for (const f of pathD(g.fills, true)) parts.push(`<path d="${f}" fill="${rgb(col)}"/>`);
+      for (const d of pathD(g.lines, false)) parts.push(`<path d="${d}" fill="none" stroke="${rgb(col)}" stroke-width="${sw}"/>`);
+      parts.push("</g>");
+    }
+    for (const t of model.texts) {
+      if (model.layers.get(t.layer)?.off || frozen?.has(t.layer)) continue;
+      let col = t.color;
+      if (col[0] > 230 && col[1] > 230 && col[2] > 230) col = [0, 0, 0];
+      const k = t.F / 100, m = mul([1, 0, 0, -1, 0, 0], mul(t.A, [k, 0, 0, -k, 0, 0]));
+      for (const r of t.rows) parts.push(`<text x="${(r.x / k).toFixed(3)}" y="${(-r.y / k).toFixed(3)}" font-size="100" font-family="Arial" fill="${rgb(col)}" transform="matrix(${m.map(v => +v.toFixed(6)).join(" ")})">${esc(r.s)}</text>`);
+    }
   }
 
   ctx.status(tr("v_cad2d.0_elementi_1_testi", model.groups.reduce((n, g) => n + g.lines.length, 0).toLocaleString(LOCALE), model.texts.length));
@@ -919,7 +1104,7 @@ export async function mount(ctx) {
     printSource() {
       const H = db.header || {}, pt = v => (v ? (Array.isArray(v) ? v : [v.x, v.y]) : null);
       const lo = pt(H.LIMMIN || H.$LIMMIN), hi = pt(H.LIMMAX || H.$LIMMAX);
-      return { kind: dxfText ? "dxf" : "dwg", edits: editor ? editor.payload() : null, canvas, toWorld,
+      return { kind: dxfText ? "dxf" : "dwg", edits: editor ? editor.payload() : null, canvas, toWorld, layout: sheet ? sheet.name : null,
         view: [...toWorld(0, canvas.height), ...toWorld(canvas.width, 0)], limits: lo && hi && hi[0] > lo[0] && hi[1] > lo[1] ? [...lo, ...hi] : null };
     },
     saveInPlace: ctx.ext === "dxf",
@@ -928,6 +1113,11 @@ export async function mount(ctx) {
     saveAsName: () => (!editor && !srcText && ink?.hasStrokes() ? ctx.name.replace(/\.[^.]+$/, "") + "-" + tr("ink.nome_revisioni") + ".dxf" : withExt(ctx.name, "dxf")),
     async save(target) {
       const ext = target.split(".").pop().toLowerCase();
+      if (sheet && ["pdf", "png", "svg"].includes(ext)) { // layout aperto: si salva il foglio che si sta guardando
+        const body = ext === "pdf" ? await pdfBytes() : ext === "svg" ? new Uint8Array(await svgBlob().arrayBuffer()) : new Uint8Array(await (await new Promise(r => offscreen().toBlob(r, "image/png"))).arrayBuffer());
+        await api("save", { path: target }, { body });
+        return { switchTo: false };
+      }
       if (!editor && ext === "dxf" && ink?.hasStrokes()) {
         // DXF: revisioni aggiunte al file (layer MARKUP); DWG: DXF a parte con le sole revisioni, nelle stesse coordinate
         const { addMarkupToDxf, markupOnlyDxf } = await import("../inkdxf.js");
@@ -936,7 +1126,7 @@ export async function mount(ctx) {
         if (srcText && target === ctx.path) {
           srcText = text;
           db = parseDxf(text); normalize(db, "dxf");
-          model = build(db); refreshLayers(); ink.reset(); draw();
+          main = model = build(db); sheet = null; sheets = sheetsOf(db); refreshLayers(); ink.reset(); draw();
         }
         ctx.setDirty(false);
         return { switchTo: false };
@@ -970,8 +1160,9 @@ function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").
 function isUtf8(b) { try { new TextDecoder("utf-8", { fatal: true }).decode(b.subarray(0, 300000)); return true; } catch { return false; } }
 
 // PDF minimale con un'immagine JPEG a pagina intera (formato pagina proporzionato al disegno)
-function jpegToPdf(jpg, w, h) {
-  const pw = 842, ph = Math.round(842 * h / w);
+function jpegToPdf(jpg, w, h, pw = 842) {
+  pw = Math.round(pw);
+  const ph = Math.round(pw * h / w);
   const enc = s => new TextEncoder().encode(s);
   const chunks = [], offsets = [];
   let len = 0;

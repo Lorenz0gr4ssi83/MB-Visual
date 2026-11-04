@@ -258,6 +258,27 @@ input[type="checkbox"], input[type="radio"], input[type="range"] { accent-color:
 .side { display: grid; grid-template-columns: 264px 1fr; height: 100%; min-height: 0; }
 .side > * { min-width: 0; min-height: 0; overflow: auto; }
 .side > :first-child { border-right: 1px solid var(--line); background: var(--panel); }
+/* pannelli laterali ridimensionabili e richiudibili (ui/js/sidepanel.js) */
+.sp-box { position: relative; }
+.sp-box > .sp-grip { position: absolute; top: 0; bottom: 0; left: calc(var(--sp-w) - 3px); width: 7px; z-index: 20; overflow: visible; touch-action: none; }
+.sp-box > .sp-grip:hover, .sp-box > .sp-grip.on { background: linear-gradient(90deg, transparent 2px, var(--accent) 2px, var(--accent) 5px, transparent 5px); }
+.sp-box > .sp-toggle { position: absolute; top: 50%; left: var(--sp-w); width: 16px; height: 48px; margin-top: -24px; padding: 0; z-index: 21; overflow: visible; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-left: 0; border-radius: 0 var(--r-sm) var(--r-sm) 0; background: var(--panel); color: var(--muted); box-shadow: var(--sh-1); }
+.sp-box > .sp-toggle:hover { background: var(--hover); color: var(--text); }
+.sp-box > .sp-toggle svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.sp-box.sp-closed > .sp-toggle svg { transform: rotate(180deg); }
+.sp-box.sp-closed > :first-child:not(.sp-grip) { visibility: hidden; border: 0; min-width: 0; }
+.sp-box.sp-right > .sp-grip { left: auto; right: calc(var(--sp-w) - 4px); }
+.sp-box.sp-right > .sp-toggle { left: auto; right: var(--sp-w); border: 1px solid var(--line); border-right: 0; border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.sp-box.sp-right > .sp-toggle svg { transform: rotate(180deg); }
+.sp-box.sp-right.sp-closed > :first-child { visibility: visible; }
+.sp-box.sp-right.sp-closed > :nth-last-child(3) { visibility: hidden; border: 0; }
+.sp-box.sp-right.sp-closed > .sp-toggle svg { transform: none; }
+/* schede Modello / layout dei disegni (ui/js/viewers/cad2d.js) */
+.cad-spaces { display: flex; flex: none; gap: 1px; padding: 0 6px; overflow-x: auto; background: var(--panel-2); border-top: 1px solid var(--line); }
+.cad-space { flex: none; height: 26px; padding: 0 12px; border: 0; border-top: 2px solid transparent; background: none; color: var(--muted); font: inherit; font-size: 12px; white-space: nowrap; }
+.cad-space:hover { background: var(--hover); color: var(--text); }
+.cad-space.on { background: var(--panel); color: var(--text); border-top-color: var(--accent); font-weight: 600; }
 .tree { padding: 6px 0; font-size: 12.5px; }
 .tree .node { display: flex; align-items: center; gap: 7px; min-height: 28px; padding: 3px 10px; white-space: nowrap; user-select: none; }
 .tree .node:hover { background: var(--hover); }
@@ -470,6 +491,8 @@ iframe.fill, canvas.fill, video.fill { width: 100%; height: 100%; border: 0; dis
   .tb .note, .tb .grow { display: none; }
   .tb button { height: 34px; }
   .side, .model-side { grid-template-columns: 1fr !important; grid-template-rows: auto minmax(0, 1fr); }
+  .sp-box > .sp-grip, .sp-box > .sp-toggle { display: none; } /* schermo stretto: pannello sopra il documento */
+  .sp-box.sp-closed > :first-child:not(.sp-grip) { visibility: visible; }
   .side > :first-child, .model-side > :first-child { max-height: 34vh; overflow: auto; } /* elenco corto = poco spazio, lungo = scorre */
   .side > :first-child { border-right: 0; border-bottom: 1px solid var(--line); }
   .split { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
