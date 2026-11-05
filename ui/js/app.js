@@ -104,7 +104,7 @@ export function resolveCategory(name, sniff) {
 
 // ------------------------------------------------------------------ badge per tipo di file
 const BADGE_COLOR = { pdf: "pdf", signed: "sig", word: "doc", "office-lo": "doc", sheet: "xls", pptx: "ppt", publisher: "cad", visio: "doc", project: "xls", cad2d: "cad",
-  cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", inventor: "3d", "inventor-doc": "cad", solidcad: "3d", creo: "3d", vis3d: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", midi: "av", videoproject: "av", bcf: "3d",
+  cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", inventor: "3d", "inventor-doc": "cad", solidcad: "3d", creo: "3d", vis3d: "3d", piping: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", midi: "av", videoproject: "av", bcf: "3d",
   archive: "zip", email: "mail", text: "code", markdown: "code", html: "code", ebook: "code", font: "code", database: "db", gis: "img",
   dicom: "img", calendar: "mail", contacts: "mail", cert: "sig", iwork: "doc", hpgl: "cad", scidata: "db", revit: "3d" };
 export function badgeFor(name, isDir = false) {
@@ -897,7 +897,7 @@ function openAsMenu(anchor) {
 
 // visualizzatori che sanno davvero leggere il file aperto (per tipo e contenuto), nell'ordine in cui conviene proporli
 const TEXT_LIKE = new Set(["ifc", "step", "stp", "iges", "igs", "dxf", "obj", "gltf", "dae", "x3d", "wrl", "vrml", "ply", "stl", "svg", "csv", "tsv", "eml", "html", "htm",
-  "xml", "json", "md", "markdown", "txt", "log", "ini", "cfg", "yaml", "yml", "rtf", "fodt", "fods", "fodp", "kml", "gpx", "geojson", "sql"]);
+  "xml", "json", "md", "markdown", "txt", "log", "ini", "cfg", "cii", "yaml", "yml", "rtf", "fodt", "fods", "fodp", "kml", "gpx", "geojson", "sql"]);
 const ZIP_BASED = new Set(["docx", "docm", "dotx", "xlsx", "xlsm", "xltx", "pptx", "pptm", "potx", "ppsx", "odt", "ott", "ods", "odp", "otp", "epub", "3mf", "kmz", "jar", "apk", "vsdx", "vsdm", "vstx", "vstm", "xps", "oxps", "idml", "sketch", "ifczip"]);
 function compatibleViewers(t) {
   const ext = extFor(t.info?.nome || t.name);

@@ -384,6 +384,7 @@ export async function loadAny(c, ld, info) {
   else if (NAVIS[c.ext]) { const { loadNavis } = await import("../navis.js"); loaded = await loadNavis(c, ld); if (c.navisInfo) info.status = c.navisInfo; }
   else if (NEUTRAL[c.ext]) { const { loadNeutral } = await import("../neutral3d.js"); loaded = await loadNeutral(c, bytes, ld, info); }
   else if (c.ext === "skp") { const { loadSkp } = await import("../sketchup.js"); loaded = await loadSkp(c, bytes, ld); if (c.skpInfo) info.status = c.skpInfo; } // SketchUp senza SketchUp (OpenSKP)
+  else if (c.ext === "cii") { const { loadCii } = await import("../cii.js"); loaded = loadCii(c, bytes, ld); if (c.ciiInfo) info.status = c.ciiInfo; } // tubazioni: millimetri, Y in alto
   else if (INVENTOR[c.ext]) { const { loadInventor } = await import("../inventor3d.js"); loaded = await loadInventor(c, ld, info); }
   else if (LOADERS[c.ext]) loaded = await loadMesh(c, bytes, ld);
   else throw new Error(tr("v_model3d.formato_0_non_modello_3d", c.ext));
@@ -394,6 +395,13 @@ export async function loadAny(c, ld, info) {
 }
 
 export async function mount(ctx) {
+  if (ctx.ext === "cii" && !ctx.preloaded) { // .cii senza tratti leggibili (altra struttura): resta aperto come testo
+    const { ciiHasGeometry } = await import("../cii.js");
+    if (!ciiHasGeometry(new TextDecoder().decode(await readBytes(ctx.path)))) {
+      ctx.tab.viewer = "text";
+      return (await import("./text.js")).mount(ctx);
+    }
+  }
   const ld = loading(ctx.el, tr("v_model3d.lettura_modello"));
   const info = {};
   const first = await loadAny(ctx, ld, info);
@@ -727,7 +735,7 @@ export async function mount(ctx) {
         const d = mpts[0].distanceTo(mpts[1]);
         // scena con Y verso l'alto: dislivello e distanza in pianta (utili sui rilievi)
         const dv = Math.abs(mpts[1].y - mpts[0].y), dh = Math.hypot(mpts[1].x - mpts[0].x, mpts[1].z - mpts[0].z);
-        const u = OCCT[ctx.ext] ? " mm" : info.clouds ? " m" : "";
+        const u = OCCT[ctx.ext] || ctx.ext === "cii" ? " mm" : info.clouds ? " m" : "";
         ctx.status(tr("v_model3d.distanza_stato", fmt(d), OCCT[ctx.ext] ? ": mm" : "", fmt(dh), fmt(dv)));
         distLabel.textContent = tr("v_model3d.distanza_etichetta", fmt(d) + u, fmt(dh) + u, fmt(dv) + u);
         distLabel.hidden = false;
@@ -988,6 +996,18 @@ export async function mount(ctx) {
   const measGet = () => (measP ??= import("../measure/m3d.js").then(async m => (meas = await m.attach3d(bcfHost))));
   const measBtn = measureBtn(async () => { const m = await measGet(); m.toggle(); measBtn.classList.toggle("on", m.open); });
   navBtns.qto.after(measBtn);
+  // ---- SAMB: calcolo delle tubazioni .cii (ui/js/samb/sambpanel.js)
+  // Nascosto finche' i risultati non sono confrontati con CAESAR II (per le prove: localStorage mbv-samb = 1)
+  let sambOn = false;
+  try { sambOn = localStorage.getItem("mbv-samb") === "1"; } catch {}
+  if (ctx.ext === "cii" && sambOn) {
+    let samb = null;
+    const sambBtn = button("SAMB", '<svg viewBox="0 0 24 24"><path d="M3 8h9a4 4 0 014 4v9M3 13h7a1 1 0 011 1v7M18 3l3 3-3 3M21 6h-6"/></svg>', async () => {
+      samb ??= (await import("../samb/sambpanel.js")).attachSamb(bcfHost, v => sambBtn.classList.toggle("on", v));
+      if (samb.visible) samb.close(); else { navUi?.close(); await samb.open(); }
+    }, { title: tr("samb.apri") });
+    measBtn.after(sambBtn);
+  }
   if (!WEB && ctx.path) api("stat", { path: mbmisOf(ctx.path) }, { allowFail: true }).then(r => { if (r?.ok) measGet(); }).catch(() => {});
   // viste e test gia' salvati accanto al modello: si segnala sui pulsanti
   if (!WEB && ctx.path) api("stat", { path: ctx.path.replace(/\.[^.\\/]+$/, "") + ".mbvnav" }, { allowFail: true }).then(r => {
