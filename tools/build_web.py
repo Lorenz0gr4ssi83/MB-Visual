@@ -115,6 +115,10 @@ def web_libs(vendor: Path) -> None:
                         out.write_bytes(t.extractfile(m).read())
 
 
+# estensioni che vogliono sempre il motore Python, anche dentro categorie aperte a tutto ("*")
+WEB_NEVER = {"ifcxml"}
+
+
 def web_registry() -> dict:
     reg = json.loads((UI / "formats.json").read_text(encoding="utf-8"))
     cats = []
@@ -123,7 +127,7 @@ def web_registry() -> dict:
         if not allowed:
             continue
         c = dict(c)
-        c["exts"] = list(c["exts"]) if allowed == "*" else [e for e in c["exts"] if e in allowed]
+        c["exts"] = [e for e in c["exts"] if e not in WEB_NEVER] if allowed == "*" else [e for e in c["exts"] if e in allowed]
         if c["id"] in WEB_NOTES:
             c["edit"] = WEB_NOTES[c["id"]]
         c.pop("requires", None)
