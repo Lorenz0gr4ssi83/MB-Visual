@@ -27,7 +27,7 @@ E = D["elements"]
 check([e["t"] for e in E] == [17, 15, 6, 3], "tipi degli elementi come GDAL")
 check(E[0]["txt"] == "Demo Text" and abs(E[0]["p"][0][0] - 0.7365) < 1e-9 and abs(E[0]["p"][0][1] - 4.2198) < 1e-9, "testo e posizione")
 check(abs(E[1]["c0"][0] + E[1]["a1"] - 9.68780658389143) < 1e-9 and abs(E[1]["c0"][1] - 4.5835) < 1e-9, "cerchio: centro e raggio")
-check(E[2]["c"] == 83 and [tuple(round(c, 4) for c in p[:2]) for p in E[2]["p"]] == [(4.5355, 3.317), (4.3832, 2.6517), (4.9441, 2.5235), (4.832, 3.3331)], "forma")
+check(E[2]["c"] == 83 and [tuple(round(c, 4) for c in p[:2]) for p in E[2]["p"]] == [(4.5355, 3.317), (4.3832, 2.6517), (4.9441, 2.5235), (4.832, 3.3331), (4.5355, 3.317)], "forma")
 check([tuple(round(c, 4) for c in p[:2]) for p in E[3]["p"]] == [(2.5562, 5.7218), (2.5242, 6.0709)], "linea")
 r = dgn.to_dxf(os.path.join(d, "smalltest.dgn"))
 import ezdxf  # noqa: E402
