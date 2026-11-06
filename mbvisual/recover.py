@@ -106,6 +106,7 @@ SIGS = [
     (0, b"SQLite format 3\x00", "sqlite", "db", "SQLite"),
     (4, b"Standard Jet DB", "mdb", "db", "Microsoft Access (Jet)"),
     (4, b"Standard ACE DB", "accdb", "db", "Microsoft Access (ACE)"),
+    (0, b"!BDN", "pst", "doc", "Outlook PST/OST"),
     (4, b"Standard Jet DB", "mdb", "db", "Access MDB"),
     (4, b"Standard ACE DB", "accdb", "db", "Access ACCDB"),
     (0, b"PAR1", "parquet", "db", "Parquet"),

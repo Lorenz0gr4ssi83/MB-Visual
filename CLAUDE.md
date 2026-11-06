@@ -1750,6 +1750,20 @@ Access, PST, DjVu, mobi, xcf, kra, zst, lz4, vhdx, sav/dta...). Elenco consegnat
   coincide con un estremo: tratto dritto); OLET = attacco + derivazione; sezione MATERIALS esclusa; BOM tolto. Provati 6 PCF pubblici
   (Cszabi/IsoSurvey, FinSeifert/pcf-viewer.github.io, erickcortez1/engineering-toolkit, kaushikray0601/eht_office, reallakshman19/...,
   baiheinet/...): tutti i componenti con punti disegnati. `.pcf` e' anche un carattere X11 binario: allora l'errore "non e' un PCF".
+- Archivi .zst/.zstd/.tzst e .lz4/.tlz4 (categoria archive): archive.py `SINGLE` (flusso unico con zstandard/lz4; .tzst/.tlz4 = tar dentro),
+  firme in recover SIGS e misc.sniff.
+- Dati statistici SPSS/Stata/SAS (.sav .zsav .por .dta .sas7bdat .xpt, categoria scidata): fx_sci.py `_stat_table` con pyreadstat (MIT) ->
+  pyarrow, etichette dei valori. Un binario con estensione di testo che nessun motore legge = "File non supportato" (non caratteri a caso).
+- Grafica: Krita .kra / XMind = immagine unita o anteprima salvata nello zip (misc `_zip_picture`, ZIP_PICTURES), .emz/.wmz = EMF/WMF in gzip,
+  Illustrator .ai compatibili PDF nel visualizzatore PDF (gli .ai vecchi solo PostScript: no).
+- Access .mdb/.accdb/.mde/.accde: `mbvisual/mdb.py` (access_parser, Apache-2.0) -> copia SQLite in TEMP/access aperta col visualizzatore
+  SQLite (l'originale non si tocca; tabelle illeggibili in `_mbdesk_tabelle_non_lette`). Firma "Standard Jet/ACE DB" a 4 PRIMA dei font.
+- Outlook .pst/.ost (categoria email): `mbvisual/pst.py` (libpff-python = pypff, LGPL-3.0). Aprire SEMPRE con open_file_object: con un
+  percorso a barre in avanti libpff lo raddoppia. Indice di tutti i messaggi all'apertura (nessun limite), messaggio completo con
+  `api/email?path&i=n` (corpo HTML / testo / RTF via RTFDE, destinatari dalle intestazioni o da PR_DISPLAY_TO/CC, allegati in TEMP).
+  email.js: elenco virtuale, cartella e ricerca. Firma "!BDN". Collaudo `python tests/test_pst.py <file|cartella>` (campioni pubblici
+  java-libpst src/test/resources e pst-extractor testdata: 78 messaggi su 78). Non estratti: messaggi allegati ad altri messaggi,
+  PST con password. Contatti e appuntamenti mostrano solo oggetto e testo.
 
 ## Lavori CAESAR II .C2 (06/11/2026) - FATTO (un solo file vero provato)
 Segnalazione dell'utente: un .C2 non si apriva (.c2 era solo audio Codec2). Ora `.c2` sta anche nella categoria `piping`; decide il contenuto

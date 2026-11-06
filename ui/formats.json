@@ -2735,7 +2735,9 @@
     "msg",
     "emlx",
     "mbox",
-    "mbx"
+    "mbx",
+    "pst",
+    "ost"
    ]
   },
   {

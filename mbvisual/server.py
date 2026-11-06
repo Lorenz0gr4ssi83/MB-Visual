@@ -963,7 +963,11 @@ class Handler(BaseHTTPRequestHandler):
 
     # ------------------------------------------------------------ email / sqlite
     def api_email(self, qs):
-        self._json(misc.read_email(self._path(qs)))
+        i = qs.get("i", [None])[0]
+        try:
+            self._json(misc.read_email(self._path(qs), i))
+        except ValueError as e:
+            self._json({"ok": False, "errore": str(e)})
 
     def api_mdb_sqlite(self, qs):  # Access .mdb/.accdb -> copia SQLite (mbvisual/mdb.py)
         from . import mdb
