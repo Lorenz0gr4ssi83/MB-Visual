@@ -40,7 +40,7 @@ const OO_EXTS = new Set(["docx", "docm", "dotx", "dotm", "doc", "dot", "rtf", "o
 const TEXT_VIEWERS = new Set(["text", "markdown", "html", "svg"]);
 const SNIFF_FAMILY = {
   pdf: ["pdf"], signed: ["signed"], media: ["media", "audio"], archive: ["archive"], image: ["image", "image-raw"],
-  zip: ["word", "sheet", "pptx", "publisher", "visio", "office-lo", "archive", "mesh3d", "ebook"], sqlite: ["database"],
+  zip: ["word", "sheet", "pptx", "publisher", "visio", "office-lo", "archive", "mesh3d", "ebook"], sqlite: ["database"], ebook: ["ebook"],
   ole: ["publisher", "visio", "project", "office-lo", "sheet", "email", "archive", "image", "solidcad"], project: ["project"], cad2d: ["cad2d"], ifc: ["mesh3d"], cad3d: ["cad3d"],
   mesh3d: ["mesh3d"], pointcloud: ["pointcloud"], font: ["font"], svg: ["svg"], html: ["html"], email: ["email"], vis3d: ["vis3d"],
   dicom: ["dicom"], iwork: ["iwork"], scidata: ["scidata"], cert: ["cert"], creo: ["creo"], midi: ["midi"], piping: ["piping"],

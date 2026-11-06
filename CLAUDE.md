@@ -1775,6 +1775,11 @@ Access, PST, DjVu, mobi, xcf, kra, zst, lz4, vhdx, sav/dta...). Elenco consegnat
   originale, niente salvataggio sul posto). Linee, polilinee, forme, curve, testi, ellissi, archi, catene/forme complesse, celle; 2D e 3D;
   livelli -> "Livello N"; colori della tabella del file. Collaudo `python tests/test_dgn.py <cartella>` (smalltest.dgn di GDAL + DGN
   scritti da GDAL/pyogrio in un venv a parte, con <nome>.ref.json: 510 punti uguali). DGN V8 (OLE di Bentley): "File non supportato".
+- Kindle .mobi/.azw/.azw3/.kf8 senza DRM e Calibre .htmlz/.txtz (categoria ebook): `mbvisual/kindle.py` (wiki MobileRead: PalmDOC, extra
+  flags, MOBI 6 diviso ai pagebreak, KF8 = FDST + indici INDX/TAGX di scheletri e frammenti) -> EPUB in TEMP/ebook aperto da epub.js
+  (indice dai titoli delle parti, copertina EXTH 201, CSS e immagini kindle:flow/kindle:embed). DRM e HUFF/CDIC: messaggio. Collaudo
+  `python tests/test_kindle.py <cartella>` (Project Gutenberg .kindle.images / .kf8.images: MOBI e AZW3 dello stesso libro = stesse parole).
+  Web app: "ebook" e "database" ora con elenco esplicito in build_web.py (Kindle e Access vogliono il motore Python).
 
 ## Lavori CAESAR II .C2 (06/11/2026) - FATTO (un solo file vero provato)
 Segnalazione dell'utente: un .C2 non si apriva (.c2 era solo audio Codec2). Ora `.c2` sta anche nella categoria `piping`; decide il contenuto

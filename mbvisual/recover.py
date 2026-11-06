@@ -115,6 +115,7 @@ SIGS = [
     (0, b"CDF\x01", "nc", "db", "NetCDF"),
     (0, b"CDF\x02", "nc", "db", "NetCDF"),
     (0, b"AC10", "dwg", "cad", "AutoCAD DWG"),
+    (60, b"BOOKMOBI", "mobi", "doc", "Kindle MOBI / AZW3"),
     (0, b"\x08\x09\xfe\x02", "dgn", "cad", "MicroStation DGN V7 (2D)"),
     (0, b"\xc8\x09\xfe\x02", "dgn", "cad", "MicroStation DGN V7 (3D)"),
     (0, b"AC1.40", "dwg", "cad", "AutoCAD DWG"),

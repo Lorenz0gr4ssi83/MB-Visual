@@ -973,6 +973,10 @@ class Handler(BaseHTTPRequestHandler):
         from . import mdb
         self._json({"ok": True, "job": jobs.start(mdb.to_sqlite, self._path(qs))})
 
+    def api_kindle_epub(self, qs):  # Kindle MOBI/AZW3, Calibre htmlz/txtz -> EPUB (mbvisual/kindle.py)
+        from . import kindle
+        self._json({"ok": True, "job": jobs.start(kindle.to_epub, self._path(qs))})
+
     def api_dgn_dxf(self, qs):  # MicroStation DGN V7 -> copia DXF (mbvisual/dgn.py)
         from . import dgn
         self._json({"ok": True, "job": jobs.start(dgn.to_dxf, self._path(qs))})

@@ -72,7 +72,8 @@ WEB_EXTS = {
     "archive": ["zip", "zipx", "7z", "rar", "tar", "ova", "gz", "gzip", "tgz", "tpz", "bz2", "bzip2", "tbz", "tbz2", "xz", "txz", "lzma", "z", "taz",
                 "cab", "lzh", "lha", "cpio", "rpm", "deb", "ar", "a", "iso", "xar", "pkg", "xip", "jar", "war", "ear", "apk", "aab", "xapk", "ipa",
                 "appx", "msix", "appxbundle", "nupkg", "vsix", "xpi", "whl", "egg", "cbz", "cbr", "cb7"],
-    "email": ["eml", "mbox", "mbx"], "ebook": "*", "font": ["ttf", "otf", "woff", "woff2"], "database": "*", "gis": "*",
+    "email": ["eml", "mbox", "mbx"], "ebook": ["epub"], "font": ["ttf", "otf", "woff", "woff2"], "gis": "*",
+    "database": ["sqlite", "sqlite3", "db", "db3", "s3db", "sl3", "gpkg", "mbtiles", "sdb"],  # Access e Kindle: motore Python
     # visualizzatori che funzionano anche senza il motore Python (22/10/2026)
     "dwf": "*", "calendar": "*", "contacts": "*", "hpgl": "*", "vis3d": "*", "piping": "*",
     "visio": ["vsdx", "vsdm", "vstx", "vstm"],          # i .vsd binari richiedono il motore

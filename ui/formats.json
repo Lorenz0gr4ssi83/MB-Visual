@@ -2754,7 +2754,13 @@
    "view": "Lettura a pagine con indice",
    "edit": "Nessuna modifica (sola lettura)",
    "exts": [
-    "epub"
+    "epub",
+    "mobi",
+    "azw",
+    "azw3",
+    "kf8",
+    "htmlz",
+    "txtz"
    ]
   },
   {
