@@ -2475,6 +2475,7 @@
    "edit": "Colori, visibilita', trasformazioni, esportazione in STL / OBJ / GLB",
    "exts": [
     "ifc",
+    "ifcxml",
     "stl",
     "obj",
     "ply",

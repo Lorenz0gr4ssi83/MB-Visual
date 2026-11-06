@@ -1742,8 +1742,10 @@ Access, PST, DjVu, mobi, xcf, kra, zst, lz4, vhdx, sav/dta...). Elenco consegnat
 ## Punto 4: formati nuovi con lettori propri (06/11/2026) - IN CORSO
 - `.ifczip` (categoria mesh3d): model3d.js `unzipIfc` = il motore estrae l'.ifc piu' grande in TEMP (cosi' IFC -> STEP e il resto lavorano
   su un .ifc vero; ctx.zipPath = originale), nella web app JSZip (`ctx.innerBytes`). Provato su un .ifczip di tests/samples/interferenze.
-- `.ifcxml`: NON ancora. IfcOpenShell 0.9 non legge ne' scrive ifcXML ("not currently supported"): serve un convertitore proprio
-  (schema da ifcopenshell_wrapper, attributi per nome). Campioni pubblici: GeometryGym/GeometryGymIFCExamples, jmirtsch/GitIFCPrototype.
+- `.ifcxml` (categoria mesh3d): `mbvisual/ifcxml.py` traduce l'albero XML in entita' con lo schema di IfcOpenShell (attributi diretti,
+  inversi annidati come HasAssignments/Declares, href/ref, liste e valori tipizzati; IFC4 e forma ISO 10303-28 di IFC2x3 con `uos`)
+  -> IFC in TEMP/ifcxml aperto da model3d.js come un IFC. Provati GeometryGym ParametricFooting/surfaceMember (stesse entita' dell'IFC
+  gemello, salvo quelle che l'esportatore non ha scritto nell'XML) e jmirtsch/GitIFCPrototype "revit beams" (2 travi con geometria).
 - PCF di ISOGEN (categoria piping): `ui/js/pcfparse.js` (puro, `node tests/test_pcf.mjs [file]`) + `ui/js/pcf.js` (scena, Z in alto ruotata
   da model3d come i CAD). Componenti per parola chiave, punti END/CENTRE/BRANCH1/CO-ORDS, attributi nelle proprieta'; diametro esterno dalla
   misura nominale (tabella ASME B36.10; DN350+ = DN/25 pollici); curva = arco con CENTRE-POINT come vertice delle tangenti (se manca o

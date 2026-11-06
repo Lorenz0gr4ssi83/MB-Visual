@@ -423,6 +423,10 @@ async function unzipIfc(ctx) {
 
 export async function mount(ctx) {
   if (ctx.ext === "ifczip" && !ctx.preloaded) await unzipIfc(ctx);
+  if (ctx.ext === "ifcxml" && !ctx.preloaded) { // ifcXML: il motore lo traduce in un IFC (mbvisual/ifcxml.py), poi come qualsiasi IFC
+    const r = await waitJob((await api("ifcxml_ifc", { path: ctx.path })).job);
+    Object.assign(ctx, { zipPath: ctx.path, path: r.path, ext: "ifc" });
+  }
   if (ctx.ext === "cii" && !ctx.preloaded) { // .cii senza tratti leggibili (altra struttura): resta aperto come testo
     const { ciiHasGeometry } = await import("../cii.js");
     if (!ciiHasGeometry(new TextDecoder().decode(await readBytes(ctx.path)))) {

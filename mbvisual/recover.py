@@ -219,7 +219,8 @@ def _text_kind(sample: bytes) -> tuple[str, str] | None:
         return "html", "HTML"
     if low.startswith(b"<?xml") or low.startswith(b"<"):
         for tag, ext, label in ((b"<kml", "kml", "KML"), (b"<gpx", "gpx", "GPX"), (b"<collada", "dae", "COLLADA"), (b"<x3d", "x3d", "X3D"),
-                                (b"<rss", "xml", "RSS"), (b"<visiodocument", "vdx", "Visio XML")):
+                                (b"<rss", "xml", "RSS"), (b"<visiodocument", "vdx", "Visio XML"),
+                                (b":ifcxml", "ifcxml", "ifcXML"), (b"<ifcxml", "ifcxml", "ifcXML"), (b"ifcxml/ifc2x", "ifcxml", "ifcXML")):
             if tag in sample[:4000].lower():
                 return ext, label
         return "xml", "XML"
