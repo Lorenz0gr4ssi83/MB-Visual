@@ -1,9 +1,14 @@
 // Database SQLite: tabelle, struttura, query SQL, modifica celle e righe.
-import { api, button, confirmBox, el, loading, readBytes, toast } from "../core.js";
+import { api, button, confirmBox, el, loading, readBytes, toast, waitJob } from "../core.js";
 import { t as _t } from "../i18n.js";
 
 export async function mount(ctx) {
-  loading(ctx.el, _t("v_sqlite.apertura_database"));
+  const ld = loading(ctx.el, _t("v_sqlite.apertura_database"));
+  if (["mdb", "accdb", "mde", "accde"].includes(ctx.ext)) { // Access senza Access: copia SQLite in cache, l'originale non cambia
+    const r = await waitJob((await api("mdb_sqlite", { path: ctx.path })).job, (p, m) => ld?.set?.(p, m));
+    ctx.path = r.path;
+    ctx.status(_t("v_sqlite.copia_access"));
+  }
   let schema = await api("sqlite_schema", { path: ctx.path });
   ctx.el.innerHTML = "";
   const objs = el("div", { class: "tree" });

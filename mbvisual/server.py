@@ -965,6 +965,10 @@ class Handler(BaseHTTPRequestHandler):
     def api_email(self, qs):
         self._json(misc.read_email(self._path(qs)))
 
+    def api_mdb_sqlite(self, qs):  # Access .mdb/.accdb -> copia SQLite (mbvisual/mdb.py)
+        from . import mdb
+        self._json({"ok": True, "job": jobs.start(mdb.to_sqlite, self._path(qs))})
+
     def api_sqlite_schema(self, qs):
         self._json(misc.sqlite_schema(self._path(qs)))
 

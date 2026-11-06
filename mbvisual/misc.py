@@ -438,6 +438,7 @@ def sniff(path: str) -> dict:
         (b"ISO-10303-21" in h[:200], "cad3d", tr("srv_misc.modello_cad_step")),
         (h.startswith(b"MZ"), "exe", tr("srv_misc.programma_windows_eseguibile")),
         (h.startswith(b"\x7fELF"), "exe", tr("srv_misc.programma_linux_eseguibile")),
+        (h[4:19] in (b"Standard Jet DB", b"Standard ACE DB"), "sqlite", tr("srv_misc.database_access")),  # prima dei font: stessi 4 byte iniziali
         (h[:4] in (b"\x00\x01\x00\x00", b"OTTO", b"true", b"ttcf", b"wOFF", b"wOF2"), "font", tr("srv_misc.carattere_font")),
         (h[:1] == b"\x30" and b"\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x07\x02" in h[:64], "signed", tr("srv_misc.busta_firmata_pkcs_7_cades")),
         (h.startswith(b"From ") and b"\nFrom:" in h[:4000], "email", tr("srv_misc.casella_posta_mbox")),

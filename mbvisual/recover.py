@@ -104,6 +104,8 @@ SIGS = [
     (0, b"conectix", "vhd", "zip", "VHD"),
     (0, b"KDMV", "vmdk", "zip", "VMDK"),
     (0, b"SQLite format 3\x00", "sqlite", "db", "SQLite"),
+    (4, b"Standard Jet DB", "mdb", "db", "Microsoft Access (Jet)"),
+    (4, b"Standard ACE DB", "accdb", "db", "Microsoft Access (ACE)"),
     (4, b"Standard Jet DB", "mdb", "db", "Access MDB"),
     (4, b"Standard ACE DB", "accdb", "db", "Access ACCDB"),
     (0, b"PAR1", "parquet", "db", "Parquet"),

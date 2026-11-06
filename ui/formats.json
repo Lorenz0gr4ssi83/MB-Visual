@@ -2778,7 +2778,11 @@
     "sl3",
     "gpkg",
     "mbtiles",
-    "sdb"
+    "sdb",
+    "mdb",
+    "accdb",
+    "mde",
+    "accde"
    ]
   },
   {

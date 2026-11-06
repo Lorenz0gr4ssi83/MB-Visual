@@ -143,7 +143,7 @@ def main() -> int:
         # formati aggiuntivi (mbvisual/formati.py): DICOM (pydicom + GDCM), HDF5 (h5py), Parquet/Arrow (pyarrow), Revit (olefile)
         "--hidden-import", "mbvisual.formati", "--hidden-import", "mbvisual.fx_dicom", "--hidden-import", "mbvisual.fx_cert",
         "--hidden-import", "mbvisual.fx_sci", "--hidden-import", "mbvisual.fx_iwork", "--hidden-import", "mbvisual.fx_revit",
-        "--collect-submodules", "pydicom", "--collect-all", "gdcm", "--collect-submodules", "h5py", "--collect-submodules", "pyarrow", "--hidden-import", "olefile", "--hidden-import", "zstandard", "--collect-submodules", "lz4", "--collect-submodules", "pyreadstat",
+        "--collect-submodules", "pydicom", "--collect-all", "gdcm", "--collect-submodules", "h5py", "--collect-submodules", "pyarrow", "--hidden-import", "olefile", "--hidden-import", "zstandard", "--collect-submodules", "lz4", "--collect-submodules", "pyreadstat", "--collect-submodules", "access_parser", "--hidden-import", "pypff", "--hidden-import", "mbvisual.mdb",
         "--exclude-module", "tkinter", "--exclude-module", "matplotlib",
         # STEP/IGES grandi con OpenCascade nativo (mbvisual/stepnative.py): OCP si copia a mano dopo (copy_ocp), senza VTK Python
         "--hidden-import", "mbvisual.stepnative", "--hidden-import", "mbvisual.modeler", "--hidden-import", "mbvisual.modkernel", "--exclude-module", "OCP", "--exclude-module", "vtk", "--exclude-module", "vtkmodules",
