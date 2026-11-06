@@ -1783,6 +1783,9 @@ Access, PST, DjVu, mobi, xcf, kra, zst, lz4, vhdx, sav/dta...). Elenco consegnat
   (indice dai titoli delle parti, copertina EXTH 201, CSS e immagini kindle:flow/kindle:embed). DRM e HUFF/CDIC: messaggio. Collaudo
   `python tests/test_kindle.py <cartella>` (Project Gutenberg .kindle.images / .kf8.images: MOBI e AZW3 dello stesso libro = stesse parole).
   Web app: "ebook" e "database" ora con elenco esplicito in build_web.py (Kindle e Access vogliono il motore Python).
+- EPS (.eps .epsf .epsi, categorie image e text: decide il contenuto) senza Ghostscript (AGPL): `mbvisual/eps.py` usa l'immagine che il
+  file contiene: %ImageData di Photoshop (binario, esadecimale, ASCII85; bitmap/grigi/RGB/CMYK), anteprima TIFF/WMF dell'intestazione DOS,
+  anteprima EPSI. EPS solo vettoriali = testo. Collaudo `python tests/test_eps.py <Tests/images di Pillow>` (identici ai riferimenti).
 
 ## Lavori CAESAR II .C2 (06/11/2026) - FATTO (un solo file vero provato)
 Segnalazione dell'utente: un .C2 non si apriva (.c2 era solo audio Codec2). Ora `.c2` sta anche nella categoria `piping`; decide il contenuto

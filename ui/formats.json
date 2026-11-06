@@ -1908,7 +1908,8 @@
     "emp",
     "dgn",
     "sketch",
-    "por"
+    "por",
+    "epsf"
    ]
   },
   {
@@ -2023,7 +2024,10 @@
     "emz",
     "wmz",
     "xcf",
-    "sketch"
+    "sketch",
+    "eps",
+    "epsf",
+    "epsi"
    ]
   },
   {

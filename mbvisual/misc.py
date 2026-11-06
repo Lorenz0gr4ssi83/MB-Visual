@@ -46,6 +46,12 @@ def image_to_png(path: str) -> dict:
             rgb = raw.postprocess(use_camera_wb=True, output_bps=8)
         im = Image.fromarray(rgb)
         info["formato"] = "RAW " + ext.upper()
+    elif ext in ("eps", "epsf", "epsi") or _head4(path) == b"\xc5\xd0\xd3\xc6":
+        from . import eps  # immagine o anteprima contenuta nell'EPS (mbvisual/eps.py)
+        im, how = eps.to_image(path)
+        if im is None:
+            raise ValueError(tr("srv_misc.eps_senza_immagine"))
+        info["formato"] = "EPS - " + tr("srv_misc.eps_" + how)
     elif ext == "xcf" or _head4(path) == b"gimp":
         from . import xcf  # GIMP: livelli ricomposti (mbvisual/xcf.py)
         im, xi = xcf.to_image(path)
@@ -416,6 +422,9 @@ def sniff(path: str) -> dict:
         (h[128:132] == b"DICM", "dicom", tr("srv_misc.immagine_medica_dicom")),
         (h.startswith((b"CDF\x01", b"CDF\x02", b"CDF\x05", b"\x89HDF\r\n\x1a\n")), "scidata", tr("srv_misc.dati_netcdf_hdf5")),
         (b"SPSSPORT" in h[400:600] or b"ASCII SPSS PORT FILE" in h[:200], "scidata", tr("srv_misc.dati_spss_portatile")),  # testo: prima dei controlli sul testo
+        # EPS con un'immagine dentro (Photoshop, anteprime TIFF/WMF/EPSI): visualizzatore di immagini; gli altri EPS restano testo
+        (h[:4] == b"\xc5\xd0\xd3\xc6" or h.startswith(b"%!PS-Adobe") and (b"%ImageData:" in h or b"%%BeginPreview:" in h),
+         "image", tr("srv_misc.eps_immagine")),
         (h.startswith(b"PK\x03\x04") or h.startswith(b"PK\x05\x06"), "zip", tr("srv_misc.archivio_zip_documento_office_opendocument")),
         (h.startswith(b"7z\xbc\xaf\x27\x1c"), "archive", tr("srv_misc.archivio_7_zip")),
         (h.startswith(b"Rar!\x1a\x07"), "archive", tr("srv_misc.archivio_rar")),
