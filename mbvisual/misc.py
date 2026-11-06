@@ -46,6 +46,14 @@ def image_to_png(path: str) -> dict:
             rgb = raw.postprocess(use_camera_wb=True, output_bps=8)
         im = Image.fromarray(rgb)
         info["formato"] = "RAW " + ext.upper()
+    elif _zip_picture(path):
+        name, data = _zip_picture(path)  # Krita, Sketch, XMind...: l'immagine unita o l'anteprima che il programma salva nello zip
+        im = Image.open(io.BytesIO(data))
+        info["formato"] = tr("srv_misc.immagine_contenuta", name)
+    elif ext in ("emz", "wmz") or _is_gzip(path) and ext in ("emf", "wmf"):
+        import gzip
+        im = Image.open(io.BytesIO(gzip.decompress(Path(path).read_bytes())))  # EMF/WMF compressi con gzip
+        info["formato"] = im.format
     elif _is_pfm_color(path):
         im = _pfm_color(path)  # PFM a colori ("PF"): Pillow legge solo quello in scala di grigi ("Pf")
         info["formato"] = "PFM"
@@ -76,6 +84,35 @@ def image_to_png(path: str) -> dict:
             im = im.convert("RGBA")
         im.save(out, "PNG", compress_level=1)
     return {"path": str(out), "info": info}
+
+
+# immagine che i programmi salvano dentro il proprio file zip: la composizione completa prima, poi l'anteprima
+ZIP_PICTURES = ("mergedimage.png", "Thumbnails/thumbnail.png", "previews/preview.png", "preview.png", "QuickLook/Preview.png",
+                "QuickLook/Thumbnail.png", "Thumbnails/thumbnail.jpg")
+
+
+def _zip_picture(path: str):
+    import zipfile
+    try:
+        if not zipfile.is_zipfile(path):
+            return None
+        with zipfile.ZipFile(path) as z:
+            names = {n.lower(): n for n in z.namelist()}
+            for want in ZIP_PICTURES:
+                n = names.get(want.lower())
+                if n:
+                    return n, z.read(n)
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
+def _is_gzip(path: str) -> bool:
+    try:
+        with open(path, "rb") as f:
+            return f.read(2) == b"\x1f\x8b"
+    except OSError:
+        return False
 
 
 def _is_pfm_color(path: str) -> bool:

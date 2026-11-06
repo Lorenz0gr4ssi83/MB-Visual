@@ -8,7 +8,8 @@
    "view": "Pagine, miniature, ricerca testo, zoom, stampa, firme digitali PAdES (informazioni firmatario)",
    "edit": "Testo libero, disegno a mano, evidenziatore, immagini/timbri, compilazione moduli; salvataggio nel PDF",
    "exts": [
-    "pdf"
+    "pdf",
+    "ai"
    ]
   },
   {
@@ -2010,7 +2011,11 @@
     "jpc",
     "pxr",
     "ras",
-    "mic"
+    "mic",
+    "kra",
+    "xmind",
+    "emz",
+    "wmz"
    ]
   },
   {

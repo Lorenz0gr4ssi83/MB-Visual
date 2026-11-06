@@ -7394,6 +7394,7 @@
  "srv_misc.file_troppo_grande_l_editor": "File troppo grande per l'editor di testo ({0} MB): usa la vista esadecimale.",
  "srv_misc.formato_0_non_si_puo": "Il formato .{0} non si puo' scrivere: usa 'Salva con nome' in PNG, JPG, WEBP o TIFF.",
  "srv_misc.grafica_svg": "Grafica SVG",
+ "srv_misc.immagine_contenuta": "Immagine contenuta ({0})",
  "srv_misc.immagine_disco_iso": "Immagine disco ISO",
  "srv_misc.immagine_gif": "Immagine GIF",
  "srv_misc.immagine_heic_avif": "Immagine HEIC/AVIF",

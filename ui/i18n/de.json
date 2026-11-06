@@ -7394,6 +7394,7 @@
  "srv_misc.file_troppo_grande_l_editor": "Datei zu groß für den Texteditor ({0} MB): Verwenden Sie die Hexadezimalansicht.",
  "srv_misc.formato_0_non_si_puo": "Das Format .{0} kann nicht geschrieben werden: Verwenden Sie „Speichern unter“ als PNG, JPG, WEBP oder TIFF.",
  "srv_misc.grafica_svg": "SVG-Grafik",
+ "srv_misc.immagine_contenuta": "Enthaltenes Bild ({0})",
  "srv_misc.immagine_disco_iso": "ISO-Disk-Image",
  "srv_misc.immagine_gif": "GIF-Bild",
  "srv_misc.immagine_heic_avif": "HEIC/AVIF-Bild",
