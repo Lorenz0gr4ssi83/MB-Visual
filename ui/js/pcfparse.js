@@ -16,7 +16,7 @@ export function outsideDiameter(bore, boreUnit) {
   if (!(bore > 0)) return null;
   const inch = /INCH/i.test(boreUnit) ? bore : DN[Math.round(bore)] ?? (bore >= 350 ? bore / 25 : bore / 25.4); // da DN350: DN = 25 x pollici
   const row = OD_IN.find(r => Math.abs(r[0] - inch) < 1e-6);
-  return row ? row[1] : inch * 25.4;
+  return row ? row[1] : Math.round(inch * 254) / 10;
 }
 
 const POINT = { "END-POINT": "ends", "CENTRE-POINT": "centre", "CENTER-POINT": "centre", "BRANCH1-POINT": "branch", "BRANCH2-POINT": "branch2", "CO-ORDS": "at" };
