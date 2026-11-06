@@ -46,6 +46,10 @@ def image_to_png(path: str) -> dict:
             rgb = raw.postprocess(use_camera_wb=True, output_bps=8)
         im = Image.fromarray(rgb)
         info["formato"] = "RAW " + ext.upper()
+    elif ext == "xcf" or _head4(path) == b"gimp":
+        from . import xcf  # GIMP: livelli ricomposti (mbvisual/xcf.py)
+        im, xi = xcf.to_image(path)
+        info["formato"] = tr("srv_misc.gimp_livelli", xi["livelli"]) + (" " + tr("srv_misc.gimp_approssimato") if xi["approssimato"] else "")
     elif _zip_picture(path):
         name, data = _zip_picture(path)  # Krita, Sketch, XMind...: l'immagine unita o l'anteprima che il programma salva nello zip
         im = Image.open(io.BytesIO(data))
@@ -105,6 +109,14 @@ def _zip_picture(path: str):
     except Exception:  # noqa: BLE001
         return None
     return None
+
+
+def _head4(path: str) -> bytes:
+    try:
+        with open(path, "rb") as f:
+            return f.read(4)
+    except OSError:
+        return b""
 
 
 def _is_gzip(path: str) -> bool:

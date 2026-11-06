@@ -237,6 +237,10 @@ def _text_kind(sample: bytes) -> tuple[str, str] | None:
         return "dxf", "DXF"
     if s.startswith(b"solid ") and b"facet" in sample[:2000]:
         return "stl", "STL"
+    if re.match(rb"(ST)?C?N?OFF(\s+\d+\s+\d+|\s*\r?\n\s*(#[^\n]*\n\s*)*\d+\s+\d+)", s):
+        return "off", "OFF (Object File Format)"
+    if re.match(rb"\.HEADER\s*\r?\n\s*(BOARD|PANEL|LIBRARY)_FILE", s):
+        return "emn", "IDF"
     if re.match(rb"(Received|Return-Path|From|MIME-Version|Message-ID|Delivered-To|Subject|Date|X-[\w-]+):", s):
         return "eml", "Email"
     if s.startswith(b"From ") and b"\nFrom:" in sample:

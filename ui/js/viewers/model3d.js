@@ -385,6 +385,7 @@ export async function loadAny(c, ld, info) {
   else if (NEUTRAL[c.ext]) { const { loadNeutral } = await import("../neutral3d.js"); loaded = await loadNeutral(c, bytes, ld, info); }
   else if (c.ext === "skp") { const { loadSkp } = await import("../sketchup.js"); loaded = await loadSkp(c, bytes, ld); if (c.skpInfo) info.status = c.skpInfo; } // SketchUp senza SketchUp (OpenSKP)
   else if (c.ext === "cii") { const { loadCii } = await import("../cii.js"); loaded = loadCii(c, bytes, ld); if (c.ciiInfo) info.status = c.ciiInfo; } // tubazioni: millimetri, Y in alto
+  else if (c.ext === "off") { const { loadOff } = await import("../off.js"); loaded = loadOff(c, bytes); info.status = c.offInfo; } // Object File Format (Geomview, MeshLab)
   else if (c.ext === "pcf") { const { loadPcf } = await import("../pcf.js"); loaded = loadPcf(c, bytes, ld); if (c.pcfInfo) info.status = c.pcfInfo; } // tubazioni ISOGEN: mm, Z in alto
   else if (c.ext === "c2") { // archivio di CAESAR II: si legge il listato dei dati di ingresso (c2parse.js), poi come i .cii
     const [{ loadCii }, { parseC2 }] = await Promise.all([import("../cii.js"), import("../c2parse.js")]);

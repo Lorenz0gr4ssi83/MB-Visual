@@ -1902,7 +1902,10 @@
     "pjs",
     "scc",
     "gpl",
-    "ggr"
+    "ggr",
+    "idf",
+    "emn",
+    "emp"
    ]
   },
   {
@@ -2015,7 +2018,8 @@
     "kra",
     "xmind",
     "emz",
-    "wmz"
+    "wmz",
+    "xcf"
    ]
   },
   {
@@ -2470,6 +2474,7 @@
     "stl",
     "obj",
     "ply",
+    "off",
     "gltf",
     "glb",
     "fbx",

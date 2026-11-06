@@ -1764,6 +1764,12 @@ Access, PST, DjVu, mobi, xcf, kra, zst, lz4, vhdx, sav/dta...). Elenco consegnat
   email.js: elenco virtuale, cartella e ricerca. Firma "!BDN". Collaudo `python tests/test_pst.py <file|cartella>` (campioni pubblici
   java-libpst src/test/resources e pst-extractor testdata: 78 messaggi su 78). Non estratti: messaggi allegati ad altri messaggi,
   PST con password. Contatti e appuntamenti mostrano solo oggetto e testo.
+- OFF (Object File Format, anche COFF/NOFF/STOFF; categoria mesh3d): `ui/js/offparse.js` (puro, `node tests/test_off.mjs [file]`) +
+  `ui/js/off.js` (colori per faccia o vertice, spigoli isolati). 4OFF e OFF BINARY rifiutati con messaggio.
+- GIMP .xcf (categoria image): `mbvisual/xcf.py` scritto da devel-docs/xcf.txt: livelli ricomposti dal basso (visibilita', opacita',
+  posizione, maschera, gruppi nascosti), RLE/zlib, 8-32 bit intero e virgola mobile, grigi/indicizzata, versioni 0-11+; modi di
+  fusione diversi da "normale" approssimati (scritto nella barra di stato). Provati v003 (46 livelli) e v011.
+- .idf/.emn/.emp = testo (IDF delle schede elettroniche, ISOGEN, EnergyPlus); IDF e OFF riconosciuti anche dal contenuto (recover).
 
 ## Lavori CAESAR II .C2 (06/11/2026) - FATTO (un solo file vero provato)
 Segnalazione dell'utente: un .C2 non si apriva (.c2 era solo audio Codec2). Ora `.c2` sta anche nella categoria `piping`; decide il contenuto
