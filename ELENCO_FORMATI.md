@@ -204,12 +204,12 @@ Nell'app lo stesso elenco e' consultabile dal pulsante **Formati**, con la ricer
 
 `.jt` `.u3d`
 
-## Tubazioni (.cii) (1)
+## Tubazioni (.cii, CAESAR II .c2) (2)
 
 - **Visualizza:** Linea in 3D con il diametro vero dei tubi, riduzioni, valvole, curve, nodi numerati, ancoraggi e vincoli disegnati; al clic i dati dell'elemento. Navigazione, sezioni e misure come gli altri modelli 3D
 - **Modifica:** Il testo del file si modifica con Apri come -> Editor di testo; esportazione del modello in STL / OBJ / GLB
 
-`.cii`
+`.c2` `.cii`
 
 ## Autodesk Inventor (parti e assiemi) (2)
 

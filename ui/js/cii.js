@@ -1,6 +1,7 @@
 // Tubazioni .cii nel visualizzatore 3D: un cilindro o tronco di cono per tratto con il diametro vero (millimetri, Y in alto),
 // nodi numerati, vincoli, valvole e curve disegnati; i dati del file si leggono nelle proprieta' dell'elemento selezionato.
-// Lettura del testo in ciiparse.js. Le curve sono un anello sul nodo: il raccordo vero non e' costruito.
+// Lettura del testo in ciiparse.js (e dei .C2 di CAESAR II in c2parse.js, che passa i dati gia' letti). Le curve sono un anello
+// sul nodo: il raccordo vero non e' costruito.
 import * as THREE from "three";
 import { fmtNum, t } from "./i18n.js";
 import { parseCii, supportKind } from "./ciiparse.js";
@@ -36,9 +37,9 @@ function ring(at, dir, radius, tube, mat) {
 
 export function ciiHasGeometry(text) { return parseCii(text).elements.length > 0; }
 
-export function loadCii(ctx, bytes, ld) {
+export function loadCii(ctx, bytes, ld, parsed = null) {
   ld.set(0.4, t("cii.lettura"));
-  const P = parseCii(new TextDecoder().decode(bytes));
+  const P = parsed || parseCii(new TextDecoder().decode(bytes));
   if (!P.elements.length) throw new Error(t("cii.nessun_tratto"));
   const pos = n => { const p = P.nodes.get(n); return p && new THREE.Vector3(p[0] * P.lenK, p[1] * P.lenK, p[2] * P.lenK); };
   const LEN = P.lengthUnit, DIA = P.odK === 1 ? "mm" : "in";
@@ -48,7 +49,7 @@ export function loadCii(ctx, bytes, ld) {
   const gT = group("cii.tratti"), gN = group("cii.nodi"), gV = group("cii.vincoli"), gA = group("cii.valvole"), gB = group("cii.curve");
   const tree = { T: [], N: [], V: [], A: [], B: [] };
   const item = (list, parent, g) => { parent.add(g); list.push({ name: g.name, obj: g, children: [] }); };
-  const mat = std(0x5b8db8), mAnchor = std(0xd85a30), mRestr = std(0xe0a020), mValve = std(0x8a5cc2), mBend = std(0x1d9e75);
+  const mat = std(0x5b8db8), mAnchor = std(0xd85a30), mRestr = std(0xe0a020), mValve = std(0x8a5cc2), mBend = std(0x1d9e75), mRigid = std(0x8a5cc2);
 
   for (const e of P.elements) {
     const a = pos(e.from), b = pos(e.to), L = a.distanceTo(b), r1 = e.od1 * P.odK / 2, r2 = e.od2 * P.odK / 2;
@@ -60,6 +61,7 @@ export function loadCii(ctx, bytes, ld) {
     if (e.temp !== null) ud[t("cii.p_temperatura")] = fmtNum(e.temp) + hot;
     if (e.press !== null) ud[t("cii.p_pressione")] = fmtNum(e.press) + press;
     if (e.extra !== null) ud[t("cii.p_colonna", 8)] = fmtNum(e.extra);
+    if (e.rigid) ud[t("cii.p_rigido")] = e.weight ? `${fmtNum(e.weight)} kg` : "-";
     if (P.materials.length === 1) {
       const m = P.materials[0];
       ud[t("cii.p_materiale")] = m.id; ud[t("cii.p_modulo")] = m.e; ud[t("cii.p_poisson")] = m.nu; ud[t("cii.p_densita")] = m.rho;
@@ -67,7 +69,7 @@ export function loadCii(ctx, bytes, ld) {
     g.userData = ud;
     if (L > 0 && r1 > 0) {
       // CylinderGeometry: raggio in alto e in basso, altezza lungo Y (qui da a verso b)
-      const m = pick(new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, L, 40), mat));
+      const m = pick(new THREE.Mesh(new THREE.CylinderGeometry(e.rigid ? r2 * 1.25 : r2, e.rigid ? r1 * 1.25 : r1, L, 40), e.rigid ? mRigid : mat));
       m.position.copy(a).add(b).multiplyScalar(0.5);
       m.quaternion.setFromUnitVectors(UP, b.clone().sub(a).normalize());
       g.add(m);
@@ -93,7 +95,8 @@ export function loadCii(ctx, bytes, ld) {
     if (!p) { orphanS++; continue; }
     const od = P.odOf(s.node) * P.odK || 1, k = supportKind(s.type), g = new THREE.Group();
     g.name = `${s.type} (${t("cii.nodo", s.node)})`;
-    g.userData = { [t("cii.p_nodo")]: s.node, [t("cii.p_tipo")]: k.kind === "anchor" ? t("cii.ancoraggio") : k.kind === "guide" ? t("cii.guida") : k.kind === "axis" ? t("cii.vincolo_asse", "XYZ"[k.axis]) : s.type };
+    g.userData = { [t("cii.p_nodo")]: s.node, [t("cii.p_tipo")]: k.kind === "anchor" ? t("cii.ancoraggio") : k.kind === "guide" ? t("cii.guida") : k.kind === "axis" ? t("cii.vincolo_asse", s.type.replace(/^[^+-]*/, "") + "XYZ"[k.axis]) : s.type };
+    if (s.mu) g.userData[t("cii.p_attrito")] = fmtNum(s.mu);
     if (k.kind === "anchor") {
       const m = pick(new THREE.Mesh(new THREE.BoxGeometry(od * 1.7, od * 1.7, od * 1.7), mAnchor));
       m.position.copy(p);
@@ -156,6 +159,7 @@ export function loadCii(ctx, bytes, ld) {
     g.name = `${t("cii.curva")} ${b.node}`;
     g.userData = { [t("cii.p_nodo")]: b.node, [t("cii.p_tipo")]: b.type || "-" };
     if (b.angle !== null) g.userData[t("cii.p_angolo")] = `${fmtNum(b.angle)}°`;
+    if (b.radius) g.userData[t("cii.p_raggio")] = `${fmtNum(b.radius)} ${DIA}`;
     g.add(ring(p, new THREE.Vector3(...P.axisAt(b.node)), od * 0.6, od * 0.07, mBend));
     item(tree.B, gB, g);
   }
@@ -164,7 +168,8 @@ export function loadCii(ctx, bytes, ld) {
   const outTree = [...entry(gT, tree.T), ...entry(gN, tree.N), ...entry(gV, tree.V), ...entry(gA, tree.A), ...entry(gB, tree.B)];
 
   // cio' che il file non dice e l'app ha dedotto resta sempre scritto, cosi' come cio' che non torna
-  const note = [t("cii.info", fmtNum(tree.T.length), fmtNum(tree.N.length), fmtNum(tree.V.length)), t(`cii.unita_${P.lengthUnit}`)];
+  const note = [t("cii.info", fmtNum(tree.T.length), fmtNum(tree.N.length), fmtNum(tree.V.length)), P.caesar ? t("cii.c2_note") : t(`cii.unita_${P.lengthUnit}`)];
+  if (P.rigids?.length) note.push(t("cii.rigidi", P.rigids.length));
   if (deducedA) note.push(t("cii.valvole_dedotte", deducedA));
   if (straightB) note.push(t("cii.curve_dritte", straightB));
   if (P.pieces > 1) note.push(t("cii.pezzi", P.pieces));

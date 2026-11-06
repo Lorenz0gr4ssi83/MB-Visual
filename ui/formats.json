@@ -1116,12 +1116,13 @@
   },
   {
    "id": "piping",
-   "name": "Tubazioni (.cii)",
+   "name": "Tubazioni (.cii, CAESAR II .c2)",
    "viewer": "model3d",
    "view": "Linea in 3D con il diametro vero dei tubi, riduzioni, valvole, curve, nodi numerati, ancoraggi e vincoli disegnati; al clic i dati dell'elemento. Navigazione, sezioni e misure come gli altri modelli 3D",
    "edit": "Il testo del file si modifica con Apri come -> Editor di testo; esportazione del modello in STL / OBJ / GLB",
    "exts": [
-    "cii"
+    "cii",
+    "c2"
    ]
   },
   {

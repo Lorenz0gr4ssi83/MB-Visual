@@ -46,30 +46,7 @@ export function parseCii(text) {
     odK = 25.4;
   }
 
-  // posizione dei nodi: si parte dal primo e si sommano gli scostamenti; i pezzi non collegati partono anch'essi dall'origine
-  const adj = new Map();
-  const link = (a, b, d, sign) => { if (!adj.has(a)) adj.set(a, []); adj.get(a).push([b, d, sign]); };
-  for (const e of elements) { link(e.from, e.to, e.d, 1); link(e.to, e.from, e.d, -1); }
-  const nodes = new Map();
-  let pieces = 0, mismatches = 0;
-  for (const start of adj.keys()) {
-    if (nodes.has(start)) continue;
-    pieces++;
-    nodes.set(start, [0, 0, 0]);
-    const stack = [start];
-    while (stack.length) {
-      const a = stack.pop(), pa = nodes.get(a);
-      for (const [b, d, s] of adj.get(a)) {
-        const pb = [pa[0] + s * d[0], pa[1] + s * d[1], pa[2] + s * d[2]];
-        if (!nodes.has(b)) { nodes.set(b, pb); stack.push(b); }
-        else if (Math.hypot(pb[0] - nodes.get(b)[0], pb[1] - nodes.get(b)[1], pb[2] - nodes.get(b)[2]) > 1e-6) mismatches++;
-      }
-    }
-  }
-
-  // direzione della linea in un nodo e diametro che vi arriva
-  const axisAt = n => { const e = elements.find(x => (x.from === n || x.to === n) && x.len > 0); return e ? unitVec(e.d) : [1, 0, 0]; };
-  const odOf = n => Math.max(0, ...elements.flatMap(e => [e.from === n ? e.od1 : 0, e.to === n ? e.od2 : 0]));
+  const { nodes, pieces, mismatches, axisAt, odOf } = placeNodes(elements);
 
   // curve: se la linea nel nodo non cambia direzione il file e' incoerente e lo si segnala
   const bends = (sec.BEND || []).filter(r => r.length >= 1).map(r => {
@@ -93,7 +70,40 @@ export function parseCii(text) {
   });
 
   const ignored = Object.keys(sec).filter(s => !KNOWN.has(s));
-  return { version, unit, elements, materials, supports, bends, valves, nodes, axisAt, odOf, lengthUnit, lenK, odK, pieces, mismatches: mismatches >> 1, orphanReducers, ignored };
+  return { version, unit, elements, materials, supports, bends, valves, nodes, axisAt, odOf, lengthUnit, lenK, odK, pieces, mismatches, orphanReducers, ignored };
+}
+
+// posizione dei nodi: si parte dal primo e si sommano gli scostamenti; i pezzi non collegati partono anch'essi dall'origine.
+// start = { nodo: [x, y, z] } posiziona il pezzo che contiene quel nodo (coordinate globali del file). Usata anche da c2parse.js
+export function placeNodes(elements, start = {}) {
+
+  const adj = new Map();
+  const link = (a, b, d, sign) => { if (!adj.has(a)) adj.set(a, []); adj.get(a).push([b, d, sign]); };
+  for (const e of elements) { link(e.from, e.to, e.d, 1); link(e.to, e.from, e.d, -1); }
+  const nodes = new Map(), pieceOf = new Map();
+  let pieces = 0, mismatches = 0;
+  for (const first of adj.keys()) {
+    if (nodes.has(first)) continue;
+    pieces++;
+    nodes.set(first, [0, 0, 0]);
+    const stack = [first], piece = [first];
+    for (const n of piece) pieceOf.set(n, pieces);
+    while (stack.length) {
+      const a = stack.pop(), pa = nodes.get(a);
+      for (const [b, d, s] of adj.get(a)) {
+        const pb = [pa[0] + s * d[0], pa[1] + s * d[1], pa[2] + s * d[2]];
+        if (!nodes.has(b)) { nodes.set(b, pb); stack.push(b); piece.push(b); pieceOf.set(b, pieces); }
+        else if (Math.hypot(pb[0] - nodes.get(b)[0], pb[1] - nodes.get(b)[1], pb[2] - nodes.get(b)[2]) > 1e-6) mismatches++;
+      }
+    }
+    const ref = piece.find(n => start[n]);
+    if (ref) { const o = nodes.get(ref).map((v, i) => start[ref][i] - v); for (const n of piece) nodes.set(n, nodes.get(n).map((v, i) => v + o[i])); }
+  }
+
+  // direzione della linea in un nodo e diametro che vi arriva
+  const axisAt = n => { const e = elements.find(x => (x.from === n || x.to === n) && x.len > 0); return e ? unitVec(e.d) : [1, 0, 0]; };
+  const odOf = n => Math.max(0, ...elements.flatMap(e => [e.from === n ? e.od1 : 0, e.to === n ? e.od2 : 0]));
+  return { nodes, pieces, mismatches: mismatches >> 1, axisAt, odOf, pieceOf };
 }
 
 // come va disegnato un vincolo: ancoraggio, guida, asse di appoggio (x, y, z) o altro

@@ -43,7 +43,7 @@ const SNIFF_FAMILY = {
   zip: ["word", "sheet", "pptx", "publisher", "visio", "office-lo", "archive", "mesh3d", "ebook"], sqlite: ["database"],
   ole: ["publisher", "visio", "project", "office-lo", "sheet", "email", "archive", "image", "solidcad"], project: ["project"], cad2d: ["cad2d"], ifc: ["mesh3d"], cad3d: ["cad3d"],
   mesh3d: ["mesh3d"], pointcloud: ["pointcloud"], font: ["font"], svg: ["svg"], html: ["html"], email: ["email"], vis3d: ["vis3d"],
-  dicom: ["dicom"], iwork: ["iwork"], scidata: ["scidata"], cert: ["cert"], creo: ["creo"], midi: ["midi"],
+  dicom: ["dicom"], iwork: ["iwork"], scidata: ["scidata"], cert: ["cert"], creo: ["creo"], midi: ["midi"], piping: ["piping"],
 };
 const NAME_AS_EXT = { makefile: "makefile", dockerfile: "dockerfile", containerfile: "containerfile", license: "txt", readme: "txt",
   ".gitignore": "gitignore", ".gitattributes": "gitattributes", ".editorconfig": "editorconfig", ".env": "env", ".htaccess": "htaccess", dicomdir: "dcm" };

@@ -1714,6 +1714,19 @@ Collaudo: `node tests/test_cad_layout.mjs` (matrici confrontate con ezdxf); nell
 Categoria `piping` (viewer model3d, applicazione "modelli", anche web app). `ui/js/ciiparse.js` (puro, `node tests/test_cii.mjs`) legge il testo a sezioni `#$ VERS, UNIT, MATER, GEOM, BEND, VALV, REDU, SUPP, END`; `ui/js/cii.js` costruisce la scena (mm, Y in alto, un gruppo per elemento con i dati in userData, `pickParent` sulle mesh). I file dati dall'utente sono FATTI A MANO e NON hanno la struttura del neutro vero di CAESAR II (`#$ VERSION`, `#$ ELEMENTS`...): un .cii senza tratti leggibili si apre come testo (model3d.js `mount`). Nessun .cii esportato da CAESAR II provato.
 Scelte dedotte, sempre scritte nella barra di stato o nelle proprieta' (l'utente non conosce il significato delle colonne: NON chiederglielo): US = piedi se il tratto medio sarebbe piu' corto di 3 diametri, altrimenti pollici; SI = mm; GEOM colonne 9 e 10 = temperatura e pressione, colonna 8 mostrata senza nome; VALV colonna 3 = lunghezza; valvola su un nodo assente da GEOM = sul tratto col numero compreso, in proporzione (25 tra 20 e 30). Limiti: BEND e' un anello sul nodo (raccordo non costruito), nessun calcolo.
 
+## Lavori CAESAR II .C2 (06/11/2026) - FATTO (un solo file vero provato)
+Segnalazione dell'utente: un .C2 non si apriva (.c2 era solo audio Codec2). Ora `.c2` sta anche nella categoria `piping`; decide il contenuto
+(misc.sniff / webapi.js sniff: 82 80 02 00 in testa e zlib a 32 -> kind "piping"). Il .C2 e' un ARCHIVIO del lavoro (struttura vista nel file,
+nessuna documentazione: voci con 32 byte di intestazione [u32, u32 lunghezza compressa, 3 FILETIME] + zlib; nei dati u32 = 264 = intestazione
+con il nome del file): _A (ingresso binario, NON letto), .c2db/.p2db (SQLite senza geometria), _P (risultati binari), .NTXT = listato di
+verifica dell'ingresso IN CHIARO, l'unica parte letta (`ui/js/c2parse.js`, puro, `node tests/test_c2.mjs [file.C2]`). Righe con etichetta
+di 4 lettere e campi a colonne fisse (primo largo 15, poi 10); campi vuoti = valore dell'elemento precedente (diametro, spessore, T, P).
+ELMT = da, a, DX, DY, DZ, diametro, spessore (unita' del lavoro); EL03 = T1, T2, T3, P1 (riscontrati con la tabella Elements del .p2db);
+RED = diametro e spessore finali; RIGD = peso dell'elemento rigido; BEND = raggio, BN01 = (nodo, angolo) a coppie, "MidPt" = meta';
+REST/RE02/RE04 = nodo, tipo (indice nell'elenco di CAESAR II con 0 = ANC, 17 = +Y: dedotto e coerente con la geometria), attrito al 5o campo;
+CO01 = coordinate globali. Nodi sulle curve calcolati sull'arco (le derivazioni che partono da li' si agganciano). Disegno = cii.js
+(`loadCii(ctx, null, ld, P)`). NON letti: carichi, materiali, ammissibili, i risultati. Se l'archivio non ha il .NTXT: messaggio chiaro.
+
 ## SAMB: calcolo delle tubazioni (05/11/2026) - IN CORSO, primo passo fatto
 Nome scelto dall'utente: SAMB (NON "MB Caesar": CAESAR II e' un marchio altrui). Obiettivo: fare cio' che fa CAESAR II, meglio; "meglio" si potra' dire solo dopo il confronto con i modelli e i risultati CAESAR II che porta l'utente.
 NASCOSTO NELLE VERSIONI PUBBLICATE (decisione dell'utente, 05/11/2026): il pulsante compare solo con localStorage mbv-samb = 1, finche' il confronto con CAESAR II non e' fatto. Pulsante SAMB nel visualizzatore dei .cii -> `ui/js/samb/sambpanel.js`, puro: `sambmodel.js` (.cii -> N, mm, MPa, gradi C; curve = 6 corde con k, valvole rigide 10x con peso al centro, riduzioni a diametro medio; ogni deduzione finisce in `warnings`, chiavi `samb.w_*`), `sambsolve.js` (trave di Timoshenko, banda con Cuthill-McKee, vincoli rigidi come molle 1e12/1e15, monodirezionali con stato attivo), `sambcode.js` (SUS, OPE, EXP = OPE-SUS; ASME B31.3 SL, SE, SA). Dati in `<nome>.samb` accanto al file. Collaudo: `node tests/test_samb.mjs [file.cii]` (forme chiuse: mensola, incastro, appoggi, termico, telaio a L, curva con k, equilibrio).

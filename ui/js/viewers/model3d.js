@@ -385,6 +385,13 @@ export async function loadAny(c, ld, info) {
   else if (NEUTRAL[c.ext]) { const { loadNeutral } = await import("../neutral3d.js"); loaded = await loadNeutral(c, bytes, ld, info); }
   else if (c.ext === "skp") { const { loadSkp } = await import("../sketchup.js"); loaded = await loadSkp(c, bytes, ld); if (c.skpInfo) info.status = c.skpInfo; } // SketchUp senza SketchUp (OpenSKP)
   else if (c.ext === "cii") { const { loadCii } = await import("../cii.js"); loaded = loadCii(c, bytes, ld); if (c.ciiInfo) info.status = c.ciiInfo; } // tubazioni: millimetri, Y in alto
+  else if (c.ext === "c2") { // archivio di CAESAR II: si legge il listato dei dati di ingresso (c2parse.js), poi come i .cii
+    const [{ loadCii }, { parseC2 }] = await Promise.all([import("../cii.js"), import("../c2parse.js")]);
+    ld.set(0.2, tr("cii.lettura"));
+    const P = await parseC2(bytes).catch(() => { throw new Error(tr("cii.c2_illeggibile")); });
+    if (!P) throw new Error(tr("cii.c2_senza_listato"));
+    loaded = loadCii(c, null, ld, P); if (c.ciiInfo) info.status = c.ciiInfo;
+  }
   else if (INVENTOR[c.ext]) { const { loadInventor } = await import("../inventor3d.js"); loaded = await loadInventor(c, ld, info); }
   else if (LOADERS[c.ext]) loaded = await loadMesh(c, bytes, ld);
   else throw new Error(tr("v_model3d.formato_0_non_modello_3d", c.ext));
@@ -735,7 +742,7 @@ export async function mount(ctx) {
         const d = mpts[0].distanceTo(mpts[1]);
         // scena con Y verso l'alto: dislivello e distanza in pianta (utili sui rilievi)
         const dv = Math.abs(mpts[1].y - mpts[0].y), dh = Math.hypot(mpts[1].x - mpts[0].x, mpts[1].z - mpts[0].z);
-        const u = OCCT[ctx.ext] || ctx.ext === "cii" ? " mm" : info.clouds ? " m" : "";
+        const u = OCCT[ctx.ext] || ctx.ext === "cii" || ctx.ext === "c2" ? " mm" : info.clouds ? " m" : "";
         ctx.status(tr("v_model3d.distanza_stato", fmt(d), OCCT[ctx.ext] ? ": mm" : "", fmt(dh), fmt(dv)));
         distLabel.textContent = tr("v_model3d.distanza_etichetta", fmt(d) + u, fmt(dh) + u, fmt(dv) + u);
         distLabel.hidden = false;
