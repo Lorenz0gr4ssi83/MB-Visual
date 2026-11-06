@@ -1770,6 +1770,11 @@ Access, PST, DjVu, mobi, xcf, kra, zst, lz4, vhdx, sav/dta...). Elenco consegnat
   posizione, maschera, gruppi nascosti), RLE/zlib, 8-32 bit intero e virgola mobile, grigi/indicizzata, versioni 0-11+; modi di
   fusione diversi da "normale" approssimati (scritto nella barra di stato). Provati v003 (46 livelli) e v011.
 - .idf/.emn/.emp = testo (IDF delle schede elettroniche, ISOGEN, EnergyPlus); IDF e OFF riconosciuti anche dal contenuto (recover).
+- MicroStation DGN V7 (categorie cad2d e text: decide il contenuto, .dgn e' anche un linguaggio): `mbvisual/dgn.py` (struttura come
+  dgnlib di GDAL: interi "middle-endian", doppi VAX, TCB con unita'/origine) -> copia DXF in TEMP/dgn aperta da cad2d.js (ctx.dgnSource =
+  originale, niente salvataggio sul posto). Linee, polilinee, forme, curve, testi, ellissi, archi, catene/forme complesse, celle; 2D e 3D;
+  livelli -> "Livello N"; colori della tabella del file. Collaudo `python tests/test_dgn.py <cartella>` (smalltest.dgn di GDAL + DGN
+  scritti da GDAL/pyogrio in un venv a parte, con <nome>.ref.json: 510 punti uguali). DGN V8 (OLE di Bentley): "File non supportato".
 
 ## Lavori CAESAR II .C2 (06/11/2026) - FATTO (un solo file vero provato)
 Segnalazione dell'utente: un .C2 non si apriva (.c2 era solo audio Codec2). Ora `.c2` sta anche nella categoria `piping`; decide il contenuto

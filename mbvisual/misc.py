@@ -448,6 +448,7 @@ def sniff(path: str) -> dict:
         (h.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"), "ole", tr("srv_misc.documento_office_97_2003_msg")),
         (h.startswith(b"SQLite format 3\x00"), "sqlite", tr("srv_misc.database_sqlite")),
         (h[:4] == b"AC10" or h[:6] == b"AC1.40", "cad2d", tr("srv_misc.disegno_autocad_dwg")),
+        (h[:4] in (b"\x08\x09\xfe\x02", b"\xc8\x09\xfe\x02"), "cad2d", tr("srv_misc.disegno_microstation")),
         (h.startswith(b"glTF"), "mesh3d", tr("srv_misc.modello_3d_gltf_binario")),
         (h.startswith(b"U3D\x00"), "vis3d", tr("srv_misc.modello_3d_u3d")),
         (h.startswith(b"Version ") and h[8:9].isdigit() and len(h) > 85 and h[80] in (0, 1), "vis3d", tr("srv_misc.modello_3d_jt")),

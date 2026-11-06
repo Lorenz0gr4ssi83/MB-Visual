@@ -1,5 +1,5 @@
 // Disegni CAD 2D (DWG con libredwg, DXF con lettore interno): zoom/pan, layer, blocchi, testi, quote, misure, esportazione.
-import { api, button, el, fileUrl, loading, readBytes, saveBlobAs, toast, withExt, WEB } from "../core.js";
+import { api, button, el, fileUrl, loading, readBytes, saveBlobAs, toast, waitJob, withExt, WEB } from "../core.js";
 import { createCadEditor } from "../cadedit.js";
 import { parseDxf } from "../dxf.js";
 import { I, TAU, R2D, mul, ap, apv, det, similar, arcPts, sweepPts, bulgeArc, bulgePts, splinePts, textLayout, patternDefLines, hatchSegments, dimGeom, dimTextEntity, osnap, drawSnapMarker } from "../cadgeom.js";
@@ -559,6 +559,13 @@ function dwgGeodata(lib, data, m) {
 // ---------------------------------------------------------------- visualizzatore
 export async function mount(ctx) {
   const ld = loading(ctx.el, tr("v_cad2d.lettura_disegno"));
+  if (ctx.ext === "dgn") { // MicroStation V7: copia DXF in cache (mbvisual/dgn.py), l'originale non cambia
+    const r = await waitJob((await api("dgn_dxf", { path: ctx.path })).job, (p, m) => ld?.set?.(p, m));
+    ctx.dgnSource = ctx.path;
+    ctx.path = r.path;
+    ctx.ext = "dxf";
+    ctx.dgnInfo = tr("v_cad2d.copia_dgn", r.elementi ?? "");
+  }
   const bytes = await readBytes(ctx.path);
   let db;
   const head = new TextDecoder("latin1").decode(bytes.subarray(0, 6));
@@ -576,6 +583,7 @@ export async function mount(ctx) {
   normalize(db, dxfText ? "dxf" : "dwg");
   ld.set(0.7, tr("v_cad2d.preparazione_disegno"));
   await new Promise(r => setTimeout(r, 0));
+  if (ctx.dgnInfo) ctx.status(ctx.dgnInfo);
   let main = build(db), model = main; // main = spazio modello; model = cio' che si vede (modello o foglio del layout)
   let sheets = sheetsOf(db), sheet = null;
   const scan3d = analyze3d(db); // contenuto 3D: solidi, mesh, facce, oggetti con spessore (ui/js/cad3d.js)
@@ -672,7 +680,7 @@ export async function mount(ctx) {
     el("span", { class: "sep" }), mBtn, measBtn, inkBtn, tBtn, lwBtn, bgBtn, el("span", { class: "sep" }),
     button("PNG", "download", () => exportPng()), button("SVG", "download", () => exportSvg()), button("PDF", "download", () => exportPdf()),
     button(tr("gisdraw.mostra_mappa"), '<svg viewBox="0 0 24 24"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg>', () => ctx.openAs("gis"), { title: tr("gisdraw.mostra_mappa_tip"), comp: "gis" }),
-    ctx.ext === "dxf" ? button(tr("v_cad2d.modifica_dxf_testo"), "code", () => ctx.openAs("text"), { comp: "cad" }) : null,
+    ctx.ext === "dxf" && !ctx.dgnSource ? button(tr("v_cad2d.modifica_dxf_testo"), "code", () => ctx.openAs("text"), { comp: "cad" }) : null,
     ctx.tools.trueview ? button(tr("v_cad2d.apri_dwg_trueview"), "open", () => api("open_external", { path: ctx.path, app: "trueview" })) : null,
     el("span", { class: "grow" }), el("span", { class: "note" }, tr("v_cad2d.rotella_zoom_trascina_tasto_centrale"))].filter(Boolean));
 
@@ -1107,7 +1115,7 @@ export async function mount(ctx) {
       return { kind: dxfText ? "dxf" : "dwg", edits: editor ? editor.payload() : null, canvas, toWorld, layout: sheet ? sheet.name : null,
         view: [...toWorld(0, canvas.height), ...toWorld(canvas.width, 0)], limits: lo && hi && hi[0] > lo[0] && hi[1] > lo[1] ? [...lo, ...hi] : null };
     },
-    saveInPlace: ctx.ext === "dxf",
+    saveInPlace: ctx.ext === "dxf" && !ctx.dgnSource,
     get saveFormats() { return editor ? ["dxf", "dwg", "pdf", "svg", "png"] : ink?.hasStrokes() ? ["dxf", "png", "pdf"] : ["png", "svg", "pdf"]; },
     get saveLabels() { return !editor && !srcText ? { dxf: tr("ink.solo_revisioni_dxf") } : undefined; },
     saveAsName: () => (!editor && !srcText && ink?.hasStrokes() ? ctx.name.replace(/\.[^.]+$/, "") + "-" + tr("ink.nome_revisioni") + ".dxf" : withExt(ctx.name, "dxf")),

@@ -973,6 +973,10 @@ class Handler(BaseHTTPRequestHandler):
         from . import mdb
         self._json({"ok": True, "job": jobs.start(mdb.to_sqlite, self._path(qs))})
 
+    def api_dgn_dxf(self, qs):  # MicroStation DGN V7 -> copia DXF (mbvisual/dgn.py)
+        from . import dgn
+        self._json({"ok": True, "job": jobs.start(dgn.to_dxf, self._path(qs))})
+
     def api_sqlite_schema(self, qs):
         self._json(misc.sqlite_schema(self._path(qs)))
 
