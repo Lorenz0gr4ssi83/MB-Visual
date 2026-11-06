@@ -1393,9 +1393,9 @@ def probe_open(path: str) -> dict:
     strong = [g for g in res["guesses"] if g.get("certezza") != "bassa"]
     res["probe"] = None
     if not strong and not res.get("testo"):
-        for fn in (_pil_ext, _ffmpeg_ext, _7z_ext):
+        for fn, kind in ((_pil_ext, "image"), (_ffmpeg_ext, "media"), (_7z_ext, "archive")):
             got = fn(path)
-            if got:
-                res["probe"] = {"ext": got[0], "label": got[1]}
+            if got:  # kind: se l'estensione del motore non e' nel registro l'app usa quella generica del tipo
+                res["probe"] = {"ext": got[0], "label": got[1], "kind": kind}
                 break
     return res

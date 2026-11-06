@@ -1897,7 +1897,12 @@
     "zone",
     "zpl",
     "zs",
-    "zsh-theme"
+    "zsh-theme",
+    "aqt",
+    "pjs",
+    "scc",
+    "gpl",
+    "ggr"
    ]
   },
   {
@@ -2176,7 +2181,30 @@
     "avs2",
     "avs3",
     "moflex",
-    "ser"
+    "ser",
+    "anm",
+    "bfi",
+    "c93",
+    "cmv",
+    "dxa",
+    "fmv",
+    "hnm",
+    "mtv",
+    "pva",
+    "rpl",
+    "sndanim",
+    "tgq",
+    "thp",
+    "tmv",
+    "trec",
+    "txd",
+    "vp6",
+    "vqa",
+    "wve",
+    "znm",
+    "3gpp",
+    "3gp2",
+    "3gpp2"
    ]
   },
   {
@@ -2354,7 +2382,10 @@
     "st26",
     "ult",
     "wow",
-    "xpk"
+    "xpk",
+    "cdata",
+    "f4a",
+    "f4b"
    ]
   },
   {

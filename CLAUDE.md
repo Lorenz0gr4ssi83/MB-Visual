@@ -1730,6 +1730,12 @@ Access, PST, DjVu, mobi, xcf, kra, zst, lz4, vhdx, sav/dta...). Elenco consegnat
   linguaggio di Monaco, usato da monaco.js `languageFor`): 1.392 estensioni (1.196 da GitHub Linguist, 196 da tipo MIME testo/XML/JSON).
   Provate nell'app su 886 file di esempio di Linguist (github-linguist/linguist samples/, solo prova locale): 886/886 aperte nell'editor.
   Le 506 senza campione sono comunque linguaggi di testo dichiarati da Linguist o tipi MIME testuali.
+- (3) Campioni veri: fate-suite.ffmpeg.org (indice letto per nome, 36 file con estensioni assenti) e Tests/images di Pillow. Registrate solo
+  le estensioni distintive aperte nell'app con durata/immagine letta: media anm bfi c93 cmv dxa fmv hnm mtv pva rpl sndanim tgq thp tmv trec
+  txd vp6 vqa wve znm 3gpp 3gp2 3gpp2, audio cdata f4a f4b, testo aqt pjs scc gpl ggr. Quelle generiche (.bin .vid .pix .bit .dee .idx .sun,
+  formati Pillow senza estensione propria come IMT, McIDAS, SPIDER, XV) restano al riconoscimento dal contenuto (immagine del motore = ext tga,
+  audio/video = mkv/mka, archivio = 7z: `probe.kind`). Non leggibili da nessun motore incluso: G.728 grezzo, PCM senza intestazione (.old),
+  .raki, sottotitoli PGS .sup, font .pil, texture Quake .wal; .mks con soli sottotitoli si apre nel lettore ma non ha nulla da riprodurre.
 - Prove in Edge senza finestra: chiudere gli Edge di prova rimasti aperti (--headless, profilo mbsa-*) prima di un giro lungo: dieci istanze
   orfane rendevano ogni apertura lentissima. Errore noto e precedente: chiudendo una scheda di testo Monaco lancia un ErrorEvent (innocuo).
 

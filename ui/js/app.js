@@ -114,7 +114,7 @@ async function contentType(path, info) {
     const r = await api("recover", { op: "probe", path }, { allowFail: true }).catch(() => null);
     const g = r?.guesses?.find(x => x.certezza !== "bassa" && EXT.has(x.ext));
     if (g) { ext = g.ext; label = g.label; }
-    else if (r?.probe && EXT.has(r.probe.ext)) { ext = r.probe.ext; label = r.probe.label; }
+    else if (r?.probe) { ext = EXT.has(r.probe.ext) ? r.probe.ext : { image: "tga", media: "mkv", archive: "7z" }[r.probe.kind]; label = r.probe.label; } // tga = immagine decodificata dal motore
   }
   if (!ext || !EXT.has(ext)) return null;
   const { cat } = resolveCategory("x." + ext, info.sniff);
