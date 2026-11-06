@@ -867,6 +867,7 @@ export default {
   "podspec": "ruby",
   "pogo": "plaintext",
   "polar": "plaintext",
+  "por": "plaintext",
   "pony": "plaintext",
   "postcss": "plaintext",
   "pov": "plaintext",

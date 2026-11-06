@@ -415,6 +415,7 @@ def sniff(path: str) -> dict:
         (h.startswith(b"PK\x03\x04") and _is_iwork(path), "iwork", tr("srv_misc.documento_apple_iwork")),
         (h[128:132] == b"DICM", "dicom", tr("srv_misc.immagine_medica_dicom")),
         (h.startswith((b"CDF\x01", b"CDF\x02", b"CDF\x05", b"\x89HDF\r\n\x1a\n")), "scidata", tr("srv_misc.dati_netcdf_hdf5")),
+        (b"SPSSPORT" in h[400:600] or b"ASCII SPSS PORT FILE" in h[:200], "scidata", tr("srv_misc.dati_spss_portatile")),  # testo: prima dei controlli sul testo
         (h.startswith(b"PK\x03\x04") or h.startswith(b"PK\x05\x06"), "zip", tr("srv_misc.archivio_zip_documento_office_opendocument")),
         (h.startswith(b"7z\xbc\xaf\x27\x1c"), "archive", tr("srv_misc.archivio_7_zip")),
         (h.startswith(b"Rar!\x1a\x07"), "archive", tr("srv_misc.archivio_rar")),

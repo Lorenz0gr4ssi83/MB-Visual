@@ -7412,6 +7412,7 @@
  "srv_misc.database_sqlite": "SQLite database",
  "srv_misc.dati_binari_non_riconosciuti": "Unrecognized binary data",
  "srv_misc.dati_netcdf_hdf5": "NetCDF / HDF5 scientific data",
+ "srv_misc.dati_spss_portatile": "SPSS data (portable file)",
  "srv_misc.disegno_autocad_dwg": "AutoCAD DWG drawing",
  "srv_misc.disegno_dxf": "DXF drawing",
  "srv_misc.disegno_microstation": "MicroStation DGN V7 drawing",
