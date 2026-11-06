@@ -89,6 +89,8 @@ SIGS = [
     (0, b"#!AMR", "amr", "av", "AMR"),
     (0, b".snd", "au", "av", "AU"),
     (0, b"7z\xbc\xaf\x27\x1c", "7z", "zip", "7-Zip"),
+    (0, b"\x28\xb5\x2f\xfd", "zst", "zip", "Zstandard"),
+    (0, b"\x04\x22\x4d\x18", "lz4", "zip", "LZ4"),
     (0, b"Rar!\x1a\x07", "rar", "zip", "RAR"),
     (0, b"\x1f\x8b", "gz", "zip", "GZIP"),
     (0, b"BZh", "bz2", "zip", "BZIP2"),

@@ -362,6 +362,8 @@ def sniff(path: str) -> dict:
         (h.startswith(b"BZh"), "archive", tr("srv_misc.archivio_bzip2")),
         (h.startswith(b"\xfd7zXZ\x00"), "archive", tr("srv_misc.archivio_xz")),
         (h.startswith(b"MSCF"), "archive", tr("srv_misc.archivio_cab")),
+        (h.startswith(b"\x28\xb5\x2f\xfd"), "archive", tr("srv_misc.archivio_zstd")),
+        (h.startswith(b"\x04\x22\x4d\x18"), "archive", tr("srv_misc.archivio_lz4")),
         (iso == b"CD001", "archive", tr("srv_misc.immagine_disco_iso")),
         (h.startswith(b"\x89PNG"), "image", tr("srv_misc.immagine_png")),
         (h.startswith(b"\xff\xd8\xff"), "image", tr("srv_misc.immagine_jpeg")),

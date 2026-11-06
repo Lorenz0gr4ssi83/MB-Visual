@@ -2712,7 +2712,12 @@
     "a",
     "lib",
     "hfsx",
-    "lzma86"
+    "lzma86",
+    "zst",
+    "zstd",
+    "tzst",
+    "lz4",
+    "tlz4"
    ]
   },
   {
