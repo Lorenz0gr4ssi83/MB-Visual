@@ -40,7 +40,8 @@ Interfaccia in italiano. Logo: `ui/img/logo.png` (marchio MB Group con "VISUAL" 
   Regola chiesta dall'utente (cambiata il 06/11/2026): un'estensione non in elenco si apre DAL CONTENUTO se un motore lo legge (sezione
   "Apertura dal contenuto"); solo se nessuno lo legge = "File non supportato". Aggiungere estensioni al registro solo dopo averle provate. MAI togliere estensioni, formati o funzioni senza chiederlo prima all'utente (decisione del 02/11/2026).
 - `ui/vendor/` - librerie JS con versioni fisse, scaricate da `tools/fetch_vendor.py`.
-- `bin/7zip/` - 7-Zip incluso. FFmpeg arriva da `imageio-ffmpeg`.
+- `bin/7zip/` - 7-Zip incluso (25.01 x64 dal 06/11/2026, prima 17.01 del 2017: 42/42 archivi del collaudo, recupero e percorsi lunghi
+  provati; i VHDX dei pacchetti MSIX provati NON si aprono neanche con la 25.01, per questo .vhdx non e' registrato). FFmpeg arriva da `imageio-ffmpeg`.
 - `tests/samples/` - file di prova (`tools/make_samples.py`).
 - `avanzamento/` - pagina di avanzamento pubblicata come Artifact (https://claude.ai/artifact/2e3ywJjJCAd3CaXGEEutH9): `fasi.json` + `build.py`.
 
