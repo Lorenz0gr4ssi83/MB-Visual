@@ -127,6 +127,7 @@
  "app.crea_nuovo": "Neu...",
  "app.crea_nuovo_2": "Neue Datei",
  "app.creato": "Erstellt",
+ "app.dal_contenuto": "{0} (am Inhalt erkannt)",
  "app.database_sqlite": "SQLite-Datenbank",
  "app.dati_scientifici": "Wissenschaftliche / tabellarische Daten",
  "app.dettagli_file_mbvisual_aggiornamento_log": "Details in der Datei MBVisual-aggiornamento.log im temporären Windows-Ordner (%TEMP%).",

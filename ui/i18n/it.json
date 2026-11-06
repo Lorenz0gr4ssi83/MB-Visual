@@ -127,6 +127,7 @@
  "app.crea_nuovo": "Crea nuovo...",
  "app.crea_nuovo_2": "Crea nuovo",
  "app.creato": "Creato",
+ "app.dal_contenuto": "{0} (riconosciuto dal contenuto)",
  "app.database_sqlite": "Database SQLite",
  "app.dati_scientifici": "Dati scientifici / tabellari",
  "app.dettagli_file_mbvisual_aggiornamento_log": "Dettagli nel file MBVisual-aggiornamento.log nella cartella temporanea di Windows (%TEMP%).",

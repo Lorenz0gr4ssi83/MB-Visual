@@ -37,7 +37,8 @@ Interfaccia in italiano. Logo: `ui/img/logo.png` (marchio MB Group con "VISUAL" 
   `office.py` (PowerPoint, Word da HTML, LibreOffice), `misc.py` (immagini, testo, email, SQLite, riconoscimento tipo), `paths.py`, `jobs.py`.
 - `ui/` - interfaccia: `index.html`, `css/app.css`, `js/app.js` (schede, scelta visualizzatore), `js/core.js`, `js/viewers/*.js` (uno per tipo).
 - `ui/formats.json` - **registro unico dei formati**: l'app sceglie il visualizzatore solo da qui; `ELENCO_FORMATI.md` si rigenera con `python tools/gen_elenco.py`.
-  Regola chiesta dall'utente: un'estensione non in elenco NON si apre (solo byte grezzi). Aggiungere estensioni solo dopo averle provate. MAI togliere estensioni, formati o funzioni senza chiederlo prima all'utente (decisione del 02/11/2026).
+  Regola chiesta dall'utente (cambiata il 06/11/2026): un'estensione non in elenco si apre DAL CONTENUTO se un motore lo legge (sezione
+  "Apertura dal contenuto"); solo se nessuno lo legge = "File non supportato". Aggiungere estensioni al registro solo dopo averle provate. MAI togliere estensioni, formati o funzioni senza chiederlo prima all'utente (decisione del 02/11/2026).
 - `ui/vendor/` - librerie JS con versioni fisse, scaricate da `tools/fetch_vendor.py`.
 - `bin/7zip/` - 7-Zip incluso. FFmpeg arriva da `imageio-ffmpeg`.
 - `tests/samples/` - file di prova (`tools/make_samples.py`).
@@ -1713,6 +1714,24 @@ Collaudo: `node tests/test_cad_layout.mjs` (matrici confrontate con ezdxf); nell
 ## Tubazioni .cii (04/11/2026) - FATTO (solo file di questa struttura)
 Categoria `piping` (viewer model3d, applicazione "modelli", anche web app). `ui/js/ciiparse.js` (puro, `node tests/test_cii.mjs`) legge il testo a sezioni `#$ VERS, UNIT, MATER, GEOM, BEND, VALV, REDU, SUPP, END`; `ui/js/cii.js` costruisce la scena (mm, Y in alto, un gruppo per elemento con i dati in userData, `pickParent` sulle mesh). I file dati dall'utente sono FATTI A MANO e NON hanno la struttura del neutro vero di CAESAR II (`#$ VERSION`, `#$ ELEMENTS`...): un .cii senza tratti leggibili si apre come testo (model3d.js `mount`). Nessun .cii esportato da CAESAR II provato.
 Scelte dedotte, sempre scritte nella barra di stato o nelle proprieta' (l'utente non conosce il significato delle colonne: NON chiederglielo): US = piedi se il tratto medio sarebbe piu' corto di 3 diametri, altrimenti pollici; SI = mm; GEOM colonne 9 e 10 = temperatura e pressione, colonna 8 mostrata senza nome; VALV colonna 3 = lunghezza; valvola su un nodo assente da GEOM = sul tratto col numero compreso, in proporzione (25 tra 20 e 30). Limiti: BEND e' un anello sul nodo (raccordo non costruito), nessun calcolo.
+
+## Apertura dal contenuto ed estensioni di testo (06/11/2026) - FATTO
+Richiesta dell'utente: "deve aprire tutto cio' che fisicamente si puo' aprire, niente sorprese" (catalogo di 11.535 estensioni da TrID, PRONOM,
+mime-db, freedesktop, Linguist: MB Desk ne conosceva ~1.000). Analisi e piano in 4 punti approvati dall'utente: (1) contenuto, (2) testo e
+codice, (3) audio/video/immagini/zip con campioni veri, (4) lettori nuovi per i formati diffusi che mancano (EPS/AI, DGN, ifczip, ifcxml, PCF/IDF,
+Access, PST, DjVu, mobi, xcf, kra, zst, lz4, vhdx, sav/dta...). Elenco consegnato all'utente: Desktop\MB Desk\Estensioni_da_aggiungere.csv.
+- (1) app.js `contentType`: estensione sconosciuta (o estensione di testo con contenuto binario, `TEXTISH`) -> `api/recover?op=probe`
+  (`recover.probe_open`: firme di `identify`, poi i motori: Pillow, FFmpeg (non i demuxer tty/image2/sottotitoli), 7-Zip) -> categoria della
+  prima estensione del registro con certezza alta/media; ctx.ext = quella estensione (i visualizzatori usano ctx.ext; oo.js ora anche lui),
+  barra di stato "X (riconosciuto dal contenuto)" (`app.dal_contenuto`). Web app: solo `KIND_EXT` dal sniff di webapi.js.
+  Provato nell'app su 17 file con estensioni inventate (PNG, TGA, WAV, AVI, PDF firmato, ZIP, SQLite, DOCX, DXF, STL, CSV, JSON, XML, MD, EML;
+  i dati casuali restano "non supportato").
+- (2) `tools/add_text_formats.py <languages.yml> [catalogo.csv]` (rilanciabile) -> categoria "text" + `ui/js/textlangs.js` (estensione ->
+  linguaggio di Monaco, usato da monaco.js `languageFor`): 1.392 estensioni (1.196 da GitHub Linguist, 196 da tipo MIME testo/XML/JSON).
+  Provate nell'app su 886 file di esempio di Linguist (github-linguist/linguist samples/, solo prova locale): 886/886 aperte nell'editor.
+  Le 506 senza campione sono comunque linguaggi di testo dichiarati da Linguist o tipi MIME testuali.
+- Prove in Edge senza finestra: chiudere gli Edge di prova rimasti aperti (--headless, profilo mbsa-*) prima di un giro lungo: dieci istanze
+  orfane rendevano ogni apertura lentissima. Errore noto e precedente: chiudendo una scheda di testo Monaco lancia un ErrorEvent (innocuo).
 
 ## Lavori CAESAR II .C2 (06/11/2026) - FATTO (un solo file vero provato)
 Segnalazione dell'utente: un .C2 non si apriva (.c2 era solo audio Codec2). Ora `.c2` sta anche nella categoria `piping`; decide il contenuto

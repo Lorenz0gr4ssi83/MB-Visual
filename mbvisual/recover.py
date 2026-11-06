@@ -1335,3 +1335,67 @@ def write_bytes(path: str, name: str, data: bytes) -> dict:
 def out_path(path: str, name: str) -> dict:
     safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)[:150]
     return {"ok": True, "path": str(_outdir(path) / safe)}
+
+
+# ---------------------------------------------------------------- apertura dal contenuto (estensione sconosciuta)
+# Ordine: firme di identify(), poi i motori stessi (Pillow, FFmpeg, 7-Zip) che dicono se sanno leggere il file. FFmpeg accetta
+# qualsiasi testo come "tty" (arte ANSI) e qualsiasi immagine come image2: quei formati non contano.
+_FF_SKIP = {"tty", "image2", "data", "bin", "lavfi", "concat", "ffmetadata", "srt", "ass", "webvtt", "subviewer", "jacosub", "microdvd"}
+
+
+def _pil_ext(path: str):
+    try:
+        from PIL import Image
+        Image.init()
+        with Image.open(path) as im:
+            fmt = (im.format or "").upper()
+            if not fmt or im.width <= 0:
+                return None
+        exts = [e.lstrip(".") for e, f in Image.registered_extensions().items() if f == fmt]
+        return (exts[0] if exts else fmt.lower()), fmt
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _ffmpeg_ext(path: str):
+    try:
+        from . import media
+        p = media.probe(path)
+    except Exception:  # noqa: BLE001
+        return None
+    fmt = (p.get("formato") or "").split(",")[0].strip()
+    if not fmt or fmt in _FF_SKIP or fmt.endswith("_pipe") or not (p.get("video") or p.get("audio")):
+        return None
+    return ("mkv" if p.get("video") else "mka"), fmt
+
+
+def _7z_ext(path: str):
+    try:
+        from .paths import find_7zip
+        exe = find_7zip()
+        if not exe:
+            return None
+        r = subprocess.run([exe, "l", "-slt", "-sccUTF-8", "-p", path], capture_output=True, creationflags=NO_WINDOW, timeout=60)
+        out = r.stdout.decode("utf-8", "replace")
+        m = re.search(r"^Type = (.+)$", out, re.M)
+        if r.returncode != 0 or not m:
+            return None
+        return "7z", m.group(1).strip()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def probe_open(path: str) -> dict:
+    """Come aprire un file dall'estensione sconosciuta: {guesses (firme), probe: {ext, label} dal motore che lo legge}."""
+    res = identify(path)
+    if not res.get("ok"):
+        return res
+    strong = [g for g in res["guesses"] if g.get("certezza") != "bassa"]
+    res["probe"] = None
+    if not strong and not res.get("testo"):
+        for fn in (_pil_ext, _ffmpeg_ext, _7z_ext):
+            got = fn(path)
+            if got:
+                res["probe"] = {"ext": got[0], "label": got[1]}
+                break
+    return res

@@ -605,6 +605,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(recover.check(p, _q(qs, "ext", "")))
         if op == "identify":
             return self._json(recover.identify(p))
+        if op == "probe":
+            return self._json(recover.probe_open(p))
         if op == "start":
             return self._json({"ok": True, "job": jobs.start(recover.recover, p, fam=_q(qs, "fam") or None)})
         if op == "carve":

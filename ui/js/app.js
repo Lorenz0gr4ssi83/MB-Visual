@@ -102,6 +102,25 @@ export function resolveCategory(name, sniff) {
   return { cat: best, ext };
 }
 
+// estensione che l'app non conosce: il tipo si riconosce dal contenuto (firme e poi i motori stessi, Pillow/FFmpeg/7-Zip:
+// mbvisual/recover.py probe_open). null se nessuno lo sa leggere: allora "File non supportato". Nella web app solo le firme.
+const TEXTISH = new Set(["text", "svg", "html", "project", "cad2d", "pointcloud"]);
+const KIND_EXT = { pdf: "pdf", text: "txt", svg: "svg", html: "html", zip: "zip", sqlite: "sqlite", archive: "7z", image: "png", media: "mp4", cad2d: "dwg",
+  mesh3d: "glb", ifc: "ifc", cad3d: "step", project: "xml", signed: "p7m", piping: "c2", midi: "mid", pointcloud: "las", email: "eml", font: "ttf" };
+async function contentType(path, info) {
+  let ext = null, label = null;
+  if (WEB) { ext = KIND_EXT[info.sniff?.kind] || null; label = info.sniff?.descr; }
+  else {
+    const r = await api("recover", { op: "probe", path }, { allowFail: true }).catch(() => null);
+    const g = r?.guesses?.find(x => x.certezza !== "bassa" && EXT.has(x.ext));
+    if (g) { ext = g.ext; label = g.label; }
+    else if (r?.probe && EXT.has(r.probe.ext)) { ext = r.probe.ext; label = r.probe.label; }
+  }
+  if (!ext || !EXT.has(ext)) return null;
+  const { cat } = resolveCategory("x." + ext, info.sniff);
+  return cat ? { cat, ext, label: label || ext.toUpperCase() } : null;
+}
+
 // ------------------------------------------------------------------ badge per tipo di file
 const BADGE_COLOR = { pdf: "pdf", signed: "sig", word: "doc", "office-lo": "doc", sheet: "xls", pptx: "ppt", publisher: "cad", visio: "doc", project: "xls", cad2d: "cad",
   cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", inventor: "3d", "inventor-doc": "cad", solidcad: "3d", creo: "3d", vis3d: "3d", piping: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", midi: "av", videoproject: "av", bcf: "3d",
@@ -571,9 +590,16 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
     toast(tr("app.file_scaricato"), false, 1500);
   }
   const name = extraCtx.displayName || info.nome;
-  const { cat } = resolveCategory(extraCtx.displayName && !extOf(extraCtx.displayName) ? info.nome : name, info.sniff);
-  const ext = extFor(info.nome);
-  // estensione non in elenco: "File non supportato" (ui/js/unsupported.js)
+  let { cat } = resolveCategory(extraCtx.displayName && !extOf(extraCtx.displayName) ? info.nome : name, info.sniff);
+  let ext = extFor(info.nome), byContent = null;
+  if (!cat && !forcedViewer && !path.startsWith("mail://")) byContent = await contentType(path, info);
+  // estensione di testo ma contenuto binario (stessa estensione usata da un altro programma): decide il contenuto, se un motore lo legge
+  else if (cat?.viewer === "text" && !forcedViewer && info.sniff && !TEXTISH.has(info.sniff.kind)) byContent = await contentType(path, info);
+  if (byContent) { // aperto per quello che c'e' dentro, con il visualizzatore di quel tipo
+    ({ cat, ext } = byContent);
+    info.sniff = { ...(info.sniff || {}), descr: tr("app.dal_contenuto", byContent.label) };
+  }
+  // nessun motore lo legge: "File non supportato" (ui/js/unsupported.js)
   let viewer = forcedViewer || (cat ? cat.viewer : "recover");
   if (!forcedViewer && !WEB && TOOLS.onlyoffice && isOn("office") && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
   // Navisworks senza Navisworks: NWD e NWC si aprono nel visualizzatore 3D (lettore nwd2mbv)
@@ -618,8 +644,9 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
 export async function mountPreview(path, host, extra = {}) {
   await READY;
   const info = await api("info", { path });
-  const { cat } = resolveCategory(info.nome, info.sniff);
-  const ext = extFor(info.nome);
+  let { cat } = resolveCategory(info.nome, info.sniff);
+  let ext = extFor(info.nome);
+  if (!cat) { const bc = await contentType(path, info); if (bc) ({ cat, ext } = bc); }
   let viewer = cat ? cat.viewer : "recover";
   if (!WEB && TOOLS.onlyoffice && isOn("office") && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
   if (!WEB && TOOLS.nwdreader && ["nwd", "nwc", "nwf"].includes(ext)) viewer = "model3d";
