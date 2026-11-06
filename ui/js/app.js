@@ -594,7 +594,10 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   let ext = extFor(info.nome), byContent = null;
   if (!cat && !forcedViewer && !path.startsWith("mail://")) byContent = await contentType(path, info);
   // estensione di testo ma contenuto binario (stessa estensione usata da un altro programma): decide il contenuto, se un motore lo legge
-  else if (cat?.viewer === "text" && !forcedViewer && info.sniff && !TEXTISH.has(info.sniff.kind)) byContent = await contentType(path, info);
+  else if (cat?.viewer === "text" && !forcedViewer && info.sniff && !TEXTISH.has(info.sniff.kind)) {
+    byContent = await contentType(path, info);
+    if (!byContent && info.sniff.kind == null) cat = null; // binario che nessun motore legge: "File non supportato", non caratteri a caso
+  }
   if (byContent) { // aperto per quello che c'e' dentro, con il visualizzatore di quel tipo
     ({ cat, ext } = byContent);
     info.sniff = { ...(info.sniff || {}), descr: tr("app.dal_contenuto", byContent.label) };

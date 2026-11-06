@@ -868,7 +868,6 @@ export default {
   "pogo": "plaintext",
   "polar": "plaintext",
   "pony": "plaintext",
-  "por": "plaintext",
   "postcss": "plaintext",
   "pov": "plaintext",
   "pprx": "plaintext",

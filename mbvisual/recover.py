@@ -345,10 +345,14 @@ def identify(path: str) -> dict:
         nul = sample.count(b"\x00")
         if sample[:2] in (b"\xff\xfe", b"\xfe\xff") or (nul > len(sample) * 0.3 and sample[1::2].count(b"\x00") > len(sample) * 0.4):
             try:
-                dec = sample.decode("utf-16")
-                ext, label = _text_kind(dec.encode("utf-8"))
-                add(ext, label + " (UTF-16)", "txt", "media")
-                texty = True
+                bom = sample[:2] in (b"\xff\xfe", b"\xfe\xff")
+                dec = sample.decode("utf-16" if bom else "utf-16-le")
+                # testo vero: senza caratteri di controllo (i dati binari pieni di zeri sembrano UTF-16 ma non lo sono)
+                ctrl = sum(1 for ch in dec if (ord(ch) < 32 and ch not in "\r\n\t") or 0xD800 <= ord(ch) <= 0xDFFF)
+                if bom or ctrl <= len(dec) * 0.01:
+                    ext, label = _text_kind(dec.encode("utf-8"))
+                    add(ext, label + " (UTF-16)", "txt", "media")
+                    texty = True
             except UnicodeDecodeError:
                 pass
         elif nul == 0:

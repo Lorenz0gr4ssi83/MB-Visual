@@ -1374,7 +1374,6 @@
     "pogo",
     "polar",
     "pony",
-    "por",
     "postcss",
     "pov",
     "pprx",
@@ -2889,7 +2888,13 @@
     "nc4",
     "parquet",
     "feather",
-    "arrow"
+    "arrow",
+    "sav",
+    "zsav",
+    "por",
+    "dta",
+    "sas7bdat",
+    "xpt"
    ]
   },
   {
