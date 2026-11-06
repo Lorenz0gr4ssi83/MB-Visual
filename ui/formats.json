@@ -2485,7 +2485,8 @@
     "kmz",
     "bvh",
     "vox",
-    "3dm"
+    "3dm",
+    "ifczip"
    ]
   },
   {
@@ -2545,7 +2546,8 @@
    "edit": "Il testo del file si modifica con Apri come -> Editor di testo; esportazione del modello in STL / OBJ / GLB",
    "exts": [
     "cii",
-    "c2"
+    "c2",
+    "pcf"
    ]
   },
   {

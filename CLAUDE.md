@@ -1739,6 +1739,18 @@ Access, PST, DjVu, mobi, xcf, kra, zst, lz4, vhdx, sav/dta...). Elenco consegnat
 - Prove in Edge senza finestra: chiudere gli Edge di prova rimasti aperti (--headless, profilo mbsa-*) prima di un giro lungo: dieci istanze
   orfane rendevano ogni apertura lentissima. Errore noto e precedente: chiudendo una scheda di testo Monaco lancia un ErrorEvent (innocuo).
 
+## Punto 4: formati nuovi con lettori propri (06/11/2026) - IN CORSO
+- `.ifczip` (categoria mesh3d): model3d.js `unzipIfc` = il motore estrae l'.ifc piu' grande in TEMP (cosi' IFC -> STEP e il resto lavorano
+  su un .ifc vero; ctx.zipPath = originale), nella web app JSZip (`ctx.innerBytes`). Provato su un .ifczip di tests/samples/interferenze.
+- `.ifcxml`: NON ancora. IfcOpenShell 0.9 non legge ne' scrive ifcXML ("not currently supported"): serve un convertitore proprio
+  (schema da ifcopenshell_wrapper, attributi per nome). Campioni pubblici: GeometryGym/GeometryGymIFCExamples, jmirtsch/GitIFCPrototype.
+- PCF di ISOGEN (categoria piping): `ui/js/pcfparse.js` (puro, `node tests/test_pcf.mjs [file]`) + `ui/js/pcf.js` (scena, Z in alto ruotata
+  da model3d come i CAD). Componenti per parola chiave, punti END/CENTRE/BRANCH1/CO-ORDS, attributi nelle proprieta'; diametro esterno dalla
+  misura nominale (tabella ASME B36.10; DN350+ = DN/25 pollici); curva = arco con CENTRE-POINT come vertice delle tangenti (se manca o
+  coincide con un estremo: tratto dritto); OLET = attacco + derivazione; sezione MATERIALS esclusa; BOM tolto. Provati 6 PCF pubblici
+  (Cszabi/IsoSurvey, FinSeifert/pcf-viewer.github.io, erickcortez1/engineering-toolkit, kaushikray0601/eht_office, reallakshman19/...,
+  baiheinet/...): tutti i componenti con punti disegnati. `.pcf` e' anche un carattere X11 binario: allora l'errore "non e' un PCF".
+
 ## Lavori CAESAR II .C2 (06/11/2026) - FATTO (un solo file vero provato)
 Segnalazione dell'utente: un .C2 non si apriva (.c2 era solo audio Codec2). Ora `.c2` sta anche nella categoria `piping`; decide il contenuto
 (misc.sniff / webapi.js sniff: 82 80 02 00 in testa e zlib a 32 -> kind "piping"). Il .C2 e' un ARCHIVIO del lavoro (struttura vista nel file,

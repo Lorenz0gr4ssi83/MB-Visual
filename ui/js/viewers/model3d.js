@@ -2,7 +2,7 @@
 // Navigazione orbitale, albero parti, nascondi/isola, sezioni, misure, filo di ferro, proprieta' BIM, esportazione.
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { api, button, confirmBox, dirName, el, fileUrl, loading, pickFiles, readBytes, saveBlobAs, toast, waitJob, WEB, withExt } from "../core.js";
+import { api, button, confirmBox, dirName, el, fileUrl, loadScript, loading, pickFiles, readBytes, saveBlobAs, toast, waitJob, WEB, withExt } from "../core.js";
 import { isDark } from "../monaco.js";
 import { fmtNum, t as tr, LOCALE } from "../i18n.js";
 import { measureBtn, mbmisOf } from "../measure/mbutton.js";
@@ -371,7 +371,7 @@ export async function loadAny(c, ld, info) {
   // Navisworks, Inventor, nuvole e STEP/IGES grandi nell'app per PC: li legge il motore nativo
   if (OCCT[c.ext] && !WEB && !c.info?.size && !c.preloaded) { try { c.info = { ...(c.info || {}), size: (await api("stat", { path: c.path })).size }; } catch { /* lettore WebAssembly */ } }
   const nativeCad = OCCT[c.ext] && !WEB && (c.info?.size || 0) >= NATIVE_MIN;
-  const bytes = NAVIS[c.ext] || INVENTOR[c.ext] || PCLOUD[c.ext] || NEUTRAL[c.ext] || c.preloaded || nativeCad ? null : await readBytes(c.path);
+  const bytes = c.innerBytes || NAVIS[c.ext] || INVENTOR[c.ext] || PCLOUD[c.ext] || NEUTRAL[c.ext] || c.preloaded || nativeCad ? null : await readBytes(c.path);
   let loaded;
   if (c.preloaded) loaded = await c.preloaded(ld); // geometria gia' letta da un altro visualizzatore (es. modelli 3D dei DWF)
   else if (PCLOUD[c.ext]) {
@@ -385,6 +385,7 @@ export async function loadAny(c, ld, info) {
   else if (NEUTRAL[c.ext]) { const { loadNeutral } = await import("../neutral3d.js"); loaded = await loadNeutral(c, bytes, ld, info); }
   else if (c.ext === "skp") { const { loadSkp } = await import("../sketchup.js"); loaded = await loadSkp(c, bytes, ld); if (c.skpInfo) info.status = c.skpInfo; } // SketchUp senza SketchUp (OpenSKP)
   else if (c.ext === "cii") { const { loadCii } = await import("../cii.js"); loaded = loadCii(c, bytes, ld); if (c.ciiInfo) info.status = c.ciiInfo; } // tubazioni: millimetri, Y in alto
+  else if (c.ext === "pcf") { const { loadPcf } = await import("../pcf.js"); loaded = loadPcf(c, bytes, ld); if (c.pcfInfo) info.status = c.pcfInfo; } // tubazioni ISOGEN: mm, Z in alto
   else if (c.ext === "c2") { // archivio di CAESAR II: si legge il listato dei dati di ingresso (c2parse.js), poi come i .cii
     const [{ loadCii }, { parseC2 }] = await Promise.all([import("../cii.js"), import("../c2parse.js")]);
     ld.set(0.2, tr("cii.lettura"));
@@ -396,12 +397,31 @@ export async function loadAny(c, ld, info) {
   else if (LOADERS[c.ext]) loaded = await loadMesh(c, bytes, ld);
   else throw new Error(tr("v_model3d.formato_0_non_modello_3d", c.ext));
   // asse Z verso l'alto per CAD e mesh tecniche (convenzione ingegneristica)
-  if (OCCT[c.ext] || ["stl", "3mf", "amf", "ply", "obj", "3ds", "3dm"].includes(c.ext) || NAVIS[c.ext] || NEUTRAL[c.ext]) loaded.root.rotation.x = -Math.PI / 2;
+  if (OCCT[c.ext] || ["stl", "3mf", "amf", "ply", "obj", "3ds", "3dm", "pcf"].includes(c.ext) || NAVIS[c.ext] || NEUTRAL[c.ext]) loaded.root.rotation.x = -Math.PI / 2;
   loaded.root.name = c.name;
   return loaded;
 }
 
+// IFC compresso (.ifczip, buildingSMART): si apre l'.ifc contenuto. Nell'app per PC lo estrae il motore in una cartella temporanea
+// (cosi' le funzioni che lavorano sul file, come IFC -> STEP, hanno un .ifc vero); nella web app lo legge JSZip.
+async function unzipIfc(ctx) {
+  if (!WEB) {
+    const l = await api("archive_list", { path: ctx.path });
+    const e = (l.items || []).filter(i => !i.dir && /\.ifc$/i.test(i.path)).sort((a, b) => b.size - a.size)[0];
+    if (!e) throw new Error(tr("v_model3d.ifczip_vuoto"));
+    const r = await api("archive_extract", { path: ctx.path }, { json: { entry: e.path } });
+    Object.assign(ctx, { zipPath: ctx.path, path: r.path, ext: "ifc" });
+    return;
+  }
+  await loadScript("/vendor/jszip/dist/jszip.min.js");
+  const z = await window.JSZip.loadAsync(await readBytes(ctx.path));
+  const f = Object.values(z.files).filter(x => !x.dir && /\.ifc$/i.test(x.name))[0];
+  if (!f) throw new Error(tr("v_model3d.ifczip_vuoto"));
+  Object.assign(ctx, { innerBytes: await f.async("uint8array"), ext: "ifc" });
+}
+
 export async function mount(ctx) {
+  if (ctx.ext === "ifczip" && !ctx.preloaded) await unzipIfc(ctx);
   if (ctx.ext === "cii" && !ctx.preloaded) { // .cii senza tratti leggibili (altra struttura): resta aperto come testo
     const { ciiHasGeometry } = await import("../cii.js");
     if (!ciiHasGeometry(new TextDecoder().decode(await readBytes(ctx.path)))) {
@@ -742,7 +762,7 @@ export async function mount(ctx) {
         const d = mpts[0].distanceTo(mpts[1]);
         // scena con Y verso l'alto: dislivello e distanza in pianta (utili sui rilievi)
         const dv = Math.abs(mpts[1].y - mpts[0].y), dh = Math.hypot(mpts[1].x - mpts[0].x, mpts[1].z - mpts[0].z);
-        const u = OCCT[ctx.ext] || ctx.ext === "cii" || ctx.ext === "c2" ? " mm" : info.clouds ? " m" : "";
+        const u = OCCT[ctx.ext] || ctx.ext === "cii" || ctx.ext === "c2" || ctx.ext === "pcf" ? " mm" : info.clouds ? " m" : "";
         ctx.status(tr("v_model3d.distanza_stato", fmt(d), OCCT[ctx.ext] ? ": mm" : "", fmt(dh), fmt(dv)));
         distLabel.textContent = tr("v_model3d.distanza_etichetta", fmt(d) + u, fmt(dh) + u, fmt(dv) + u);
         distLabel.hidden = false;
