@@ -7302,6 +7302,7 @@
  "srv_immagini.motore_mancante": "{0}-Modul in der Installation nicht gefunden",
  "srv_immagini.non_idonea": "Die Grafikkarte dieses PCs ist nicht geeignet: Es kann sehr lange dauern und der PC kann langsamer werden. Trotzdem fortfahren?",
  "srv_immagini.preparo": "Bild wird vorbereitet...",
+ "srv_immagini.risultato_vuoto": "die Grafikkarte hat ein leeres Bild geliefert",
  "srv_immagini.salvo": "Speichern...",
  "srv_immagini.scala_non_valida": "Ungültige Vergrößerung: 2, 3 oder 4",
  "srv_immagini.scarico_modello": "Modell wird heruntergeladen (nur beim ersten Mal): {0} von {1} MB",

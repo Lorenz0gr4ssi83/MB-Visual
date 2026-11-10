@@ -7302,6 +7302,7 @@
  "srv_immagini.motore_mancante": "Motor {0} no encontrado en la instalación",
  "srv_immagini.non_idonea": "La tarjeta gráfica de este PC no es adecuada: podría tardar mucho y el PC podría ir más lento. ¿Continuar de todos modos?",
  "srv_immagini.preparo": "Preparando la imagen...",
+ "srv_immagini.risultato_vuoto": "la tarjeta gráfica devolvió una imagen vacía",
  "srv_immagini.salvo": "Guardando...",
  "srv_immagini.scala_non_valida": "Ampliación no válida: 2, 3 o 4",
  "srv_immagini.scarico_modello": "Descargando el modelo (solo la primera vez): {0} de {1} MB",

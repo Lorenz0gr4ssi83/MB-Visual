@@ -7302,6 +7302,7 @@
  "srv_immagini.motore_mancante": "Moteur {0} introuvable dans l'installation",
  "srv_immagini.non_idonea": "La carte graphique de ce PC n'est pas adaptée : cela peut prendre beaucoup de temps et le PC peut ralentir. Continuer quand même ?",
  "srv_immagini.preparo": "Préparation de l'image...",
+ "srv_immagini.risultato_vuoto": "la carte graphique a renvoyé une image vide",
  "srv_immagini.salvo": "Enregistrement...",
  "srv_immagini.scala_non_valida": "Agrandissement non valide : 2, 3 ou 4",
  "srv_immagini.scarico_modello": "Téléchargement du modèle (la première fois seulement) : {0} sur {1} Mo",

@@ -7302,6 +7302,7 @@
  "srv_immagini.motore_mancante": "Motore {0} non trovato nell'installazione",
  "srv_immagini.non_idonea": "La scheda video di questo PC non è idonea: potrebbe volerci molto tempo e il PC potrebbe rallentare. Procedo lo stesso?",
  "srv_immagini.preparo": "Preparazione dell'immagine...",
+ "srv_immagini.risultato_vuoto": "la scheda video ha restituito un'immagine vuota",
  "srv_immagini.salvo": "Salvataggio...",
  "srv_immagini.scala_non_valida": "Ingrandimento non valido: 2, 3 o 4",
  "srv_immagini.scarico_modello": "Download del modello (solo la prima volta): {0} di {1} MB",

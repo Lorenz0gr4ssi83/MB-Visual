@@ -7302,6 +7302,7 @@
  "srv_immagini.motore_mancante": "{0} engine not found in the installation",
  "srv_immagini.non_idonea": "This PC's graphics card is not suitable: it may take a long time and the PC may slow down. Proceed anyway?",
  "srv_immagini.preparo": "Preparing the image...",
+ "srv_immagini.risultato_vuoto": "the graphics card returned an empty image",
  "srv_immagini.salvo": "Saving...",
  "srv_immagini.scala_non_valida": "Invalid upscale: 2, 3 or 4",
  "srv_immagini.scarico_modello": "Downloading the model (first time only): {0} of {1} MB",

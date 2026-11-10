@@ -301,18 +301,29 @@ def migliora(src: str, out: str, scala: int = 4, modello: str = "foto", anche_le
         inp, o4 = work / "ingresso.png", work / "uscita.png"
         rgb.save(inp)
         name = "realesrgan-x4plus-anime" if modello in ("disegno", "anime") else "realesrgan-x4plus"
-        cmd = [str(ESR_EXE), "-i", str(inp), "-o", str(o4), "-n", name, "-s", "4", "-f", "png", "-m", str(ESR_EXE.parent / "models")]
+        base = [str(ESR_EXE), "-i", str(inp), "-o", str(o4), "-n", name, "-s", "4", "-f", "png", "-m", str(ESR_EXE.parent / "models")]
         if sv.get("indice") is not None:
-            cmd += ["-g", str(sv["indice"])]
+            base += ["-g", str(sv["indice"])]
 
         def prog(s):
             m = re.match(r"^(\d+(?:[.,]\d+)?)%$", s)
             if m:
                 update(0.05 + 0.85 * float(m.group(1).replace(",", ".")) / 100, t("srv_immagini.miglioro"))
-        update(0.05, t("srv_immagini.miglioro"))
-        code, tail = _run(rid, cmd, prog, cwd=str(ESR_EXE.parent))
-        if code != 0 or not o4.exists():
-            raise RuntimeError(t("srv_immagini.errore_motore", "Real-ESRGAN", _last_line(tail)))
+        # tessere: "automatica" sceglie la misura dalla memoria dichiarata; sulle schede integrate (Adreno, Intel...) con tessere
+        # grandi il risultato esce nero senza errori, quindi li' si parte da 128 e un risultato vuoto si rifa' con tessere piu' piccole
+        tiles = ["0", "128", "64"] if sv.get("vendor") in (NVIDIA, AMD) else ["128", "64", "32"]
+        src_lit = rgb.convert("L").getextrema()[1] > 8
+        for tile in tiles:
+            o4.unlink(missing_ok=True)
+            update(0.05, t("srv_immagini.miglioro"))
+            code, tail = _run(rid, base + ["-t", tile], prog, cwd=str(ESR_EXE.parent))
+            if code == 0 and o4.exists():
+                with Image.open(o4) as chk:
+                    if not src_lit or chk.convert("L").getextrema()[1] > 8:
+                        break
+                print("Real-ESRGAN: risultato vuoto con tessere", tile)
+        else:
+            raise RuntimeError(t("srv_immagini.errore_motore", "Real-ESRGAN", _last_line(tail) if code else t("srv_immagini.risultato_vuoto")))
         update(0.92, t("srv_immagini.salvo"))
         big = Image.open(o4).convert("RGB")
         nw, nh = w * scala, h * scala
