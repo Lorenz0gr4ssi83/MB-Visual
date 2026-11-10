@@ -1395,7 +1395,7 @@ export function createEditor(ctx, init) {
     commit(f.name.replace("...", "")); status();
   }
 
-  async function dlgImageSize() {
+  async function dlgImageSize(preAI = false) {
     let keep = true;
     const [wI, wRow] = numField(tr("imgedit.larghezza"), W, { min: 1, max: 30000, unit: "pixel" }), [hI, hRow] = numField(tr("imgedit.altezza"), H, { min: 1, max: 30000, unit: "pixel" });
     const [pI, pRow] = numField(tr("imgedit.percentuale"), 100, { min: 1, max: 1000, step: 1, unit: "%" });
@@ -1411,6 +1411,7 @@ export function createEditor(ctx, init) {
     const aiSync = () => { const on = res.value === "ai"; aiRows.hidden = !on; for (const i of [wI, hI, pI]) i.disabled = on; chk.disabled = on;
       if (on) { wI.value = W * +fac.value; hI.value = H * +fac.value; pI.value = 100 * +fac.value; } };
     res.addEventListener("change", aiSync); fac.addEventListener("change", aiSync);
+    if (preAI && AI_OK) { res.value = "ai"; aiSync(); }
     wI.addEventListener("input", () => { if (keep) hI.value = Math.max(1, Math.round(+wI.value * H / W)); pI.value = Math.round(+wI.value / W * 100); });
     hI.addEventListener("input", () => { if (keep) wI.value = Math.max(1, Math.round(+hI.value * W / H)); });
     pI.addEventListener("input", () => { wI.value = Math.max(1, Math.round(W * +pI.value / 100)); hI.value = Math.max(1, Math.round(H * +pI.value / 100)); });
@@ -2026,7 +2027,9 @@ export function createEditor(ctx, init) {
       { label: tr("imgedit.regolazioni"), sub: adjItems }, "-",
       { label: tr("imgedit.tono_automatico"), keys: "Ctrl+Shift+L", run: () => quickAdjust("tone") }, { label: tr("imgedit.contrasto_automatico"), keys: "Ctrl+Alt+Shift+L", run: () => quickAdjust("contrast") },
       { label: tr("imgedit.colore_automatico"), keys: "Ctrl+Shift+B", run: () => quickAdjust("color") }, "-",
-      { label: tr("imgedit.dimensione_immagine_2"), keys: "Ctrl+Alt+I", run: dlgImageSize }, { label: tr("imgedit.dimensione_quadro_2"), keys: "Ctrl+Alt+C", run: dlgCanvasSize },
+      { label: tr("imgedit.dimensione_immagine_2"), keys: "Ctrl+Alt+I", run: () => dlgImageSize() },
+      ...(AI_OK ? [{ label: tr("imgai.ricampiona_ia") + "...", run: () => dlgImageSize(true) }] : []),
+      { label: tr("imgedit.dimensione_quadro_2"), keys: "Ctrl+Alt+C", run: dlgCanvasSize },
       { label: tr("imgedit.rotazione_immagine"), sub: () => [{ label: "180°", run: () => rotateDoc("180") }, { label: tr("imgedit.90_senso_orario"), run: () => rotateDoc("cw") }, { label: tr("imgedit.90_senso_antiorario"), run: () => rotateDoc("ccw") },
         { label: tr("imgedit.arbitraria"), run: dlgRotate }, "-", { label: tr("imgedit.rifletti_quadro_orizzontale"), run: () => rotateDoc("fh") }, { label: tr("imgedit.rifletti_quadro_verticale"), run: () => rotateDoc("fv") }] },
       { label: tr("imgedit.ritaglia"), run: () => cropDoc(sel.bounds), disabled: noSel }, { label: tr("imgedit.rifila_bordi_trasparenti"), run: trimTransparent }, "-",

@@ -2019,4 +2019,6 @@ nessun filtro sul contenuto. (La vecchia parte "IA" con Python/torch resta tolta
   `--posa <foto> <posa.png|json> <uscita.png> [--descrizione ".."] [--forza 0.75]` (png = immagine dello scheletro OpenPose;
   json = {"keypoints": [[x,y,c]x18]} in pixel o 0-1, oppure il formato di OpenPose con people/pose_keypoints_2d); stessi codici
   0/1/3 (rifiuto = 1). API: `immagini/carica` (PNG nel corpo -> percorso), `immagini/ritocca`, `immagini/posa` (posa anche come
-  oggetto JSON). Tempi sul Surface (processore, LCM 8 passi): cambio posa 512x768 ~375 s.
+  oggetto JSON). Tempi sul Surface (processore, LCM 8 passi): cambio posa 512x768 ~375 s, ritocco ~370 s. La zona da ridisegnare
+  parte GRIGIA (senza, il colore del vestito vecchio passava nel risultato), LCM con cfg 2,2. Aggiornamenti: controllo anche
+  ogni 2 ore; "Piu' tardi" = avviso cliccabile nella barra di stato (il Surface era rimasto alla 1.6.14: avviso solo all'avvio).

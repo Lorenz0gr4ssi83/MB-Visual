@@ -636,9 +636,13 @@ def ritocca(src: str, maschera: str, descrizione: str, out: str, negativo: str =
         gw, gh = _round64(cw * k), _round64(ch * k)
         crop = photo.crop((x0, y0, x1, y1)).resize((gw, gh), Image.LANCZOS)
         mcrop = m.crop((x0, y0, x1, y1)).resize((gw, gh), Image.NEAREST).filter(ImageFilter.MaxFilter(9))
+        # la zona da ridisegnare parte grigia: altrimenti il colore di prima (il vestito vecchio) passa nel risultato
+        crop.paste((127, 127, 127), (0, 0, gw, gh), mcrop)
         crop.save(work / "zona.png")
         mcrop.save(work / "maschera.png")
         steps, speed = _speed_args(veloce, passi)
+        if veloce:  # LCM: guida un po' piu' alta perche' la descrizione prevalga sul contorno
+            speed[speed.index("--cfg-scale") + 1] = "2.2"
         o = work / "ritocco.png"
         prompt = descrizione + ", photo, realistic, high quality" + (" <lora:lcm-lora-sdv1-5:1>" if veloce else "")
         neg = NEG_FISSO + (", " + negativo if negativo else "")
