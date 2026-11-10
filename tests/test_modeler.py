@@ -224,6 +224,54 @@ d7 = {"features": [{"id": "m", "type": "import", "items": r["items"]}, {"id": "t
 st, _c, _r, bad = run(d7)
 check("mesh lasciata mesh: scala", not bad and st["m"].mesh is not None and near(K.tessellate(st["m"])["props"]["vol"], 8000, 1e-9))
 
+# ------------------------------------------------------------------ impianti: tubazioni, canaline, condotte
+pts = [[0, 0, 0], [1000, 0, 0], [1000, 800, 0], [1000, 800, 600], [300, 800, 600]]
+d8 = {"features": [{"id": "p", "type": "route", "kind": "pipe", "pts": pts, "od": 114.3, "t": 6.02, "r": 152.4, "op": "new"}]}
+st, _c, _r, bad = run(d8)
+m = st["p"].meta if not bad else {}
+L = 1000 + 800 + 600 + 700 - 6 * 152.4 + 3 * math.pi / 2 * 152.4
+A = math.pi * (57.15 ** 2 - (57.15 - 6.02) ** 2)
+check("tubazione DN100 con 3 curve: lunghezza sull'asse", not bad and near(m["lunghezza"], L, 1e-6) and m["curve"] == [90.0, 90.0, 90.0], m.get("lunghezza"))
+check("tubazione: volume = sezione x lunghezza (Pappo)", not bad and near(vol(st, "p"), A * L, 1e-6), f"{vol(st, 'p'):.1f} / {A * L:.1f}")
+check("tubazione: un solo solido valido", not bad and K._count(st["p"].shape, K.TopAbs_SOLID) == 1 and K._check(st["p"].shape))
+for kind, extra in (("tray", {"w": 300, "h": 60, "t": 1.5, "r": 300}), ("ductr", {"w": 400, "h": 250, "t": 0.8, "r": 300}), ("duct", {"od": 250, "t": 0.6, "r": 250})):
+    st, _c, _r, bad = run({"features": [{"id": "x", "type": "route", "kind": kind, "pts": pts, "op": "new", **extra}]})
+    check(f"{kind}: solido valido lungo il percorso", not bad and K._count(st["x"].shape, K.TopAbs_SOLID) == 1 and K._check(st["x"].shape) and vol(st, "x") > 0,
+          bad and bad[0].get("err"))
+# canalina: fondo verso il basso sui tratti orizzontali (ingombro z da 0 a h)
+st, _c, _r, bad = run({"features": [{"id": "c", "type": "route", "kind": "tray", "pts": [[0, 0, 0], [1000, 0, 0], [1000, 900, 0]], "w": 300, "h": 60, "t": 1.5, "r": 300, "op": "new"}]})
+bb = K._bbox(st["c"].shape)
+check("canalina orizzontale: fondo a quota 0, sponde fino a 60", not bad and near(bb[2], 0, ab=0.01) and near(bb[5], 60, ab=0.01), bb)
+sec = 300 * 1.5 + 2 * (60 - 1.5) * 1.5
+check("canalina: volume = sezione x (dritti + curva sull'asse)", near(vol(st, "c"), sec * (1300 + math.pi / 2 * 300), 1e-6), f"{vol(st, 'c'):.1f} / {sec * (1300 + math.pi / 2 * 300):.1f}")
+# raggio troppo grande per un tratto corto: errore chiaro
+st, _c, _r, bad = run({"features": [{"id": "e", "type": "route", "kind": "pipe", "pts": [[0, 0, 0], [100, 0, 0], [100, 100, 0]], "od": 60.3, "t": 3.91, "r": 300, "op": "new"}]})
+check("raggio troppo grande: errore 'curva_troppo_grande'", bad and bad[0]["err"] == "srv_modeler.curva_troppo_grande", bad)
+# valvola e flange sulla tubazione: seguono il percorso (anche dopo uno spostamento) e non contano come interferenza
+d9 = {"features": [{"id": "p", "type": "route", "kind": "pipe", "pts": [[0, 0, 0], [2000, 0, 0], [2000, 1000, 0]], "od": 114.3, "t": 6.02, "r": 152.4, "size": "DN100", "op": "new"},
+                   {"id": "v", "type": "fitting", "route": "p", "kind": "valve", "at": [800, 50, 0]},
+                   {"id": "fl", "type": "fitting", "route": "p", "kind": "flanges", "at": [2000, 600, 30]},
+                   {"id": "b", "type": "primitive", "shape": "box", "p": [1200, -300, -300], "dx": 100, "dy": 600, "dz": 600, "op": "new"}]}
+st, _c, _r, bad = run(d9)
+bbv = K._bbox(st["v"].shape) if not bad else [0] * 6
+check("valvola DN100 sull'asse della tubazione (x=800, y=0)", not bad and near((bbv[0] + bbv[3]) / 2, 800, ab=0.5) and abs((bbv[1] + bbv[4]) / 2) < 1 and st["v"].meta["misura"] == "DN100", bbv)
+bbf = K._bbox(st["fl"].shape) if not bad else [0] * 6
+check("coppia di flange sul tratto lungo Y (x=2000, y=600)", not bad and near((bbf[0] + bbf[3]) / 2, 2000, ab=0.5) and near((bbf[1] + bbf[4]) / 2, 600, ab=0.5) and near(bbf[3] - bbf[0], 220, ab=0.5), bbf)
+cl = k.op_clash({"sid": "prova", "doc": d9})["clash"]
+check("interferenze: solo il blocco attraversato dal tubo (valvola e flange escluse)", len(cl) == 1 and {cl[0]["a"], cl[0]["b"]} == {"p", "b"}
+      and near(cl[0]["vol"], math.pi * (57.15 ** 2 - (57.15 - 6.02) ** 2) * 100, 1e-5), cl)
+d9["features"].insert(1, {"id": "mv", "type": "transform", "bodies": ["p"], "tf": {"k": "move", "v": [0, 0, 500]}})
+st, _c, _r, bad = run(d9)
+bbv = K._bbox(st["v"].shape) if not bad else [0] * 6
+check("tubazione spostata: la valvola la segue", not bad and near((bbv[2] + bbv[5]) / 2 - (bbv[5] - bbv[2]) / 2, bbv[2], ab=1) and bbv[2] > 300, bbv)
+
+# percorso da schizzo (punti 2D sul piano XZ) e spostamento: i dati d'impianto restano
+st, _c, _r, bad = run({"features": [{"id": "s", "type": "sketch", "plane": {"std": "XZ"}},
+                                   {"id": "q", "type": "route", "kind": "pipe", "sketch": "s", "pts2": [[0, 0], [500, 0], [500, 400]], "od": 60.3, "t": 3.91, "r": 90, "op": "new"},
+                                   {"id": "m", "type": "transform", "bodies": ["q"], "tf": {"k": "move", "v": [0, 200, 0]}}]})
+bb = K._bbox(st["q"].shape)
+check("tubazione da schizzo XZ (verticale) e spostata: dati conservati", not bad and near(bb[5], 400, ab=0.1) and st["q"].meta and near(st["q"].meta["lunghezza"], 900 - 180 + math.pi / 2 * 90, 1e-6), bb)
+
 # ------------------------------------------------------------------ file passati sulla riga di comando
 for src in sys.argv[1:]:
     t0 = time.time()

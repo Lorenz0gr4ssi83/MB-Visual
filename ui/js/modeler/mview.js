@@ -147,7 +147,8 @@ export class View {
     this.grid.geometry = new THREE.BufferGeometry();
     this.grid.geometry.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
     this.grid.matrixAutoUpdate = false;
-    this.grid.matrix.identity();
+    // poco sotto il piano: le facce appoggiate a quota 0 non si mescolano con le linee della griglia
+    this.grid.matrix.makeTranslation(0, 0, -half * 2e-4);
     if (plane) {
       const m = new THREE.Matrix4().makeBasis(new THREE.Vector3(...plane.x), new THREE.Vector3(...plane.y), new THREE.Vector3(...plane.n));
       m.setPosition(...plane.o);

@@ -6,12 +6,17 @@ import { fmtNum, t as tr } from "../i18n.js";
 import { evalExpr, validName } from "./mexpr.js";
 import { isDim, measureDim, solve } from "./msolver.js";
 import { ICON } from "./micons.js";
+import { fittingName, kindName, sizeLabel, sizes } from "./mplant.js";
 
 const fmt = (v, d = 3) => fmtNum(Math.round(v * 10 ** d) / 10 ** d, d);
 export const FEAT_ICON = { sketch: "sketch", extrude: "extrude", revolve: "revolve", primitive: "box", hole: "hole", fillet: "fillet", chamfer: "chamfer",
-  shell: "shell", pushpull: "pushpull", delface: "delface", boolean: "union", transform: "move", pattern: "pattern", delbody: "trash", mate: "mate", import: "import", split: "split" };
+  shell: "shell", pushpull: "pushpull", delface: "delface", boolean: "union", transform: "move", pattern: "pattern", delbody: "trash", mate: "mate", import: "import", split: "split", route: "route", fitting: "valve" };
 
-export function featLabel(f, n) { return f.name || tr("mod.f_" + f.type) + " " + n; }
+export function featLabel(f, n) {
+  if (!f.name && f.type === "fitting") return fittingName(f.kind) + (n ? " · " + n : "");
+  if (!f.name && f.type === "route") return kindName(f.kind) + " " + (f.size || "") + (n ? " · " + n : "");
+  return f.name || tr("mod.f_" + f.type) + " " + n;
+}
 
 export class Panel {
   constructor(app, host) {
@@ -169,6 +174,45 @@ function renameInDoc(doc, from, to) {
   }
 }
 
+// ---- tubazione/canalina/condotta selezionata: dati d'impianto, misura e raggio modificabili, nodi trascinabili
+function routeInfo(app, bid, add, r) {
+  const m = (app.res?.bodies || []).find(q => q.id === bid)?.meta;
+  if (!m?.impianto) return;
+  add(tr("mod.tipo"), kindName(m.impianto));
+  add(tr("mod.pl_misura"), m.misura || sizeLabel(m));
+  add(tr("mod.pl_lung_totale"), fmt(m.lunghezza / 1000, 3) + " m");
+  add(tr("mod.pl_tratti_dritti"), m.dritti.map(d => fmt(d, 1)).join(" + ") + " mm");
+  add(tr("mod.pl_curve"), m.curve.length ? m.curve.map(a => fmt(a, 1) + "°").join(", ") + " · R " + fmt(m.raggio, 1) : "0");
+  const f = app.doc.features.find(q => q.id === bid && q.type === "route");
+  if (!f) return;
+  const box = el("div", { class: "md-dbody" });
+  const sizeSel = el("select", { class: "field" }, ...sizes(f.kind).map(s => el("option", { value: s.id, selected: s.id === f.size }, s.label)));
+  sizeSel.addEventListener("change", () => {
+    const s = sizes(f.kind).find(q => q.id === sizeSel.value);
+    if (!s) return;
+    Object.assign(f, { size: s.id, t: s.t, r: s.r });
+    if (s.od) f.od = s.od; else { delete f.od; f.w = s.w; f.h = s.h; }
+    app.afterRegen = () => { app.view.selection = [{ kind: "body", body: bid }]; app.selChanged(); };
+    app.commit(tr("mod.pl_misura"));
+  });
+  const rIn = el("input", { class: "field", type: "text", value: String(f.r ?? m.raggio) });
+  rIn.addEventListener("change", () => {
+    try { evalExpr(rIn.value, app.vals || {}); } catch { return toast(tr("mod.valore_non_valido"), true); }
+    f.r = /^[0-9.,]+$/.test(rIn.value.trim()) ? parseFloat(rIn.value.replace(",", ".")) : rIn.value.trim();
+    app.afterRegen = () => { app.view.selection = [{ kind: "body", body: bid }]; app.selChanged(); };
+    app.commit(tr("mod.pl_raggio_curve"));
+  });
+  box.append(el("div", { class: "md-frow" }, el("label", {}, tr("mod.pl_misura")), sizeSel),
+    el("div", { class: "md-frow" }, el("label", {}, tr("mod.pl_raggio_curve")), rIn, el("span", { class: "md-unit" }, "mm")),
+    el("p", { class: "md-hint" }, f.sketch ? tr("mod.pl_nodi_schizzo") : tr("mod.pl_nodi_aiuto")));
+  if (f.kind === "pipe") {
+    const acts = el("div", { class: "md-quick" });
+    for (const [k, icon] of [["valve", "valve"], ["flanges", "flange"], ["flange", "flange"]]) acts.append(el("button", { class: "btn", type: "button", onclick: () => app.startFitting(bid, k) }, el("span", { html: ICON[icon] }), fittingName(k)));
+    box.append(el("div", { class: "md-subh" }, tr("mod.pl_componenti")), acts);
+  }
+  r.append(box);
+}
+
 // ---- proprieta' della selezione (pannello destro senza strumenti)
 export function selectionInfo(app) {
   const r = app.right;
@@ -201,6 +245,7 @@ export function selectionInfo(app) {
     add(tr("mod.ingombro"), [0, 1, 2].map(k => fmt(bb[k + 3] - bb[k], 2)).join(" × ") + " mm");
     if (p.facce !== undefined) add(tr("mod.facce_spigoli"), `${p.facce} / ${p.spigoli}`);
     if (p.valido === false) add(tr("mod.controllo"), tr("mod.solido_non_valido"));
+    routeInfo(app, s.body, add, r);
   } else if (s.kind === "face" && b) {
     const i = s.info || b.faces[s.index];
     r.append(el("div", { class: "md-dhead" }, el("b", {}, tr("mod.faccia") + " · " + tr("mod.sup_" + i.t))));

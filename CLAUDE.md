@@ -845,6 +845,25 @@ dell'anteprima glTF salvata nel file (`viewOnly` di viewers/modeler.js, WEB_EXTS
   [file.step...]` (37: volumi teorici di ogni lavorazione, ricalcolo con riferimenti, esportazioni rilette, import, processo
   separato, .mbmod), `node tests/test_modeler_ui.mjs [cartella]` (69, app vera in Edge senza finestra: scenari in
   tests/modeler_ui con clic sul canvas, valori digitati, finestre; file veri da %USERPROFILE%\.mbvisual se presenti).
+- Revisione 2 (10/11/2026, richiesta dell'utente "migliore di EsaPRO e CADMATIC: trascinare gli oggetti, tubi e canaline"):
+  * Selezione "Oggetti" (predefinita, tendina nella barra; "Facce e spigoli" per l'altra) + maniglie `ui/js/modeler/mdrag.js`
+    Gizmo: frecce X/Y/Z, quadrati dei piani, anelli di rotazione; passi automatici (1-2-5 secondo lo zoom, Ctrl = libero, 5 gradi),
+    Alt = copia, numero digitato durante il trascinamento = misura esatta; spostamenti consecutivi dello stesso corpo si sommano
+    nella stessa lavorazione. Gli eventi si fermano con stopImmediatePropagation in cattura (OrbitControls sta sullo stesso canvas).
+  * Impianti (T): tubazioni (DN EN 10220 serie 40, curve 1,5 DN), canaline portacavi (U aperta, fondo in basso), condotte
+    rettangolari e circolari; catalogo in `mplant.js` (misure dell'utente in localStorage mbv-impianti-misure). RouteTool: clic sui
+    punti, direzione = asse X/Y/Z che sullo schermo segue il mouse (Maiusc = libero), aggancio a vertici/centri/estremita',
+    lunghezze digitate. Motore `f_route` (modkernel): spezzata -> dritti (prismi della sezione) + curve (rivoluzioni attorno
+    all'asse della curva), sezione che ruota con il percorso; `Body.meta` = dati d'impianto (lunghezze, curve, nodi; i nodi
+    seguono le trasformazioni). Percorso dalle linee di uno schizzo (`pts2`, resta collegato: cambiando le quote la canalina segue)
+    o dagli spigoli scelti. NodeHandles: nodi del percorso trascinabili (corpo non spostato dopo la lavorazione).
+  * Componenti in linea `f_fitting` (valvola a saracinesca, flangia, coppia di flange PN16 EN 1092-1): punto della linea d'asse piu'
+    vicino ad "at", seguono il percorso. Interferenze `op_clash` (volume comune > tolleranza; componenti sulla propria tubazione
+    esclusi), pannello ClashTool con marcatori. Distinta materiali `mbom.js` (per tipo e misura: tratte, dritti, curve con
+    angoli, lunghezza sull'asse, peso; componenti; altri corpi) in CSV ed Excel.
+  * Collaudo: test_modeler.py 51/51 (anche volumi delle tubazioni = sezione x lunghezza sull'asse, canalina, interferenza esatta),
+    test_modeler_ui.mjs 82/82 (scenario 9: disegno, maniglie, nodi, DN150, canalina da schizzo, valvola, interferenze, distinta).
+  * Non fatto: isometrici delle tubazioni, specifiche di linea (classi di tubazione), staffaggi, P&ID.
 - Limiti: niente sposta faccia laterale (solo lungo la normale), schizzi senza taglia/raccorda/offset/spline, vincoli solo
   globali (nessun "definito" per singola quota oltre al colore), assiemi = corpi con accoppiamenti nello stesso file (non
   componenti esterni), import del modello come blocco (la cronologia degli altri CAD non si legge). Build PyInstaller NON provata.

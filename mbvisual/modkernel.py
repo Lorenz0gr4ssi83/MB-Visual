@@ -88,14 +88,15 @@ _UID = [0]
 
 class Body:
     """Corpo immutabile: solido B-rep (kind "solid") o mesh (kind "mesh": vertici e triangoli, solo trasformazioni)."""
-    __slots__ = ("uid", "shape", "mesh", "src", "_tess", "_sig")
+    __slots__ = ("uid", "shape", "mesh", "src", "_tess", "_sig", "meta")
 
-    def __init__(self, shape=None, mesh=None, src=""):
+    def __init__(self, shape=None, mesh=None, src="", meta=None):
         _UID[0] += 1
         self.uid = _UID[0]
         self.shape = shape
         self.mesh = mesh  # (vertici float64 n x 3, triangoli int32 m x 3)
         self.src = src  # id della lavorazione che l'ha prodotto per ultima
+        self.meta = meta  # dati d'impianto (tubazioni, canaline, condotte): tipo, misura, lunghezze, curve
         self._tess = None
         self._sig = None
 
@@ -699,7 +700,11 @@ def transform_body(body, t, fid):
         s = BRepBuilderAPI_GTransform(body.shape, t, True).Shape()
     else:
         s = BRepBuilderAPI_Transform(body.shape, t, True).Shape()
-    return Body(shape=s, src=fid)
+    meta = body.meta
+    if meta and meta.get("nodi") and not isinstance(t, gp_GTrsf):
+        m = _mat_of(t)
+        meta = dict(meta, nodi=[(m[:3, :3] @ np.array(q) + m[:3, 3]).tolist() for q in meta["nodi"]])
+    return Body(shape=s, src=fid, meta=meta)
 
 
 # ------------------------------------------------------------------------------------------------- mesh -> B-rep
@@ -797,12 +802,12 @@ def _targets(state, f, tool, exclude=()):
     return out
 
 
-def _apply_op(state, f, tool, fid):
+def _apply_op(state, f, tool, fid, meta=None):
     """Strumento (solido nuovo) applicato con l'operazione della lavorazione: nuovo corpo, unione, taglio, intersezione."""
     op = f.get("op", "new")
     st = OrderedDict(state)
     if op == "new":
-        st[fid] = Body(shape=_clean(tool), src=fid)
+        st[fid] = Body(shape=_clean(tool) if meta is None else tool, src=fid, meta=meta)
         return st
     targets = _targets(state, f, tool)
     if not targets:
@@ -1269,11 +1274,223 @@ def f_split(state, f, ctx):
     return st
 
 
+# ------------------------------------------------------------------------------------------------- impianti
+# Tubazioni, canaline portacavi e condotte d'aria lungo un percorso a spezzata (come i programmi di impiantistica):
+# a ogni angolo una curva di raggio r sull'asse; tratti dritti = prismi della sezione, curve = rivoluzioni della sezione
+# attorno all'asse della curva. La sezione ruota con il percorso, come un pezzo vero piegato (le canaline restano col fondo
+# verso il basso finche' il percorso resta orizzontale).
+PIPE_KINDS = ("pipe", "tray", "duct", "ductr")
+
+
+def _frame0(u, up):
+    """Riferimento iniziale della sezione: Y il piu' possibile verso "su" (fondo delle canaline in basso), X orizzontale."""
+    up = _n(up if up is not None else [0, 0, 1])
+    y = up - u * float(np.dot(up, u))
+    if np.linalg.norm(y) < 1e-6:  # primo tratto verticale: Y lungo l'asse X del mondo
+        y = np.array([1.0, 0, 0]) - u * u[0]
+        if np.linalg.norm(y) < 1e-6:
+            y = np.array([0, 1.0, 0])
+    y = _n(y)
+    return np.cross(y, u), y
+
+
+def _rotv(v, axis, ang):
+    k = _n(axis)
+    return v * math.cos(ang) + np.cross(k, v) * math.sin(ang) + k * float(np.dot(k, v)) * (1 - math.cos(ang))
+
+
+def _profile_face(kind, f, o, u, x, y):
+    """Sezione nel piano perpendicolare a u per il punto o: tubo (corona), canalina (U aperta in alto, asse al centro del
+    fondo), condotta rettangolare o circolare (spessore di lamiera)."""
+    pl = gp_Pln(gp_Ax3(_p(o), _d(u), _d(x)))
+
+    def poly(pts):
+        mp = BRepBuilderAPI_MakePolygon()
+        for a, b in pts:
+            mp.Add(_p(o + x * a + y * b))
+        mp.Close()
+        return mp.Wire()
+
+    def circ(r):
+        return BRepBuilderAPI_MakeWire(BRepBuilderAPI_MakeEdge(gp_Circ(gp_Ax2(_p(o), _d(u), _d(x)), r)).Edge()).Wire()
+
+    t = float(f.get("t", 0) or 0)
+    if kind in ("pipe", "duct"):
+        r = float(f.get("od", 50) or 0) / 2
+        if r <= 0:
+            raise FeatureError("srv_modeler.dimensioni_non_valide")
+        mf = BRepBuilderAPI_MakeFace(pl, circ(r), True)
+        if 0 < t < r:
+            mf.Add(TopoDS.Wire(circ(r - t).Reversed()))
+    else:
+        w, h = float(f.get("w", 100) or 0), float(f.get("h", 60) or 0)
+        if w <= 0 or h <= 0 or t <= 0 or 2 * t >= w or (t >= h if kind == "tray" else 2 * t >= h):
+            raise FeatureError("srv_modeler.dimensioni_non_valide")
+        if kind == "tray":
+            pts = [(-w / 2, 0), (w / 2, 0), (w / 2, h), (w / 2 - t, h), (w / 2 - t, t), (-w / 2 + t, t), (-w / 2 + t, h), (-w / 2, h)]
+            mf = BRepBuilderAPI_MakeFace(pl, poly(pts), True)
+        else:
+            mf = BRepBuilderAPI_MakeFace(pl, poly([(-w / 2, -h / 2), (w / 2, -h / 2), (w / 2, h / 2), (-w / 2, h / 2)]), True)
+            mf.Add(TopoDS.Wire(poly([(-w / 2 + t, -h / 2 + t), (w / 2 - t, -h / 2 + t), (w / 2 - t, h / 2 - t), (-w / 2 + t, h / 2 - t)]).Reversed()))
+    if not mf.IsDone():
+        raise FeatureError("srv_modeler.profilo_non_valido")
+    fx = ShapeFix_Face(mf.Face())
+    fx.FixOrientation()
+    fx.Perform()
+    return fx.Face()
+
+
+def route_geometry(pts, r):
+    """Spezzata -> [("l", a, b, u) | ("a", t1, u, v, centro, asse, angolo)], lunghezze dei tratti dritti, angoli delle curve."""
+    P = [np.array(p, float) for p in pts]
+    P = [p for i, p in enumerate(P) if i == 0 or np.linalg.norm(p - P[i - 1]) > 1e-6]
+    # punti allineati: si tolgono (nessuna curva)
+    Q = [P[0]]
+    for i in range(1, len(P) - 1):
+        u, v = _n(P[i] - Q[-1]), _n(P[i + 1] - P[i])
+        if float(np.dot(u, v)) < 1 - 1e-12:
+            Q.append(P[i])
+    if len(P) > 1:
+        Q.append(P[-1])
+    P = Q
+    if len(P) < 2:
+        raise FeatureError("srv_modeler.percorso_corto")
+    dirs = [_n(P[i + 1] - P[i]) for i in range(len(P) - 1)]
+    lens = [float(np.linalg.norm(P[i + 1] - P[i])) for i in range(len(P) - 1)]
+    cut = [0.0] * len(P)
+    angs = [0.0] * len(P)
+    for i in range(1, len(P) - 1):
+        ang = math.acos(float(np.clip(np.dot(dirs[i - 1], dirs[i]), -1, 1)))
+        if math.pi - ang < 1e-3:
+            raise FeatureError("srv_modeler.percorso_inverte")
+        cut[i], angs[i] = r * math.tan(ang / 2), ang
+    for i in range(len(P) - 1):
+        if cut[i] + cut[i + 1] > lens[i] + 1e-6:
+            raise FeatureError("srv_modeler.curva_troppo_grande", round(lens[i], 1), round(cut[i] + cut[i + 1], 1))
+    segs, dritti, angoli = [], [], []
+    for i in range(len(P) - 1):
+        u = dirs[i]
+        a, b = P[i] + u * cut[i], P[i + 1] - u * cut[i + 1]
+        L = float(np.dot(b - a, u))
+        if L > 1e-6:
+            segs.append(("l", a, b, u))
+            dritti.append(L)
+        if i + 1 < len(P) - 1:
+            v = dirs[i + 1]
+            n = _n(np.cross(u, v))
+            segs.append(("a", b, u, v, b + _n(np.cross(n, u)) * r, n, angs[i + 1]))
+            angoli.append(round(math.degrees(angs[i + 1]), 3))
+    return segs, dritti, angoli
+
+
+def f_route(state, f, ctx):
+    kind = f.get("kind", "pipe")
+    if kind not in PIPE_KINDS:
+        raise FeatureError("srv_modeler.forma_sconosciuta", kind)
+    pts = f.get("pts")
+    if f.get("pts2") is not None:  # percorso dalle linee di uno schizzo: resta collegato (cambiando lo schizzo si aggiorna)
+        pl = ctx.planes.get(f.get("sketch"))
+        if pl is None:
+            raise FeatureError("srv_modeler.schizzo_mancante")
+        pts = [pl.to3(q).tolist() for q in f["pts2"]]
+    if not pts or len(pts) < 2:
+        raise FeatureError("srv_modeler.percorso_corto")
+    size = float(f.get("od", 0) or 0) if kind in ("pipe", "duct") else float(f.get("w", 0) or 0)
+    r = float(f.get("r", 0) or 0) or max(size * 1.5, 1.0)
+    segs, dritti, angoli = route_geometry(pts, r)
+    first = segs[0]
+    x, y = _frame0(np.array(first[3] if first[0] == "l" else first[2], float), np.array(f.get("up") or [0, 0, 1], float))
+    pieces = []
+    for sg in segs:
+        if sg[0] == "l":
+            _k, a, b, u = sg
+            pieces.append(BRepPrimAPI_MakePrism(_profile_face(kind, f, a, u, x, y), _vec(b - a), False, True).Shape())
+        else:
+            _k, t1, u, v, c, n, ang = sg
+            pieces.append(BRepPrimAPI_MakeRevol(_profile_face(kind, f, t1, u, x, y), gp_Ax1(_p(c), _d(n)), ang, True).Shape())
+            x, y = _rotv(x, n, ang), _rotv(y, n, ang)
+    shape = _clean(_fuse_all(pieces)) if len(pieces) > 1 else _orient(pieces[0])
+    lun = sum(dritti) + sum(math.radians(a) * r for a in angoli)
+    meta = {"impianto": kind, "misura": f.get("size") or "", "od": f.get("od"), "w": f.get("w"), "h": f.get("h"), "t": f.get("t"),
+            "raggio": round(r, 3), "lunghezza": round(lun, 3), "dritti": [round(d, 3) for d in dritti], "curve": angoli,
+            "nodi": [[float(c) for c in p] for p in pts], "spec": f.get("spec") or ""}
+    return _apply_op(state, f, shape, f["id"], meta)
+
+# flange EN 1092-1 PN16: DN -> (diametro esterno, spessore)
+FLANGE_PN16 = {15: (95, 16), 20: (105, 18), 25: (115, 18), 32: (140, 18), 40: (150, 18), 50: (165, 18), 65: (185, 18), 80: (200, 20),
+               100: (220, 20), 125: (250, 22), 150: (285, 22), 200: (340, 24), 250: (405, 26), 300: (460, 28), 350: (520, 30),
+               400: (580, 32), 450: (640, 40), 500: (715, 44), 600: (840, 54)}
+
+
+def _route_axis(meta, at):
+    """Punto della linea d'asse di un impianto piu' vicino ad "at" e direzione in quel punto (tratti dritti e curve)."""
+    segs, _d, _a = route_geometry(meta["nodi"], meta["raggio"])
+    at = np.array(at, float)
+    best = None
+    for sg in segs:
+        if sg[0] == "l":
+            _k, a, b, u = sg
+            L = float(np.linalg.norm(b - a))
+            t = min(max(float(np.dot(at - a, u)), 0.0), L)
+            p, d = a + u * t, u
+        else:
+            _k, t1, u, v, c, n, ang = sg
+            r0 = t1 - c
+            rel = at - c
+            rel = rel - n * float(np.dot(rel, n))
+            phi = math.atan2(float(np.dot(np.cross(r0, rel), n)), float(np.dot(r0, rel)))
+            phi = min(max(phi, 0.0), ang)
+            p, d = c + _rotv(r0, n, phi), _rotv(u, n, phi)
+        dist = float(np.linalg.norm(p - at))
+        if best is None or dist < best[0]:
+            best = (dist, p, _n(d))
+    return best[1], best[2]
+
+
+def f_fitting(state, f, ctx):
+    """Componente in linea su una tubazione (flangia, coppia di flange, valvola): si mette nel punto della linea d'asse
+    piu' vicino a "at" e segue il percorso quando cambia. Corpo a parte (conteggio nella distinta)."""
+    body = state.get(f.get("route"))
+    meta = body.meta if body is not None else None
+    if not meta or meta.get("impianto") != "pipe":
+        raise FeatureError("srv_modeler.serve_tubazione")
+    p, u = _route_axis(meta, f.get("at") or meta["nodi"][0])
+    od = float(meta.get("od") or 60)
+    dn = int(str(meta.get("misura") or "").replace("DN", "") or 0) or min(FLANGE_PN16, key=lambda k: abs(FLANGE_PN16[k][0] / 2.2 - od))
+    D, b = FLANGE_PN16.get(dn, (od * 1.9, max(16.0, od * 0.18)))
+    x, y = _frame0(u, np.array([0, 0, 1.0]))
+    kind = f.get("kind", "valve")
+
+    def cyl(center, axis, r, h):
+        return BRepPrimAPI_MakeCylinder(gp_Ax2(_p(center - axis * h / 2), _d(axis)), r, h).Shape()
+
+    parts = []
+    if kind in ("flange", "flanges"):
+        gap = 3.0 if kind == "flanges" else 0.0  # guarnizione tra le due flange
+        for sgn in ((-1, 1) if kind == "flanges" else (0,)):
+            parts.append(cyl(p + u * sgn * (b + gap) / 2, u, D / 2, b))
+        L = b * (2 if kind == "flanges" else 1) + (3.0 if kind == "flanges" else 0)
+    else:  # valvola a saracinesca: flange, corpo, castello e volantino verso l'alto
+        L = max(2.2 * od, 6 * b)
+        for sgn in (-1, 1):
+            parts.append(cyl(p + u * sgn * (L / 2 - b / 2), u, D / 2, b))
+        parts.append(cyl(p, u, od * 0.62, L - 2 * b + 0.02))
+        parts.append(BRepPrimAPI_MakeSphere(_p(p), od * 0.72).Shape())
+        H = od * 1.6 + 40
+        parts.append(BRepPrimAPI_MakeCylinder(gp_Ax2(_p(p), _d(y)), od * 0.28, H).Shape())
+        parts.append(BRepPrimAPI_MakeTorus(gp_Ax2(_p(p + y * H), _d(y)), od * 0.75, max(4.0, od * 0.06)).Shape())
+    shape = _fuse_all(parts)
+    meta2 = {"componente": kind, "misura": meta.get("misura") or f"Ø{od}", "lunghezza_fs": round(L, 1), "flangia": [D, b], "su": f.get("route")}
+    st = OrderedDict(state)
+    st[f["id"]] = Body(shape=shape, src=f["id"], meta=meta2)
+    return st
+
+
 FEATURES = {
     "sketch": f_sketch, "extrude": f_extrude, "revolve": f_revolve, "primitive": f_primitive, "hole": f_hole,
     "fillet": f_fillet, "chamfer": f_chamfer, "shell": f_shell, "pushpull": f_pushpull, "delface": f_delface,
     "boolean": f_boolean, "transform": f_transform, "pattern": f_pattern, "delbody": f_delbody, "mate": f_mate,
-    "import": f_import, "split": f_split,
+    "import": f_import, "split": f_split, "route": f_route, "fitting": f_fitting,
 }
 
 
@@ -1410,6 +1627,8 @@ class Kernel:
         bodies, blobs = [], []
         for bid, body in state.items():
             entry = {"id": bid, "uid": body.uid, "kind": body.kind, "src": body.src}
+            if body.meta:
+                entry["meta"] = body.meta
             if body.uid not in have:
                 t = tessellate(body)
                 entry.update({"faces": t["faces"], "edges": t["edges"], "bbox": t["bbox"], "props": t["props"], "buf": len(blobs)})
@@ -1464,6 +1683,37 @@ class Kernel:
                 c = float(np.clip(abs(np.dot(_n(ia["d"]), _n(ib["d"]))), -1, 1))
                 out["ang"] = math.degrees(math.acos(c))
         return out
+
+    def op_clash(self, r):
+        """Interferenze tra i corpi: coppie con ingombri sovrapposti e volume comune oltre la tolleranza."""
+        s = self.sess(r["sid"])
+        state, _ctx, _res = s.evaluate(r["doc"])
+        tol = float(r.get("tol") or 1.0)
+        ids = [b for b in state if state[b].mesh is None and b not in set(r.get("skip") or [])]
+        boxes = {b: _bbox(state[b].shape) for b in ids}
+        out = []
+        for i, a in enumerate(ids):
+            for b in ids[i + 1:]:
+                if not _boxes_touch(boxes[a], boxes[b], 0):
+                    continue
+                # componente montato sulla sua tubazione: non e' un'interferenza
+                ma, mb = state[a].meta or {}, state[b].meta or {}
+                if ma.get("su") == b or mb.get("su") == a:
+                    continue
+                try:
+                    c = _bool("common", state[a].shape, state[b].shape)
+                except FeatureError:
+                    continue
+                if _empty(c):
+                    continue
+                v = abs(_volume(c))
+                if v <= tol:
+                    continue
+                g = GProp_GProps()
+                BRepGProp.VolumeProperties_s(c, g)
+                cm = g.CentreOfMass()
+                out.append({"a": a, "b": b, "vol": v, "c": [cm.X(), cm.Y(), cm.Z()]})
+        return {"clash": out, "n": len(ids)}
 
     def op_import(self, r):
         """File CAD (STEP, IGES, BREP) -> corpi salvati come blob, con nome e colore dal file."""

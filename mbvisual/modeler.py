@@ -370,6 +370,9 @@ def api(handler, qs):
         if op == "regen":
             data = regen(b["sid"], b["doc"], b.get("have"), b.get("upto"))
             return handler._send(200, data, "application/octet-stream")
+        if op == "clash":
+            r = KERNEL.request("clash", sid=b["sid"], doc=b["doc"], tol=b.get("tol"), skip=b.get("skip"))
+            return handler._json({"ok": True, "clash": r["clash"], "n": r["n"]})
         if op == "measure":
             return handler._json({"ok": True, **measure(b["sid"], b["doc"], b.get("a"), b.get("b"))})
         if op == "export":

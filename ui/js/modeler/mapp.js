@@ -13,6 +13,8 @@ import { SketchEditor, sampleEnt } from "./msketch.js";
 import { FeatureTool, Measure, PushPull, specs } from "./mtools.js";
 import { View } from "./mview.js";
 import { meshParts } from "./mmesh.js";
+import { Gizmo, NodeHandles, RouteTool } from "./mdrag.js";
+import { ClashTool, FittingTool, showBom } from "./mbom.js";
 
 const KERNEL_EXTS = new Set(["step", "stp", "p21", "stpz", "iges", "igs", "brep", "brp", "ipt", "iam", "sldprt", "sldasm", "par", "psm", "asm", "x_t", "x_b", "xmt_txt", "xmt_bin", "p_t", "p_b"]);
 
@@ -60,6 +62,10 @@ export class ModelerApp {
     ctx.fillBody(true);
     this.view = new View(this.hostEl);
     this.view.overlays.add(g => this.tool?.paint?.(g));
+    // trascinamento diretto: maniglie sui corpi selezionati e nodi dei percorsi d'impianto (ui/js/modeler/mdrag.js)
+    this.selMode = localStorage.getItem("mbv-mod-selezione") || "body";
+    this.gizmo = new Gizmo(this);
+    this.nodes = new NodeHandles(this);
     this.panel = new Panel(this, this.left);
     this.buildToolbar();
     this.bindPointer();
@@ -102,6 +108,10 @@ export class ModelerApp {
       B("pattern", tr("mod.serie"), () => this.startOp("pattern"), { id: "pattern" }),
       B("mate", tr("mod.accoppia"), () => this.startOp("mate"), { id: "mate" }),
       B("split", tr("mod.dividi"), () => this.startOp("split"), { id: "split" }), sep(),
+      B("route", tr("mod.pl_impianti") + " (T)", () => this.startRoute(), { id: "route" }),
+      B("bom", tr("mod.pl_distinta"), () => showBom(this)),
+      B("clash", tr("mod.pl_interferenze"), () => { this.cancelTool(false); this.setTool(new ClashTool(this), "clash"); }, { id: "clash" }), sep(),
+      this.selModeSel(),
       B("measure", tr("mod.misura") + " (I)", () => this.startMeasure(), { id: "measure" }),
       B("import", tr("mod.importa"), () => this.importPick()), sep(),
       this.viewSelect(),
@@ -145,9 +155,20 @@ export class ModelerApp {
     setTimeout(() => document.addEventListener("pointerdown", close, true), 0);
   }
 
+  // selezione: oggetti interi (da trascinare) oppure facce e spigoli
+  selModeSel() {
+    const s = el("select", { class: "md-compact", title: tr("mod.modo_selezione"), onchange: () => { this.selMode = s.value; try { localStorage.setItem("mbv-mod-selezione", s.value); } catch { /* */ } this.view.selection = []; this.selChanged(); } },
+      el("option", { value: "body", selected: this.selMode === "body" }, tr("mod.sel_corpi")), el("option", { value: "face", selected: this.selMode !== "body" }, tr("mod.sel_facce")));
+    return s;
+  }
+
+  startFitting(route, kind) { this.cancelTool(false); this.setTool(new FittingTool(this, route, kind), "fitting"); }
+
+  startRoute(opts) { if (this.sketch) return; this.cancelTool(false); this.setTool(new RouteTool(this, opts), "route"); }
+
   viewSelect() {
     const views = { iso: [0.6, -0.8, 0.55], top: [0, 0, 1], bottom: [0, 0, -1], front: [0, -1, 0], back: [0, 1, 0], right: [1, 0, 0], left: [-1, 0, 0] };
-    const s = el("select", { title: tr("mod.vista"), onchange: () => { const d = views[s.value]; if (d) this.view.fit(d); s.value = ""; } },
+    const s = el("select", { class: "md-compact", title: tr("mod.vista"), onchange: () => { const d = views[s.value]; if (d) this.view.fit(d); s.value = ""; } },
       el("option", { value: "" }, tr("mod.vista")), el("option", { value: "iso" }, tr("mod.v_iso")), el("option", { value: "top" }, tr("mod.v_alto")), el("option", { value: "bottom" }, tr("mod.v_basso")),
       el("option", { value: "front" }, tr("mod.v_fronte")), el("option", { value: "back" }, tr("mod.v_retro")), el("option", { value: "right" }, tr("mod.v_destra")), el("option", { value: "left" }, tr("mod.v_sinistra")));
     return s;
@@ -190,12 +211,15 @@ export class ModelerApp {
   }
 
   hoverSelect(e) {
-    const h = this.view.pick(e, { faces: true, edges: true, verts: true, regions: true });
+    let h = this.view.pick(e, { faces: true, edges: true, verts: true, regions: true });
+    if (h && this.selMode === "body" && h.body && h.kind !== "region") h = { kind: "body", body: h.body, point: h.point };
     this.view.hover = h;
     this.view.redraw();
   }
   clickSelect(e) {
-    const h = this.view.pick(e, { faces: true, edges: true, verts: true, regions: true });
+    let h = this.view.pick(e, { faces: true, edges: true, verts: true, regions: true });
+    // selezione per corpi (predefinita): un clic prende l'oggetto intero, pronto da trascinare con le maniglie
+    if (h && this.selMode === "body" && h.body && h.kind !== "region") h = { kind: "body", body: h.body, point: h.point };
     const add = e.ctrlKey || e.shiftKey || e.metaKey;
     const same = s => s.kind === h.kind && s.body === h.body && s.index === h.index && s.region === h.region;
     let sel = this.view.selection;
@@ -232,6 +256,7 @@ export class ModelerApp {
       { keys: "C", desc: tr("mod.smusso"), run: op("chamfer"), when: no3d },
       { keys: "M", desc: tr("mod.sposta"), run: op("transform", { k: "move" }), when: no3d },
       { keys: "I", desc: tr("mod.misura"), run: () => this.startMeasure(), when: no3d },
+      { keys: "T", desc: tr("mod.pl_impianti"), run: () => this.startRoute(), when: no3d },
       { keys: "Delete", desc: tr("mod.elimina_selezione"), run: () => this.deleteSelection(), when: () => no3d() && !this.tool },
       { keys: "Escape", desc: tr("mod.annulla_strumento"), run: () => this.escape(), when: () => !this.sketch },
       { keys: "Home", desc: tr("mod.adatta"), run: () => this.view.fit(), when: () => !this.typing() },
@@ -326,6 +351,7 @@ export class ModelerApp {
       this.shownDoc = doc;
       this.showBodies();
       this.showSketches();
+      if (this.afterRegen && !docOverride) { const f = this.afterRegen; this.afterRegen = null; f(); }
       const bad = new Set([...meta.features.filter(r => !r.ok).map(r => r.id), ...Object.keys(cmp.errs)]).size;
       this.say(bad ? tr("mod.lavorazioni_errore", bad) : "");
       let vol = 0;
@@ -396,7 +422,7 @@ export class ModelerApp {
       if (doc.end !== null && doc.end !== undefined) doc.end++;
     }
     // lo schizzo usato da un'estrusione o da una rivoluzione si nasconde (come in Fusion): si riaccende dall'albero
-    if ((f.type === "extrude" || f.type === "revolve") && !isEdit) { const sk = doc.features.find(q => q.id === f.sketch); if (sk) sk.hidden = true; }
+    if ((f.type === "extrude" || f.type === "revolve" || (f.type === "route" && f.sketch)) && !isEdit) { const sk = doc.features.find(q => q.id === f.sketch); if (sk) sk.hidden = true; }
     this.selFeature = f.id;
     this.cancelTool(false);
     this.viewUpto = null;
@@ -642,6 +668,8 @@ export class ModelerApp {
   }
 
   dispose() {
+    this.gizmo?.dispose();
+    this.nodes?.dispose();
     this.tool?.stop?.();
     this.sketch?.stop();
     this.unkey?.();

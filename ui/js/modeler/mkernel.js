@@ -46,6 +46,7 @@ async function call(op, json) {
 }
 
 export const measure = (sid, cdoc, a, b) => call("measure", { sid, doc: cdoc, a, b });
+export const clash = (sid, cdoc, tol) => call("clash", { sid, doc: cdoc, tol });
 export async function job(op, json, onProgress) {
   const d = await call(op, json);
   return waitJob(d.job, onProgress);

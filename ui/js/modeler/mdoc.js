@@ -16,6 +16,7 @@
 import { evalExpr, evalParams } from "./mexpr.js";
 import { solve } from "./msolver.js";
 import { findRegions, matchRegion } from "./mregions.js";
+import { chainFromSketch, fittingName, kindName } from "./mplant.js";
 
 export const FORMAT = "mbmod-1";
 export function newDoc() { return { format: FORMAT, units: "mm", seq: 1, params: [], features: [], looks: {}, end: null }; }
@@ -101,6 +102,14 @@ export function compile(doc, { upto = null } = {}) {
           delete cf.profiles;
           if (f.type === "revolve") cf.axis = axisOf(doc, f);
         }
+        // tubazione/canalina dalle linee di uno schizzo: i punti seguono lo schizzo (piano calcolato dal motore)
+        if (f.type === "route" && f.sketch) {
+          const sk = doc.features.find(s => s.id === f.sketch)?.sk;
+          const ch = sk && chainFromSketch(sk);
+          if (!ch) errs[f.id] = ["mod.pl_schizzo_senza_linee"];
+          cf.pts2 = ch || [];
+          delete cf.pts;
+        }
       }
     } catch (e) {
       errs[f.id] = ["mod.espressione_non_valida", e.message || ""];
@@ -158,6 +167,8 @@ export function bodyName(doc, bid, fallbackN) {
   const lk = doc.looks?.[bid];
   if (lk?.name) return lk.name;
   const f = doc.features.find(q => q.id === bid.split(":")[0]);
+  if (f?.type === "fitting") { const r = doc.features.find(q => q.id === f.route); return fittingName(f.kind) + (r?.size ? " " + r.size : ""); }
+  if (f?.type === "route") return kindName(f.kind) + " " + (f.size || "") + (bid.includes(":") ? " (" + bid.split(":").pop() + ")" : "");
   if (f?.type === "import") {
     const k = bid.includes(":") ? +bid.split(":").pop() : 0;
     const it = f.items?.[k];
