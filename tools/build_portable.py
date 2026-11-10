@@ -109,6 +109,8 @@ def main() -> int:
     sys.path.insert(0, str(ROOT / "tools"))
     import cloud_secrets
     cloud_secrets.write(ROOT)  # ID dei client OAuth (Accedi con Google), fuori da git
+    import fetch_image_engines
+    fetch_image_engines.fetch()  # Real-ESRGAN e stable-diffusion.cpp in bin/ (versioni fisse, fuori da git)
     import imageio_ffmpeg
     ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
     sep = os.pathsep
@@ -146,7 +148,7 @@ def main() -> int:
         "--collect-submodules", "pydicom", "--collect-all", "gdcm", "--collect-submodules", "h5py", "--collect-submodules", "pyarrow", "--hidden-import", "olefile", "--hidden-import", "zstandard", "--collect-submodules", "lz4", "--collect-submodules", "pyreadstat", "--collect-submodules", "access_parser", "--hidden-import", "pypff", "--hidden-import", "mbvisual.mdb", "--hidden-import", "mbvisual.pst", "--hidden-import", "mbvisual.kindle", "--hidden-import", "mbvisual.dgn", "--hidden-import", "mbvisual.xcf", "--hidden-import", "mbvisual.ifcxml", "--hidden-import", "mbvisual.eps", "--collect-submodules", "RTFDE",
         "--exclude-module", "tkinter", "--exclude-module", "matplotlib",
         # STEP/IGES grandi con OpenCascade nativo (mbvisual/stepnative.py): OCP si copia a mano dopo (copy_ocp), senza VTK Python
-        "--hidden-import", "mbvisual.stepnative", "--hidden-import", "mbvisual.modeler", "--hidden-import", "mbvisual.modkernel", "--exclude-module", "OCP", "--exclude-module", "vtk", "--exclude-module", "vtkmodules",
+        "--hidden-import", "mbvisual.immagini", "--hidden-import", "mbvisual.stepnative", "--hidden-import", "mbvisual.modeler", "--hidden-import", "mbvisual.modkernel", "--exclude-module", "OCP", "--exclude-module", "vtk", "--exclude-module", "vtkmodules",
         # IFC -> STEP (mbvisual/ifcstep.py): IfcOpenShell (LGPL-3.0) con i suoi moduli e la libreria nativa
         "--hidden-import", "mbvisual.ifcstep", "--collect-all", "ifcopenshell", "--hidden-import", "isodate", "--hidden-import", "lark",
         "--exclude-module", "cadquery_ocp",
