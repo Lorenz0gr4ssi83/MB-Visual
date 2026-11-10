@@ -719,6 +719,10 @@ iframe.fill, canvas.fill, video.fill { width: 100%; height: 100%; border: 0; dis
 .imgai-bar { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
 .imgai-msg { min-height: 2.4em; }
 .imgai-warn { white-space: normal; line-height: 1.45; }
+.imgai-bar-float { position: absolute; z-index: 40; left: 50%; top: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--panel-2); border-radius: 12px; box-shadow: var(--sh-3); font-size: 13px; }
+.ps-dlg:has(.imgai-posebox) { width: 600px; }
+.imgai-posebox { display: grid; justify-items: center; gap: 4px; }
+.imgai-posecv { max-width: 100%; border-radius: 8px; background: #000; touch-action: none; }
 .ps-dlg-f { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--line); }
 .ps-dlg-f .grow { flex: 1; }
 .ps-form { display: grid; gap: 8px; }

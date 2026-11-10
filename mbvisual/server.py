@@ -438,6 +438,51 @@ class Handler(BaseHTTPRequestHandler):
             p.get("negativo") or "", int(p["passi"]) if p.get("passi") else None, int(p.get("seme") if p.get("seme") not in (None, "") else -1),
             True, rid)})
 
+    def api_immagini_carica(self, qs):
+        # immagine o maschera mandata dall'editor (PNG nel corpo) -> percorso temporaneo da passare a ritocca/posa
+        from . import immagini
+        data = self._body()
+        if not data:
+            raise ValueError(t("srv_server.percorso_mancante"))
+        dst = immagini.WORK_DIR / "ingressi" / (uuid.uuid4().hex + (_q(qs, "ext", "png").strip(".") or "png"))
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes(data)
+        self._json({"ok": True, "path": str(dst)})
+
+    def api_immagini_ritocca(self, qs):
+        from . import immagini
+        p = self._img_params(qs)
+        src, mask = p.get("path") or p.get("foto"), p.get("maschera")
+        if not src or not mask:
+            raise ValueError(t("srv_server.percorso_mancante"))
+        immagini.controlla_descrizione(p.get("descrizione") or "")
+        if not p["anche_lenta"] and self._img_unfit("idonea_genera"):
+            return
+        rid = str(p.get("rid") or uuid.uuid4().hex)
+        self._json({"ok": True, "rid": rid, "out": p["out"], "job": jobs.start(
+            immagini.ritocca, os.path.abspath(src), os.path.abspath(mask), p.get("descrizione") or "", p["out"], p.get("negativo") or "",
+            int(p["passi"]) if p.get("passi") else None, int(p.get("seme") if p.get("seme") not in (None, "") else -1), True, rid)})
+
+    def api_immagini_posa(self, qs):
+        from . import immagini
+        p = self._img_params(qs)
+        src, pose = p.get("path") or p.get("foto"), p.get("posa")
+        if not src or not pose:
+            raise ValueError(t("srv_server.percorso_mancante"))
+        if isinstance(pose, (dict, list)):  # punti della posa direttamente nel JSON
+            f = immagini.WORK_DIR / "ingressi" / (uuid.uuid4().hex + ".json")
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(json.dumps(pose), encoding="utf-8")
+            pose = str(f)
+        immagini.controlla_descrizione(p.get("descrizione") or "")
+        if not p["anche_lenta"] and self._img_unfit("idonea_genera"):
+            return
+        rid = str(p.get("rid") or uuid.uuid4().hex)
+        self._json({"ok": True, "rid": rid, "out": p["out"], "job": jobs.start(
+            immagini.posa, os.path.abspath(src), os.path.abspath(pose), p["out"], p.get("descrizione") or "", p.get("negativo") or "",
+            int(p["passi"]) if p.get("passi") else None, int(p.get("seme") if p.get("seme") not in (None, "") else -1),
+            float(p.get("forza") or 0.75), True, rid)})
+
     def api_immagini_annulla(self, qs):
         from . import immagini
         self._json(immagini.annulla(_q(qs, "rid", "")))

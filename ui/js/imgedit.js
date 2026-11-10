@@ -15,6 +15,7 @@ import { psIcon } from "./psicons.js";
 import { ADJ, FILTERS, makeAdjust, autoAdjust, histogram, adjustControls, filterControls, blurCanvas, mkCanvas, hexToRgb, rgbToHex, lum } from "./imgadjust.js";
 import { BLENDS, readPsd, writePsd, readOra, writeOra } from "./imgfile.js";
 import { AI_OK, aiCheck, aiJob, canvasFromPath, canvasPng } from "./imgai.js";
+import { detectPose, defaultPose, fitPose, poseEditor } from "./imgpose.js";
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const g2 = c => c.getContext("2d");
@@ -1461,6 +1462,97 @@ export function createEditor(ctx, init) {
       ctx.status(tr("imgai.fatto_genera", c.width, c.height, Math.round(r.secondi || 0)));
     } catch (e) { toast(e.message, !e.cancelled); }
   }
+  // ---------------------------------------------------------- ritocco di una zona e cambio posa (mbvisual/immagini.py)
+  // Solo ritocchi su foto esistenti: niente nudita' ne' riduzione degli abiti (controllo nel motore, prompt negativo fisso).
+  const upload = async c => (await api("immagini/carica", {}, { body: await canvasPng(c) })).path;
+  let retouchBar = null;
+  async function retouchStart() {
+    endText(true);
+    if (retouchBar) return;
+    if (sel) { // la selezione e' gia' la zona da ridisegnare
+      const m = mkCanvas(W, H); g2(m).drawImage(sel.c, 0, 0);
+      return dlgRetouch(m);
+    }
+    // nessuna selezione: livello "Maschera ritocco" su cui dipingere col pennello
+    const L = addLayer({ name: tr("imgai.maschera_livello"), opacity: 55 }, layers.length, tr("imgai.maschera_livello"));
+    setColor("fg", "#ff2d2d"); selectTool("brush");
+    const done = async ok => {
+      retouchBar?.remove(); retouchBar = null;
+      const i = layers.indexOf(L);
+      let m = null;
+      if (ok && i >= 0 && L.c) { m = mkCanvas(W, H); g2(m).drawImage(L.c, L.x, L.y); }
+      if (i >= 0) { layers.splice(i, 1); act = Math.min(act, layers.length - 1); invalidate(); commit(tr("imgai.maschera_livello")); }
+      if (m) dlgRetouch(m);
+    };
+    retouchBar = el("div", { class: "imgai-bar-float" }, el("span", {}, tr("imgai.dipingi_zona")),
+      el("button", { class: "btn", type: "button", onclick: () => done(false) }, tr("common.annulla")),
+      el("button", { class: "btn primary", type: "button", onclick: () => done(true) }, tr("imgai.continua")));
+    root.append(retouchBar);
+  }
+  async function dlgRetouch(mask) {
+    const d = readData(mask).data;
+    let any = false; for (let i = 3; i < d.length; i += 4) if (d[i] > 32) { any = true; break; }
+    if (!any) return toast(tr("imgai.maschera_vuota"), true);
+    const desc = el("textarea", { class: "field imgai-desc", rows: 3, placeholder: tr("imgai.ritocco_esempio") });
+    const neg = el("input", { type: "text", class: "field", placeholder: tr("imgai.negativo_esempio") });
+    const ok = await dialog(tr("imgai.ritocco_titolo"), el("div", { class: "ps-form" },
+      el("label", { class: "ps-col" }, el("span", { class: "ps-lab2" }, tr("imgai.ritocco_cosa")), desc),
+      el("label", { class: "ps-col" }, el("span", { class: "ps-lab2" }, tr("imgai.negativo")), neg),
+      el("p", { class: "ps-note" }, tr("imgai.nota_ritocco"))), { okLabel: tr("imgai.ritocca") });
+    if (!ok) return;
+    if (!desc.value.trim()) return toast(tr("imgai.descrizione_vuota"), true);
+    try {
+      if (!(await aiCheck("genera", askSlow))) return;
+      const photo = flatten();
+      const [src, msk] = [await upload(photo), await upload(mask)];
+      const r = await aiJob(root, tr("imgai.ritocco_titolo"), "immagini/ritocca", { path: src, maschera: msk, descrizione: desc.value.trim(), negativo: neg.value.trim() });
+      const full = await canvasFromPath(r.out, mkCanvas);
+      const [x0, y0, x1, y1] = r.zona || [0, 0, W, H];
+      const c = mkCanvas(x1 - x0, y1 - y0); g2(c).drawImage(full, -x0, -y0);
+      endText(true);
+      const L = mkLayer({ name: tr("imgai.ritocco_livello") + ": " + desc.value.trim().slice(0, 30), c, x: x0, y: y0 });
+      layers.splice(layers.length, 0, L); act = layers.length - 1; target = "pixels"; sel = null;
+      invalidate(); commit(tr("imgai.ritocco_titolo"));
+      ctx.status(tr("imgai.fatto_ritocco", Math.round(r.secondi || 0)));
+    } catch (e) { toast(e.message, !e.cancelled); }
+  }
+  async function dlgPose() {
+    endText(true);
+    const photo = flatten();
+    let found = null;
+    ctx.status(tr("imgai.cerco_posa"));
+    try { found = await detectPose(photo); } catch (e) { console.warn("posa:", e); }
+    ctx.status(found ? tr("imgai.posa_trovata") : tr("imgai.posa_non_trovata"));
+    const ed = poseEditor(photo, found || defaultPose());
+    const fromOther = el("button", { class: "btn", type: "button", onclick: async () => {
+      const ps = await pickFiles(); if (!ps?.length) return;
+      try {
+        const c = await canvasFromPath(ps[0], mkCanvas);
+        const other = await detectPose(c);
+        if (!other) return toast(tr("imgai.posa_non_trovata"), true);
+        ed.set(fitPose(other, found));
+      } catch (e) { toast(e.message, true); }
+    } }, tr("imgai.posa_da_foto"));
+    const reset = el("button", { class: "btn", type: "button", onclick: () => ed.set(found || defaultPose()) }, tr("imgai.posa_ripristina"));
+    const desc = el("input", { type: "text", class: "field", placeholder: tr("imgai.posa_desc_esempio") });
+    const forza = el("input", { type: "range", min: 0.45, max: 0.95, step: 0.05, value: 0.75 });
+    const ok = await dialog(tr("imgai.posa_titolo"), el("div", { class: "ps-form" }, ed.el, el("div", { class: "ps-row ps-wrap" }, fromOther, reset),
+      el("label", { class: "ps-col" }, el("span", { class: "ps-lab2" }, tr("imgai.posa_desc")), desc),
+      el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgai.posa_forza")), forza),
+      el("p", { class: "ps-note" }, tr("imgai.nota_posa"))), { okLabel: tr("imgai.posa_applica") });
+    if (!ok) return;
+    try {
+      if (!(await aiCheck("genera", askSlow))) return;
+      const src = await upload(photo);
+      const pts = ed.get().map(p => (p ? [p[0], p[1], 1] : [0, 0, 0]));
+      const r = await aiJob(root, tr("imgai.posa_titolo"), "immagini/posa", { path: src, posa: { keypoints: pts }, descrizione: desc.value.trim(), forza: +forza.value });
+      const c = await canvasFromPath(r.out, mkCanvas);
+      const L = mkLayer({ name: tr("imgai.posa_livello"), c, x: 0, y: 0 });
+      layers.splice(layers.length, 0, L); act = layers.length - 1; target = "pixels"; sel = null;
+      invalidate(); commit(tr("imgai.posa_titolo"));
+      ctx.status(tr("imgai.fatto_posa", Math.round(r.secondi || 0)));
+    } catch (e) { toast(e.message, !e.cancelled); }
+  }
   async function dlgCanvasSize() {
     const [wI, wRow] = numField(tr("imgedit.larghezza"), W, { min: 1, max: 30000, unit: "pixel" }), [hI, hRow] = numField(tr("imgedit.altezza"), H, { min: 1, max: 30000, unit: "pixel" });
     const rel = el("input", { type: "checkbox" });
@@ -1925,6 +2017,7 @@ export function createEditor(ctx, init) {
       { label: tr("imgedit.copia_unione"), keys: "Ctrl+Shift+C", run: () => copy(true) }, { label: tr("common.incolla"), keys: "Ctrl+V", run: () => (clip ? pasteCanvas(cloneC(clip.c), clip.x, clip.y) : toast(tr("imgedit.usa_ctrl_v_incollare_dagli"), false)) },
       { label: tr("imgedit.cancella"), keys: "Delete", run: clearSel, disabled: noSel }, "-",
       { label: tr("imgedit.riempi_2"), keys: "Shift+F5", run: dlgFill }, { label: tr("imgedit.traccia_3"), run: dlgStroke, disabled: noSel }, "-",
+      ...(AI_OK ? [{ label: tr("imgai.ritocco_menu"), run: retouchStart }, { label: tr("imgai.posa_menu"), run: dlgPose }, "-"] : []),
       { label: tr("imgedit.trasformazione_libera"), keys: "Ctrl+T", run: () => beginTransform() },
       { label: tr("imgedit.trasforma"), sub: () => [{ label: tr("imgedit.ruota_180_2"), run: () => layerXform("180") }, { label: tr("imgedit.ruota_90_senso_orario_2"), run: () => layerXform("cw") }, { label: tr("imgedit.ruota_90_senso_antiorario_2"), run: () => layerXform("ccw") }, "-",
         { label: tr("imgedit.rifletti_orizzontale"), run: () => layerXform("fh") }, { label: tr("imgedit.rifletti_verticale"), run: () => layerXform("fv") }] },

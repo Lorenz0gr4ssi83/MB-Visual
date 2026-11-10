@@ -2003,3 +2003,20 @@ nessun filtro sul contenuto. (La vecchia parte "IA" con Python/torch resta tolta
   POST `immagini/genera` ({descrizione,out,larghezza,altezza,negativo,passi,seme,anche_lenta}) = lavori come api/convert
   (409 non_idonea senza anche_lenta), `immagini/annulla?rid=`. Testi `imgai.*`, `srv_immagini.*` (5 lingue).
 - Collaudo: `python tests/test_immagini.py [--vero]` (MBV_FOTO_PROVA=<foto> per una foto vera).
+- Real-ESRGAN sulle schede integrate (Adreno): con tessere "automatiche" il risultato usciva NERO senza errori. Ora tessere 128
+  (64, 32) fuori da NVIDIA/AMD e nuovo tentativo se l'uscita e' vuota. Tempi sul Surface: 1200x900 -> x2/x4 ~80 s, 220x220 x4 6 s.
+  Generazione 512x512 sul processore (LCM, 6 passi) ~190 s, 768x512 ~350 s.
+- 1.6.19 (10/11/2026): RITOCCO di una zona (Modifica > "Ritocca una zona con descrizione...": selezione o livello "Maschera ritocco"
+  dipinto col pennello -> descrizione -> livello nuovo con la sola zona) = SD 1.5 inpainting Q8_0 GGUF (gpustack, OpenRAIL-M);
+  ritaglio attorno alla zona a ~640 punti, incollato con bordo sfumato: fuori dalla maschera la foto resta identica.
+  CAMBIO POSA (Modifica > "Cambia la posa della persona...") = ControlNet 1.1 OpenPose fp16 + img2img dalla foto (forza 0,45-0,95);
+  scheletro a 18 punti (OpenPose COCO) riconosciuto con MediaPipe Pose Landmarker (`ui/js/imgpose.js`, ui/vendor/mediapipe da
+  fetch_vendor.py, Apache-2.0) e spostabile a mano, o preso da un'altra foto (`fitPose`). Volto e abiti restano simili, NON identici
+  (limite di SD 1.5 senza IP-Adapter). LIMITE FISSO chiesto dall'utente SOLO per questi ritocchi su foto di persone reali: niente
+  nudita' ne' riduzione degli abiti = prompt negativo fisso `NEG_FISSO` + rifiuto (`controlla_descrizione`, regex it/en) delle
+  richieste di togliere/ridurre i vestiti; cambiare un vestito con un altro e' il caso normale. Non toglierlo.
+  Riga di comando: `--ritocca <foto> <maschera.png> "<descrizione>" <uscita.png>` (maschera: bianco o opaco = zona) e
+  `--posa <foto> <posa.png|json> <uscita.png> [--descrizione ".."] [--forza 0.75]` (png = immagine dello scheletro OpenPose;
+  json = {"keypoints": [[x,y,c]x18]} in pixel o 0-1, oppure il formato di OpenPose con people/pose_keypoints_2d); stessi codici
+  0/1/3 (rifiuto = 1). API: `immagini/carica` (PNG nel corpo -> percorso), `immagini/ritocca`, `immagini/posa` (posa anche come
+  oggetto JSON). Tempi sul Surface (processore, LCM 8 passi): cambio posa 512x768 ~375 s.

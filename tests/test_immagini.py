@@ -1,7 +1,8 @@
-"""Collaudo del miglioramento foto (Real-ESRGAN) e della creazione di immagini (stable-diffusion.cpp): mbvisual/immagini.py.
+"""Collaudo del miglioramento foto, del ritocco di una zona, del cambio posa (Real-ESRGAN) e della creazione di immagini (stable-diffusion.cpp): mbvisual/immagini.py.
 
 Uso:  python tests/test_immagini.py            controllo scheda video, riga di comando (codici 0/1/3), API del server
       python tests/test_immagini.py --vero     anche un miglioramento e una generazione veri (lenti sui PC senza scheda idonea)
+      MBV_FOTO_PERSONA=<foto di una persona> con --vero: anche ritocco e cambio posa veri
 Prima: python tools/fetch_image_engines.py (motori in bin/).
 """
 import json
@@ -66,6 +67,39 @@ def main():
     if not sv.get("idonea_migliora"):
         code, _, err, _ = cli("--migliora", str(src), str(tmp / "m.png"))
         check(code == 3, "migliora: scheda non idonea = codice 3", err)
+
+    print("ritocco e posa: limiti e controlli senza motori")
+    from mbvisual import immagini as I
+    for txt, ok in (("vestito rosso lungo", True), ("long red dress", True), ("giacca blu", True), ("togli il vestito", False),
+                    ("in bikini", False), ("naked", False), ("meno vestiti", False), ("remove her shirt", False), ("senza maglia", False)):
+        try:
+            I.controlla_descrizione(txt)
+            res = True
+        except I.Rifiutato:
+            res = False
+        check(res == ok, f"descrizione {txt!r} {'accettata' if ok else 'rifiutata'}")
+    mask = tmp / "maschera.png"
+    Image.new("L", (96, 64), 0).save(mask)
+    code, _, err, _ = cli("--ritocca", str(src), str(mask), "togli il vestito", str(tmp / "r.png"), "--anche-lenta")
+    check(code == 1 and err.strip() and not (tmp / "r.png").exists(), "--ritocca con richiesta di togliere abiti = codice 1 e rifiuto", err)
+    code, _, err, _ = cli("--ritocca", str(src), str(mask), "giacca blu", str(tmp / "r.png"), "--anche-lenta")
+    check(code == 1 and err.strip(), "--ritocca con maschera vuota = codice 1", err)
+    if not sv.get("idonea_genera"):
+        code, _, err, _ = cli("--ritocca", str(src), str(mask), "giacca blu", str(tmp / "r.png"))
+        check(code == 3, "--ritocca senza --anche-lenta su scheda non idonea = codice 3", err)
+    pj = tmp / "posa.json"
+    pj.write_text(json.dumps({"keypoints": [[0.5, 0.15, 1], [0.5, 0.25, 1], [0.42, 0.25, 1], [0.3, 0.2, 1], [0.25, 0.1, 1]] + [[0, 0, 0]] * 13}))
+    pts = I.read_pose(str(pj), (100, 200))
+    check(pts[0] == (50.0, 30.0) and pts[5] is None, "posa JSON normalizzata letta in pixel")
+    sk = I.draw_pose(pts, (100, 200))
+    check(sk.size == (100, 200) and max(sk.convert("L").getextrema()) > 40, "scheletro OpenPose disegnato")
+    op = tmp / "openpose.json"
+    flat = []
+    for x, y in ((50, 30), (50, 50), (40, 50), (30, 70), (20, 90)):
+        flat += [x, y, 0.9]
+    op.write_text(json.dumps({"people": [{"pose_keypoints_2d": flat + [0, 0, 0] * 13}], "canvas_width": 100, "canvas_height": 200}))
+    pts2 = I.read_pose(str(op), (200, 400))
+    check(pts2[1] == (100.0, 100.0), "posa nel formato di OpenPose letta e riscalata")
 
     print("API del server")
     from mbvisual import server
@@ -135,6 +169,32 @@ def main():
         call("immagini/annulla", f"&rid={j.get('rid')}")
         r = wait(j.get("job"), 300)
         check(r.get("status") == "error", "annulla ferma la generazione", r)
+    if vero and os.environ.get("MBV_FOTO_PERSONA"):
+        persona = os.environ["MBV_FOTO_PERSONA"]
+        im = Image.open(persona)
+        w, h = im.size
+        mk = Image.new("L", (w, h), 0)
+        ImageDraw.Draw(mk).rectangle((int(w * 0.25), int(h * 0.3), int(w * 0.75), int(h * 0.75)), fill=255)
+        mk.save(tmp / "zona.png")
+        print("ritocco vero (stable-diffusion.cpp, inpainting)")
+        o = tmp / "ritoccata.png"
+        code, out, err, sec = cli("--ritocca", persona, str(tmp / "zona.png"), "long red dress", str(o), "--anche-lenta", "--seme", "5")
+        check(code == 0 and o.exists() and Image.open(o).size == (w, h), f"--ritocca in {sec:.1f} s", err[-800:])
+        if code == 0:
+            a_, b_ = Image.open(persona).convert("RGB"), Image.open(o).convert("RGB")
+            check(a_.getpixel((2, 2)) == b_.getpixel((2, 2)) and a_.getpixel((w - 3, h - 3)) == b_.getpixel((w - 3, h - 3)),
+                  "fuori dalla zona la foto resta identica")
+            print("    ", out.strip())
+        print("cambio posa vero (ControlNet OpenPose)")
+        pp = tmp / "posa_braccia.json"
+        pp.write_text(json.dumps({"keypoints": [[0.5, 0.12, 1], [0.5, 0.22, 1], [0.42, 0.22, 1], [0.33, 0.12, 1], [0.28, 0.02, 1],
+                                                [0.58, 0.22, 1], [0.67, 0.12, 1], [0.72, 0.02, 1], [0.45, 0.5, 1], [0.45, 0.7, 1], [0.45, 0.9, 1],
+                                                [0.55, 0.5, 1], [0.55, 0.7, 1], [0.55, 0.9, 1], [0.48, 0.1, 1], [0.52, 0.1, 1], [0.46, 0.11, 1], [0.54, 0.11, 1]]}))
+        o = tmp / "nuova_posa.png"
+        code, out, err, sec = cli("--posa", persona, str(pp), str(o), "--anche-lenta", "--seme", "5")
+        check(code == 0 and o.exists() and Image.open(o).size == (w, h), f"--posa in {sec:.1f} s", err[-800:])
+        if code == 0:
+            print("    ", out.strip())
     print(f"\n{OK} prove riuscite, {len(FAIL)} fallite" + (": " + ", ".join(FAIL) if FAIL else ""))
     print("cartella delle prove:", tmp)
     return 1 if FAIL else 0

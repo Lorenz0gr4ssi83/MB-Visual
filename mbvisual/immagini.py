@@ -49,6 +49,16 @@ MODELLI = {
             "sha256": "8f90d840e075ff588a58e22c6586e2ae9a6f7922996ee6649a7f01072333afe4",
             "url": f"{_HF}/latent-consistency/lcm-lora-sdv1-5/resolve/cf2fced511dbe7e26c8d1d397e728fbab875db4b/"
                    "pytorch_lora_weights.safetensors"},
+    # ritocco di una zona: SD 1.5 inpainting (CreativeML OpenRAIL-M, uso commerciale permesso)
+    "inpaint": {"file": "stable-diffusion-v1-5-inpainting-Q8_0.gguf", "size": 1881270304,
+                "sha256": "2301f1a0712de3dc2ff16181e1023865aa837922216e439491b98b00d12eb5fc",
+                "url": f"{_HF}/gpustack/stable-diffusion-v1-5-inpainting-GGUF/resolve/21491e4f6af4723f2677172327ea34656da4ef3e/"
+                       "stable-diffusion-v1-5-inpainting-Q8_0.gguf"},
+    # cambio posa: ControlNet 1.1 OpenPose per SD 1.5 (lllyasviel, OpenRAIL), copia fp16 in safetensors
+    "openpose": {"file": "control_v11p_sd15_openpose_fp16.safetensors", "size": 722601100,
+                 "sha256": "4003c1da17b0e4ba444e02140e1c0d83bb24b79e4dcfd613c3a554d38f0f89c7",
+                 "url": f"{_HF}/comfyanonymous/ControlNet-v1-1_fp16_safetensors/resolve/ab830a51c5c573a5b85bfdbaa3ae0ab7e1baf5f7/"
+                        "control_v11p_sd15_openpose_fp16.safetensors"},
 }
 NVIDIA, AMD, INTEL = 0x10DE, 0x1002, 0x8086
 MIN_GB_GENERA = 7.5  # "almeno 8 GB": le schede da 8 GB dichiarano qualche centinaio di MB in meno
@@ -504,6 +514,274 @@ def genera(descrizione: str, out: str, larghezza: int = 512, altezza: int = 512,
         shutil.rmtree(work, ignore_errors=True)
 
 
+# ------------------------------------------------------------------ ritocco di una zona e cambio posa su foto esistenti
+# Limite fisso chiesto dall'utente, SOLO per i ritocchi su foto di persone reali: niente nudita' ne' riduzione degli abiti.
+# Cambiare un vestito con un altro vestito e' il caso normale. Prompt negativo sempre attivo + rifiuto delle richieste che
+# chiedono di togliere o ridurre i vestiti.
+NEG_FISSO = ("nude, naked, nudity, topless, bare breasts, nipples, exposed chest, underwear, lingerie, bra, panties, bikini, "
+             "swimsuit, see-through, transparent clothes, nsfw, undressed, nudo, nuda, nudita, seno scoperto, biancheria intima")
+_VIETATO = re.compile(
+    r"\b(nud[oaie]\b|nudit\w*|naked|nude|nudity|topless|bottomless|undress\w*|unclothed|nsfw|porn\w*|sex\w*|erotic\w*|"
+    r"spogli\w*|svest\w*|seno\s+(nudo|scoperto)|bare\s+(breast|chest|skin)\w*|nipple\w*|capezzol\w*|"
+    r"lingerie|underwear|panties|thong|bra\b|bikini|swimsuit|perizoma|mutand\w*|reggiseno|reggiseni|intimo|biancheria|costume\s+da\s+bagno|"
+    r"see[\s-]?through|trasparent\w*|vedo\s*non\s*vedo|scollatur\w*\s+(profond|abbondant)\w*|"
+    r"less\s+cloth\w*|fewer\s+cloth\w*|meno\s+vestit\w*|senza\s+(vestit|abit|maglia|camicia|gonna|pantalon|reggiseno|niente|nulla)\w*|"
+    r"without\s+(cloth|dress|shirt|top|bra|pants|skirt)\w*|(remove|take\s+off|strip)\s+(\w+\s+){0,2}(cloth|dress|shirt|top|bra|pants|skirt)\w*|"
+    r"togli\w*\s+(\w+\s+){0,2}(vestit|abit|maglia|camicia|gonna|pantalon|reggiseno|giacca|top)\w*|"
+    r"accorci\w*\s+(\w+\s+){0,2}(vestit|abit|gonna|maglia)\w*|shorter\s+(dress|skirt)|minigonn\w*|mini\s*skirt)",
+    re.I)
+
+
+class Rifiutato(ValueError):
+    pass
+
+
+def controlla_descrizione(testo: str) -> None:
+    """Rifiuta le richieste di nudita' o di riduzione degli abiti (solo ritocchi di foto esistenti)."""
+    if testo and _VIETATO.search(testo):
+        raise Rifiutato(t("srv_immagini.rifiuto_abiti"))
+
+
+def _engine(sv):
+    gpu_ok = sv.get("vulkan") and (sv["idonea_genera"] or (sv.get("vendor") in (NVIDIA, AMD, INTEL) and sv.get("memoria_gb", 0) >= 3.5))
+    return "vulkan" if gpu_ok else "cpu"
+
+
+def _need_models(keys, update, rid, span=0.3):
+    tot = sum(MODELLI[k]["size"] for k in keys if not model_path(k).exists())
+    done = 0
+    for k in keys:
+        if not model_path(k).exists():
+            sz = MODELLI[k]["size"]
+            ensure_model(k, update, rid, span * done / tot, span * sz / tot)
+            done += sz
+    return span if tot else 0.0
+
+
+def _sd_run(rid, motore, sv, cmd, steps, base, update):
+    exe = SD_EXE[motore]
+    if not exe.exists():
+        raise RuntimeError(t("srv_immagini.motore_mancante", "stable-diffusion.cpp"))
+    env = dict(os.environ)
+    if motore == "vulkan" and sv.get("indice") is not None:
+        env["GGML_VK_VISIBLE_DEVICES"] = str(sv["indice"])
+
+    def prog(s):
+        m = re.search(r"(\d+)/(\d+)\s*-\s*[\d.]+\s*(?:s/it|it/s)", s)
+        if m and int(m.group(2)) == steps:
+            update(base + (0.95 - base) * int(m.group(1)) / steps, t("srv_immagini.genero_passo", m.group(1), steps))
+        elif "decod" in s.lower():
+            update(0.96, t("srv_immagini.decodifico"))
+    update(base, t("srv_immagini.carico_modello"))
+    return _run(rid, [str(exe)] + cmd, prog, env=env, cwd=str(exe.parent))
+
+
+def _speed_args(veloce, passi):
+    steps = int(passi or (8 if veloce else 25))
+    if veloce:
+        return steps, ["--lora-model-dir", str(MODELS_DIR), "--sampling-method", "lcm", "--cfg-scale", "1.5", "--steps", str(steps)]
+    return steps, ["--sampling-method", "euler_a", "--cfg-scale", "7", "--steps", str(steps)]
+
+
+def _open_img(path):
+    from PIL import Image, ImageOps
+    im = ImageOps.exif_transpose(Image.open(path))
+    im.load()
+    return im
+
+
+def ritocca(src: str, maschera: str, descrizione: str, out: str, negativo: str = "", passi: int | None = None, seme: int = -1,
+            anche_lenta: bool = False, rid: str | None = None, update=None, motore: str | None = None) -> dict:
+    """Ridisegna solo la zona bianca (o opaca) della maschera secondo la descrizione; il resto della foto resta identico."""
+    from PIL import Image, ImageFilter, ImageChops
+    update = update or (lambda *a, **k: None)
+    rid = rid or uuid.uuid4().hex
+    descrizione = (descrizione or "").strip()
+    if not descrizione:
+        raise ValueError(t("srv_immagini.descrizione_vuota"))
+    controlla_descrizione(descrizione)
+    sv = scheda_video()
+    if not sv["idonea_genera"] and not anche_lenta:
+        raise NonIdonea(frase_non_idonea())
+    _RUN.setdefault(rid, {"stop": False})
+    t0 = time.time()
+    work = WORK_DIR / uuid.uuid4().hex
+    work.mkdir(parents=True, exist_ok=True)
+    try:
+        photo = _open_img(src)
+        alpha = photo.getchannel("A") if photo.mode == "RGBA" else None
+        photo = photo.convert("RGB")
+        W, H = photo.size
+        m = Image.open(maschera)
+        m.load()
+        if m.mode in ("RGBA", "LA") and m.getchannel("A").getextrema() != (255, 255):
+            m = m.getchannel("A")
+        else:
+            m = m.convert("L")
+        if m.size != (W, H):
+            m = m.resize((W, H), Image.NEAREST)
+        m = m.point(lambda v: 255 if v > 32 else 0)
+        box = m.getbbox()
+        if not box:
+            raise ValueError(t("srv_immagini.maschera_vuota"))
+        motore = motore or _engine(sv)
+        veloce = motore == "cpu"
+        base = _need_models(["inpaint"] + (["lcm"] if veloce else []), update, rid)
+        # ritaglio attorno alla zona con un margine di contesto, portato a ~640 punti come vuole SD 1.5
+        x0, y0, x1, y1 = box
+        pad = int(max(x1 - x0, y1 - y0) * 0.35) + 32
+        x0, y0, x1, y1 = max(0, x0 - pad), max(0, y0 - pad), min(W, x1 + pad), min(H, y1 + pad)
+        cw, ch = x1 - x0, y1 - y0
+        k = 640 / max(cw, ch)
+        gw, gh = _round64(cw * k), _round64(ch * k)
+        crop = photo.crop((x0, y0, x1, y1)).resize((gw, gh), Image.LANCZOS)
+        mcrop = m.crop((x0, y0, x1, y1)).resize((gw, gh), Image.NEAREST).filter(ImageFilter.MaxFilter(9))
+        crop.save(work / "zona.png")
+        mcrop.save(work / "maschera.png")
+        steps, speed = _speed_args(veloce, passi)
+        o = work / "ritocco.png"
+        prompt = descrizione + ", photo, realistic, high quality" + (" <lora:lcm-lora-sdv1-5:1>" if veloce else "")
+        neg = NEG_FISSO + (", " + negativo if negativo else "")
+        cmd = ["-m", str(model_path("inpaint")), "-i", str(work / "zona.png"), "--mask", str(work / "maschera.png"),
+               "-p", prompt, "-n", neg, "-W", str(gw), "-H", str(gh), "--strength", "1.0", "-s", str(int(seme)), "-o", str(o)] + speed
+        code, tail = _sd_run(rid, motore, sv, cmd, steps, base, update)
+        if code != 0 or not o.exists():
+            print("sd-cli ritocco", motore, "non riuscito:", tail[-2000:])
+            if motore == "vulkan":
+                return ritocca(src, maschera, descrizione, out, negativo, None, seme, True, rid, update, "cpu")
+            raise RuntimeError(t("srv_immagini.errore_motore", "stable-diffusion.cpp", _last_line(tail)))
+        res = Image.open(o).convert("RGB").resize((cw, ch), Image.LANCZOS)
+        # incollato solo nella zona con bordo sfumato: fuori dalla maschera la foto resta identica
+        mz = m.crop((x0, y0, x1, y1))
+        feather = max(2, int(min(cw, ch) * 0.015))
+        blend = ImageChops.lighter(mz.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(feather)), mz)
+        outimg = photo.copy()
+        outimg.paste(res, (x0, y0), blend)
+        if alpha is not None:
+            outimg.putalpha(alpha)
+        _save(outimg, out)
+        return {"ok": True, "out": str(out), "larghezza": W, "altezza": H, "zona": [x0, y0, x1, y1], "secondi": round(time.time() - t0, 1),
+                "motore": motore, "passi": steps, "scheda": sv.get("nome", "")}
+    finally:
+        _RUN.pop(rid, None)
+        shutil.rmtree(work, ignore_errors=True)
+
+
+# scheletro OpenPose (COCO, 18 punti): 0 naso, 1 collo, 2-4 spalla/gomito/polso destri, 5-7 sinistri, 8-10 anca/ginocchio/
+# caviglia destri, 11-13 sinistri, 14/15 occhio destro/sinistro, 16/17 orecchio destro/sinistro. Colori e collegamenti come
+# le immagini su cui e' stato addestrato ControlNet OpenPose.
+POSE_LIMBS = [(1, 2), (1, 5), (2, 3), (3, 4), (5, 6), (6, 7), (1, 8), (8, 9), (9, 10), (1, 11), (11, 12), (12, 13),
+              (1, 0), (0, 14), (14, 16), (0, 15), (15, 17)]
+POSE_COLORS = [(255, 0, 0), (255, 85, 0), (255, 170, 0), (255, 255, 0), (170, 255, 0), (85, 255, 0), (0, 255, 0), (0, 255, 85),
+               (0, 255, 170), (0, 255, 255), (0, 170, 255), (0, 85, 255), (0, 0, 255), (85, 0, 255), (170, 0, 255),
+               (255, 0, 255), (255, 0, 170), (255, 0, 85)]
+
+
+def read_pose(path: str, size: tuple) -> list:
+    """Punti della posa da un JSON: {"keypoints": [[x, y, c], ...18], "width", "height"} oppure il formato di OpenPose
+    ({"people": [{"pose_keypoints_2d": [...]}], "canvas_width", "canvas_height"}). Coordinate in pixel o tra 0 e 1."""
+    d = json.loads(Path(path).read_text(encoding="utf-8"))
+    W, H = size
+    sw = sh = None
+    if isinstance(d, dict) and d.get("people"):
+        flat = d["people"][0].get("pose_keypoints_2d") or []
+        pts = [flat[i:i + 3] for i in range(0, len(flat), 3)]
+        sw, sh = d.get("canvas_width"), d.get("canvas_height")
+    else:
+        pts = d.get("keypoints") if isinstance(d, dict) else d
+        if isinstance(d, dict):
+            sw, sh = d.get("width"), d.get("height")
+    pts = [(list(p) + [1.0] * (3 - len(p))) if p else [0, 0, 0] for p in (pts or [])][:18]
+    pts += [[0, 0, 0]] * (18 - len(pts))
+    vis = [p for p in pts if p[2] > 0]
+    norm = bool(vis) and all(abs(p[0]) <= 1.0001 and abs(p[1]) <= 1.0001 for p in vis)
+    out = []
+    for x, y, c in pts:
+        if c <= 0:
+            out.append(None)
+            continue
+        if norm:
+            x, y = x * W, y * H
+        elif sw and sh:
+            x, y = x * W / sw, y * H / sh
+        out.append((float(x), float(y)))
+    if sum(1 for p in out if p) < 4:
+        raise ValueError(t("srv_immagini.posa_non_valida"))
+    return out
+
+
+def draw_pose(pts: list, size: tuple):
+    from PIL import Image, ImageDraw
+    W, H = size
+    img = Image.new("RGB", (W, H), (0, 0, 0))
+    d = ImageDraw.Draw(img)
+    lw = max(2, int(min(W, H) / 128))
+    for i, (a, b) in enumerate(POSE_LIMBS):
+        if pts[a] and pts[b]:
+            d.line([pts[a], pts[b]], fill=tuple(int(v * 0.6) for v in POSE_COLORS[i]), width=lw * 2)
+    r = lw + 1
+    for i, p in enumerate(pts):
+        if p:
+            d.ellipse([p[0] - r, p[1] - r, p[0] + r, p[1] + r], fill=POSE_COLORS[i])
+    return img
+
+
+def posa(src: str, posa_file: str, out: str, descrizione: str = "", negativo: str = "", passi: int | None = None, seme: int = -1,
+         forza: float = 0.75, anche_lenta: bool = False, rid: str | None = None, update=None, motore: str | None = None) -> dict:
+    """Ridisegna la persona della foto nella posa data (ControlNet OpenPose partendo dalla foto stessa)."""
+    from PIL import Image
+    update = update or (lambda *a, **k: None)
+    rid = rid or uuid.uuid4().hex
+    descrizione = (descrizione or "").strip()
+    controlla_descrizione(descrizione)
+    sv = scheda_video()
+    if not sv["idonea_genera"] and not anche_lenta:
+        raise NonIdonea(frase_non_idonea())
+    _RUN.setdefault(rid, {"stop": False})
+    t0 = time.time()
+    work = WORK_DIR / uuid.uuid4().hex
+    work.mkdir(parents=True, exist_ok=True)
+    try:
+        photo = _open_img(src).convert("RGB")
+        W, H = photo.size
+        k = 640 / max(W, H)
+        gw, gh = _round64(W * k), _round64(H * k)
+        if str(posa_file).lower().endswith(".json"):
+            skel = draw_pose(read_pose(posa_file, (gw, gh)), (gw, gh))
+        else:
+            skel = Image.open(posa_file).convert("RGB").resize((gw, gh), Image.LANCZOS)
+            if max(skel.convert("L").getextrema()) < 40:
+                raise ValueError(t("srv_immagini.posa_non_valida"))
+        skel.save(work / "posa.png")
+        photo.resize((gw, gh), Image.LANCZOS).save(work / "foto.png")
+        motore = motore or _engine(sv)
+        veloce = motore == "cpu"
+        base = _need_models(["sd15", "openpose"] + (["lcm"] if veloce else []), update, rid)
+        steps, speed = _speed_args(veloce, passi)
+        o = work / "posa_out.png"
+        prompt = (descrizione + ", " if descrizione else "") + \
+            "photo of the same person, same face, same hair, same clothes, same background, realistic, high quality" + \
+            (" <lora:lcm-lora-sdv1-5:1>" if veloce else "")
+        neg = NEG_FISSO + ", deformed, extra limbs, bad anatomy" + (", " + negativo if negativo else "")
+        cmd = ["-m", str(model_path("sd15")), "-i", str(work / "foto.png"), "--control-net", str(model_path("openpose")),
+               "--control-image", str(work / "posa.png"), "--control-strength", "1.0",
+               "--strength", str(max(0.3, min(1.0, float(forza)))),
+               "-p", prompt, "-n", neg, "-W", str(gw), "-H", str(gh), "-s", str(int(seme)), "-o", str(o)] + speed
+        code, tail = _sd_run(rid, motore, sv, cmd, steps, base, update)
+        if code != 0 or not o.exists():
+            print("sd-cli posa", motore, "non riuscito:", tail[-2000:])
+            if motore == "vulkan":
+                return posa(src, posa_file, out, descrizione, negativo, None, seme, forza, True, rid, update, "cpu")
+            raise RuntimeError(t("srv_immagini.errore_motore", "stable-diffusion.cpp", _last_line(tail)))
+        img = Image.open(o).convert("RGB").resize((W, H), Image.LANCZOS)
+        _save(img, out)
+        return {"ok": True, "out": str(out), "larghezza": W, "altezza": H, "secondi": round(time.time() - t0, 1),
+                "motore": motore, "passi": steps, "scheda": sv.get("nome", "")}
+    finally:
+        _RUN.pop(rid, None)
+        shutil.rmtree(work, ignore_errors=True)
+
+
 # ------------------------------------------------------------------ riga di comando
 def _stdio(n: int):
     """stdout/stderr veri anche nell'eseguibile senza console (app.py li manda in un file di registro)."""
@@ -576,6 +854,30 @@ def cli(argv: list[str]) -> int:
             w = int(pos[2]) if len(pos) > 2 else 512
             h = int(pos[3]) if len(pos) > 3 else 512
             r = genera(pos[0], pos[1], w, h, neg, int(passi) if passi else None, int(seme), lenta, update=progress)
+            print(json.dumps(r, ensure_ascii=False), file=out, flush=True)
+            return 0
+        if flag("--ritocca"):
+            neg = opt("--negativo", "")
+            passi = opt("--passi")
+            seme = opt("--seme", "-1")
+            pos = [a for a in args if not a.startswith("--")]
+            if len(pos) < 4:
+                print(t("srv_immagini.uso_ritocca"), file=err)
+                return 1
+            r = ritocca(pos[0], pos[1], pos[2], pos[3], neg, int(passi) if passi else None, int(seme), lenta, update=progress)
+            print(json.dumps(r, ensure_ascii=False), file=out, flush=True)
+            return 0
+        if flag("--posa"):
+            desc = opt("--descrizione", "")
+            neg = opt("--negativo", "")
+            passi = opt("--passi")
+            seme = opt("--seme", "-1")
+            forza = opt("--forza", "0.75")
+            pos = [a for a in args if not a.startswith("--")]
+            if len(pos) < 3:
+                print(t("srv_immagini.uso_posa"), file=err)
+                return 1
+            r = posa(pos[0], pos[1], pos[2], desc, neg, int(passi) if passi else None, int(seme), float(forza), lenta, update=progress)
             print(json.dumps(r, ensure_ascii=False), file=out, flush=True)
             return 0
     except NonIdonea as e:
