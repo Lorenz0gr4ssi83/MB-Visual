@@ -863,7 +863,30 @@ dell'anteprima glTF salvata nel file (`viewOnly` di viewers/modeler.js, WEB_EXTS
     angoli, lunghezza sull'asse, peso; componenti; altri corpi) in CSV ed Excel.
   * Collaudo: test_modeler.py 51/51 (anche volumi delle tubazioni = sezione x lunghezza sull'asse, canalina, interferenza esatta),
     test_modeler_ui.mjs 82/82 (scenario 9: disegno, maniglie, nodi, DN150, canalina da schizzo, valvola, interferenze, distinta).
-  * Non fatto: isometrici delle tubazioni, specifiche di linea (classi di tubazione), staffaggi, P&ID.
+- Revisione 3 (10/11/2026, "fai anche cosa non hai fatto"):
+  * Classi di tubazione (`mplant.js SPECS`: A1 acciaio PN16 serie normale, A2 PN40 sch. 80, B1 inox 316L sch. 10S, C1 PVC-U PN10,
+    D1 rame EN 1057; `doc.specs` stessa forma, aggiunge/sostituisce) con spessori per DN, raggio delle curve, densita' per il
+    peso; scelta classe e numero di linea nello strumento Impianti (ricordata in localStorage mbv-impianti-classe) e nel pannello;
+    la lavorazione route porta spec/pn/mat/linea, il motore li mette nei dati d'impianto; distinta per classe e materiale.
+    Flange PN > 16: diametro e spessore aumentati (approssimazione, non tabella EN 1092-1 PN40).
+  * Staffaggi `f_supports` (lavorazione "supports" {route, kind floor|hanger, z, span}): supporti sui SOLI tratti orizzontali,
+    vicino a ogni estremo e a passo <= span (automatico: tabella d'uso comune per DN dei tubi d'acciaio pieni d'acqua, 1500 mm
+    canaline, 2400 condotte; `support_positions`). Pavimento = piastra + montante + sella fino al fondo; soffitto = barre +
+    collare (tubi) o mensola (canaline) + piastra. Un corpo con tutti i supporti, meta {quantita, altezze, pos, su}: seguono
+    l'impianto, esclusi dalle interferenze con il loro impianto, in distinta con quantita' e metri di montante.
+  * Isometrici `mbvisual/modiso.py` (API modeler op=iso, job): un A3 per tubazione, NON in scala (lunghezze disegnate = radice
+    della vera), X a 30 gradi verso destra, Y a 30 verso sinistra, Z verticale; quote vere tra i nodi, EL, coordinate E/N di
+    partenza e arrivo, valvole/flange/supporti (S1...), nord, distinta della linea, cartiglio senza nome di ditta; PDF (PyMuPDF)
+    o DXF (ezdxf, fogli affiancati, layer ISO-*). Pulsante "Isometrici" nella barra; `mbom.js isoData` raccoglie i dati.
+  * P&ID: stencil "pid" in `ui/js/vsdshapes.js` (24 simboli ISO 10628/ISA 5.1 semplificati: valvole saracinesca/globo/sfera/
+    ritegno/farfalla/regolazione/sicurezza, pompa, compressore, ventilatore, motore, recipienti, serbatoio, scambiatore, filtro,
+    riduzione, flangia, strumenti campo/quadro/DCS/PLC, continuazione), `mono: true` = bianco e nero (vsdops.createShape);
+    "Schema P&ID" in Crea nuovo (vsdx vuoto; un nome con P&ID/PID apre lo stencil in primo piano). Nessun legame P&ID <-> 3D.
+  * Build PyInstaller del modellatore PROVATA (10/11/2026): `MBV_BUILD_WORK=<cartella>` in build_portable.py per una build di
+    prova fuori da ~/.mbvisual; nell'exe il motore separato (`"MB Desk.exe" --modeler-kernel`) ricalcola tubazione, valvola,
+    staffe ed esporta STEP/STL/GLB (primo avvio ~26 s per l'import di OCP), l'app parte nella finestra WebView2.
+  * Collaudo: test_modeler.py 58/58 (staffe, isometrici PDF/DXF), test_modeler_ui.mjs scenario 10.
+  * Non fatto: specifiche di linea con elenco dei componenti ammessi, legame P&ID-3D, isometrici in scala e con saldature.
 - Limiti: niente sposta faccia laterale (solo lungo la normale), schizzi senza taglia/raccorda/offset/spline, vincoli solo
   globali (nessun "definito" per singola quota oltre al colore), assiemi = corpi con accoppiamenti nello stesso file (non
   componenti esterni), import del modello come blocco (la cronologia degli altri CAD non si legge). Build PyInstaller NON provata.

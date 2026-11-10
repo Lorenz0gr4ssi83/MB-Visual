@@ -14,7 +14,7 @@ import { FeatureTool, Measure, PushPull, specs } from "./mtools.js";
 import { View } from "./mview.js";
 import { meshParts } from "./mmesh.js";
 import { Gizmo, NodeHandles, RouteTool } from "./mdrag.js";
-import { ClashTool, FittingTool, showBom } from "./mbom.js";
+import { ClashTool, FittingTool, makeIso, showBom } from "./mbom.js";
 
 const KERNEL_EXTS = new Set(["step", "stp", "p21", "stpz", "iges", "igs", "brep", "brp", "ipt", "iam", "sldprt", "sldasm", "par", "psm", "asm", "x_t", "x_b", "xmt_txt", "xmt_bin", "p_t", "p_b"]);
 
@@ -110,6 +110,7 @@ export class ModelerApp {
       B("split", tr("mod.dividi"), () => this.startOp("split"), { id: "split" }), sep(),
       B("route", tr("mod.pl_impianti") + " (T)", () => this.startRoute(), { id: "route" }),
       B("bom", tr("mod.pl_distinta"), () => showBom(this)),
+      B("iso", tr("mod.pl_isometrici"), () => makeIso(this), { id: "iso" }),
       B("clash", tr("mod.pl_interferenze"), () => { this.cancelTool(false); this.setTool(new ClashTool(this), "clash"); }, { id: "clash" }), sep(),
       this.selModeSel(),
       B("measure", tr("mod.misura") + " (I)", () => this.startMeasure(), { id: "measure" }),

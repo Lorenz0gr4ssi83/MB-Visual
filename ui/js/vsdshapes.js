@@ -39,6 +39,38 @@ const documentShape = [
   ["CubBezTo", { X: "Width*1", Y: "Height*0.08", A: "Width*0.7", B: "Height*0.26", C: "Width*0.85", D: "Height*0.24" }], ["LineTo", R(1, 1)], ["LineTo", R(0, 1)],
 ];
 
+// ---- P&ID (simboli ISO 10628 / ISA 5.1 semplificati, bianco e nero): cerchi in unita' dell'altezza (restano cerchi)
+const circ = (cx, cy, r) => ["Ellipse", { X: `Width*${cx}`, Y: `Height*${cy}`, A: `Width*${cx}+Height*${r}`, B: `Height*${cy}`, C: `Width*${cx}`, D: `Height*${cy + r}` }];
+const lines = segs => ({ noFill: true, rows: segs.flatMap(([a, b]) => [["MoveTo", R(...a)], ["LineTo", R(...b)]]) });
+const bowtie = (y0 = 0, y1 = 1) => [{ rows: poly([[0, y0], [0.5, (y0 + y1) / 2], [0, y1]]) }, { rows: poly([[1, y0], [0.5, (y0 + y1) / 2], [1, y1]]) }];
+const PID = [
+  { id: "pid_gate", w: 12 * MM, h: 6 * MM, geom: bowtie() },
+  { id: "pid_globe", w: 12 * MM, h: 6 * MM, geom: [...bowtie(), { rows: [circ(0.5, 0.5, 0.17)] }] },
+  { id: "pid_ball", w: 12 * MM, h: 6 * MM, geom: [...bowtie(), { rows: [circ(0.5, 0.5, 0.25)] }] },
+  { id: "pid_check", w: 12 * MM, h: 6 * MM, geom: [{ rows: poly([[0, 0], [0, 1], [1, 0.5]]) }, lines([[[1, 0], [1, 1]]])] },
+  { id: "pid_butterfly", w: 8 * MM, h: 8 * MM, geom: [lines([[[0, 0], [0, 1]], [[1, 0], [1, 1]], [[0.2, 0.2], [0.8, 0.8]]]), { rows: [circ(0.5, 0.5, 0.1)] }] },
+  { id: "pid_control", w: 12 * MM, h: 12 * MM, geom: [...bowtie(0, 0.5), lines([[[0.5, 0.25], [0.5, 0.75]]]),
+    { rows: [["MoveTo", R(0.2, 0.75)], ["LineTo", R(0.8, 0.75)], ["ArcTo", { X: "Width*0.2", Y: "Height*0.75", A: "Height*0.2" }]] }] },
+  { id: "pid_safety", w: 12 * MM, h: 14 * MM, geom: [{ rows: poly([[0.3, 0], [0.7, 0], [0.5, 0.4]]) }, { rows: poly([[1, 0.2], [1, 0.6], [0.5, 0.4]]) },
+    { noFill: true, rows: [["MoveTo", R(0.5, 0.4)], ["LineTo", R(0.5, 0.55)], ["LineTo", R(0.35, 0.62)], ["LineTo", R(0.65, 0.72)], ["LineTo", R(0.35, 0.82)], ["LineTo", R(0.65, 0.92)], ["LineTo", R(0.5, 1)]] }] },
+  { id: "pid_pump", w: 14 * MM, h: 14 * MM, geom: [{ rows: [circ(0.5, 0.5, 0.42)] }, lines([[[0.5, 0.92], [1, 0.92]], [[0.2, 0.08], [0.05, 0]], [[0.8, 0.08], [0.95, 0]], [[0.05, 0], [0.95, 0]]])] },
+  { id: "pid_compressor", w: 14 * MM, h: 14 * MM, geom: [{ rows: [circ(0.5, 0.5, 0.48)] }, lines([[[0.18, 0.84], [0.9, 0.64]], [[0.18, 0.16], [0.9, 0.36]]])] },
+  { id: "pid_fan", w: 14 * MM, h: 14 * MM, geom: [{ rows: [circ(0.5, 0.5, 0.48)] }, lines([[[0.5, 0.5], [0.5, 0.95]], [[0.5, 0.5], [0.1, 0.27]], [[0.5, 0.5], [0.9, 0.27]]])] },
+  { id: "pid_motor", w: 10 * MM, h: 10 * MM, geom: [{ rows: [circ(0.5, 0.5, 0.48)] }], text: "M" },
+  { id: "pid_vessel_v", w: 16 * MM, h: 34 * MM, geom: rounded("Width*0.5") },
+  { id: "pid_vessel_h", w: 34 * MM, h: 16 * MM, geom: rounded("Height*0.5") },
+  { id: "pid_tank", w: 26 * MM, h: 24 * MM, geom: [["MoveTo", R(0, 0)], ["LineTo", R(1, 0)], ["LineTo", R(1, 0.85)], ["ArcTo", { X: "Width*0", Y: "Height*0.85", A: "Height*0.12" }], ["LineTo", R(0, 0)]] },
+  { id: "pid_exchanger", w: 16 * MM, h: 16 * MM, geom: [{ rows: [circ(0.5, 0.5, 0.48)] }, { noFill: true, rows: [["MoveTo", R(0, 0.5)], ["LineTo", R(0.25, 0.5)], ["LineTo", R(0.4, 0.72)], ["LineTo", R(0.6, 0.28)], ["LineTo", R(0.75, 0.5)], ["LineTo", R(1, 0.5)]] }] },
+  { id: "pid_filter", w: 12 * MM, h: 14 * MM, geom: [{ rows: poly([[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]]) }, lines([[[0.5, 0], [0.5, 1]]])] },
+  { id: "pid_reducer", w: 10 * MM, h: 8 * MM, geom: poly([[0, 0], [1, 0.25], [1, 0.75], [0, 1]]) },
+  { id: "pid_flange", w: 2 * MM, h: 8 * MM, geom: [lines([[[0, 0], [0, 1]], [[1, 0], [1, 1]]])] },
+  { id: "pid_instr", w: 10 * MM, h: 10 * MM, geom: [{ rows: [circ(0.5, 0.5, 0.48)] }], text: "TI" },
+  { id: "pid_instr_panel", w: 10 * MM, h: 10 * MM, geom: [{ rows: [circ(0.5, 0.5, 0.48)] }, lines([[[0.02, 0.5], [0.98, 0.5]]])], text: "PIC" },
+  { id: "pid_dcs", w: 10 * MM, h: 10 * MM, geom: [{ rows: poly([[0, 0], [1, 0], [1, 1], [0, 1]]) }, { noFill: true, rows: [circ(0.5, 0.5, 0.48)] }], text: "FIC" },
+  { id: "pid_plc", w: 10 * MM, h: 10 * MM, geom: [{ rows: poly([[0, 0], [1, 0], [1, 1], [0, 1]]) }, { noFill: true, rows: poly([[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]]) }], text: "PLC" },
+  { id: "pid_offpage", w: 16 * MM, h: 7 * MM, geom: poly([[0, 0], [0.75, 0], [1, 0.5], [0.75, 1], [0, 1]]) },
+].map(s => ({ ...s, name: t("vsdshapes." + s.id), mono: true, keys: "p&id pid" }));
+
 // { id, name, w, h (pollici), geom: righe | [{ rows, noFill, noLine }], keys (ricerca), text }
 export const STENCILS = [
   { id: "base", name: t("vsdshapes.forme_base"), shapes: [
@@ -77,6 +109,7 @@ export const STENCILS = [
     { id: "onpage", name: t("vsdshapes.riferimento_pagina"), w: 10 * MM, h: 10 * MM, geom: ellipse, keys: t("vsdshapes.connettore_cerchio_riferimento") },
     { id: "offpage", name: t("vsdshapes.riferimento_altra_pagina"), w: 12 * MM, h: 14 * MM, geom: poly([[0.5, 0], [1, 0.3], [1, 1], [0, 1], [0, 0.3]]), keys: t("vsdshapes.riferimento_pagina_2") },
   ] },
+  { id: "pid", name: t("vsdshapes.pid"), shapes: PID },
   { id: "conn", name: t("vsdshapes.connettori"), shapes: [
     { id: "dynconn", name: t("vsdshapes.connettore_dinamico"), connector: "dynamic", keys: t("vsdshapes.connettore_freccia_collegamento") },
     { id: "line", name: t("vsdshapes.linea"), connector: "line", keys: t("vsdshapes.linea_retta") },
@@ -106,7 +139,7 @@ export function shapeIcon(def, size = 38) {
       const px = x => x0 + x, py = y => y0 + h - y;
       if (T === "MoveTo") d += `M${px(X)} ${py(Y)}`;
       else if (T === "LineTo") d += `L${px(X)} ${py(Y)}`;
-      else if (T === "Ellipse") d += `M${px(X - ev(c.A) + X)} ${py(Y)}A${w / 2} ${h / 2} 0 1 0 ${px(ev(c.A))} ${py(Y)}A${w / 2} ${h / 2} 0 1 0 ${px(X - ev(c.A) + X)} ${py(Y)}Z`;
+      else if (T === "Ellipse") { const rx = Math.abs(ev(c.A) - X), ry = Math.abs(ev(c.D) - Y); d += `M${px(X - rx)} ${py(Y)}A${rx} ${ry} 0 1 0 ${px(X + rx)} ${py(Y)}A${rx} ${ry} 0 1 0 ${px(X - rx)} ${py(Y)}Z`; }
       else if (T === "ArcTo") { const r = Math.abs(ev(c.A)) / 0.2929 > Math.max(w, h) ? Math.abs(ev(c.A)) : Math.abs(ev(c.A)) / (Math.abs(ev(c.A)) > Math.min(w, h) * 0.4 ? 1 : 0.2929); d += `A${r} ${r} 0 0 0 ${px(X)} ${py(Y)}`; }
       else if (T === "EllipticalArcTo") d += `A${w / 2} ${h * 0.1} 0 0 ${ev(c.B) > Y ? 0 : 1} ${px(X)} ${py(Y)}`;
       else if (T === "CubBezTo") d += `C${px(ev(c.A))} ${py(ev(c.B))} ${px(ev(c.C))} ${py(ev(c.D))} ${px(X)} ${py(Y)}`;

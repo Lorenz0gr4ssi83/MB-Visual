@@ -490,6 +490,17 @@ export function specs(app) {
         return { bodies: P.bodies.map(p => p.hit.body), o: v.o, n: AX[v.pl] };
       },
     },
+    supports: {
+      type: "supports", title: tr("mod.pl_staffaggi"), icon: "support", picks: [],
+      defaults: { route: null, kind: "floor", z: 0, span: "" },
+      fromFeature: f => ({ ...f, span: f.span || "" }),
+      fields: [
+        { k: "kind", label: tr("mod.tipo"), type: "select", options: () => [["floor", tr("mod.pl_support_floor")], ["hanger", tr("mod.pl_support_hanger")]] },
+        { k: "z", label: tr("mod.pl_quota_staffe"), unit: "mm" },
+        { k: "span", label: tr("mod.pl_passo_staffe"), unit: "mm" },
+      ],
+      build: v => (v.route ? { route: v.route, kind: v.kind, z: v.z, ...(v.span !== "" && +v.span > 0 ? { span: +v.span } : {}) } : null),
+    },
     primitive: {
       type: "primitive", title: tr("mod.solido_base"), icon: "box", picks: [],
       defaults: { shape: "box", p: [0, 0, 0], dx: 50, dy: 30, dz: 20, r: 10, r2: 3, h: 30, op: "join" },

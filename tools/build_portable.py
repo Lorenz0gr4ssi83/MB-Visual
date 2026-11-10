@@ -16,7 +16,8 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-WORK = Path.home() / ".mbvisual"
+# MBV_BUILD_WORK = cartella di lavoro diversa (build di prova senza toccare quella ufficiale in %USERPROFILE%\.mbvisual\dist)
+WORK = Path(os.environ.get("MBV_BUILD_WORK") or Path.home() / ".mbvisual")
 DIST = WORK / "dist"
 NAME = "MB Desk"
 EXE = "MB Desk.exe"
@@ -146,7 +147,7 @@ def main() -> int:
         "--collect-submodules", "pydicom", "--collect-all", "gdcm", "--collect-submodules", "h5py", "--collect-submodules", "pyarrow", "--hidden-import", "olefile",
         "--exclude-module", "tkinter", "--exclude-module", "matplotlib",
         # STEP/IGES grandi con OpenCascade nativo (mbvisual/stepnative.py): OCP si copia a mano dopo (copy_ocp), senza VTK Python
-        "--hidden-import", "mbvisual.stepnative", "--hidden-import", "mbvisual.modeler", "--hidden-import", "mbvisual.modkernel", "--exclude-module", "OCP", "--exclude-module", "vtk", "--exclude-module", "vtkmodules",
+        "--hidden-import", "mbvisual.stepnative", "--hidden-import", "mbvisual.modeler", "--hidden-import", "mbvisual.modkernel", "--hidden-import", "mbvisual.modiso", "--exclude-module", "OCP", "--exclude-module", "vtk", "--exclude-module", "vtkmodules",
         # IFC -> STEP (mbvisual/ifcstep.py): IfcOpenShell (LGPL-3.0) con i suoi moduli e la libreria nativa
         "--hidden-import", "mbvisual.ifcstep", "--collect-all", "ifcopenshell", "--hidden-import", "isodate", "--hidden-import", "lark",
         "--exclude-module", "cadquery_ocp",
@@ -178,6 +179,7 @@ def main() -> int:
     final = DIST / NAME
     if final.exists():
         shutil.rmtree(final)
+    final.parent.mkdir(parents=True, exist_ok=True)
     out.rename(final)
     (final / "LEGGIMI.txt").write_text(
         "MB Desk - versione portatile\r\n\r\n"

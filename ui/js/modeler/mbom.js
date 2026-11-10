@@ -1,8 +1,8 @@
 // Distinta materiali del modello: tubazioni, canaline e condotte per tipo e misura (tratti, lunghezze dritte, curve con gli
 // angoli, lunghezza sull'asse, peso) + gli altri corpi con volume e peso. Esportazione CSV (;) ed Excel.
-import { dirName, el, loadScript, modal, saveBlobAs, toast } from "../core.js";
+import { dirName, el, loadScript, modal, pickSavePath, saveBlobAs, toast } from "../core.js";
 import { LOCALE, t as tr } from "../i18n.js";
-import { bom, bomTable, fittingName } from "./mplant.js";
+import { bom, bomTable, fittingName, specOf } from "./mplant.js";
 import { ICON } from "./micons.js";
 import { ACCENT } from "./mview.js";
 import { closestOnAxis } from "./mdrag.js";
@@ -106,6 +106,46 @@ export class ClashTool {
       g.strokeStyle = "#fff"; g.lineWidth = 1.5; g.stroke();
     }
   }
+}
+
+// ------------------------------------------------------------------------------------------------- isometrici
+// dati delle tubazioni (solo tubi) per il motore degli isometrici: una linea per tubazione, con componenti e supporti
+export function isoData(app) {
+  const bodies = app.res?.bodies || [];
+  const linee = [];
+  for (const b of bodies) {
+    const m = b.meta;
+    if (m?.impianto !== "pipe" || !m.nodi?.length) continue;
+    const sp = m.spec ? specOf(m.spec, app.doc) : null;
+    const L = { id: app.bodyName(b.id), linea: m.linea || "", misura: m.misura || "", spec: m.spec || "", materiale: m.materiale || sp?.mat || "",
+      pn: m.pn || sp?.pn || null, raggio: m.raggio, lunghezza: m.lunghezza, nodi: m.nodi, componenti: [], supporti: [] };
+    for (const c of bodies) {
+      const q = c.meta;
+      if (q?.su !== b.id) continue;
+      if (q.componente?.startsWith("support_")) for (const p of q.pos || []) L.supporti.push({ tipo: q.componente.slice(8), pos: p });
+      else if (q.pos) L.componenti.push({ tipo: q.componente, pos: q.pos });
+    }
+    linee.push(L);
+  }
+  linee.sort((a, b) => (a.linea || a.id).localeCompare(b.linea || b.id));
+  return { nome: (app.ctx.name || "").replace(/\.[^.]+$/, ""), linee };
+}
+
+export async function makeIso(app) {
+  const data = isoData(app);
+  if (!data.linee.length) return toast(tr("mod.pl_iso_nessuna"), true);
+  const base = (data.nome || "modello") + " - " + tr("mod.pl_isometrici").toLowerCase() + ".pdf";
+  const path = await pickSavePath(base, app.path ? dirName(app.path) : "");
+  if (!path) return;
+  const fmt = /\.dxf$/i.test(path) ? "dxf" : "pdf";
+  try {
+    const { job } = await import("./mkernel.js");
+    app.say(tr("mod.pl_isometrici") + "…");
+    await job("iso", { path, data, fmt });
+    app.say("");
+    toast(tr("mod.pl_iso_fatti", data.linee.length));
+    if (fmt === "pdf") window.MB?.openFile?.(path);
+  } catch (e) { app.say(""); toast(e.message, true); }
 }
 
 const num = v => (typeof v === "number" ? v.toLocaleString(LOCALE, { maximumFractionDigits: 3 }) : v);

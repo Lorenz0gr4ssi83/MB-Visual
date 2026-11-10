@@ -424,7 +424,7 @@ export function createShape(doc, page, model, def, x, y, opts = {}) {
   el.setAttribute("NameU", def.nameU || def.name); el.setAttribute("Name", def.name);
   el.setAttribute("Type", "Shape");
   for (const a of ["LineStyle", "FillStyle", "TextStyle"]) el.setAttribute(a, "0");
-  const tc = themeColors(doc);
+  const tc = def.mono ? { fill: "#ffffff", line: "#000000", text: "#000000" } : themeColors(doc); // simboli tecnici (P&ID): bianco e nero
   const textOnly = !!def.textOnly;
   for (const c of [C(d, "PinX", x), C(d, "PinY", y), C(d, "Width", W), C(d, "Height", H), C(d, "LocPinX", W / 2, "Width*0.5"), C(d, "LocPinY", H / 2, "Height*0.5"), C(d, "Angle", 0), C(d, "FlipX", 0), C(d, "FlipY", 0), C(d, "ResizeMode", 0),
     C(d, "LineWeight", 0.75 * PT, null, "PT"), C(d, "LineColor", opts.line || tc.line), C(d, "LinePattern", textOnly ? 0 : 1), C(d, "LineCap", 0), C(d, "BeginArrow", 0), C(d, "EndArrow", 0),

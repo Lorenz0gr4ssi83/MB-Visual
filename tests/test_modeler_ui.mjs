@@ -74,6 +74,14 @@ function judge(scen, res) {
     for (const [k, v] of Object.entries(o)) if (v && typeof v === "object") walk(v, Array.isArray(o) ? key : k);
   };
   walk(res, scen);
+  if (scen.startsWith("10_") && res) {
+    const c = res.classe || {}, s = res.staffe || {}, d = res.distinta || [];
+    ok(`${scen} · classe B1 e numero di linea`, c.spec === "B1" && c.linea === "080-B1-001" && c.t === c.attesoT && /316L/.test(c.mat), JSON.stringify(c));
+    ok(`${scen} · staffe a pavimento: 4 sui due tratti, altezza fino al fondo del tubo`, s.quantita === 4 && (s.altezze || []).every(h => Math.abs(h - s.attesa) < 0.2), JSON.stringify(s));
+    ok(`${scen} · distinta: tubo con classe e materiale, riga delle staffe`, d.some(r => /B1/.test(r[0]) && /316L/.test(r[1])) && d.some(r => r[2] === 4), JSON.stringify(d));
+    ok(`${scen} · isometrico PDF`, res.iso?.fogli === 1 && res.iso_dati?.linea === "080-B1-001" && res.iso_dati?.supporti === 4, JSON.stringify(res.iso));
+    ok(`${scen} · stencil P&ID aperto nello schema`, res.pid?.valvola && res.pid?.pompa, JSON.stringify(res.pid));
+  }
   for (const f of ["step", "iges", "brep", "stl", "obj", "glb", "gltf"]) if (res && f in res) ok(`${scen} · salvataggio ${f}`, !String(res[f]).startsWith("ERRORE"), res[f]);
 }
 
@@ -97,7 +105,7 @@ try {
   fs.writeFileSync(first, ""); // modello nuovo (come "Crea nuovo": file vuoto)
   await cdp.eval(openModel(first));
   await cdp.eval(fs.readFileSync(path.join(SCEN, "helpers.js"), "utf8"));
-  for (const f of fs.readdirSync(SCEN).filter(f => /^\d_.*\.js$/.test(f)).sort()) {
+  for (const f of fs.readdirSync(SCEN).filter(f => /^\d+_.*\.js$/.test(f)).sort((x, y) => parseInt(x) - parseInt(y)).filter(f => !process.env.MBV_SOLO || process.env.MBV_SOLO.split(",").includes(String(parseInt(f))))) {
     const name = f.replace(/\.js$/, "");
     const t0 = Date.now();
     try {

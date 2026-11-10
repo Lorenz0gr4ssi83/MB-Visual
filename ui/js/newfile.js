@@ -28,6 +28,7 @@ const TYPES = [
     ["mbpub", tr("newfile.pubblicazione"), tr("newfile.nuova_pubblicazione"), () => import("./pubmodel.js").then(m => m.blankMbpub()), "pub", tr("newfile.volantini_brochure_biglietti_newsletter")],
     ["xml", tr("newfile.piano_progetto"), tr("newfile.nuovo_progetto"), () => Promise.all([import("./project/pio.js"), import("./project/pmodel.js")]).then(([io, m]) => { const P = m.newProject(); P.name = tr("newfile.nuovo_progetto"); return enc(io.writeMspdi(P)); }), "gantt-l", tr("newfile.attivita_gantt_risorse")],
     ["vsdx", tr("newfile.diagramma"), tr("newfile.nuovo_diagramma"), () => import("./vsdmodel.js").then(m => m.blankVsdx()), "diagram-l", tr("newfile.diagrammi_flusso_schemi_visio")],
+    ["vsdx", tr("newfile.schema_pid"), tr("newfile.nuovo_schema_pid"), () => import("./vsdmodel.js").then(m => m.blankVsdx()), "diagram-l", tr("newfile.pid_nota")],
     ["mbvid", tr("newfile.progetto_video"), tr("newfile.nuovo_progetto_video"), () => import("./vidmodel.js").then(m => enc(JSON.stringify(m.newProject(), null, 1))), "video-l", tr("newfile.montaggio_video_audio_titoli_transizioni")],
     ["pdf", tr("newfile.documento_pdf"), tr("newfile.nuovo_pdf"), () => tpl("vuoto_A4.pdf"), "page", tr("newfile.moduli_testi_immagini")],
     ["dxf", tr("newfile.disegno_cad"), tr("newfile.nuovo_disegno"), () => tpl("vuoto.dxf"), "cad", tr("newfile.si_apre_autocad_ogni_cad")],

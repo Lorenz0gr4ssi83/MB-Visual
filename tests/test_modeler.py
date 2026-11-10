@@ -265,6 +265,62 @@ st, _c, _r, bad = run(d9)
 bbv = K._bbox(st["v"].shape) if not bad else [0] * 6
 check("tubazione spostata: la valvola la segue", not bad and near((bbv[2] + bbv[5]) / 2 - (bbv[5] - bbv[2]) / 2, bbv[2], ab=1) and bbv[2] > 300, bbv)
 
+# staffaggi: a pavimento sotto una tubazione DN100 a quota 1000 (tratti orizzontali 5000 e 3000, passo 4800), pendini a soffitto
+d10 = {"features": [{"id": "p", "type": "route", "kind": "pipe", "pts": [[0, 0, 1000], [5000, 0, 1000], [5000, 3000, 1000], [5000, 3000, 2000]],
+                     "od": 114.3, "t": 6.02, "r": 152.4, "size": "DN100", "op": "new"},
+                    {"id": "s", "type": "supports", "route": "p", "kind": "floor", "z": 0},
+                    {"id": "h", "type": "supports", "route": "p", "kind": "hanger", "z": 3000, "span": 1000}]}
+st, _c, _r, bad = run(d10)
+ms = st["s"].meta if not bad else {}
+pos = K.support_positions(st["p"].meta, 4800) if not bad else []
+check("staffe a pavimento: 2 + 2 sui due tratti orizzontali (verticale escluso), altezza = fondo del tubo",
+      not bad and ms.get("quantita") == 4 and all(near(x, 1000 - 57.15, ab=0.2) for x in ms.get("altezze", [])) and len(pos) == 4, (bad, ms.get("quantita"), ms.get("altezze")))
+bbs = K._bbox(st["s"].shape) if not bad else [0] * 6
+check("staffe a pavimento: da quota 0 al fondo del tubo", not bad and near(bbs[2], 0, ab=0.01) and near(bbs[5], 1000 - 57.15, ab=0.5), bbs)
+mh = st["h"].meta if not bad else {}
+check("pendini con passo 1000: 6 + 4 supporti", not bad and mh.get("quantita") == 10, mh.get("quantita"))
+cl = k.op_clash({"sid": "prova", "doc": d10})["clash"]
+check("staffe sulla propria tubazione: nessuna interferenza", not cl, cl)
+st, _c, _r, bad = run({"features": [d10["features"][0], {"id": "x", "type": "supports", "route": "p", "kind": "floor", "z": 2000}]})
+check("staffe sopra la tubazione: errore 'quota_staffe'", bad and bad[0]["err"] == "srv_modeler.quota_staffe", bad)
+
+# isometrici: un foglio per linea, quote vere tra i nodi, simboli e distinta; PDF e DXF
+from mbvisual import modiso  # noqa: E402
+d11 = {"features": d10["features"] + [{"id": "v", "type": "fitting", "route": "p", "kind": "valve", "at": [2000, 0, 1000]},
+                                      {"id": "q", "type": "route", "kind": "pipe", "pts": [[0, 1000, 500], [0, 2500, 500]], "od": 60.3, "t": 3.91, "r": 90,
+                                       "size": "DN50", "op": "new", "linea": "050-A1-002", "spec": "A1", "pn": 16, "mat": "P235GH"}]}
+st, _c, _r, bad = run(d11)
+iso = {"nome": "prova", "linee": []}
+for rid in ("p", "q"):
+    m = st[rid].meta
+    L = {"id": rid, "linea": m.get("linea") or "", "misura": m["misura"], "spec": m.get("spec") or "", "materiale": m.get("materiale") or "", "pn": m.get("pn"),
+         "raggio": m["raggio"], "lunghezza": m["lunghezza"], "nodi": m["nodi"], "componenti": [], "supporti": []}
+    for bid, b in st.items():
+        q = b.meta or {}
+        if q.get("su") != rid:
+            continue
+        if str(q.get("componente")).startswith("support_"):
+            L["supporti"] += [{"tipo": q["componente"][8:], "pos": p} for p in q["pos"]]
+        else:
+            L["componenti"].append({"tipo": q["componente"], "pos": q["pos"]})
+    iso["linee"].append(L)
+ip = str(TMP / "iso.pdf")
+modiso.make(ip, iso, "pdf")
+import fitz  # noqa: E402
+pd = fitz.open(ip)
+txt = pd[0].get_text()
+check("isometrico PDF: 2 fogli, quote 5000/3000/1000, quota EL +1000, 14 supporti e valvola in distinta",
+      pd.page_count == 2 and all(x in txt for x in ("5000", "3000", "1000", "EL +1000", "S14")) and "050-A1-002" in pd[1].get_text(), txt[:300])
+pd[0].get_pixmap(dpi=110).save(str(TMP / "iso.png"))
+print("   isometrico:", TMP / "iso.png")
+pd.close()
+xp = str(TMP / "iso.dxf")
+modiso.make(xp, iso, "dxf")
+import ezdxf  # noqa: E402
+dx = ezdxf.readfile(xp)
+tx = [e.dxf.text for e in dx.modelspace().query("TEXT")]
+check("isometrico DXF: testi delle quote e linee del tubo", "5000" in tx and "EL +1000" in tx and len(dx.modelspace().query("LINE[layer=='ISO-TUBO']")) == 4, len(tx))
+
 # percorso da schizzo (punti 2D sul piano XZ) e spostamento: i dati d'impianto restano
 st, _c, _r, bad = run({"features": [{"id": "s", "type": "sketch", "plane": {"std": "XZ"}},
                                    {"id": "q", "type": "route", "kind": "pipe", "sketch": "s", "pts2": [[0, 0], [500, 0], [500, 400]], "od": 60.3, "t": 3.91, "r": 90, "op": "new"},

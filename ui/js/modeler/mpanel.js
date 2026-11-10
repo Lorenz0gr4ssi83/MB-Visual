@@ -6,14 +6,15 @@ import { fmtNum, t as tr } from "../i18n.js";
 import { evalExpr, validName } from "./mexpr.js";
 import { isDim, measureDim, solve } from "./msolver.js";
 import { ICON } from "./micons.js";
-import { fittingName, kindName, sizeLabel, sizes } from "./mplant.js";
+import { fittingName, kindName, sizeLabel, sizes, specOf } from "./mplant.js";
 
 const fmt = (v, d = 3) => fmtNum(Math.round(v * 10 ** d) / 10 ** d, d);
 export const FEAT_ICON = { sketch: "sketch", extrude: "extrude", revolve: "revolve", primitive: "box", hole: "hole", fillet: "fillet", chamfer: "chamfer",
-  shell: "shell", pushpull: "pushpull", delface: "delface", boolean: "union", transform: "move", pattern: "pattern", delbody: "trash", mate: "mate", import: "import", split: "split", route: "route", fitting: "valve" };
+  shell: "shell", pushpull: "pushpull", delface: "delface", boolean: "union", transform: "move", pattern: "pattern", delbody: "trash", mate: "mate", import: "import", split: "split", route: "route", fitting: "valve", supports: "support" };
 
 export function featLabel(f, n) {
   if (!f.name && f.type === "fitting") return fittingName(f.kind) + (n ? " · " + n : "");
+  if (!f.name && f.type === "supports") return tr("mod.pl_support_" + f.kind) + (n ? " · " + n : "");
   if (!f.name && f.type === "route") return kindName(f.kind) + " " + (f.size || "") + (n ? " · " + n : "");
   return f.name || tr("mod.f_" + f.type) + " " + n;
 }
@@ -180,15 +181,17 @@ function routeInfo(app, bid, add, r) {
   if (!m?.impianto) return;
   add(tr("mod.tipo"), kindName(m.impianto));
   add(tr("mod.pl_misura"), m.misura || sizeLabel(m));
+  if (m.spec) { const sp = specOf(m.spec, app.doc); add(tr("mod.pl_classe"), `${sp.id} · ${sp.mat} · PN${sp.pn}`); }
+  if (m.linea) add(tr("mod.pl_linea"), m.linea);
   add(tr("mod.pl_lung_totale"), fmt(m.lunghezza / 1000, 3) + " m");
   add(tr("mod.pl_tratti_dritti"), m.dritti.map(d => fmt(d, 1)).join(" + ") + " mm");
   add(tr("mod.pl_curve"), m.curve.length ? m.curve.map(a => fmt(a, 1) + "°").join(", ") + " · R " + fmt(m.raggio, 1) : "0");
   const f = app.doc.features.find(q => q.id === bid && q.type === "route");
   if (!f) return;
   const box = el("div", { class: "md-dbody" });
-  const sizeSel = el("select", { class: "field" }, ...sizes(f.kind).map(s => el("option", { value: s.id, selected: s.id === f.size }, s.label)));
+  const sizeSel = el("select", { class: "field" }, ...sizes(f.kind, f.spec, app.doc).map(s => el("option", { value: s.id, selected: s.id === f.size }, s.label)));
   sizeSel.addEventListener("change", () => {
-    const s = sizes(f.kind).find(q => q.id === sizeSel.value);
+    const s = sizes(f.kind, f.spec, app.doc).find(q => q.id === sizeSel.value);
     if (!s) return;
     Object.assign(f, { size: s.id, t: s.t, r: s.r });
     if (s.od) f.od = s.od; else { delete f.od; f.w = s.w; f.h = s.h; }
@@ -205,6 +208,13 @@ function routeInfo(app, bid, add, r) {
   box.append(el("div", { class: "md-frow" }, el("label", {}, tr("mod.pl_misura")), sizeSel),
     el("div", { class: "md-frow" }, el("label", {}, tr("mod.pl_raggio_curve")), rIn, el("span", { class: "md-unit" }, "mm")),
     el("p", { class: "md-hint" }, f.sketch ? tr("mod.pl_nodi_schizzo") : tr("mod.pl_nodi_aiuto")));
+  const lineIn = el("input", { class: "field", type: "text", value: f.linea || "", placeholder: "100-A1-001" });
+  lineIn.addEventListener("change", () => { f.linea = lineIn.value.trim() || undefined; app.afterRegen = () => { app.view.selection = [{ kind: "body", body: bid }]; app.selChanged(); }; app.commit(tr("mod.pl_linea")); });
+  box.append(el("div", { class: "md-frow" }, el("label", {}, tr("mod.pl_linea")), lineIn));
+  const sup = el("div", { class: "md-quick" });
+  sup.append(el("button", { class: "btn", type: "button", onclick: () => app.startOp("supports", { route: bid, kind: "floor", z: Math.floor(((app.bodyData(bid)?.bbox?.[2] ?? 0) - 500) / 100) * 100 }) }, el("span", { html: ICON.support }), tr("mod.pl_support_floor")),
+    el("button", { class: "btn", type: "button", onclick: () => app.startOp("supports", { route: bid, kind: "hanger", z: Math.ceil(((app.bodyData(bid)?.bbox?.[5] ?? 2500) + 500) / 100) * 100 }) }, el("span", { html: ICON.hanger }), tr("mod.pl_support_hanger")));
+  box.append(el("div", { class: "md-subh" }, tr("mod.pl_staffaggi")), sup);
   if (f.kind === "pipe") {
     const acts = el("div", { class: "md-quick" });
     for (const [k, icon] of [["valve", "valve"], ["flanges", "flange"], ["flange", "flange"]]) acts.append(el("button", { class: "btn", type: "button", onclick: () => app.startFitting(bid, k) }, el("span", { html: ICON[icon] }), fittingName(k)));

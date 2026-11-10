@@ -871,6 +871,7 @@ export function createVisio(ctx, doc, opts = {}) {
   const stencils = el("div", { class: "vs-stencils" });
   left.append(el("div", { class: "vs-ptitle" }, tr("vsdedit.forme")), search, stencils);
   const openSt = new Set(["base", "flow", "conn", "doc"]);
+  if (/p&id|\bpid\b/i.test(ctx?.name || "")) { openSt.clear(); openSt.add("pid").add("conn").add("doc"); } // schema P&ID: simboli in primo piano
   search.addEventListener("input", renderStencils);
   const preview = new Map();
   function defPreview(def) {

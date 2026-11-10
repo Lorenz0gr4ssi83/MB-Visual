@@ -14,6 +14,7 @@
 //   mate {move, a: rif, b: rif, kind: coinc|conc, off, flip} · import {items: [{blob, name, color, kind}], src}
 // rif (faccia/spigolo) = {b: corpo, k: f|e, t, c, cn, n|d, a|l, r}: firma geometrica, ritrovata dal motore dopo ogni ricalcolo.
 import { evalExpr, evalParams } from "./mexpr.js";
+import { t as tr } from "../i18n.js";
 import { solve } from "./msolver.js";
 import { findRegions, matchRegion } from "./mregions.js";
 import { chainFromSketch, fittingName, kindName } from "./mplant.js";
@@ -167,6 +168,7 @@ export function bodyName(doc, bid, fallbackN) {
   const lk = doc.looks?.[bid];
   if (lk?.name) return lk.name;
   const f = doc.features.find(q => q.id === bid.split(":")[0]);
+  if (f?.type === "supports") { const r = doc.features.find(q => q.id === f.route); return tr("mod.pl_support_" + f.kind) + (r?.size ? " " + r.size : ""); }
   if (f?.type === "fitting") { const r = doc.features.find(q => q.id === f.route); return fittingName(f.kind) + (r?.size ? " " + r.size : ""); }
   if (f?.type === "route") return kindName(f.kind) + " " + (f.size || "") + (bid.includes(":") ? " (" + bid.split(":").pop() + ")" : "");
   if (f?.type === "import") {

@@ -14,6 +14,23 @@ const DUCTS_C = [100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000];
 
 export const DENSITY = { pipe: 7.85e-6, tray: 7.85e-6, duct: 7.85e-6, ductr: 7.85e-6 }; // kg/mm3 (acciaio / lamiera zincata)
 
+// classi di tubazione (specifiche di linea): materiale, pressione nominale, spessori per DN, raggio delle curve, densita'.
+// Le classi del documento (doc.specs, stessa forma) si aggiungono a queste e le possono sostituire con lo stesso codice.
+const SCH80 = { 15: 3.73, 20: 3.91, 25: 4.55, 32: 4.85, 40: 5.08, 50: 5.54, 65: 7.01, 80: 7.62, 100: 8.56, 125: 9.53, 150: 10.97, 200: 12.7, 250: 15.09, 300: 17.48, 350: 19.05, 400: 21.44, 450: 23.83, 500: 26.19, 600: 30.96 };
+const SCH10S = { 15: 2.11, 20: 2.11, 25: 2.77, 32: 2.77, 40: 2.77, 50: 2.77, 65: 3.05, 80: 3.05, 100: 3.05, 125: 3.4, 150: 3.4, 200: 3.76, 250: 4.19, 300: 4.57, 350: 4.78, 400: 4.78, 450: 4.78, 500: 5.54, 600: 6.35 };
+// PVC-U (EN ISO 1452) PN10: DN -> diametro esterno (SDR 21 circa)
+const PVC = [[15, 20], [20, 25], [25, 32], [32, 40], [40, 50], [50, 63], [65, 75], [80, 90], [100, 110], [125, 140], [150, 160], [200, 225], [250, 280], [300, 315], [400, 400]];
+// rame (EN 1057): diametro esterno x spessore
+const CU = [[12, 1], [15, 1], [18, 1], [22, 1], [28, 1.2], [35, 1.5], [42, 1.5], [54, 2], [76.1, 2], [88.9, 2], [108, 2.5]];
+export const SPECS = () => [
+  { id: "A1", name: tr("mod.cl_a1"), mat: "P235GH (EN 10216-2)", pn: 16, dens: 7.85e-6, rf: 1.5, wall: dn => (PIPES.find(p => p[0] === dn) || [])[2] },
+  { id: "A2", name: tr("mod.cl_a2"), mat: "P265GH (EN 10216-2)", pn: 40, dens: 7.85e-6, rf: 1.5, wall: dn => SCH80[dn] },
+  { id: "B1", name: tr("mod.cl_b1"), mat: "X2CrNiMo17-12-2 (AISI 316L)", pn: 16, dens: 8.0e-6, rf: 1.5, wall: dn => SCH10S[dn] },
+  { id: "C1", name: tr("mod.cl_c1"), mat: "PVC-U (EN ISO 1452)", pn: 10, dens: 1.4e-6, rf: 1.0, plastic: true },
+  { id: "D1", name: tr("mod.cl_d1"), mat: "Cu-DHP (EN 1057)", pn: 16, dens: 8.94e-6, rf: 1.0, copper: true },
+];
+export const specOf = (id, doc = null) => [...(doc?.specs || []), ...SPECS()].find(s => s.id === id) || SPECS()[0];
+
 const custom = () => { try { return JSON.parse(localStorage.getItem("mbv-impianti-misure") || "[]"); } catch { return []; } };
 export function addCustom(item) {
   const l = custom().filter(x => x.id !== item.id);
@@ -21,15 +38,20 @@ export function addCustom(item) {
   try { localStorage.setItem("mbv-impianti-misure", JSON.stringify(l)); } catch { /* */ }
 }
 
-// misure per tipo: {id, label, kind, od|w,h, t, r}
-export function sizes(kind) {
+// misure per tipo (e per classe, per i tubi): {id, label, kind, od|w,h, t, r}
+export function sizes(kind, specId = "A1", doc = null) {
   let out = [];
-  if (kind === "pipe") out = PIPES.map(([dn, od, t]) => ({ id: "DN" + dn, label: `DN ${dn} · Ø${od} × ${t}`, kind, od, t, r: Math.round(dn * 1.5 * 10) / 10 || od * 1.5 }));
+  if (kind === "pipe") {
+    const sp = specOf(specId, doc);
+    if (sp.plastic) out = PVC.map(([dn, d]) => ({ id: "DN" + dn, label: `DN ${dn} · Ø${d} × ${Math.max(1.5, Math.round(d / 21 * 10) / 10)}`, kind, od: d, t: Math.max(1.5, Math.round(d / 21 * 10) / 10), r: d * sp.rf }));
+    else if (sp.copper) out = CU.map(([d, t]) => ({ id: "Cu" + d, label: `Ø${d} × ${t}`, kind, od: d, t, r: d * Math.max(sp.rf, 1) }));
+    else out = PIPES.map(([dn, od, t]) => ({ id: "DN" + dn, label: `DN ${dn} · Ø${od} × ${sp.wall?.(dn) || t}`, kind, od, t: sp.wall?.(dn) || t, r: Math.max(Math.round(dn * sp.rf * 10) / 10, od) }));
+    for (const s of out) { s.spec = sp.id; s.pn = sp.pn; s.mat = sp.mat; }
+    return [...out, ...custom().filter(c => c.kind === kind)];
+  }
   else if (kind === "tray") out = TRAYS.map(([w, h]) => ({ id: `C${w}x${h}`, label: `${w} × ${h} · ${tr("mod.pl_lamiera")} 1,5`, kind, w, h, t: 1.5, r: w }));
   else if (kind === "ductr") out = DUCTS_R.map(([w, h]) => ({ id: `R${w}x${h}`, label: `${w} × ${h} · ${tr("mod.pl_lamiera")} 0,8`, kind, w, h, t: 0.8, r: Math.max(w, h) }));
   else if (kind === "duct") out = DUCTS_C.map(d => ({ id: "D" + d, label: `Ø ${d} · ${tr("mod.pl_lamiera")} 0,6`, kind, od: d, t: 0.6, r: d }));
-  // curve dei tubi: raggio lungo 1,5 DN (EN 10253 tipo 3D); per DN piccoli non meno del diametro
-  for (const s of out) if (kind === "pipe") s.r = Math.max(s.r, s.od);
   return [...out, ...custom().filter(c => c.kind === kind)];
 }
 export const KINDS = () => [["pipe", tr("mod.pl_tubazione")], ["tray", tr("mod.pl_canalina")], ["ductr", tr("mod.pl_condotta_r")], ["duct", tr("mod.pl_condotta_c")]];
@@ -47,19 +69,21 @@ export function bom(app) {
       const key = "c|" + m.componente + "|" + m.misura;
       if (!rows.has(key)) rows.set(key, { tipo: tr("mod.pl_" + m.componente), misura: m.misura, pezzi: 0, dritti: 0, curve: 0, angoli: new Map(), lunghezza: 0, peso: 0, corpi: [], comp: true });
       const r = rows.get(key);
-      r.pezzi++;
+      r.pezzi += m.quantita || 1;
+      if (m.altezze) { r.lunghezza += m.altezze.reduce((a, b) => a + b, 0); r.comp = "staffe"; }
       r.peso += (p.vol || 0) * 7.85e-6;
       r.corpi.push(b.name);
     } else if (m?.impianto) {
-      const key = m.impianto + "|" + (m.misura || sizeLabel(m));
-      if (!rows.has(key)) rows.set(key, { tipo: kindName(m.impianto), misura: m.misura || sizeLabel(m), pezzi: 0, dritti: 0, curve: 0, angoli: new Map(), lunghezza: 0, peso: 0, corpi: [] });
+      const sp = m.impianto === "pipe" && m.spec ? specOf(m.spec, app.doc) : null;
+      const key = m.impianto + "|" + (m.spec || "") + "|" + (m.misura || sizeLabel(m));
+      if (!rows.has(key)) rows.set(key, { tipo: kindName(m.impianto) + (sp ? " " + sp.id : ""), misura: (m.misura || sizeLabel(m)) + (sp ? " · " + sp.mat + " · PN" + sp.pn : ""), pezzi: 0, dritti: 0, curve: 0, angoli: new Map(), lunghezza: 0, peso: 0, corpi: [], dens: sp?.dens });
       const r = rows.get(key);
       r.pezzi++;
       r.dritti += m.dritti.reduce((s, d) => s + d, 0);
       r.curve += m.curve.length;
       for (const a of m.curve) r.angoli.set(a, (r.angoli.get(a) || 0) + 1);
       r.lunghezza += m.lunghezza;
-      r.peso += (p.vol || 0) * (DENSITY[m.impianto] || 7.85e-6);
+      r.peso += (p.vol || 0) * (r.dens || DENSITY[m.impianto] || 7.85e-6);
       r.corpi.push(b.name);
     } else others.push({ nome: b.name, volume: p.vol || 0, peso: (p.vol || 0) * 7.85e-6 });
   }
@@ -71,7 +95,8 @@ export const sizeLabel = m => (m.od ? "Ø" + m.od + (m.t ? " × " + m.t : "") : 
 export function bomTable(B) {
   const head = [tr("mod.pl_tipo"), tr("mod.pl_misura"), tr("mod.pl_tratti"), tr("mod.pl_lung_dritti_m"), tr("mod.pl_curve"), tr("mod.pl_lung_totale_m"), tr("mod.pl_peso_kg")];
   const rows = B.rows.map(r => [r.tipo, r.misura, r.pezzi, r.comp ? "" : +(r.dritti / 1000).toFixed(3),
-    r.comp ? "" : [...r.angoli.entries()].map(([a, n]) => `${n} × ${+a.toFixed(1)}°`).join(", ") || "0", r.comp ? "" : +(r.lunghezza / 1000).toFixed(3), +r.peso.toFixed(2)]);
+    r.comp ? "" : [...r.angoli.entries()].map(([a, n]) => `${n} × ${+a.toFixed(1)}°`).join(", ") || "0",
+    r.comp === true ? "" : +(r.lunghezza / 1000).toFixed(3), +r.peso.toFixed(2)]);
   const head2 = [tr("mod.corpo"), tr("mod.volume") + " (mm³)", tr("mod.pl_peso_kg")];
   const rows2 = B.others.map(o => [o.nome, +o.volume.toFixed(1), +o.peso.toFixed(3)]);
   return { head, rows, head2, rows2 };

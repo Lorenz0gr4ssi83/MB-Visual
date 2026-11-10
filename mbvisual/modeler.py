@@ -377,6 +377,9 @@ def api(handler, qs):
             return handler._json({"ok": True, **measure(b["sid"], b["doc"], b.get("a"), b.get("b"))})
         if op == "export":
             return handler._json({"ok": True, "job": jobs.start(export, b["sid"], b["doc"], b["path"], b["fmt"], b.get("looks"), b.get("bodies"))})
+        if op == "iso":
+            from . import modiso
+            return handler._json({"ok": True, "job": jobs.start(modiso.make, b["path"], b["data"], b.get("fmt") or "pdf")})
         if op == "import":
             return handler._json({"ok": True, "job": jobs.start(import_file, b["path"])})
         if op == "import_steps":

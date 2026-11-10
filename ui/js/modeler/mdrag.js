@@ -12,7 +12,7 @@ import { LOCALE, t as tr } from "../i18n.js";
 import { evalExpr } from "./mexpr.js";
 import { ICON } from "./micons.js";
 import { ACCENT } from "./mview.js";
-import { chainFromEdges, chainFromSketch, kindName, KINDS, sizes } from "./mplant.js";
+import { chainFromEdges, chainFromSketch, kindName, KINDS, sizes, SPECS } from "./mplant.js";
 
 const AX = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
 const AXC = ["#e0524d", "#4caf50", "#3d7fd9"];
@@ -316,6 +316,8 @@ export class RouteTool {
     this.size = null;
     this.ortho = true;
     this.elev = 0;
+    this.spec = localStorage.getItem("mbv-impianti-classe") || "A1";
+    this.linea = "";
   }
   start() {
     this.v.controls.mouseButtons.LEFT = 0;
@@ -334,7 +336,7 @@ export class RouteTool {
     this.v.redraw();
   }
   pickSize(id = null) {
-    const list = sizes(this.kind);
+    const list = sizes(this.kind, this.spec, this.app.doc);
     const keep = id || localStorage.getItem("mbv-impianti-misura-" + this.kind);
     this.size = list.find(s => s.id === keep) || list[Math.min(8, Math.floor(list.length / 2))];
     this.r = this.size.r;
@@ -344,7 +346,11 @@ export class RouteTool {
     r.innerHTML = "";
     const kindSel = el("select", { class: "field" }, ...KINDS().map(([k, l]) => el("option", { value: k, selected: k === this.kind }, l)));
     kindSel.addEventListener("change", () => { this.kind = kindSel.value; try { localStorage.setItem("mbv-impianti-tipo", this.kind); } catch { /* */ } this.pickSize(); this.render(); this.v.redraw(); });
-    const sizeSel = el("select", { class: "field" }, ...sizes(this.kind).map(s => el("option", { value: s.id, selected: s.id === this.size.id }, s.label)));
+    const specSel = el("select", { class: "field" }, ...[...(this.app.doc.specs || []), ...SPECS()].map(s => el("option", { value: s.id, selected: s.id === this.spec }, `${s.id} · ${s.name}`)));
+    specSel.addEventListener("change", () => { this.spec = specSel.value; try { localStorage.setItem("mbv-impianti-classe", this.spec); } catch { /* */ } this.pickSize(this.size?.id); this.render(); });
+    const lineIn = el("input", { class: "field", type: "text", value: this.linea, placeholder: "100-A1-001" });
+    lineIn.addEventListener("change", () => (this.linea = lineIn.value.trim()));
+    const sizeSel = el("select", { class: "field" }, ...sizes(this.kind, this.spec, this.app.doc).map(s => el("option", { value: s.id, selected: s.id === this.size.id }, s.label)));
     sizeSel.addEventListener("change", () => { this.pickSize(sizeSel.value); try { localStorage.setItem("mbv-impianti-misura-" + this.kind, sizeSel.value); } catch { /* */ } this.render(); this.v.redraw(); });
     const rIn = el("input", { class: "field", type: "text", value: String(this.r) });
     rIn.addEventListener("change", () => { const v = parseFloat(rIn.value.replace(",", ".")); if (v > 0) this.r = v; });
@@ -355,7 +361,8 @@ export class RouteTool {
     const row = (l, i, u) => el("div", { class: "md-frow" }, el("label", {}, l), i, u ? el("span", { class: "md-unit" }, u) : null);
     const sketches = this.app.doc.features.filter(f => f.type === "sketch" && chainFromSketch(f.sk));
     r.append(el("div", { class: "md-dhead" }, el("span", { class: "md-dico", html: ICON.route }), el("b", {}, tr("mod.pl_instradamento"))),
-      row(tr("mod.tipo"), kindSel), row(tr("mod.pl_misura"), sizeSel), row(tr("mod.pl_raggio_curve"), rIn, "mm"), row(tr("mod.pl_quota_partenza"), elIn, "mm"),
+      row(tr("mod.tipo"), kindSel), this.kind === "pipe" ? row(tr("mod.pl_classe"), specSel) : null, row(tr("mod.pl_misura"), sizeSel),
+      row(tr("mod.pl_linea"), lineIn), row(tr("mod.pl_raggio_curve"), rIn, "mm"), row(tr("mod.pl_quota_partenza"), elIn, "mm"),
       el("div", { class: "md-frow md-check" }, orthoCb, el("label", { for: "md-route-ortho" }, tr("mod.pl_solo_assi"))),
       el("p", { class: "md-hint" }, tr("mod.pl_aiuto", this.pts.length)),
       el("div", { class: "md-subh" }, tr("mod.pl_converti")),
@@ -371,6 +378,8 @@ export class RouteTool {
     if (s.od) f.od = s.od;
     if (s.w) { f.w = s.w; f.h = s.h; }
     f.t = s.t;
+    if (s.spec) { f.spec = s.spec; f.pn = s.pn; f.mat = s.mat; }
+    if (this.linea) f.linea = this.linea;
     return f;
   }
   fromEdges() {

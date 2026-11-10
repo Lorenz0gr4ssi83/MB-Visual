@@ -25,6 +25,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import struct
 import sys
 import time
@@ -1413,7 +1414,8 @@ def f_route(state, f, ctx):
     lun = sum(dritti) + sum(math.radians(a) * r for a in angoli)
     meta = {"impianto": kind, "misura": f.get("size") or "", "od": f.get("od"), "w": f.get("w"), "h": f.get("h"), "t": f.get("t"),
             "raggio": round(r, 3), "lunghezza": round(lun, 3), "dritti": [round(d, 3) for d in dritti], "curve": angoli,
-            "nodi": [[float(c) for c in p] for p in pts], "spec": f.get("spec") or ""}
+            "nodi": [[float(c) for c in p] for p in pts], "spec": f.get("spec") or "", "pn": f.get("pn") or 16,
+            "materiale": f.get("mat") or "", "linea": f.get("linea") or ""}
     return _apply_op(state, f, shape, f["id"], meta)
 
 # flange EN 1092-1 PN16: DN -> (diametro esterno, spessore)
@@ -1456,8 +1458,11 @@ def f_fitting(state, f, ctx):
         raise FeatureError("srv_modeler.serve_tubazione")
     p, u = _route_axis(meta, f.get("at") or meta["nodi"][0])
     od = float(meta.get("od") or 60)
-    dn = int(str(meta.get("misura") or "").replace("DN", "") or 0) or min(FLANGE_PN16, key=lambda k: abs(FLANGE_PN16[k][0] / 2.2 - od))
+    dn = _dn(meta) or min(FLANGE_PN16, key=lambda k: abs(FLANGE_PN16[k][0] / 2.2 - od))
     D, b = FLANGE_PN16.get(dn, (od * 1.9, max(16.0, od * 0.18)))
+    pn = float(meta.get("pn") or 16)
+    if pn > 16:  # PN25/PN40: flange piu' grandi e spesse (rapporti medi di EN 1092-1)
+        D, b = D * (1.0 + 0.004 * (pn - 16)), b * (1.0 + 0.012 * (pn - 16))
     x, y = _frame0(u, np.array([0, 0, 1.0]))
     kind = f.get("kind", "valve")
 
@@ -1480,17 +1485,129 @@ def f_fitting(state, f, ctx):
         parts.append(BRepPrimAPI_MakeCylinder(gp_Ax2(_p(p), _d(y)), od * 0.28, H).Shape())
         parts.append(BRepPrimAPI_MakeTorus(gp_Ax2(_p(p + y * H), _d(y)), od * 0.75, max(4.0, od * 0.06)).Shape())
     shape = _fuse_all(parts)
-    meta2 = {"componente": kind, "misura": meta.get("misura") or f"Ø{od}", "lunghezza_fs": round(L, 1), "flangia": [D, b], "su": f.get("route")}
+    meta2 = {"componente": kind, "misura": meta.get("misura") or f"Ø{od}", "lunghezza_fs": round(L, 1), "flangia": [D, b], "su": f.get("route"),
+             "pos": [round(float(c), 3) for c in p], "dir": [round(float(c), 6) for c in u]}
     st = OrderedDict(state)
     st[f["id"]] = Body(shape=shape, src=f["id"], meta=meta2)
     return st
+
+# passo massimo tra i supporti delle tubazioni d'acciaio piene d'acqua (mm), per DN (valori d'uso comune, EN 13480-3)
+SPAN_PIPE = [(15, 2100), (25, 2700), (40, 3000), (50, 3600), (80, 4200), (100, 4800), (150, 5700), (200, 6600), (250, 7200),
+             (300, 7800), (400, 8500), (600, 9500)]
+
+
+def _dn(meta):
+    """Diametro nominale dalla misura "DN100" (0 se la misura e' di un altro tipo, es. rame "Cu22")."""
+    m = re.match(r"DN\s*(\d+)", str(meta.get("misura") or ""))
+    return int(m.group(1)) if m else 0
+
+
+def _span_for(meta):
+    if meta.get("impianto") in ("tray", "ductr", "duct"):
+        return 1500.0 if meta.get("impianto") == "tray" else 2400.0
+    dn = _dn(meta) or int((meta.get("od") or 60) / 1.15)
+    for d, s in SPAN_PIPE:
+        if dn <= d:
+            return float(s)
+    return 9500.0
+
+
+def support_positions(meta, span, margin=200.0):
+    """Punti dei supporti sui tratti dritti ORIZZONTALI: uno vicino a ogni estremo (curva o fine) e in mezzo a passo <= span."""
+    segs, _d, _a = route_geometry(meta["nodi"], meta["raggio"])
+    out = []
+    for sg in segs:
+        if sg[0] != "l":
+            continue
+        _k, a, b, u = sg
+        if abs(u[2]) > 0.2:  # tratti verticali: niente supporti (guide e mensole si mettono a mano)
+            continue
+        L = float(np.linalg.norm(b - a))
+        if L < 2 * margin:
+            out.append(((a + b) / 2, u))
+            continue
+        first, last = margin, L - margin
+        n = max(1, math.ceil((last - first) / span))
+        for k in range(n + 1):
+            t = first + (last - first) * k / n
+            out.append((a + u * t, u))
+    return out
+
+
+def f_supports(state, f, ctx):
+    """Staffaggi automatici di un impianto: a pavimento (piastra, montante, sella) fino alla quota "z", oppure pendini da soffitto
+    (barra filettata e collare) alla quota "z". Un corpo con tutti i supporti; posizioni e quantita' nei dati per la distinta."""
+    body = state.get(f.get("route"))
+    meta = body.meta if body is not None else None
+    if not meta or not meta.get("impianto"):
+        raise FeatureError("srv_modeler.serve_impianto")
+    span = float(f.get("span") or 0) or _span_for(meta)
+    kind = f.get("kind", "floor")
+    z = float(f.get("z", 0 if kind == "floor" else 3000))
+    tray = meta["impianto"] in ("tray", "ductr")
+    w = float(meta.get("w") or 0) if tray else float(meta.get("od") or 60)
+    h = float(meta.get("h") or 0)
+    pts = support_positions(meta, span)
+    if not pts:
+        raise FeatureError("srv_modeler.nessun_tratto_orizzontale")
+    parts, heights = [], []
+    for p, u in pts:
+        x = _n(np.cross([0, 0, 1.0], u))
+        # quota dell'appoggio: fondo del tubo, della canalina (asse = fondo) o della condotta
+        bottom = p[2] - (w / 2 if not tray else (0 if meta["impianto"] == "tray" else h / 2))
+        top = p[2] + (w / 2 if not tray else (h if meta["impianto"] == "tray" else h / 2))
+        half = (w / 2 + 40) if tray else (w * 0.6 + 20)
+        if kind == "floor":
+            H = bottom - z
+            if H <= 5:
+                continue
+            heights.append(H)
+            col = 40.0 if w < 120 else 60.0
+            parts.append(BRepPrimAPI_MakeBox(_p([p[0] - 90, p[1] - 90, z]), 180, 180, 10).Shape())  # piastra di base
+            parts.append(BRepPrimAPI_MakeBox(_p([p[0] - col / 2, p[1] - col / 2, z + 10]), col, col, max(H - 20, 1)).Shape())  # montante
+            # traversino (sella) sotto l'impianto, largo quanto la sezione
+            c = np.array([p[0], p[1], bottom - 5])
+            parts.append(_box_axis(c, x, u, [0, 0, 1.0], 2 * half, 60, 10))
+        else:
+            H = z - top
+            if H <= 5:
+                continue
+            heights.append(H)
+            rod = 5.0 if w < 150 else 6.0
+            for side in ((-1, 1) if tray else (0,)):
+                q = np.array(p) + x * side * half
+                parts.append(BRepPrimAPI_MakeCylinder(gp_Ax2(_p([q[0], q[1], bottom - 12]), _d([0, 0, 1])), rod, z - bottom + 12).Shape())
+            if tray:  # mensola sotto la canalina
+                parts.append(_box_axis(np.array([p[0], p[1], bottom - 12]), x, u, [0, 0, 1.0], 2 * half + 20, 40, 12))
+            else:  # collare attorno al tubo
+                parts.append(BRepPrimAPI_MakeTorus(gp_Ax2(_p(p), _d(u)), w / 2 + 6, 6).Shape())
+            parts.append(BRepPrimAPI_MakeBox(_p([p[0] - 60, p[1] - 60, z]), 120, 120, 8).Shape())  # piastra a soffitto
+    if not parts:
+        raise FeatureError("srv_modeler.quota_staffe")
+    shape = _compound(parts)
+    meta2 = {"componente": "support_" + kind, "misura": meta.get("misura") or "", "quantita": len(heights),
+             "altezze": [round(float(x), 1) for x in heights], "passo": span, "su": f.get("route"),
+             "pos": [[round(float(c), 3) for c in p] for p, _u in pts]}
+    st = OrderedDict(state)
+    st[f["id"]] = Body(shape=shape, src=f["id"], meta=meta2)
+    return st
+
+
+def _box_axis(c, x, u, z, lx, ly, lz):
+    """Parallelepipedo centrato in c con i lati lungo x (lx), u (ly) e z (lz)."""
+    x = np.cross(u, z)  # terna destra (gp_Trsf rifiuta le matrici con determinante negativo); il pezzo e' simmetrico
+    o = np.array(c) - np.array(x) * lx / 2 - np.array(u) * ly / 2 - np.array(z) * lz / 2
+    b = BRepPrimAPI_MakeBox(lx, ly, lz).Shape()
+    t = gp_Trsf()
+    t.SetValues(*[float(v) for v in (x[0], u[0], z[0], o[0], x[1], u[1], z[1], o[1], x[2], u[2], z[2], o[2])])
+    return BRepBuilderAPI_Transform(b, t, True).Shape()
 
 
 FEATURES = {
     "sketch": f_sketch, "extrude": f_extrude, "revolve": f_revolve, "primitive": f_primitive, "hole": f_hole,
     "fillet": f_fillet, "chamfer": f_chamfer, "shell": f_shell, "pushpull": f_pushpull, "delface": f_delface,
     "boolean": f_boolean, "transform": f_transform, "pattern": f_pattern, "delbody": f_delbody, "mate": f_mate,
-    "import": f_import, "split": f_split, "route": f_route, "fitting": f_fitting,
+    "import": f_import, "split": f_split, "route": f_route, "fitting": f_fitting, "supports": f_supports,
 }
 
 
