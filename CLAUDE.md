@@ -1979,3 +1979,46 @@ nell'installabile (una casella gia' spuntata non e' un consenso valido). Solo ap
   variabile SUPPORT_EMAIL di wrangler.toml se si aggiunge un indirizzo NEUTRO (mai quello col nome dell'utente). Bozza legale.
 - Collaudo: `node server/test/harness.mjs` (statistiche, cancellazione su richiesta, pagine pubbliche), `python tests/test_stats.py` (22 prove).
 - Informativa nell'app e /privacy = BOZZE da far rivedere a un consulente privacy (titolare: MB Workshop Srl).
+
+## Miglioramento foto e immagini da descrizione (10/11/2026) - FATTO
+Richiesta dell'utente: Real-ESRGAN e Stable Diffusion DENTRO l'editor di immagini (niente menu a parte), sempre presenti su ogni PC,
+nessun filtro sul contenuto. (La vecchia parte "IA" con Python/torch resta tolta: questa non usa Python per i modelli.)
+- Motori (`tools/fetch_image_engines.py`, versioni e sha256 fissi, in bin/ ma fuori da git; build_portable lo chiama da solo):
+  bin/realesrgan = realesrgan-ncnn-vulkan 20220424 (BSD-3) con realesrgan-x4plus e -anime; bin/sd/vulkan e bin/sd/cpu =
+  stable-diffusion.cpp master-1079-a3c49b1 (MIT). Solo x64 (nessuna build ARM64): sul Surface gira in emulazione.
+- Modelli scaricati la prima volta in DATA_DIR/immagini/modelli con barra di avanzamento, ripresa e sha256: SD 1.5 Q8_0 GGUF
+  (second-state, CreativeML OpenRAIL-M = uso commerciale permesso) e LCM-LoRA (OpenRAIL++) per il processore (6 passi invece di 25).
+- `mbvisual/immagini.py`: scheda video in locale = Vulkan con ctypes in un processo figlio (`--vk-elenco`, un driver difettoso non
+  ferma l'app; vulkaninfo.exe su questo PC va in crash), ripiego sul registro. Idonea a migliorare = qualsiasi scheda Vulkan vera;
+  idonea a generare = NVIDIA/AMD con >= 7,5 GB dichiarati (8 GB). Motore SD: Vulkan sulle schede vere (anche non idonee con >= 3,5 GB),
+  altrimenti CPU con LCM; Vulkan che fallisce -> di nuovo su CPU. Real-ESRGAN lavora sempre a 4x, poi Lanczos a 2x/3x; alfa a parte.
+- Editor (`ui/js/imgai.js` + imgedit.js): Immagine > Dimensione immagine > Ricampiona "Migliora con IA (Real-ESRGAN)" con 2x/3x/4x e
+  Foto/Disegni (ogni livello di pixel passa dal motore, gli altri si ricampionano); Livello > Nuovo > "Crea immagine da descrizione..."
+  = livello nuovo. Scheda non idonea = "La scheda video di questo PC non e' idonea... Procedo lo stesso?" Procedi/Annulla.
+- Riga di comando (app.py, per altri programmi come I Saggi): `--migliora <foto> <uscita.png> [2|3|4] [--disegno]`,
+  `--genera "<descrizione>" <uscita.png> [larghezza altezza] [--negativo ".."] [--passi n] [--seme n]`, `--scheda-video` (JSON).
+  Senza `--anche-lenta` su scheda non idonea: codice 3 e la frase su stderr; 0 = file scritto (JSON del risultato su stdout); 1 = errore.
+  Nell'exe senza console stdout/stderr si prendono con GetStdHandle (app.py li manderebbe nel registro).
+- API: GET `immagini/scheda-video`, POST `immagini/migliora` (JSON {path,out,scala,modello,anche_lenta} o PNG nel corpo),
+  POST `immagini/genera` ({descrizione,out,larghezza,altezza,negativo,passi,seme,anche_lenta}) = lavori come api/convert
+  (409 non_idonea senza anche_lenta), `immagini/annulla?rid=`. Testi `imgai.*`, `srv_immagini.*` (5 lingue).
+- Collaudo: `python tests/test_immagini.py [--vero]` (MBV_FOTO_PROVA=<foto> per una foto vera).
+- Real-ESRGAN sulle schede integrate (Adreno): con tessere "automatiche" il risultato usciva NERO senza errori. Ora tessere 128
+  (64, 32) fuori da NVIDIA/AMD e nuovo tentativo se l'uscita e' vuota. Tempi sul Surface: 1200x900 -> x2/x4 ~80 s, 220x220 x4 6 s.
+  Generazione 512x512 sul processore (LCM, 6 passi) ~190 s, 768x512 ~350 s.
+- 1.6.19 (10/11/2026): RITOCCO di una zona (Modifica > "Ritocca una zona con descrizione...": selezione o livello "Maschera ritocco"
+  dipinto col pennello -> descrizione -> livello nuovo con la sola zona) = SD 1.5 inpainting Q8_0 GGUF (gpustack, OpenRAIL-M);
+  ritaglio attorno alla zona a ~640 punti, incollato con bordo sfumato: fuori dalla maschera la foto resta identica.
+  CAMBIO POSA (Modifica > "Cambia la posa della persona...") = ControlNet 1.1 OpenPose fp16 + img2img dalla foto (forza 0,45-0,95);
+  scheletro a 18 punti (OpenPose COCO) riconosciuto con MediaPipe Pose Landmarker (`ui/js/imgpose.js`, ui/vendor/mediapipe da
+  fetch_vendor.py, Apache-2.0) e spostabile a mano, o preso da un'altra foto (`fitPose`). Volto e abiti restano simili, NON identici
+  (limite di SD 1.5 senza IP-Adapter). LIMITE FISSO chiesto dall'utente SOLO per questi ritocchi su foto di persone reali: niente
+  nudita' ne' riduzione degli abiti = prompt negativo fisso `NEG_FISSO` + rifiuto (`controlla_descrizione`, regex it/en) delle
+  richieste di togliere/ridurre i vestiti; cambiare un vestito con un altro e' il caso normale. Non toglierlo.
+  Riga di comando: `--ritocca <foto> <maschera.png> "<descrizione>" <uscita.png>` (maschera: bianco o opaco = zona) e
+  `--posa <foto> <posa.png|json> <uscita.png> [--descrizione ".."] [--forza 0.75]` (png = immagine dello scheletro OpenPose;
+  json = {"keypoints": [[x,y,c]x18]} in pixel o 0-1, oppure il formato di OpenPose con people/pose_keypoints_2d); stessi codici
+  0/1/3 (rifiuto = 1). API: `immagini/carica` (PNG nel corpo -> percorso), `immagini/ritocca`, `immagini/posa` (posa anche come
+  oggetto JSON). Tempi sul Surface (processore, LCM 8 passi): cambio posa 512x768 ~375 s, ritocco ~370 s. La zona da ridisegnare
+  parte GRIGIA (senza, il colore del vestito vecchio passava nel risultato), LCM con cfg 2,2. Aggiornamenti: controllo anche
+  ogni 2 ore; "Piu' tardi" = avviso cliccabile nella barra di stato (il Surface era rimasto alla 1.6.14: avviso solo all'avvio).

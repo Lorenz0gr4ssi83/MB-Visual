@@ -24,3 +24,7 @@ android-app/android/app/src/main/assets/public/
 android-app/android/app/src/main/assets/capacitor.config.json
 android-app/android/app/src/main/assets/capacitor.plugins.json
 android-app/android/capacitor-cordova-android-plugins/
+
+# motori del miglioramento foto e della generazione di immagini (tools/fetch_image_engines.py)
+bin/realesrgan/
+bin/sd/

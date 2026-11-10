@@ -68,6 +68,9 @@ PACKAGES = [
     # QR della home (installazione sui cellulari): Kazuhiko Arase, MIT (licenza nell'intestazione del file)
     ("qrcode-generator", "https://registry.npmjs.org/qrcode-generator/-/qrcode-generator-2.0.4.tgz",
      ["package/dist/qrcode.mjs"]),
+    # riconoscimento della posa delle persone (cambio posa dell'editor di immagini): MediaPipe Tasks Vision, Apache-2.0
+    ("mediapipe", "https://registry.npmjs.org/@mediapipe/tasks-vision/-/tasks-vision-1.2.2.tgz",
+     ["package/vision_bundle.mjs", "package/wasm/", "package/LICENSE", "package/README.md"]),
 ]
 
 # file da aggiungere dopo l'estrazione (il pacchetto npm di openskp non contiene la licenza)
@@ -78,6 +81,8 @@ EXTRA = {
 FILES = {
     "soundfont": [("FluidR3Mono_GM.sf3", "https://raw.githubusercontent.com/musescore/MuseScore/1a4bd0feb9378cd145418dbcb40246980ca1013d/share/sound/FluidR3Mono_GM.sf3"),
                   ("FluidR3Mono_License.md", "https://raw.githubusercontent.com/musescore/MuseScore/1a4bd0feb9378cd145418dbcb40246980ca1013d/share/sound/FluidR3Mono_License.md")],
+    # modello della posa (Apache-2.0, model card di MediaPipe), versione 1 fissata
+    "mediapipe": [("pose_landmarker_full.task", "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task")],
 }
 # import senza percorso (da bundler) resi relativi: cosi' il modulo si carica anche in un Worker, che non vede l'import map
 REWRITE = {

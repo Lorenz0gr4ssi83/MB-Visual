@@ -712,6 +712,17 @@ iframe.fill, canvas.fill, video.fill { width: 100%; height: 100%; border: 0; dis
 .ps-dlg { position: absolute; z-index: 50; left: 50%; top: 70px; transform: translateX(-50%); width: 340px; max-height: calc(100% - 90px); display: flex; flex-direction: column; background: var(--panel-2); border: 0; border-radius: 14px; box-shadow: var(--sh-3); overflow: hidden; }
 .ps-dlg-h { padding: 11px 14px; font: 600 14px var(--display); border-bottom: 1px solid var(--line); background: var(--panel); user-select: none; }
 .ps-dlg-b { padding: 10px 12px; overflow: auto; }
+.ps-col { display: grid; gap: 4px; margin: 4px 0 8px; }
+.imgai-desc { width: 100%; resize: vertical; min-height: 72px; font: inherit; }
+.imgai-dlg { width: 380px; }
+.imgai-track { height: 6px; border-radius: 3px; background: var(--hover); overflow: hidden; margin: 6px 0 8px; }
+.imgai-bar { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.imgai-msg { min-height: 2.4em; }
+.imgai-warn { white-space: normal; line-height: 1.45; }
+.imgai-bar-float { position: absolute; z-index: 40; left: 50%; top: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--panel-2); border-radius: 12px; box-shadow: var(--sh-3); font-size: 13px; }
+.ps-dlg:has(.imgai-posebox) { width: 600px; }
+.imgai-posebox { display: grid; justify-items: center; gap: 4px; }
+.imgai-posecv { max-width: 100%; border-radius: 8px; background: #000; touch-action: none; }
 .ps-dlg-f { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--line); }
 .ps-dlg-f .grow { flex: 1; }
 .ps-form { display: grid; gap: 8px; }
@@ -803,3 +814,4 @@ iframe.fill, canvas.fill, video.fill { width: 100%; height: 100%; border: 0; dis
 /* percorsi e nomi lunghi (oltre 260 caratteri): mai fuori dal riquadro; nei testi lunghi si va a capo ovunque */
 .toast, .modal, .modal p, .modal-back .msg { overflow-wrap: anywhere; }
 .tab .name, .ex-item .nm, .menu .rec .nm, .menu .rec .pt { min-width: 0; }
+#st-version.upd-avail { color: var(--accent-ink); font-weight: 600; text-decoration: underline; }

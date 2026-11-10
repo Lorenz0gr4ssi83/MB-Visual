@@ -14,6 +14,8 @@ import { keymap, describeKeys } from "./shortcuts.js";
 import { psIcon } from "./psicons.js";
 import { ADJ, FILTERS, makeAdjust, autoAdjust, histogram, adjustControls, filterControls, blurCanvas, mkCanvas, hexToRgb, rgbToHex, lum } from "./imgadjust.js";
 import { BLENDS, readPsd, writePsd, readOra, writeOra } from "./imgfile.js";
+import { AI_OK, aiCheck, aiJob, canvasFromPath, canvasPng } from "./imgai.js";
+import { detectPose, defaultPose, fitPose, poseEditor } from "./imgpose.js";
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const g2 = c => c.getContext("2d");
@@ -554,13 +556,14 @@ export function createEditor(ctx, init) {
     g.imageSmoothingEnabled = smooth; g.imageSmoothingQuality = "high"; g.drawImage(src, 0, 0, w, h);
     return n;
   }
-  function resizeDoc(nw, nh, smooth) {
+  // pre = Map livello -> canvas gia' ingrandito (miglioramento con Real-ESRGAN): gli altri livelli si ricampionano
+  function resizeDoc(nw, nh, smooth, pre) {
     endText(true);
     const kx = nw / W, ky = nh / H;
     for (const L of layers) {
       if (L.kind === "text") { const p = L.props; p.size *= Math.min(kx, ky); p.x *= kx; p.y *= ky; renderText(L); }
       else if (L.kind === "shape") { const p = L.props; if (p.type === "line") { p.x1 *= kx; p.x2 *= kx; p.y1 *= ky; p.y2 *= ky; } else { p.x *= kx; p.y *= ky; p.w *= kx; p.h *= ky; } p.sw *= Math.min(kx, ky); renderShape(L); }
-      else if (L.c) { L.c = scaleCanvas(L.c, L.c.width * kx, L.c.height * ky, smooth); L.x = Math.round(L.x * kx); L.y = Math.round(L.y * ky); }
+      else if (L.c) { L.c = pre?.get(L) || scaleCanvas(L.c, L.c.width * kx, L.c.height * ky, smooth); L.x = Math.round(L.x * kx); L.y = Math.round(L.y * ky); }
       if (L.mask) L.mask = { ...L.mask, c: scaleCanvas(L.mask.c, L.mask.c.width * kx, L.mask.c.height * ky, smooth), x: Math.round(L.mask.x * kx), y: Math.round(L.mask.y * ky) };
     }
     W = nw; H = nh; comp = mkCanvas(W, H); sel = null; lastSel = null;
@@ -1392,19 +1395,164 @@ export function createEditor(ctx, init) {
     commit(f.name.replace("...", "")); status();
   }
 
-  async function dlgImageSize() {
+  async function dlgImageSize(preAI = false) {
     let keep = true;
     const [wI, wRow] = numField(tr("imgedit.larghezza"), W, { min: 1, max: 30000, unit: "pixel" }), [hI, hRow] = numField(tr("imgedit.altezza"), H, { min: 1, max: 30000, unit: "pixel" });
     const [pI, pRow] = numField(tr("imgedit.percentuale"), 100, { min: 1, max: 1000, step: 1, unit: "%" });
     const chk = el("input", { type: "checkbox" }); chk.checked = true;
-    const res = el("select", { class: "field ps-sel" }, el("option", { value: "1" }, tr("imgedit.automatico_bicubica")), el("option", { value: "0" }, tr("imgedit.vicino_piu_prossimo_bordi_netti")));
+    const res = el("select", { class: "field ps-sel" }, el("option", { value: "1" }, tr("imgedit.automatico_bicubica")), el("option", { value: "0" }, tr("imgedit.vicino_piu_prossimo_bordi_netti")),
+      AI_OK ? el("option", { value: "ai" }, tr("imgai.ricampiona_ia")) : null);
+    // miglioramento con Real-ESRGAN: ingrandimento 2x, 3x o 4x con i dettagli ricostruiti (mbvisual/immagini.py)
+    const fac = el("select", { class: "field ps-sel" }, ...[2, 3, 4].map(n => el("option", { value: n }, n + "×"))), kind = el("select", { class: "field ps-sel" },
+      el("option", { value: "foto" }, tr("imgai.tipo_foto")), el("option", { value: "disegno" }, tr("imgai.tipo_disegno")));
+    fac.value = "2";
+    const aiRows = el("div", { hidden: true }, el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgai.fattore")), fac),
+      el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgai.contenuto")), kind), el("p", { class: "ps-note" }, tr("imgai.nota_migliora")));
+    const aiSync = () => { const on = res.value === "ai"; aiRows.hidden = !on; for (const i of [wI, hI, pI]) i.disabled = on; chk.disabled = on;
+      if (on) { wI.value = W * +fac.value; hI.value = H * +fac.value; pI.value = 100 * +fac.value; } };
+    res.addEventListener("change", aiSync); fac.addEventListener("change", aiSync);
+    if (preAI && AI_OK) { res.value = "ai"; aiSync(); }
     wI.addEventListener("input", () => { if (keep) hI.value = Math.max(1, Math.round(+wI.value * H / W)); pI.value = Math.round(+wI.value / W * 100); });
     hI.addEventListener("input", () => { if (keep) wI.value = Math.max(1, Math.round(+hI.value * W / H)); });
     pI.addEventListener("input", () => { wI.value = Math.max(1, Math.round(W * +pI.value / 100)); hI.value = Math.max(1, Math.round(H * +pI.value / 100)); });
     chk.addEventListener("change", () => (keep = chk.checked));
     const ok = await dialog(tr("imgedit.dimensione_immagine"), el("div", { class: "ps-form" }, el("p", { class: "ps-note" }, `Attuale: ${W} × ${H} pixel`), wRow, hRow, pRow,
-      el("label", { class: "ps-check" }, chk, tr("imgedit.vincola_proporzioni")), el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgedit.ricampiona")), res)));
+      el("label", { class: "ps-check" }, chk, tr("imgedit.vincola_proporzioni")), el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgedit.ricampiona")), res), aiRows));
+    if (ok && res.value === "ai") return aiUpscale(+fac.value, kind.value);
     if (ok && +wI.value > 0 && +hI.value > 0 && (+wI.value !== W || +hI.value !== H)) resizeDoc(Math.round(+wI.value), Math.round(+hI.value), res.value === "1");
+  }
+  // Procedi / Annulla quando la scheda video non e' idonea
+  const askSlow = text => dialog(tr("imgai.titolo_avviso"), el("p", { class: "ps-note imgai-warn" }, text), { okLabel: tr("imgai.procedi") });
+  async function aiUpscale(f, kind) {
+    endText(true);
+    const pix = layers.filter(L => L.kind === "pixel" && L.c);
+    if (!pix.length) return toast(tr("imgai.niente_da_migliorare"), true);
+    try {
+      if (!(await aiCheck("migliora", askSlow))) return;
+      const pre = new Map(), t0 = Date.now();
+      for (const [i, L] of pix.entries()) {
+        const title = tr("imgai.migliora_titolo") + (pix.length > 1 ? ` (${i + 1}/${pix.length})` : "");
+        const r = await aiJob(root, title, "immagini/migliora", { scala: f, modello: kind }, await canvasPng(L.c));
+        pre.set(L, await canvasFromPath(r.out, mkCanvas));
+      }
+      resizeDoc(W * f, H * f, true, pre);
+      ctx.status(tr("imgai.fatto_migliora", W, H, Math.round((Date.now() - t0) / 1000)));
+    } catch (e) { toast(e.message, !e.cancelled); }
+  }
+  async function dlgGenerate() {
+    const desc = el("textarea", { class: "field imgai-desc", rows: 4, placeholder: tr("imgai.descrizione_esempio") });
+    const neg = el("input", { type: "text", class: "field", placeholder: tr("imgai.negativo_esempio") });
+    const sw = Math.min(W, 4096), sh = Math.min(H, 4096);
+    const [wI, wRow] = numField(tr("imgedit.larghezza"), sw, { min: 64, max: 4096, unit: "pixel" }), [hI, hRow] = numField(tr("imgedit.altezza"), sh, { min: 64, max: 4096, unit: "pixel" });
+    const [sI, sRow] = numField(tr("imgai.seme"), -1, { min: -1, max: 2147483647, step: 1 });
+    const ok = await dialog(tr("imgai.genera_titolo"), el("div", { class: "ps-form" },
+      el("label", { class: "ps-col" }, el("span", { class: "ps-lab2" }, tr("imgai.descrizione")), desc),
+      el("label", { class: "ps-col" }, el("span", { class: "ps-lab2" }, tr("imgai.negativo")), neg), wRow, hRow, sRow,
+      el("p", { class: "ps-note" }, tr("imgai.nota_genera"))), { okLabel: tr("imgai.crea") });
+    if (!ok) return;
+    if (!desc.value.trim()) return toast(tr("imgai.descrizione_vuota"), true);
+    try {
+      if (!(await aiCheck("genera", askSlow))) return;
+      const r = await aiJob(root, tr("imgai.genera_titolo"), "immagini/genera",
+        { descrizione: desc.value.trim(), negativo: neg.value.trim(), larghezza: Math.round(+wI.value) || 512, altezza: Math.round(+hI.value) || 512, seme: Math.round(+sI.value) });
+      const c = await canvasFromPath(r.out, mkCanvas);
+      endText(true);
+      const L = mkLayer({ name: desc.value.trim().slice(0, 40), c, x: Math.round((W - c.width) / 2), y: Math.round((H - c.height) / 2) });
+      layers.splice(act + 1, 0, L); act++; target = "pixels"; sel = null;
+      invalidate(); commit(tr("imgai.genera_titolo"));
+      ctx.status(tr("imgai.fatto_genera", c.width, c.height, Math.round(r.secondi || 0)));
+    } catch (e) { toast(e.message, !e.cancelled); }
+  }
+  // ---------------------------------------------------------- ritocco di una zona e cambio posa (mbvisual/immagini.py)
+  // Solo ritocchi su foto esistenti: niente nudita' ne' riduzione degli abiti (controllo nel motore, prompt negativo fisso).
+  const upload = async c => (await api("immagini/carica", {}, { body: await canvasPng(c) })).path;
+  let retouchBar = null;
+  async function retouchStart() {
+    endText(true);
+    if (retouchBar) return;
+    if (sel) { // la selezione e' gia' la zona da ridisegnare
+      const m = mkCanvas(W, H); g2(m).drawImage(sel.c, 0, 0);
+      return dlgRetouch(m);
+    }
+    // nessuna selezione: livello "Maschera ritocco" su cui dipingere col pennello
+    const L = addLayer({ name: tr("imgai.maschera_livello"), opacity: 55 }, layers.length, tr("imgai.maschera_livello"));
+    setColor("fg", "#ff2d2d"); selectTool("brush");
+    const done = async ok => {
+      retouchBar?.remove(); retouchBar = null;
+      const i = layers.indexOf(L);
+      let m = null;
+      if (ok && i >= 0 && L.c) { m = mkCanvas(W, H); g2(m).drawImage(L.c, L.x, L.y); }
+      if (i >= 0) { layers.splice(i, 1); act = Math.min(act, layers.length - 1); invalidate(); commit(tr("imgai.maschera_livello")); }
+      if (m) dlgRetouch(m);
+    };
+    retouchBar = el("div", { class: "imgai-bar-float" }, el("span", {}, tr("imgai.dipingi_zona")),
+      el("button", { class: "btn", type: "button", onclick: () => done(false) }, tr("common.annulla")),
+      el("button", { class: "btn primary", type: "button", onclick: () => done(true) }, tr("imgai.continua")));
+    root.append(retouchBar);
+  }
+  async function dlgRetouch(mask) {
+    const d = readData(mask).data;
+    let any = false; for (let i = 3; i < d.length; i += 4) if (d[i] > 32) { any = true; break; }
+    if (!any) return toast(tr("imgai.maschera_vuota"), true);
+    const desc = el("textarea", { class: "field imgai-desc", rows: 3, placeholder: tr("imgai.ritocco_esempio") });
+    const neg = el("input", { type: "text", class: "field", placeholder: tr("imgai.negativo_esempio") });
+    const ok = await dialog(tr("imgai.ritocco_titolo"), el("div", { class: "ps-form" },
+      el("label", { class: "ps-col" }, el("span", { class: "ps-lab2" }, tr("imgai.ritocco_cosa")), desc),
+      el("label", { class: "ps-col" }, el("span", { class: "ps-lab2" }, tr("imgai.negativo")), neg),
+      el("p", { class: "ps-note" }, tr("imgai.nota_ritocco"))), { okLabel: tr("imgai.ritocca") });
+    if (!ok) return;
+    if (!desc.value.trim()) return toast(tr("imgai.descrizione_vuota"), true);
+    try {
+      if (!(await aiCheck("genera", askSlow))) return;
+      const photo = flatten();
+      const [src, msk] = [await upload(photo), await upload(mask)];
+      const r = await aiJob(root, tr("imgai.ritocco_titolo"), "immagini/ritocca", { path: src, maschera: msk, descrizione: desc.value.trim(), negativo: neg.value.trim() });
+      const full = await canvasFromPath(r.out, mkCanvas);
+      const [x0, y0, x1, y1] = r.zona || [0, 0, W, H];
+      const c = mkCanvas(x1 - x0, y1 - y0); g2(c).drawImage(full, -x0, -y0);
+      endText(true);
+      const L = mkLayer({ name: tr("imgai.ritocco_livello") + ": " + desc.value.trim().slice(0, 30), c, x: x0, y: y0 });
+      layers.splice(layers.length, 0, L); act = layers.length - 1; target = "pixels"; sel = null;
+      invalidate(); commit(tr("imgai.ritocco_titolo"));
+      ctx.status(tr("imgai.fatto_ritocco", Math.round(r.secondi || 0)));
+    } catch (e) { toast(e.message, !e.cancelled); }
+  }
+  async function dlgPose() {
+    endText(true);
+    const photo = flatten();
+    let found = null;
+    ctx.status(tr("imgai.cerco_posa"));
+    try { found = await detectPose(photo); } catch (e) { console.warn("posa:", e); }
+    ctx.status(found ? tr("imgai.posa_trovata") : tr("imgai.posa_non_trovata"));
+    const ed = poseEditor(photo, found || defaultPose());
+    const fromOther = el("button", { class: "btn", type: "button", onclick: async () => {
+      const ps = await pickFiles(); if (!ps?.length) return;
+      try {
+        const c = await canvasFromPath(ps[0], mkCanvas);
+        const other = await detectPose(c);
+        if (!other) return toast(tr("imgai.posa_non_trovata"), true);
+        ed.set(fitPose(other, found));
+      } catch (e) { toast(e.message, true); }
+    } }, tr("imgai.posa_da_foto"));
+    const reset = el("button", { class: "btn", type: "button", onclick: () => ed.set(found || defaultPose()) }, tr("imgai.posa_ripristina"));
+    const desc = el("input", { type: "text", class: "field", placeholder: tr("imgai.posa_desc_esempio") });
+    const forza = el("input", { type: "range", min: 0.45, max: 0.95, step: 0.05, value: 0.75 });
+    const ok = await dialog(tr("imgai.posa_titolo"), el("div", { class: "ps-form" }, ed.el, el("div", { class: "ps-row ps-wrap" }, fromOther, reset),
+      el("label", { class: "ps-col" }, el("span", { class: "ps-lab2" }, tr("imgai.posa_desc")), desc),
+      el("label", { class: "ps-row" }, el("span", { class: "ps-lab2" }, tr("imgai.posa_forza")), forza),
+      el("p", { class: "ps-note" }, tr("imgai.nota_posa"))), { okLabel: tr("imgai.posa_applica") });
+    if (!ok) return;
+    try {
+      if (!(await aiCheck("genera", askSlow))) return;
+      const src = await upload(photo);
+      const pts = ed.get().map(p => (p ? [p[0], p[1], 1] : [0, 0, 0]));
+      const r = await aiJob(root, tr("imgai.posa_titolo"), "immagini/posa", { path: src, posa: { keypoints: pts }, descrizione: desc.value.trim(), forza: +forza.value });
+      const c = await canvasFromPath(r.out, mkCanvas);
+      const L = mkLayer({ name: tr("imgai.posa_livello"), c, x: 0, y: 0 });
+      layers.splice(layers.length, 0, L); act = layers.length - 1; target = "pixels"; sel = null;
+      invalidate(); commit(tr("imgai.posa_titolo"));
+      ctx.status(tr("imgai.fatto_posa", Math.round(r.secondi || 0)));
+    } catch (e) { toast(e.message, !e.cancelled); }
   }
   async function dlgCanvasSize() {
     const [wI, wRow] = numField(tr("imgedit.larghezza"), W, { min: 1, max: 30000, unit: "pixel" }), [hI, hRow] = numField(tr("imgedit.altezza"), H, { min: 1, max: 30000, unit: "pixel" });
@@ -1870,6 +2018,7 @@ export function createEditor(ctx, init) {
       { label: tr("imgedit.copia_unione"), keys: "Ctrl+Shift+C", run: () => copy(true) }, { label: tr("common.incolla"), keys: "Ctrl+V", run: () => (clip ? pasteCanvas(cloneC(clip.c), clip.x, clip.y) : toast(tr("imgedit.usa_ctrl_v_incollare_dagli"), false)) },
       { label: tr("imgedit.cancella"), keys: "Delete", run: clearSel, disabled: noSel }, "-",
       { label: tr("imgedit.riempi_2"), keys: "Shift+F5", run: dlgFill }, { label: tr("imgedit.traccia_3"), run: dlgStroke, disabled: noSel }, "-",
+      ...(AI_OK ? [{ label: tr("imgai.ritocco_menu"), run: retouchStart }, { label: tr("imgai.posa_menu"), run: dlgPose }, "-"] : []),
       { label: tr("imgedit.trasformazione_libera"), keys: "Ctrl+T", run: () => beginTransform() },
       { label: tr("imgedit.trasforma"), sub: () => [{ label: tr("imgedit.ruota_180_2"), run: () => layerXform("180") }, { label: tr("imgedit.ruota_90_senso_orario_2"), run: () => layerXform("cw") }, { label: tr("imgedit.ruota_90_senso_antiorario_2"), run: () => layerXform("ccw") }, "-",
         { label: tr("imgedit.rifletti_orizzontale"), run: () => layerXform("fh") }, { label: tr("imgedit.rifletti_verticale"), run: () => layerXform("fv") }] },
@@ -1878,14 +2027,17 @@ export function createEditor(ctx, init) {
       { label: tr("imgedit.regolazioni"), sub: adjItems }, "-",
       { label: tr("imgedit.tono_automatico"), keys: "Ctrl+Shift+L", run: () => quickAdjust("tone") }, { label: tr("imgedit.contrasto_automatico"), keys: "Ctrl+Alt+Shift+L", run: () => quickAdjust("contrast") },
       { label: tr("imgedit.colore_automatico"), keys: "Ctrl+Shift+B", run: () => quickAdjust("color") }, "-",
-      { label: tr("imgedit.dimensione_immagine_2"), keys: "Ctrl+Alt+I", run: dlgImageSize }, { label: tr("imgedit.dimensione_quadro_2"), keys: "Ctrl+Alt+C", run: dlgCanvasSize },
+      { label: tr("imgedit.dimensione_immagine_2"), keys: "Ctrl+Alt+I", run: () => dlgImageSize() },
+      ...(AI_OK ? [{ label: tr("imgai.ricampiona_ia") + "...", run: () => dlgImageSize(true) }] : []),
+      { label: tr("imgedit.dimensione_quadro_2"), keys: "Ctrl+Alt+C", run: dlgCanvasSize },
       { label: tr("imgedit.rotazione_immagine"), sub: () => [{ label: "180°", run: () => rotateDoc("180") }, { label: tr("imgedit.90_senso_orario"), run: () => rotateDoc("cw") }, { label: tr("imgedit.90_senso_antiorario"), run: () => rotateDoc("ccw") },
         { label: tr("imgedit.arbitraria"), run: dlgRotate }, "-", { label: tr("imgedit.rifletti_quadro_orizzontale"), run: () => rotateDoc("fh") }, { label: tr("imgedit.rifletti_quadro_verticale"), run: () => rotateDoc("fv") }] },
       { label: tr("imgedit.ritaglia"), run: () => cropDoc(sel.bounds), disabled: noSel }, { label: tr("imgedit.rifila_bordi_trasparenti"), run: trimTransparent }, "-",
       { label: tr("imgedit.informazioni_immagine_2"), run: showInfo },
     ],
     Livello: () => [
-      { label: tr("imgedit.nuovo"), sub: () => [{ label: tr("imgedit.livello_2"), keys: "Ctrl+Shift+N", run: dlgNewLayer }, { label: tr("imgedit.livello_tramite_copia"), keys: "Ctrl+J", run: () => layerVia(false) }, { label: tr("imgedit.livello_tramite_taglio"), keys: "Ctrl+Shift+J", run: () => layerVia(true) }] },
+      { label: tr("imgedit.nuovo"), sub: () => [{ label: tr("imgedit.livello_2"), keys: "Ctrl+Shift+N", run: dlgNewLayer }, { label: tr("imgedit.livello_tramite_copia"), keys: "Ctrl+J", run: () => layerVia(false) }, { label: tr("imgedit.livello_tramite_taglio"), keys: "Ctrl+Shift+J", run: () => layerVia(true) },
+        ...(AI_OK ? ["-", { label: tr("imgai.genera_menu"), run: dlgGenerate }] : [])] },
       { label: tr("imgedit.duplica_livello"), run: duplicateLayer, disabled: noLayer }, { label: tr("imgedit.elimina_livello"), run: deleteLayer, disabled: () => layers.length < 2 },
       { label: tr("imgedit.rinomina_livello_2"), run: () => renameLayer(cur()), disabled: noLayer }, "-",
       { label: tr("imgedit.nuovo_livello_regolazione"), sub: () => Object.entries(ADJ).map(([k, a]) => ({ label: a.name + "...", run: () => addAdjustLayer(k) })) },

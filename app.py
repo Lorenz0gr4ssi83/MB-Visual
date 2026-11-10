@@ -1,6 +1,11 @@
 ﻿"""MB Desk - avvio dell'applicazione desktop.
 
 Uso:  MBVisual.exe [file ...]       (oppure: python app.py [file ...])
+      "MB Desk.exe" --migliora <foto> <uscita.png> [2|3|4] [--disegno] [--anche-lenta]
+      "MB Desk.exe" --genera "<descrizione>" <uscita.png> [larghezza altezza] [--anche-lenta]
+      "MB Desk.exe" --ritocca <foto> <maschera.png> "<descrizione>" <uscita.png> [--anche-lenta]
+      "MB Desk.exe" --posa <foto> <posa.png|json> <uscita.png> [--descrizione ".."] [--anche-lenta]
+      "MB Desk.exe" --scheda-video     (JSON su stdout: idonea_migliora, idonea_genera, nome, memoria_gb, motivo)
       python app.py --browser       apre l'interfaccia nel browser (per sviluppo)
 """
 import json
@@ -23,7 +28,7 @@ elif sys.platform == "darwin" and getattr(sys, "frozen", False) and not sys.stde
     import datetime
     print(f"--- avvio {datetime.datetime.now():%Y-%m-%d %H:%M:%S} {sys.argv}")
 
-VERSION = "1.6.17"
+VERSION = "1.6.19"
 
 # percorsi e nomi lunghi (oltre 260 caratteri) in tutto il processo, anche nei processi di lavoro avviati dall'app
 from mbvisual import longpath  # noqa: E402
@@ -32,6 +37,10 @@ longpath.install()
 if __name__ == "__main__" and "--miniatura" in sys.argv:
     from mbvisual import miniature
     sys.exit(miniature.cli(sys.argv))
+# miglioramento foto e creazione di immagini da riga di comando (mbvisual/immagini.py), usati anche da altri programmi
+if __name__ == "__main__" and any(a in sys.argv for a in ("--migliora", "--genera", "--ritocca", "--posa", "--scheda-video", "--vk-elenco")):
+    from mbvisual import immagini
+    sys.exit(immagini.cli(sys.argv))
 if __name__ == "__main__" and "--integrazione" in sys.argv:
     from mbvisual import shellint
     sys.exit(shellint.cli(sys.argv))

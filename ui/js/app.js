@@ -373,7 +373,15 @@ async function showLanguage() {
 }
 
 // ---- aggiornamento automatico dalla cartella "App per PC" su OneDrive (mbvisual/update.py)
-let updInfo = null;
+let updInfo = null, updAsked = "";
+// aggiornamento rimandato ("Piu' tardi") o trovato con l'app gia' aperta: resta visibile nella barra di stato, cliccabile
+function showUpdBadge(r) {
+  const s = $("st-version");
+  s.textContent = `v${r.attuale.versione} → ${r.disponibile.versione}`;
+  s.classList.add("upd-avail");
+  s.title = tr("app.aggiornamento_disponibile");
+  s.onclick = () => checkUpdates(true);
+}
 const fmtVer = v => v ? `${v.versione}${v.build && v.build !== "sviluppo" ? " del " + v.build.slice(0, 16).split(" ").map((x, i) => i ? x : x.split("-").reverse().join("/")).join(" ") : ""}` : "";
 async function checkUpdates(manual = false) {
   let r;
@@ -382,10 +390,13 @@ async function checkUpdates(manual = false) {
   $("st-version").textContent = "v" + r.attuale.versione;
   $("st-version").title = "MB Desk " + fmtVer(r.attuale);
   if (r.stato === "nuova") {
+    // controllo periodico: la domanda si fa una volta per versione, poi resta l'avviso nella barra di stato
+    if (!manual && updAsked === r.disponibile?.build) return showUpdBadge(r);
+    updAsked = r.disponibile?.build || "";
     const ok = await modal(tr("app.aggiornamento_disponibile"), el("div", {},
       el("p", {}, tr("app.disponibile_mb_visual_0", fmtVer(r.disponibile))), el("p", { class: "note" }, tr("app.uso_0_l_app_si", fmtVer(r.attuale)))),
       [{ label: tr("app.piu_tardi"), value: false }, { label: tr("app.aggiorna_ora"), value: true, primary: true }]);
-    if (!ok) return;
+    if (!ok) return showUpdBadge(r);
     if (tabs.some(t => t.dirty) && !(await confirmBox(tr("app.file_non_salvati"), tr("app.ci_sono_modifiche_non_salvate"), tr("app.aggiorna"), true))) return;
     await runUpdateJob("update_apply", tr("app.aggiornamento_mb_visual"), tr("app.aggiornamento_pronto_mb_visual_si"));
     return;
@@ -1201,7 +1212,7 @@ async function boot() {
   if (!WEB) drainOpenQueue(); // file passati all'avvio (doppio clic in Esplora) o arrivati da un altro avvio
   if (!WEB) initStats(); // statistiche d'uso anonime: chiede il consenso la prima volta, senza consenso non conta e non invia
   if (!WEB) setupMobileQr(); // QR nella home per installare l'app sul cellulare (posti liberi della licenza)
-  if (!WEB) setTimeout(() => checkUpdates(false), 3000);
+  if (!WEB) { setTimeout(() => checkUpdates(false), 3000); setInterval(() => checkUpdates(false), 2 * 3600 * 1000); }
   setInterval(() => { if (!document.hidden) checkExternalChange(active); }, 2000);
   window.addEventListener("focus", () => tabs.forEach(checkExternalChange));
   $("btn-open").addEventListener("click", e => openMenu(e.currentTarget));
