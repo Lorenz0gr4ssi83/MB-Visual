@@ -148,9 +148,27 @@ def measure(sid, doc, a, b=None) -> dict:
     return r
 
 
+def _dxf_to_dwg(dxf, out, update=None):
+    """DXF con i 3DSOLID -> DWG con ODA File Converter (formato chiuso di Autodesk: MB Desk non lo scrive da solo)."""
+    from . import cadedit
+    if not cadedit.find_oda():
+        try:
+            os.remove(dxf)
+        except OSError:
+            pass
+        raise KernelError("srv_modeler.dwg_serve_oda")
+    if update:
+        update(0.9, t("srv_modeler.conversione_dwg"))
+    cadedit.dxf_file_to_dwg(dxf, out)
+
+
 def export(sid, doc, path, fmt, looks=None, bodies=None, update=None) -> dict:
     if update:
         update(0.1, t("srv_modeler.esportazione"))
+    if fmt == "dwg":
+        r = export(sid, doc, path + ".mbv-dwg.dxf", "dxf", looks, bodies, update)
+        _dxf_to_dwg(path + ".mbv-dwg.dxf", path, update)
+        return {**r, "path": path}
     tmp = path + ".mbv-tmp." + fmt
     r = KERNEL.request("export", sid=sid, doc=doc, path=tmp, fmt=fmt, looks=looks or {}, bodies=bodies,
                        name=Path(path).stem)
@@ -166,7 +184,48 @@ def export(sid, doc, path, fmt, looks=None, bodies=None, update=None) -> dict:
             g = json.loads(Path(path).read_text(encoding="utf-8"))
             g["buffers"][0]["uri"] = final
             Path(path).write_text(json.dumps(g), encoding="utf-8")
-    return {"path": path, "corpi": r.get("n", 0)}
+    return {"path": path, "corpi": r.get("n", 0), "esatti": r.get("esatti"), "a_facce": r.get("a_facce")}
+
+
+IFC_EXTS = {"ifc"}
+
+
+def solid_dxf(path, out, update=None) -> dict:
+    """Modello aperto nel visualizzatore 3D (STEP, IGES, BREP, Inventor, SolidWorks, Solid Edge, Parasolid, IFC) -> DXF o DWG
+    con veri solidi di AutoCAD (3DSOLID) letti dal file d'origine, non dai triangoli della vista."""
+    update = update or (lambda *a, **k: None)
+    ext = Path(path).suffix.lower().lstrip(".")
+    tmp_step = None
+    if ext in IFC_EXTS:
+        from . import ifcstep
+        DATA.mkdir(parents=True, exist_ok=True)
+        tmp_step = str(DATA / (uuid.uuid4().hex + ".step"))
+        ifcstep.convert(path, tmp_step, lambda p=None, m=None, **k: update(0.05 + 0.5 * (p or 0), m))
+        files = [{"path": tmp_step, "name": Path(path).stem}]
+    else:
+        update(0.05, t("srv_modeler.lettura_file", Path(path).name))
+        files = sources_for(path, update)
+    if not files:
+        raise KernelError("srv_modeler.nulla_da_importare")
+    update(0.6, t("srv_modeler.solidi_autocad"))
+    dwg = out.lower().endswith(".dwg")
+    dxf = out + ".mbv-dwg.dxf" if dwg else out + ".mbv-tmp.dxf"
+    try:
+        r = KERNEL.request("dxf_files", files=files, out=dxf)
+    finally:
+        if tmp_step:
+            try:
+                os.remove(tmp_step)
+            except OSError:
+                pass
+    if dwg:
+        _dxf_to_dwg(dxf, out, update)
+    else:
+        os.replace(dxf, out)
+    return {"path": out, "esatti": r.get("esatti", 0), "a_facce": r.get("a_facce", 0)}
+
+
+SOLID_DXF_EXTS = CAD_EXTS | SOLID_EXTS | IFC_EXTS | {"stpz", "ipt", "iam"}
 
 
 def _flatten_inventor(path, update=None):
@@ -377,6 +436,8 @@ def api(handler, qs):
             return handler._json({"ok": True, **measure(b["sid"], b["doc"], b.get("a"), b.get("b"))})
         if op == "export":
             return handler._json({"ok": True, "job": jobs.start(export, b["sid"], b["doc"], b["path"], b["fmt"], b.get("looks"), b.get("bodies"))})
+        if op == "solid_dxf":
+            return handler._json({"ok": True, "job": jobs.start(solid_dxf, b["path"], b["out"])})
         if op == "iso":
             from . import modiso
             return handler._json({"ok": True, "job": jobs.start(modiso.make, b["path"], b["data"], b.get("fmt") or "pdf")})

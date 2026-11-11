@@ -664,8 +664,8 @@ export class ModelerApp {
       this.path = target;
       return { switchTo: switched ? true : undefined };
     }
-    await K.exportModel({ sid: this.sid, doc: cdoc, path: target, fmt: ext, looks }, (p, m) => this.say(m));
-    this.say("");
+    const rep = await K.exportModel({ sid: this.sid, doc: cdoc, path: target, fmt: ext, looks }, (p, m) => this.say(m));
+    this.say(ext === "dxf" || ext === "dwg" ? tr("v_model3d.solidi_fatto", rep?.esatti || 0, rep?.a_facce || 0) : "");
     return { switchTo: false };
   }
 
@@ -681,5 +681,5 @@ export class ModelerApp {
   }
 }
 
-export const SAVE_FORMATS = ["mbmod", "step", "stp", "iges", "igs", "brep", "stl", "obj", "glb", "gltf"];
+export const SAVE_FORMATS = ["mbmod", "step", "stp", "iges", "igs", "brep", "dxf", "dwg", "stl", "obj", "glb", "gltf"];
 export { WEB };

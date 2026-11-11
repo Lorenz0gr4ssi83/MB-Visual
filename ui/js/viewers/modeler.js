@@ -4,7 +4,7 @@ import { api, el, loadScript, readBytes, WEB } from "../core.js";
 import { t as tr } from "../i18n.js";
 import { loadCss } from "../core.js";
 
-const SAVE = ["mbmod", "step", "stp", "iges", "igs", "brep", "stl", "obj", "glb", "gltf"];
+const SAVE = ["mbmod", "step", "stp", "iges", "igs", "brep", "dxf", ...(WEB ? [] : ["dwg"]), "stl", "obj", "glb", "gltf"];
 
 export async function mount(ctx) {
   loadCss("css/modeler.css");
@@ -22,7 +22,7 @@ export async function mount(ctx) {
     // modello aperto da un .mbmod: Salva lo riscrive; modifica di un altro formato: Salva chiede dove (proposto .mbmod)
     get saveInPlace() { return /\.mbmod$/i.test(app.path || ""); },
     saveFormats: SAVE,
-    saveLabels: { mbmod: tr("mod.fmt_mbmod"), step: tr("mod.fmt_step"), stp: tr("mod.fmt_step"), iges: tr("mod.fmt_iges"), igs: tr("mod.fmt_iges"), brep: tr("mod.fmt_brep"), stl: tr("mod.fmt_stl"), obj: tr("mod.fmt_obj"), glb: tr("mod.fmt_glb"), gltf: tr("mod.fmt_gltf") },
+    saveLabels: { mbmod: tr("mod.fmt_mbmod"), step: tr("mod.fmt_step"), stp: tr("mod.fmt_step"), iges: tr("mod.fmt_iges"), igs: tr("mod.fmt_iges"), brep: tr("mod.fmt_brep"), dxf: tr("mod.fmt_dxf"), dwg: tr("mod.fmt_dwg"), stl: tr("mod.fmt_stl"), obj: tr("mod.fmt_obj"), glb: tr("mod.fmt_glb"), gltf: tr("mod.fmt_gltf") },
     saveNote: tr("mod.nota_salvataggio"),
     saveAsName: () => ctx.name.replace(/\.[^.]+$/, "") + ".mbmod",
     noConvert: true,

@@ -926,6 +926,25 @@ dell'anteprima glTF salvata nel file (`viewOnly` di viewers/modeler.js, WEB_EXTS
   globali (nessun "definito" per singola quota oltre al colore), assiemi = corpi con accoppiamenti nello stesso file (non
   componenti esterni), import del modello come blocco (la cronologia degli altri CAD non si legge). Build PyInstaller NON provata.
 
+## Solidi di AutoCAD nei DXF/DWG 3D e pulsante "Converti in..." (11/11/2026) - FATTO (da provare in AutoCAD)
+Segnalazione dell'utente: "anche in DXF fa un mesh stile filo di ferro e non un solido". Ora i DXF/DWG salvati dal modellatore (.mbmod)
+e dal visualizzatore 3D quando il file d'origine ha solidi veri (STEP, IGES, BREP, stpz, Inventor, SolidWorks, Solid Edge, Parasolid, IFC
+tramite ifcstep) contengono 3DSOLID con dati ACIS SAT 7.0 in un DXF R2010 in mm (un 3DSOLID per solido, layer = nome del corpo, colore
+vero; oltre 500 nomi un layer per colore). `mbvisual/acis_write.py` (nel processo del motore; classi di ezdxf, MIT, piu' cone/sphere/torus/
+ellipse scritti qui; `write_double` di ezdxf sostituito: scriveva 6 cifre): piano, cilindro, cono, sfera, toro, rette/cerchi/ellissi
+ESATTI; superfici e spigoli B-spline che sono in realta' analitici riconosciuti con GeomConvert_SurfToAnaSurf / CurveToAnaCurve
+(STEP di SolidWorks); cuciture e spigoli degeneri di OpenCascade tolti e anelli ricollegati per vertice (ACIS non li ha); senso della
+faccia dal confronto delle normali. Solidi con superfici libere vere (B-spline, intersezioni) = 3DSOLID a facce piane (triangoli
+riuniti dove complanari): resta un solido. NON scritti: spline-surface/intcurve di ACIS (formato non verificabile senza AutoCAD).
+Le mesh (STL, OBJ, glTF...) restano facce come prima. DWG = lo stesso DXF convertito da ODA File Converter.
+API: `modeler?op=solid_dxf` (job, `modeler.solid_dxf`), kernel `op_dxf_files`; `_export` fmt "dxf"; modeler.export fmt "dwg".
+Pulsante "Converti in..." nella barra comandi (anche File e palette; `save(true, true)` in app.js: stessa finestra dei formati senza
+quello attuale). Collaudo: `python tests/test_acis_write.py [file.step...]` (36: ogni solido riscritto, riletto con acis.py +
+acis_step.py e ricostruito da OpenCascade: volume/area identici e validi; cavita', fori, raccordi, tubi, curve, B-spline riconosciute),
+test_modeler.py 78 (impianto in DXF: cilindri e tori esatti). Provato: piccolo.stp 50/50 esatti (anche nell'app: "Vista 3D: 50 di 50
+solidi" riaprendo il DXF), IFC 4/4, Inventor ipt 1/1 e iam 31 esatti + 6 a facce piane, pezzo SolidWorks a facce piane (curve libere).
+DA PROVARE: apertura in AutoCAD/BricsCAD (non presenti su questo PC) e DWG con ODA.
+
 ## Autodesk ReCap .rcs / .rcp (28/10/2026) - FATTO
 Prima: .rcs/.rcp non erano nel registro -> si apriva la schermata "file sconosciuto". Ora categoria `pointcloud` (stesso motore,
 ottree e cache delle altre nuvole). Nessuna specifica pubblica ne' lettore open source: struttura ricavata da file veri, descritta in

@@ -2138,8 +2138,24 @@ class Kernel:
         if not ids:
             raise FeatureError("srv_modeler.nessun_corpo")
         fmt = r["fmt"]
-        _export(state, ids, looks, fmt, r["path"], r.get("name") or "")
-        return {"path": r["path"], "n": len(ids)}
+        rep = _export(state, ids, looks, fmt, r["path"], r.get("name") or "")
+        return {"path": r["path"], "n": len(ids), **(rep or {})}
+
+    def op_dxf_files(self, r):
+        """File CAD (STEP, IGES, BREP con la matrice degli assiemi) -> DXF con veri solidi di AutoCAD (3DSOLID)."""
+        from . import acis_write
+        items = []
+        for src in r["files"]:
+            m = src.get("m")
+            for shape, name, color in _read_cad(src["path"]):
+                if m:
+                    t = gp_Trsf()
+                    t.SetValues(*[float(x) for x in m])
+                    shape = BRepBuilderAPI_Transform(shape, t, True).Shape()
+                items.append((shape, name or src.get("name") or "", color))
+        if not items:
+            raise FeatureError("srv_modeler.nessun_corpo")
+        return acis_write.write_dxf(r["out"], items)
 
 
 # ------------------------------------------------------------------------------------------------- file
@@ -2352,6 +2368,14 @@ def _export(state, ids, looks, fmt, path, name):
             if not w.Transfer(doc) or not w.Write(path):
                 raise FeatureError("srv_modeler.esportazione_fallita", fmt)
         return
+    if fmt == "dxf":
+        # veri solidi di AutoCAD (3DSOLID con dati ACIS): esatti se le superfici sono analitiche, altrimenti a facce piane
+        from . import acis_write
+        items = []
+        for bid in ids:
+            b, lk = state[bid], looks.get(bid) or {}
+            items.append(((b.mesh[0], b.mesh[1]) if b.mesh is not None else b.shape, lk.get("name") or bid, lk.get("color")))
+        return acis_write.write_dxf(path, items)
     if fmt in ("brep", "brp"):
         comp = _compound([b.shape if b.mesh is None else _mesh_shape(*b.mesh) for b in solids])
         if not BRepTools.Write_s(comp, path):

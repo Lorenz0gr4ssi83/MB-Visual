@@ -167,7 +167,7 @@ function renderTabs() {
   box.querySelector(".tab.active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
   const has = !!active;
   const isFile = has && !active.path.startsWith("mail://");
-  for (const id of ["btn-as", "btn-folder", "btn-external", "btn-info"]) $(id).disabled = !isFile;
+  for (const id of ["btn-as", "btn-folder", "btn-external", "btn-info", "btn-convert"]) $(id).disabled = !isFile;
   if (active?.viewer === "recover") $("btn-as").disabled = true; // file non supportato: nessun altro modo di aprirlo
   $("home").hidden = has || fmtOpen;
   $("views").hidden = !has || fmtOpen;
@@ -299,6 +299,7 @@ function openMenu(anchor) {
 }
 
 const ICON_SAVE = '<svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v15H5zM8 3v6h8V3M8 21v-7h8v7"/></svg>';
+const ICON_CONVERT = '<svg viewBox="0 0 24 24"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>';
 const ICON_SAVEAS = '<svg viewBox="0 0 24 24"><path d="M5 3h11l3 3v6M5 3v18h7M8 3v6h8V3M17 15v6M14 18h6"/></svg>';
 const ICON_UPD = '<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>';
 // menu File: nuovo, salva, salva con nome, aggiornamenti (le voci di apertura stanno nel menu Apri)
@@ -326,6 +327,7 @@ function fileMenu(anchor) {
   m.append(item(ICON_NEW, tr("app.crea_nuovo"), "Ctrl+N", doNew),
     item(ICON_SAVE, tr("common.salva"), "Ctrl+S", () => save(false), !active),
     item(ICON_SAVEAS, tr("app.salva_nome"), keysText("Ctrl+Shift+S"), () => save(true), !active),
+    ...(WEB ? [] : [item(ICON_CONVERT, tr("app.converti_in"), "", () => save(true, true), !active || active.path?.startsWith("mail://"))]),
     ...(WEB ? [] : [item(ICON_PHONE, tr("link.invia_telefono"), "", () => window.MBLink?.sendTab(active), !active || !window.MBLink)]),
     ...(window.MBCloud && isOn("tools") ? [item('<svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/></svg>', tr("cloud.salva_nel_cloud"), "", () => window.MBCloud.saveToCloud(), !active)] : []), // ui/js/cloud.js
     ...(WEB ? [] : [item(ICON_PRINT, tr("app.stampa"), "Ctrl+P", () => doPrint(), !active), ...gated("cad", item(ICON_PRINT, tr("app.stampa_lotti"), keysText("Ctrl+Shift+P"), () => doPrint(true)))]),
@@ -742,10 +744,10 @@ function startMailBadge() {
 }
 
 // ------------------------------------------------------------------ salvataggio
-async function save(asNew) {
+async function save(asNew, conv = false) {
   const t = active;
   if (!t) return;
-  track("fn", asNew ? "salva_con_nome" : "salva");
+  track("fn", conv ? "converti_in" : asNew ? "salva_con_nome" : "salva");
   const a = t.api || {};
   // file aperto in visualizzazione perche' il suo componente e' spento: si propone di attivarlo
   if (t.lockedComp && !isOn(t.lockedComp)) return needComp(t.lockedComp);
@@ -759,7 +761,7 @@ async function save(asNew) {
   }
   // "Salva con nome" sul PC: prima il formato (quelli del visualizzatore piu' quelli del convertitore), poi il nome
   if (!WEB && !t.path.startsWith("web://") && (asNew || !a.save)) {
-    const fmt = await chooseFormat(t, a);
+    const fmt = await chooseFormat(t, a, conv);
     if (!fmt) return;
     const target = await pickSavePath(t.name.replace(/.[^.]+$/, "") + "." + fmt, t.untitled ? "" : dirName(t.path));
     if (!target) return;
@@ -802,7 +804,7 @@ async function doSave(t, a, target) {
 }
 
 // formati in cui si puo' salvare il file aperto: scelta da un elenco
-async function chooseFormat(t, a) {
+async function chooseFormat(t, a, converting = false) {
   const src = extOf(t.path);
   const own = [...new Set([...(a.save && (!a.saveFormats || a.saveFormats.includes(src)) ? [src] : []), ...(a.saveFormats || [])])];
   let conv = [];
@@ -822,7 +824,12 @@ async function chooseFormat(t, a) {
   if (!list.options.length) { toast(tr("app.questo_tipo_file_non_ci"), true); return null; }
   list.selectedIndex = 0;
   list.addEventListener("dblclick", () => document.querySelector("#modal .btn.primary")?.click());
-  const ok = await modal(tr("app.salva_nome_scegli_formato"), el("div", { style: { display: "grid", gap: "8px" } }, list,
+  // "Converti in...": il formato attuale non si propone
+  if (converting) [...list.querySelectorAll("option")].forEach(o => { if (o.value === src) o.remove(); });
+  [...list.querySelectorAll("optgroup")].forEach(g => { if (!g.children.length) g.remove(); });
+  if (!list.options.length) { toast(tr("app.questo_tipo_file_non_ci"), true); return null; }
+  list.selectedIndex = 0;
+  const ok = await modal(tr(converting ? "app.converti_scegli_formato" : "app.salva_nome_scegli_formato"), el("div", { style: { display: "grid", gap: "8px" } }, list,
     el("p", { class: "note", style: { margin: 0, color: "var(--muted)" } }, a.saveNote || ((TOOLS.word || TOOLS.excel) && /^(word|sheet|slides)$/.test(conv.family || "") ? tr("app.i_documenti_office_vengono_convertiti") : ""))),
   [{ label: tr("common.annulla"), value: false }, { label: tr("common.avanti"), value: true, primary: true }]);
   return ok ? list.value : null;
@@ -1105,6 +1112,7 @@ function openPalette() {
     c(ICON_NEW, tr("app.crea_nuovo"), "Ctrl+N", doNew),
     c(ICON_SAVE, tr("common.salva"), "Ctrl+S", () => save(false), has),
     c(ICON_SAVEAS, tr("app.salva_nome"), "Ctrl+Shift+S", () => save(true), has),
+    c(ICON_CONVERT, tr("app.converti_in"), "", () => save(true, true), has && !WEB),
     c(ICON_PRINT, tr("app.stampa"), "Ctrl+P", () => doPrint(), has && !WEB),
     c(ICON_PRINT, tr("app.stampa_lotti"), "Ctrl+Shift+P", () => doPrint(true), !WEB && isOn("cad")),
     c(ICON_COMPONENTS, tr("comp.menu"), "", () => openComponents(), !WEB),
@@ -1222,6 +1230,7 @@ async function boot() {
   $("home-folder").addEventListener("click", chooseExplorerFolder);
   $("btn-explorer").addEventListener("click", toggleExplorer);
   $("btn-info").addEventListener("click", showProperties);
+  $("btn-convert").addEventListener("click", () => save(true, true));
   $("ex-pick").addEventListener("click", chooseExplorerFolder);
   $("ex-up").addEventListener("click", () => exDir && dirName(exDir) && loadDir(dirName(exDir)));
   $("ex-filter").addEventListener("input", renderDir);

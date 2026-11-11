@@ -421,6 +421,10 @@ async function unzipIfc(ctx) {
   Object.assign(ctx, { innerBytes: await f.async("uint8array"), ext: "ifc" });
 }
 
+// formati d'origine con solidi veri (B-rep) che il motore sa rileggere per scrivere i 3DSOLID dei DXF/DWG
+const SOLID_SRC = new Set(["step", "stp", "p21", "iges", "igs", "brep", "brp", "stpz", "ipt", "iam", "sldprt", "sldasm", "par", "psm", "asm",
+  "x_t", "x_b", "xmt_txt", "xmt_bin", "p_t", "p_b", "ifc"]);
+
 export async function mount(ctx) {
   if (ctx.ext === "ifczip" && !ctx.preloaded) await unzipIfc(ctx);
   if (ctx.ext === "ifcxml" && !ctx.preloaded) { // ifcXML: il motore lo traduce in un IFC (mbvisual/ifcxml.py), poi come qualsiasi IFC
@@ -948,7 +952,8 @@ export async function mount(ctx) {
       } catch (e) { toast(`${name}: ${e.message}`, true, 6000); }
     }
   }
-  const addBtn = button(tr("v_model3d.aggiungi_modello"), "plus", async () => addModels(await pickFiles()), { title: tr("v_model3d.carica_altro_modello_ifc_step") });
+  const addBtn = button(tr("v_model3d.aggiungi_modello"), "plus", async () => addModels(await pickFiles()), { title: tr("v_model3d.carica_altro_modello_ifc_step") });
+
   // modifica con il modellatore 3D (ui/js/modeler): B-rep esatto per STEP/IGES/BREP, Inventor, SolidWorks/Parasolid e i solidi
   // ACIS dei DWG; per le mesh e gli altri formati i triangoli della scena (Z in alto, millimetri)
   const editBtn = WEB ? null : button(tr("v_model3d.modifica_modello"), '<svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M8 16l1-3 6-6 2 2-6 6z"/></svg>', async () => {
@@ -1144,6 +1149,22 @@ export async function mount(ctx) {
           if (rep.approssimati?.length) toast(tr("v_model3d.ifc_step_approssimati", rep.approssimati.length, rep.approssimati.slice(0, 3).map(f => f.n || f.c).join(", ")), false, 8000);
           if (rep.falliti?.length) toast(tr("v_model3d.ifc_step_non_convertiti", rep.falliti.length, rep.falliti.slice(0, 3).map(f => f.n || f.c).join(", ")), true, 8000);
           return { switchTo: false };
+        }
+      }
+      // DXF/DWG da un modello CAD o IFC nell'app per PC: veri solidi di AutoCAD (3DSOLID) scritti dal motore leggendo il file
+      // d'origine (mbvisual/acis_write.py), non i triangoli della vista; se non riesce si ripiega sulle facce
+      if (!WEB && (ext === "dxf" || ext === "dwg") && SOLID_SRC.has(src) && ctx.path && !hasHidden()) {
+        if (ext === "dwg" && !(await api("dxf_dwg", { check: 1 })).oda) throw new Error(tr("v_model3d.dwg_serve_oda"));
+        try {
+          const r = await api("modeler", { op: "solid_dxf" }, { json: { path: ctx.path, out: target }, allowFail: true });
+          if (r.ok && r.job) {
+            const rep = await waitJob(r.job, (p, m) => ctx.status(m || tr("v_model3d.solidi_corso", Math.round(p * 100))));
+            ctx.status(tr("v_model3d.solidi_fatto", rep.esatti || 0, rep.a_facce || 0));
+            return { switchTo: false };
+          }
+        } catch (e) {
+          console.error(e);
+          toast(tr("v_model3d.solidi_ripiego", e.message), true, 8000);
         }
       }
       const { saveChunks } = await import("../bigout.js");

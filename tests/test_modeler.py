@@ -261,6 +261,18 @@ check("coppia di flange sul tratto lungo Y (x=2000, y=600)", not bad and near((b
 cl = k.op_clash({"sid": "prova", "doc": d9})["clash"]
 check("interferenze: solo il blocco attraversato dal tubo (valvola e flange escluse)", len(cl) == 1 and {cl[0]["a"], cl[0]["b"]} == {"p", "b"}
       and near(cl[0]["vol"], math.pi * (57.15 ** 2 - (57.15 - 6.02) ** 2) * 100, 1e-5), cl)
+# tubazione con curve, valvola, flange e blocco in DXF: veri solidi di AutoCAD (3DSOLID), tubo e curve con superfici esatte
+import ezdxf  # noqa: E402
+from mbvisual import acis as _acis  # noqa: E402
+pd = str(TMP / "impianto.dxf")
+rx = k.op_export({"sid": "prova", "doc": d9, "path": pd, "fmt": "dxf", "looks": {"p": {"name": "Linea 100", "color": "#3080c0"}}})
+dd = ezdxf.readfile(pd)
+sols = dd.modelspace().query("3DSOLID")
+kinds = set()
+for e in sols:
+    kinds |= {r.type for r in _acis.parse_sat(chr(10).join(e.sat))[1]}
+check("DXF dal modellatore: 3DSOLID su layer per corpo, tubo e curve con cilindri e tori esatti", rx["esatti"] >= 4 and len(sols) == rx["esatti"] + rx["a_facce"]
+      and "Linea 100" in {e.dxf.layer for e in sols} and {"cone-surface", "torus-surface", "ellipse-curve"} <= kinds, (rx, sorted(kinds)))
 d9["features"].insert(1, {"id": "mv", "type": "transform", "bodies": ["p"], "tf": {"k": "move", "v": [0, 0, 500]}})
 st, _c, _r, bad = run(d9)
 bbv = K._bbox(st["v"].shape) if not bad else [0] * 6

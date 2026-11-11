@@ -112,7 +112,7 @@ async function call(m, p, b) { const r = await window.pywebview.api.call(m, p, b
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => { view = t.dataset.v; document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t)); render(); });
 
 // ------------------------------------------------------------ Utilizzo: statistiche d'uso anonime (solo installazioni con consenso; server/src/stats.js)
-const U_FN = { "stampa": "Stampa", "stampa_lotti": "Stampa a lotti", "crea_nuovo": "Crea nuovo", "salva": "Salva", "salva_con_nome": "Salva con nome", "palette": "Palette dei comandi",
+const U_FN = { "stampa": "Stampa", "stampa_lotti": "Stampa a lotti", "crea_nuovo": "Crea nuovo", "salva": "Salva", "salva_con_nome": "Salva con nome", "converti_in": "Converti in", "palette": "Palette dei comandi",
   "conversione_lotti": "Conversione a lotti", "firma": "Firma digitale", "converti_disegno": "Converti in disegno", "realta_aumentata": "Realtà aumentata", "misure": "Misure",
   "nav.clash": "Interferenze", "nav.views": "Viste salvate", "nav.qto": "Computo", "bcf": "Segnalazioni BCF", "editor_pdf": "Editor PDF (modifiche)", "ricerca_progetto": "Ricerca nel progetto" };
 const U_V = { pdf: "PDF", cad2d: "CAD 2D", model3d: "3D / BIM", image: "Immagini", oo: "Office (ONLYOFFICE)", docx: "Word", sheet: "Excel", pptx: "PowerPoint", compare: "Confronto revisioni",
