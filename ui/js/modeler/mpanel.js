@@ -6,7 +6,7 @@ import { fmtNum, t as tr } from "../i18n.js";
 import { evalExpr, validName } from "./mexpr.js";
 import { isDim, measureDim, solve } from "./msolver.js";
 import { ICON } from "./micons.js";
-import { fittingName, kindName, sizeLabel, sizes, specOf } from "./mplant.js";
+import { famOf, fittingName, kindName, sizeLabel, sizes, specOf, SPECS } from "./mplant.js";
 
 const fmt = (v, d = 3) => fmtNum(Math.round(v * 10 ** d) / 10 ** d, d);
 export const FEAT_ICON = { sketch: "sketch", extrude: "extrude", revolve: "revolve", primitive: "box", hole: "hole", fillet: "fillet", chamfer: "chamfer",
@@ -189,6 +189,20 @@ function routeInfo(app, bid, add, r) {
   const f = app.doc.features.find(q => q.id === bid && q.type === "route");
   if (!f) return;
   const box = el("div", { class: "md-dbody" });
+  if (f.kind === "pipe") {
+    // classe della tubazione: cambiandola si prende lo stesso DN nella classe nuova (spessore, materiale, PN, raggio)
+    const specSel = el("select", { class: "field" }, ...[...(app.doc.specs || []), ...SPECS()].map(sp => el("option", { value: sp.id, selected: sp.id === (f.spec || "A1") }, `${sp.id} · ${sp.name}`)));
+    specSel.addEventListener("change", () => {
+      const list = sizes("pipe", specSel.value, app.doc);
+      const s = list.find(q => q.id === f.size) || list.find(q => Math.abs(q.od - (f.od || 0)) < 0.5) || list[0];
+      if (!s) return;
+      const sp = specOf(specSel.value, app.doc);
+      Object.assign(f, { spec: sp.id, pn: sp.pn, mat: sp.mat, fam: famOf(sp), size: s.id, od: s.od, t: s.t, r: s.r });
+      app.afterRegen = () => { app.view.selection = [{ kind: "body", body: bid }]; app.selChanged(); };
+      app.commit(tr("mod.pl_classe"));
+    });
+    box.append(el("div", { class: "md-frow" }, el("label", {}, tr("mod.pl_classe")), specSel));
+  }
   const sizeSel = el("select", { class: "field" }, ...sizes(f.kind, f.spec, app.doc).map(s => el("option", { value: s.id, selected: s.id === f.size }, s.label)));
   sizeSel.addEventListener("change", () => {
     const s = sizes(f.kind, f.spec, app.doc).find(q => q.id === sizeSel.value);
@@ -250,7 +264,10 @@ export function selectionInfo(app) {
     if (b.kind === "mesh") add(tr("mod.tipo"), tr("mod.mesh_n", p.triangoli || 0));
     add(tr("mod.volume"), fmt(p.vol || 0, 2) + " mm³");
     add(tr("mod.area"), fmt(p.area || 0, 2) + " mm²");
-    add(tr("mod.massa_acciaio"), fmt((p.vol || 0) * 7.85e-6, 3) + " kg");
+    // massa con la densita' del materiale della classe (tubazioni e componenti), altrimenti acciaio
+    const mm = (app.res?.bodies || []).find(q => q.id === s.body)?.meta;
+    const spm = mm?.spec ? specOf(mm.spec, app.doc) : null;
+    add(spm ? tr("mod.massa_di", spm.mat) : tr("mod.massa_acciaio"), fmt((p.vol || 0) * (spm?.dens || 7.85e-6), 3) + " kg");
     if (p.com) add(tr("mod.baricentro"), p.com.map(v => fmt(v, 2)).join(" ; "));
     add(tr("mod.ingombro"), [0, 1, 2].map(k => fmt(bb[k + 3] - bb[k], 2)).join(" × ") + " mm");
     if (p.facce !== undefined) add(tr("mod.facce_spigoli"), `${p.facce} / ${p.spigoli}`);

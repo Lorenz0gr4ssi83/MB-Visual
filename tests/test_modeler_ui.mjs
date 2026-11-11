@@ -59,13 +59,14 @@ function judge(scen, res) {
     if (!o || typeof o !== "object") return;
     if ("expected" in o && Array.isArray(o.bodies) && o.bodies[0]) ok(`${scen} · volume`, Math.abs(o.bodies[0].vol - o.expected) <= 1e-3, `${o.bodies[0].vol} / ${o.expected}`);
     if ("atteso" in o) {
-      const k = ["dv", "vol", "zmin"].find(x => x in o);
+      const k = ["dv", "vol", "zmin", "centroX"].find(x => x in o);
       if (k && typeof o[k] === "number") {
         // spingi/tira sui file importati: area esatta della faccia piana (scarto solo per le facce vicine ritagliate)
         const tol = k === "zmin" ? 0.05 : o.faccia ? 0.002 * Math.abs(o.atteso) : Math.max(1e-4 * Math.abs(o.atteso), 1e-6);
         ok(`${scen} · ${key}`, Math.abs(o[k] - o.atteso) <= tol, `${o[k]} / ${o.atteso}`);
       }
     }
+    if ("ymin" in o && "atteso_ymin" in o) ok(`${scen} · ${key}`, Math.abs(o.ymin - o.atteso_ymin) <= 1.5 /* ingombro di OpenCascade: margine di tolleranza sulle superfici curve */, `${o.ymin} / ${o.atteso_ymin}`);
     if (Array.isArray(o.feats) && !EXPECTED_ERRORS.includes(key)) ok(`${scen} · ${key}: lavorazioni senza errori`, !o.feats.some(f => String(f).includes(":")), o.feats.filter(f => String(f).includes(":")).join(" "));
     if ("modifica" in o) ok(`${scen} · ${o.file}: modifica`, o.modifica === "ok", o.modifica);
     if ("uguale" in o) ok(`${scen} · riapertura identica`, o.uguale && !o.errori, JSON.stringify(o));

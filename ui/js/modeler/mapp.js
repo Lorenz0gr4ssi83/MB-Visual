@@ -464,7 +464,8 @@ export class ModelerApp {
     const fs = this.doc.features, f = fs.find(q => q.id === id);
     if (!f) return;
     // con lo schizzo si tolgono anche le lavorazioni che lo usano
-    const gone = new Set([id, ...fs.filter(q => q.sketch === id).map(q => q.id)]);
+    // ... e con una tubazione i componenti in linea e le staffe montati su di lei
+    const gone = new Set([id, ...fs.filter(q => q.sketch === id || q.route === id).map(q => q.id)]);
     this.doc.features = fs.filter(q => !gone.has(q.id));
     if (this.doc.end !== null && this.doc.end > this.doc.features.length) this.doc.end = null;
     this.selFeature = null;

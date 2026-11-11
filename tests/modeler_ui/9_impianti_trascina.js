@@ -52,8 +52,9 @@
   ev("pointerdown", s1[0], s1[1], 1); await sleep(30);
   ev("pointermove", s1[0] + 5, s1[1] + 2, 1); await sleep(30);
   await T.key("2"); const inp2 = document.querySelector(".md-vinput"); inp2.value = "200"; await enter(); await idle(); await sleep(200);
-  const tf = a.doc.features.filter(f => f.type === "transform");
-  out.somma = { trasformazioni: tf.length, v: tf.at(-1)?.tf?.v, dv: tf.length === 1 ? tf[0].tf.v[0] + tf[0].tf.v[1] : -1, atteso: 700 };
+  // tubazione disegnata a punti: la maniglia sposta i nodi stessi (restano modificabili), nessuna lavorazione in piu'
+  const p0 = a.doc.features.find(q => q.id === pipe).pts[0];
+  out.somma = { trasformazioni: a.doc.features.filter(f => f.type === "transform").length, dv: p0[0] + p0[1], atteso: 700 };
   // ---- nodo del percorso: annulla gli spostamenti, poi trascina l'ultimo nodo da z=600 a z=900 (passi automatici)
   a.undo(); await idle(); a.undo(); await idle();
   a.view.selection = [{ kind: "body", body: pipe }]; a.selChanged(); a.view.draw(); await sleep(100);
@@ -65,7 +66,7 @@
   out.nodo = { nuovo: a.doc.features.find(q => q.id === pipe).pts[3], dv: meta(pipe)?.lunghezza, atteso: out.tubo.lunghezza + 300, feats: T.feats() };
   // ---- misura cambiata dal pannello: DN150
   a.view.selection = [{ kind: "body", body: pipe }]; a.selChanged(); await sleep(50);
-  const sel = [...a.right.querySelectorAll("select.field")][0];
+  const sel = [...a.right.querySelectorAll("select.field")].find(q => [...q.options].some(o => o.value === "DN150"));
   sel.value = "DN150"; sel.dispatchEvent(new Event("change")); await idle(); await sleep(100);
   const m2 = meta(pipe);
   out.dn150 = { feats: T.feats(), od: m2?.od, dv: vol(pipe), atteso: Math.PI * (84.15 ** 2 - (84.15 - 7.11) ** 2) * m2?.lunghezza };

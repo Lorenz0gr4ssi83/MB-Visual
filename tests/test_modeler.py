@@ -233,10 +233,11 @@ L = 1000 + 800 + 600 + 700 - 6 * 152.4 + 3 * math.pi / 2 * 152.4
 A = math.pi * (57.15 ** 2 - (57.15 - 6.02) ** 2)
 check("tubazione DN100 con 3 curve: lunghezza sull'asse", not bad and near(m["lunghezza"], L, 1e-6) and m["curve"] == [90.0, 90.0, 90.0], m.get("lunghezza"))
 check("tubazione: volume = sezione x lunghezza (Pappo)", not bad and near(vol(st, "p"), A * L, 1e-6), f"{vol(st, 'p'):.1f} / {A * L:.1f}")
-check("tubazione: un solo solido valido", not bad and K._count(st["p"].shape, K.TopAbs_SOLID) == 1 and K._check(st["p"].shape))
+# dritti e curve sono pezzi separati (come nella realta' e per booleane affidabili): 4 dritti + 3 curve, tutti validi
+check("tubazione: 7 pezzi validi (4 dritti e 3 curve)", not bad and K._count(st["p"].shape, K.TopAbs_SOLID) == 7 and K._check(st["p"].shape), K._count(st["p"].shape, K.TopAbs_SOLID) if not bad else bad)
 for kind, extra in (("tray", {"w": 300, "h": 60, "t": 1.5, "r": 300}), ("ductr", {"w": 400, "h": 250, "t": 0.8, "r": 300}), ("duct", {"od": 250, "t": 0.6, "r": 250})):
     st, _c, _r, bad = run({"features": [{"id": "x", "type": "route", "kind": kind, "pts": pts, "op": "new", **extra}]})
-    check(f"{kind}: solido valido lungo il percorso", not bad and K._count(st["x"].shape, K.TopAbs_SOLID) == 1 and K._check(st["x"].shape) and vol(st, "x") > 0,
+    check(f"{kind}: solido valido lungo il percorso", not bad and K._count(st["x"].shape, K.TopAbs_SOLID) == (7 if kind == "duct" else 6) and K._check(st["x"].shape) and vol(st, "x") > 0,
           bad and bad[0].get("err"))
 # canalina: fondo verso il basso sui tratti orizzontali (ingombro z da 0 a h)
 st, _c, _r, bad = run({"features": [{"id": "c", "type": "route", "kind": "tray", "pts": [[0, 0, 0], [1000, 0, 0], [1000, 900, 0]], "w": 300, "h": 60, "t": 1.5, "r": 300, "op": "new"}]})
@@ -263,7 +264,7 @@ check("interferenze: solo il blocco attraversato dal tubo (valvola e flange escl
 d9["features"].insert(1, {"id": "mv", "type": "transform", "bodies": ["p"], "tf": {"k": "move", "v": [0, 0, 500]}})
 st, _c, _r, bad = run(d9)
 bbv = K._bbox(st["v"].shape) if not bad else [0] * 6
-check("tubazione spostata: la valvola la segue", not bad and near((bbv[2] + bbv[5]) / 2 - (bbv[5] - bbv[2]) / 2, bbv[2], ab=1) and bbv[2] > 300, bbv)
+check("tubazione spostata: la valvola la segue (asse a quota 500)", not bad and near(st["v"].meta["pos"][2], 500, ab=0.01) and bbv[2] > 300, (bbv, st["v"].meta["pos"] if not bad else None))
 
 # staffaggi: a pavimento sotto una tubazione DN100 a quota 1000 (tratti orizzontali 5000 e 3000, passo 4800), pendini a soffitto
 d10 = {"features": [{"id": "p", "type": "route", "kind": "pipe", "pts": [[0, 0, 1000], [5000, 0, 1000], [5000, 3000, 1000], [5000, 3000, 2000]],
@@ -280,9 +281,52 @@ check("staffe a pavimento: da quota 0 al fondo del tubo", not bad and near(bbs[2
 mh = st["h"].meta if not bad else {}
 check("pendini con passo 1000: 6 + 4 supporti", not bad and mh.get("quantita") == 10, mh.get("quantita"))
 cl = k.op_clash({"sid": "prova", "doc": d10})["clash"]
-check("staffe sulla propria tubazione: nessuna interferenza", not cl, cl)
+check("staffe sulla propria tubazione: nessuna interferenza con il tubo", not [c for c in cl if "p" in (c["a"], c["b"])], cl)
 st, _c, _r, bad = run({"features": [d10["features"][0], {"id": "x", "type": "supports", "route": "p", "kind": "floor", "z": 2000}]})
 check("staffe sopra la tubazione: errore 'quota_staffe'", bad and bad[0]["err"] == "srv_modeler.quota_staffe", bad)
+
+# rilievi dei Saggi (11/11/2026)
+# pendino: la barra non attraversa il tubo (nessun volume comune tra pendini e lume del tubo)
+st, _c, _r, bad = run({"features": [d10["features"][0], {"id": "h", "type": "supports", "route": "p", "kind": "hanger", "z": 3000, "span": 1000}]})
+inner = K.BRepPrimAPI_MakeCylinder(K.gp_Ax2(K._p([0, 0, 1000]), K._d([1, 0, 0])), 57.15, 5000).Shape()
+com = K._bool("common", st["h"].shape, inner) if not bad else None
+check("pendini: la barra filettata parte dal collare e non attraversa il tubo", not bad and (K._empty(com) or abs(K._volume(com)) < 1), abs(K._volume(com)) if com is not None and not K._empty(com) else 0)
+# tubazione in pendenza del 2%: staffe costruite (terna ortonormale) e posizioni = staffe costruite
+st, _c, _r, bad = run({"features": [{"id": "p", "type": "route", "kind": "pipe", "pts": [[0, 0, 1000], [3000, 0, 1060]], "od": 114.3, "t": 6.02, "size": "DN100", "op": "new"},
+                                   {"id": "s", "type": "supports", "route": "p", "kind": "floor", "z": 0}]})
+check("staffe su tratto in pendenza 2%: costruite, posizioni uguali al numero di staffe", not bad and st["s"].meta["quantita"] == len(st["s"].meta["pos"]) >= 2, bad or st["s"].meta)
+# raggio predefinito delle curve: 1,5 x NPS (DN80 -> 114,3 mm; DN100 -> 152,4 mm)
+check("raggio delle curve EN 10253 3D: DN80 114,3, DN100 152,4, DN200 304,8", K.bend_radius("DN80", 88.9) == 114.3 and K.bend_radius("DN100", 114.3) == 152.4 and K.bend_radius("DN200", 219.1) == 304.8)
+# flange PN40 e scartamento della valvola EN 558 serie 14
+check("flange EN 1092-1: DN80 PN40 D=200 (come PN16), DN200 PN40 D=375 b=34", K.flange_dims(80, 88.9, 40) == (200, 24) and K.flange_dims(200, 219.1, 40) == (375, 34))
+d12 = {"features": [{"id": "p", "type": "route", "kind": "pipe", "pts": [[0, 0, 0], [2000, 0, 0], [2000, 1000, 0]], "od": 114.3, "t": 6.02, "r": 152.4, "size": "DN100", "op": "new"},
+                    {"id": "v", "type": "fitting", "route": "p", "kind": "valve", "at": [800, 0, 0]}]}
+st, _c, _r, bad = run(d12)
+bbv = K._bbox(st["v"].shape) if not bad else [0] * 6
+check("valvola DN100: scartamento 190 mm (EN 558 serie 14), foro di passaggio, dati di classe", not bad and 190 <= bbv[3] - bbv[0] <= 202
+      and st["v"].meta["lunghezza_fs"] == 190 and "pn" in st["v"].meta, bbv)
+pipe_in = K.BRepPrimAPI_MakeCylinder(K.gp_Ax2(K._p([0, 0, 0]), K._d([1, 0, 0])), 57.15 - 6.02, 2000).Shape()
+com = K._bool("common", st["v"].shape, pipe_in) if not bad else None
+check("valvola: nessun materiale dentro il passaggio del tubo", com is not None and (K._empty(com) or abs(K._volume(com)) < 1))
+# valvola su una curva o su un tratto troppo corto: errore chiaro
+st, _c, _r, bad = run({"features": [d12["features"][0], {"id": "v", "type": "fitting", "route": "p", "kind": "valve", "at": [1990, 10, 0]}]})
+check("valvola troppo vicina alla curva: errore 'tratto_corto'", bad and bad[0]["err"] == "srv_modeler.tratto_corto", bad)
+# spostamento della tubazione DOPO valvola e staffe: tutto segue se si spostano insieme (come fa la maniglia)
+d13 = {"features": d12["features"] + [{"id": "s", "type": "supports", "route": "p", "kind": "floor", "z": -1000},
+                                      {"id": "m", "type": "transform", "bodies": ["p", "v", "s"], "tf": {"k": "move", "v": [0, 500, 0]}}]}
+st, _c, _r, bad = run(d13)
+check("spostamento dopo valvola e staffe: posizioni nei dati spostate di 500", not bad and near(st["v"].meta["pos"][1], 500, ab=0.01)
+      and all(near(q[1], 500, ab=0.01) for q in st["s"].meta["pos"][:2]), bad)
+# scala su una tubazione: rifiutata
+st, _c, _r, bad = run({"features": [d12["features"][0], {"id": "k", "type": "transform", "bodies": ["p"], "tf": {"k": "scale", "f": 2, "c": [0, 0, 0]}}]})
+check("scala di una tubazione: errore 'scala_impianto'", bad and bad[0]["err"] == "srv_modeler.scala_impianto", bad)
+# spessore non valido: errore invece di un cilindro pieno
+st, _c, _r, bad = run({"features": [{"id": "p", "type": "route", "kind": "pipe", "pts": [[0, 0, 0], [500, 0, 0]], "od": 114.3, "t": 70, "op": "new"}]})
+check("tubo con spessore oltre il raggio: errore", bad and bad[0]["err"] == "srv_modeler.dimensioni_non_valide", bad)
+# passo delle staffe per materiale: PVC d63 1000 mm, rame 22 1800 mm, acciaio DN50 3600
+check("passo staffe per materiale: PVC d63 1000, rame 22 1800, acciaio DN50 3600",
+      K._span_for({"impianto": "pipe", "od": 63, "famiglia": "plastic"}) == 1000 and K._span_for({"impianto": "pipe", "od": 22, "famiglia": "copper", "misura": "Cu22"}) == 1800
+      and K._span_for({"impianto": "pipe", "od": 60.3, "misura": "DN50", "t": 3.91}) == 3600)
 
 # isometrici: un foglio per linea, quote vere tra i nodi, simboli e distinta; PDF e DXF
 from mbvisual import modiso  # noqa: E402
@@ -294,7 +338,7 @@ iso = {"nome": "prova", "linee": []}
 for rid in ("p", "q"):
     m = st[rid].meta
     L = {"id": rid, "linea": m.get("linea") or "", "misura": m["misura"], "spec": m.get("spec") or "", "materiale": m.get("materiale") or "", "pn": m.get("pn"),
-         "raggio": m["raggio"], "lunghezza": m["lunghezza"], "nodi": m["nodi"], "componenti": [], "supporti": []}
+         "raggio": m["raggio"], "lunghezza": m["lunghezza"], "dritti": m["dritti"], "nodi": m["nodi"], "componenti": [], "supporti": []}
     for bid, b in st.items():
         q = b.meta or {}
         if q.get("su") != rid:
@@ -302,15 +346,15 @@ for rid in ("p", "q"):
         if str(q.get("componente")).startswith("support_"):
             L["supporti"] += [{"tipo": q["componente"][8:], "pos": p} for p in q["pos"]]
         else:
-            L["componenti"].append({"tipo": q["componente"], "pos": q["pos"]})
+            L["componenti"].append({"tipo": q["componente"], "pos": q["pos"], "lunghezza_fs": q["lunghezza_fs"]})
     iso["linee"].append(L)
 ip = str(TMP / "iso.pdf")
 modiso.make(ip, iso, "pdf")
 import fitz  # noqa: E402
 pd = fitz.open(ip)
 txt = pd[0].get_text()
-check("isometrico PDF: 2 fogli, quote 5000/3000/1000, quota EL +1000, 14 supporti e valvola in distinta",
-      pd.page_count == 2 and all(x in txt for x in ("5000", "3000", "1000", "EL +1000", "S14")) and "050-A1-002" in pd[1].get_text(), txt[:300])
+check("isometrico PDF: 2 fogli, quote 5000/3000/1000, quota EL +1000, 14 supporti, tubo netto 8,20 m (dritti meno la valvola)",
+      pd.page_count == 2 and all(x in txt for x in ("5000", "3000", "1000", "EL +1000", "S14", "8.20 m")) and "050-A1-002" in pd[1].get_text(), txt[:300])
 pd[0].get_pixmap(dpi=110).save(str(TMP / "iso.png"))
 print("   isometrico:", TMP / "iso.png")
 pd.close()

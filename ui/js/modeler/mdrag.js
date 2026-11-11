@@ -228,6 +228,23 @@ export class Gizmo {
   }
   commit(d) {
     const app = this.app;
+    // tubazioni disegnate a punti (non da schizzo, non gia' trasformate): si spostano i nodi stessi, cosi' restano modificabili
+    // con le maniglie dei nodi, e con loro i componenti in linea (punto "at"); le staffe si ricalcolano da sole
+    const doc0 = app.doc;
+    const routes = d.ids.map(id => doc0.features.find(q => q.id === id && q.type === "route" && Array.isArray(q.pts) && !q.sketch));
+    if (!d.copy && routes.every(Boolean) && routes.every(f => app.res?.bodies?.find(b => b.id === f.id)?.src === f.id) && d.M) {
+      const apply = p => { const v = new THREE.Vector3(...p).applyMatrix4(d.M); return [r6(v.x), r6(v.y), r6(v.z)]; };
+      for (const f of routes) {
+        f.pts = f.pts.map(apply);
+        for (const q of doc0.features) if (q.type === "fitting" && q.route === f.id && Array.isArray(q.at)) q.at = apply(q.at);
+      }
+      app.commit(d.h.k === "rot" ? tr("mod.ruota") : tr("mod.sposta"));
+      app.afterRegen = () => { this.reset(); this.v.selection = d.ids.map(id => ({ kind: "body", body: id })); app.selChanged(); };
+      return;
+    }
+    // gli altri corpi: lavorazione di trasformazione; i componenti e le staffe montati sulle tubazioni spostate vanno con loro
+    const deps = (app.res?.bodies || []).filter(b => d.ids.includes(b.meta?.su) && !d.ids.includes(b.id)).map(b => b.id);
+    if (deps.length && !d.copy) d.ids = [...d.ids, ...deps];
     const tf = d.h.k === "rot" ? { k: "rotate", o: d.c.map(r6), d: AX[d.h.i], ang: r6(d.val), ax: "XYZ"[d.h.i], c: d.c.map(r6) } : { k: "move", v: d.vec.map(r6) };
     const doc = app.doc, last = doc.features[doc.features.length - 1];
     const same = last && doc.end == null && last.type === "transform" && !last.copy && !d.copy && last.tf?.k === "move" && tf.k === "move"
@@ -378,7 +395,7 @@ export class RouteTool {
     if (s.od) f.od = s.od;
     if (s.w) { f.w = s.w; f.h = s.h; }
     f.t = s.t;
-    if (s.spec) { f.spec = s.spec; f.pn = s.pn; f.mat = s.mat; }
+    if (s.spec) { f.spec = s.spec; f.pn = s.pn; f.mat = s.mat; f.fam = s.fam; }
     if (this.linea) f.linea = this.linea;
     return f;
   }

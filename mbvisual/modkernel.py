@@ -702,9 +702,20 @@ def transform_body(body, t, fid):
     else:
         s = BRepBuilderAPI_Transform(body.shape, t, True).Shape()
     meta = body.meta
-    if meta and meta.get("nodi") and not isinstance(t, gp_GTrsf):
+    if meta:
         m = _mat_of(t)
-        meta = dict(meta, nodi=[(m[:3, :3] @ np.array(q) + m[:3, 3]).tolist() for q in meta["nodi"]])
+        R, T = m[:3, :3], m[:3, 3]
+        if isinstance(t, gp_GTrsf) or abs(abs(np.linalg.det(R)) - 1) > 1e-6:
+            # una tubazione scalata non e' piu' un elemento di catalogo (diametro, spessore, curve): si rifiuta
+            raise FeatureError("srv_modeler.scala_impianto")
+        pt = lambda q: (R @ np.array(q, float) + T).tolist()  # noqa: E731
+        meta = dict(meta)
+        if meta.get("nodi"):
+            meta["nodi"] = [pt(q) for q in meta["nodi"]]
+        if meta.get("pos"):
+            meta["pos"] = [pt(q) for q in meta["pos"]] if isinstance(meta["pos"][0], (list, tuple)) else pt(meta["pos"])
+        if meta.get("dir"):
+            meta["dir"] = (R @ np.array(meta["dir"], float)).tolist()
     return Body(shape=s, src=fid, meta=meta)
 
 
@@ -1320,6 +1331,8 @@ def _profile_face(kind, f, o, u, x, y):
         r = float(f.get("od", 50) or 0) / 2
         if r <= 0:
             raise FeatureError("srv_modeler.dimensioni_non_valide")
+        if kind == "pipe" and not 0 < t < r:
+            raise FeatureError("srv_modeler.dimensioni_non_valide")
         mf = BRepBuilderAPI_MakeFace(pl, circ(r), True)
         if 0 < t < r:
             mf.Add(TopoDS.Wire(circ(r - t).Reversed()))
@@ -1397,7 +1410,9 @@ def f_route(state, f, ctx):
     if not pts or len(pts) < 2:
         raise FeatureError("srv_modeler.percorso_corto")
     size = float(f.get("od", 0) or 0) if kind in ("pipe", "duct") else float(f.get("w", 0) or 0)
-    r = float(f.get("r", 0) or 0) or max(size * 1.5, 1.0)
+    r = float(f.get("r", 0) or 0) or (bend_radius(f.get("size"), size) if kind == "pipe" else max(size * 1.5, 1.0))
+    if kind in ("pipe", "duct") and r < size / 2:
+        raise FeatureError("srv_modeler.raggio_piccolo")
     segs, dritti, angoli = route_geometry(pts, r)
     first = segs[0]
     x, y = _frame0(np.array(first[3] if first[0] == "l" else first[2], float), np.array(f.get("up") or [0, 0, 1], float))
@@ -1410,31 +1425,64 @@ def f_route(state, f, ctx):
             _k, t1, u, v, c, n, ang = sg
             pieces.append(BRepPrimAPI_MakeRevol(_profile_face(kind, f, t1, u, x, y), gp_Ax1(_p(c), _d(n)), ang, True).Shape())
             x, y = _rotv(x, n, ang), _rotv(y, n, ang)
-    shape = _clean(_fuse_all(pieces)) if len(pieces) > 1 else _orient(pieces[0])
+    # dritti e curve restano pezzi separati (come i tubi e le curve veri): fusi in un solido unico, con alcuni raggi le
+    # booleane di OpenCascade davano volumi comuni sbagliati (interferenze, tagli)
+    shape = _compound([_orient(q) for q in pieces]) if len(pieces) > 1 else _orient(pieces[0])
     lun = sum(dritti) + sum(math.radians(a) * r for a in angoli)
     meta = {"impianto": kind, "misura": f.get("size") or "", "od": f.get("od"), "w": f.get("w"), "h": f.get("h"), "t": f.get("t"),
             "raggio": round(r, 3), "lunghezza": round(lun, 3), "dritti": [round(d, 3) for d in dritti], "curve": angoli,
             "nodi": [[float(c) for c in p] for p in pts], "spec": f.get("spec") or "", "pn": f.get("pn") or 16,
-            "materiale": f.get("mat") or "", "linea": f.get("linea") or ""}
+            "materiale": f.get("mat") or "", "linea": f.get("linea") or "", "famiglia": f.get("fam") or "steel"}
     return _apply_op(state, f, shape, f["id"], meta)
 
-# flange EN 1092-1 PN16: DN -> (diametro esterno, spessore)
+
+# DN -> NPS (pollici) per i raggi delle curve: R = 1,5 x NPS x 25,4 (EN 10253-2 tipo 3D / ASME B16.9 raggio lungo)
+NPS = {15: 0.5, 20: 0.75, 25: 1, 32: 1.25, 40: 1.5, 50: 2, 65: 2.5, 80: 3, 90: 3.5, 100: 4, 125: 5, 150: 6}
+
+
+def bend_radius(size, od):
+    m = re.match(r"DN\s*(\d+)", str(size or ""))
+    if m:
+        dn = int(m.group(1))
+        return round(1.5 * (NPS.get(dn) or dn / 25.0) * 25.4, 1)
+    return max(float(od or 0) * 1.5, 1.0)
+
+# flange EN 1092-1 tipo 11 (a collarino): DN -> (diametro esterno, spessore), PN16 e PN40; PN10 = PN16 fino a DN150
+# (valori dalle tabelle della norma come pubblicate dai cataloghi dei produttori: da riscontrare sulla norma vigente)
 FLANGE_PN16 = {15: (95, 16), 20: (105, 18), 25: (115, 18), 32: (140, 18), 40: (150, 18), 50: (165, 18), 65: (185, 18), 80: (200, 20),
                100: (220, 20), 125: (250, 22), 150: (285, 22), 200: (340, 24), 250: (405, 26), 300: (460, 28), 350: (520, 30),
                400: (580, 32), 450: (640, 40), 500: (715, 44), 600: (840, 54)}
+FLANGE_PN40 = {15: (95, 16), 20: (105, 18), 25: (115, 18), 32: (140, 18), 40: (150, 18), 50: (165, 20), 65: (185, 22), 80: (200, 24),
+               100: (235, 24), 125: (270, 26), 150: (300, 28), 200: (375, 34), 250: (450, 38), 300: (515, 42), 350: (580, 46),
+               400: (660, 50), 450: (685, 57), 500: (755, 57), 600: (890, 72)}
+# valvole a saracinesca flangiate: scartamento faccia-faccia EN 558 serie 14 (corpo corto, DIN F4)
+VALVE_FTF = {40: 140, 50: 150, 65: 170, 80: 180, 100: 190, 125: 200, 150: 210, 200: 230, 250: 250, 300: 270, 350: 290, 400: 310,
+             450: 330, 500: 350, 600: 390}
 
 
-def _route_axis(meta, at):
-    """Punto della linea d'asse di un impianto piu' vicino ad "at" e direzione in quel punto (tratti dritti e curve)."""
+def flange_dims(dn, od, pn):
+    tab = FLANGE_PN40 if pn > 16 else FLANGE_PN16
+    if dn in tab:
+        return tab[dn]
+    return (od * 1.9, max(16.0, od * 0.18))
+
+
+def _route_axis(meta, at, straight=False):
+    """Punto della linea d'asse di un impianto piu' vicino ad "at" e direzione in quel punto (tratti dritti e curve).
+    Con straight=True solo i tratti dritti; restituisce anche lo spazio libero fino all'estremo piu' vicino del tratto."""
     segs, _d, _a = route_geometry(meta["nodi"], meta["raggio"])
     at = np.array(at, float)
     best = None
     for sg in segs:
+        room = None
         if sg[0] == "l":
             _k, a, b, u = sg
             L = float(np.linalg.norm(b - a))
             t = min(max(float(np.dot(at - a, u)), 0.0), L)
             p, d = a + u * t, u
+            room = min(t, L - t)
+        elif straight:
+            continue
         else:
             _k, t1, u, v, c, n, ang = sg
             r0 = t1 - c
@@ -1445,8 +1493,10 @@ def _route_axis(meta, at):
             p, d = c + _rotv(r0, n, phi), _rotv(u, n, phi)
         dist = float(np.linalg.norm(p - at))
         if best is None or dist < best[0]:
-            best = (dist, p, _n(d))
-    return best[1], best[2]
+            best = (dist, p, _n(d), room)
+    if best is None:
+        raise FeatureError("srv_modeler.nessun_tratto_dritto")
+    return (best[1], best[2], best[3]) if straight else (best[1], best[2])
 
 
 def f_fitting(state, f, ctx):
@@ -1456,15 +1506,17 @@ def f_fitting(state, f, ctx):
     meta = body.meta if body is not None else None
     if not meta or meta.get("impianto") != "pipe":
         raise FeatureError("srv_modeler.serve_tubazione")
-    p, u = _route_axis(meta, f.get("at") or meta["nodi"][0])
     od = float(meta.get("od") or 60)
-    dn = _dn(meta) or min(FLANGE_PN16, key=lambda k: abs(FLANGE_PN16[k][0] / 2.2 - od))
-    D, b = FLANGE_PN16.get(dn, (od * 1.9, max(16.0, od * 0.18)))
+    dn = _dn(meta)
     pn = float(meta.get("pn") or 16)
-    if pn > 16:  # PN25/PN40: flange piu' grandi e spesse (rapporti medi di EN 1092-1)
-        D, b = D * (1.0 + 0.004 * (pn - 16)), b * (1.0 + 0.012 * (pn - 16))
-    x, y = _frame0(u, np.array([0, 0, 1.0]))
+    D, b = flange_dims(dn, od, pn)
     kind = f.get("kind", "valve")
+    L = b * 2 + 3.0 if kind == "flanges" else b if kind == "flange" else float(VALVE_FTF.get(dn) or max(2.2 * od, 6 * b))
+    # solo sui tratti dritti, con spazio per tutto il componente (niente valvole a cavallo di una curva)
+    p, u, room = _route_axis(meta, f.get("at") or meta["nodi"][0], straight=True)
+    if room is not None and room < L / 2 - 0.01:
+        raise FeatureError("srv_modeler.tratto_corto", round(L))
+    x, y = _frame0(u, np.array([0, 0, 1.0]))
 
     def cyl(center, axis, r, h):
         return BRepPrimAPI_MakeCylinder(gp_Ax2(_p(center - axis * h / 2), _d(axis)), r, h).Shape()
@@ -1474,9 +1526,7 @@ def f_fitting(state, f, ctx):
         gap = 3.0 if kind == "flanges" else 0.0  # guarnizione tra le due flange
         for sgn in ((-1, 1) if kind == "flanges" else (0,)):
             parts.append(cyl(p + u * sgn * (b + gap) / 2, u, D / 2, b))
-        L = b * (2 if kind == "flanges" else 1) + (3.0 if kind == "flanges" else 0)
     else:  # valvola a saracinesca: flange, corpo, castello e volantino verso l'alto
-        L = max(2.2 * od, 6 * b)
         for sgn in (-1, 1):
             parts.append(cyl(p + u * sgn * (L / 2 - b / 2), u, D / 2, b))
         parts.append(cyl(p, u, od * 0.62, L - 2 * b + 0.02))
@@ -1484,9 +1534,32 @@ def f_fitting(state, f, ctx):
         H = od * 1.6 + 40
         parts.append(BRepPrimAPI_MakeCylinder(gp_Ax2(_p(p), _d(y)), od * 0.28, H).Shape())
         parts.append(BRepPrimAPI_MakeTorus(gp_Ax2(_p(p + y * H), _d(y)), od * 0.75, max(4.0, od * 0.06)).Shape())
-    shape = _fuse_all(parts)
+    # foro di passaggio: il componente non e' un pieno (peso giusto, il tubo passa dentro). Ogni pezzo si fora da solo (forme
+    # semplici, booleane affidabili), poi l'unione; se l'unione non e' un solido valido restano i pezzi (prima una sfera e un
+    # toro fusi davano un solido non valido e interferenze fasulle con tutto)
+    bore = BRepPrimAPI_MakeCylinder(gp_Ax2(_p(p - u * (L / 2 + 1)), _d(u)), od / 2, L + 2).Shape()
+    holed = []
+    for q in parts:
+        q = _orient(q)
+        try:
+            c = _bool("cut", q, bore)
+            if not _empty(c) and 0 < _volume(c) <= abs(_volume(q)) + 1e-6:
+                q = _orient(c)
+        except FeatureError:
+            pass
+        holed.append(q)
+    shape = None
+    try:
+        fu = _fuse_all(holed)
+        if fu is not None and BRepCheck_Analyzer(fu).IsValid() and _volume(fu) > 0:
+            shape = fu
+    except FeatureError:
+        pass
+    if shape is None:
+        shape = _compound(holed)
     meta2 = {"componente": kind, "misura": meta.get("misura") or f"Ø{od}", "lunghezza_fs": round(L, 1), "flangia": [D, b], "su": f.get("route"),
-             "pos": [round(float(c), 3) for c in p], "dir": [round(float(c), 6) for c in u]}
+             "pos": [round(float(c), 3) for c in p], "dir": [round(float(c), 6) for c in u], "spec": meta.get("spec") or "",
+             "pn": int(pn), "materiale": meta.get("materiale") or ""}
     st = OrderedDict(state)
     st[f["id"]] = Body(shape=shape, src=f["id"], meta=meta2)
     return st
@@ -1502,14 +1575,32 @@ def _dn(meta):
     return int(m.group(1)) if m else 0
 
 
+# PVC-U a 20 gradi (diametro esterno -> passo) e rame (diametro esterno -> passo), valori d'uso comune dei cataloghi
+SPAN_PVC = [(20, 500), (25, 550), (32, 650), (40, 750), (50, 850), (63, 1000), (75, 1100), (90, 1200), (110, 1300), (140, 1500),
+            (160, 1600), (225, 1800), (315, 2100), (400, 2300)]
+SPAN_CU = [(15, 1200), (22, 1800), (28, 1800), (35, 2400), (42, 2400), (54, 2700), (76.1, 3000), (108, 3000)]
+
+
 def _span_for(meta):
     if meta.get("impianto") in ("tray", "ductr", "duct"):
         return 1500.0 if meta.get("impianto") == "tray" else 2400.0
-    dn = _dn(meta) or int((meta.get("od") or 60) / 1.15)
+    od = float(meta.get("od") or 60)
+    fam = meta.get("famiglia") or "steel"
+    if fam in ("plastic", "copper"):
+        for d, s in (SPAN_PVC if fam == "plastic" else SPAN_CU):
+            if od <= d + 0.5:
+                return float(s)
+        return 2300.0 if fam == "plastic" else 3000.0
+    dn = _dn(meta) or int(od / 1.15)
+    span = 9500.0
     for d, s in SPAN_PIPE:
         if dn <= d:
-            return float(s)
-    return 9500.0
+            span = float(s)
+            break
+    t = float(meta.get("t") or 0)
+    if fam == "steel" and 0 < t < 3.5 and dn >= 50:  # parete sottile (inox sch. 10S): un quinto in meno
+        span *= 0.8
+    return span
 
 
 def support_positions(meta, span, margin=200.0):
@@ -1550,7 +1641,7 @@ def f_supports(state, f, ctx):
     pts = support_positions(meta, span)
     if not pts:
         raise FeatureError("srv_modeler.nessun_tratto_orizzontale")
-    parts, heights = [], []
+    parts, heights, built = [], [], []
     for p, u in pts:
         x = _n(np.cross([0, 0, 1.0], u))
         # quota dell'appoggio: fondo del tubo, della canalina (asse = fondo) o della condotta
@@ -1562,6 +1653,7 @@ def f_supports(state, f, ctx):
             if H <= 5:
                 continue
             heights.append(H)
+            built.append(p)
             col = 40.0 if w < 120 else 60.0
             parts.append(BRepPrimAPI_MakeBox(_p([p[0] - 90, p[1] - 90, z]), 180, 180, 10).Shape())  # piastra di base
             parts.append(BRepPrimAPI_MakeBox(_p([p[0] - col / 2, p[1] - col / 2, z + 10]), col, col, max(H - 20, 1)).Shape())  # montante
@@ -1573,29 +1665,36 @@ def f_supports(state, f, ctx):
             if H <= 5:
                 continue
             heights.append(H)
+            built.append(p)
             rod = 5.0 if w < 150 else 6.0
+            one = []
             for side in ((-1, 1) if tray else (0,)):
                 q = np.array(p) + x * side * half
-                parts.append(BRepPrimAPI_MakeCylinder(gp_Ax2(_p([q[0], q[1], bottom - 12]), _d([0, 0, 1])), rod, z - bottom + 12).Shape())
+                z0 = bottom - 12 if tray else top + 6  # tubo: la barra parte dalla sommita' del collare, non attraversa il tubo
+                one.append(BRepPrimAPI_MakeCylinder(gp_Ax2(_p([q[0], q[1], z0]), _d([0, 0, 1])), rod, z - z0).Shape())
             if tray:  # mensola sotto la canalina
-                parts.append(_box_axis(np.array([p[0], p[1], bottom - 12]), x, u, [0, 0, 1.0], 2 * half + 20, 40, 12))
-            else:  # collare attorno al tubo
-                parts.append(BRepPrimAPI_MakeTorus(gp_Ax2(_p(p), _d(u)), w / 2 + 6, 6).Shape())
-            parts.append(BRepPrimAPI_MakeBox(_p([p[0] - 60, p[1] - 60, z]), 120, 120, 8).Shape())  # piastra a soffitto
+                one.append(_box_axis(np.array([p[0], p[1], bottom - 12]), x, u, [0, 0, 1.0], 2 * half + 20, 40, 12))
+            else:  # collare attorno al tubo (anello a contatto della superficie esterna)
+                one.append(BRepPrimAPI_MakeTorus(gp_Ax2(_p(p), _d(u)), w / 2 + 6, 6).Shape())
+            one.append(BRepPrimAPI_MakeBox(_p([p[0] - 60, p[1] - 60, z]), 120, 120, 8).Shape())  # piastra a soffitto
+            parts.append(_fuse_all(one))  # un pezzo solo: i volumi che si toccano non si contano due volte
     if not parts:
         raise FeatureError("srv_modeler.quota_staffe")
     shape = _compound(parts)
     meta2 = {"componente": "support_" + kind, "misura": meta.get("misura") or "", "quantita": len(heights),
              "altezze": [round(float(x), 1) for x in heights], "passo": span, "su": f.get("route"),
-             "pos": [[round(float(c), 3) for c in p] for p, _u in pts]}
+             "pos": [[round(float(c), 3) for c in p] for p in built]}
     st = OrderedDict(state)
     st[f["id"]] = Body(shape=shape, src=f["id"], meta=meta2)
     return st
 
 
 def _box_axis(c, x, u, z, lx, ly, lz):
-    """Parallelepipedo centrato in c con i lati lungo x (lx), u (ly) e z (lz)."""
-    x = np.cross(u, z)  # terna destra (gp_Trsf rifiuta le matrici con determinante negativo); il pezzo e' simmetrico
+    """Parallelepipedo centrato in c con i lati lungo x (lx), u (ly) e z (lz). La terna si rende ortonormale (tratti in
+    pendenza: u non e' perpendicolare alla verticale); terna destra: gp_Trsf rifiuta il determinante negativo."""
+    z = _n(np.array(z, float))
+    u = _n(np.array(u, float) - z * float(np.dot(u, z)))
+    x = _n(np.cross(u, z))
     o = np.array(c) - np.array(x) * lx / 2 - np.array(u) * ly / 2 - np.array(z) * lz / 2
     b = BRepPrimAPI_MakeBox(lx, ly, lz).Shape()
     t = gp_Trsf()
@@ -1654,7 +1753,11 @@ class Session:
                 try:
                     if fn is None:
                         raise FeatureError("srv_modeler.lavorazione_sconosciuta", f.get("type"))
+                    prev = state
                     state = fn(state, f, ctx)
+                    for k, b in list(state.items()):
+                        if b.meta is None and k in prev and prev[k].meta and b.mesh is None and f.get("type") != "transform":
+                            state[k] = Body(shape=b.shape, src=b.src, meta=prev[k].meta)
                 except FeatureError as e:
                     res = {"id": f.get("id"), "ok": False, "err": e.key, "args": e.args2}
                 except Exception as e:  # noqa: BLE001 - un errore di OpenCascade non ferma il ricalcolo
@@ -1830,7 +1933,8 @@ class Kernel:
                 BRepGProp.VolumeProperties_s(c, g)
                 cm = g.CentreOfMass()
                 out.append({"a": a, "b": b, "vol": v, "c": [cm.X(), cm.Y(), cm.Z()]})
-        return {"clash": out, "n": len(ids)}
+        mesh = [b for b in state if state[b].mesh is not None]
+        return {"clash": out, "n": len(ids), "mesh": mesh}
 
     def op_import(self, r):
         """File CAD (STEP, IGES, BREP) -> corpi salvati come blob, con nome e colore dal file."""

@@ -2,7 +2,8 @@
 // dalle linee degli schizzi o dagli spigoli. Il catalogo si allarga dall'interfaccia (misure dell'utente in localStorage).
 import { t as tr } from "../i18n.js";
 
-// tubi in acciaio: DN, diametro esterno (EN 10220 / ISO 4200) e spessore (serie 40)
+// tubi in acciaio: DN, diametro esterno (EN 10220 / ISO 4200) e spessore Schedule 40 di ASME B36.10M (sul DN65 lo spessore
+// e' quello del 2 1/2" Sch. 40 applicato al diametro europeo 76,1)
 const PIPES = [
   [15, 21.3, 2.77], [20, 26.9, 2.87], [25, 33.7, 3.38], [32, 42.4, 3.56], [40, 48.3, 3.68], [50, 60.3, 3.91], [65, 76.1, 5.16],
   [80, 88.9, 5.49], [100, 114.3, 6.02], [125, 139.7, 6.55], [150, 168.3, 7.11], [200, 219.1, 8.18], [250, 273.0, 9.27],
@@ -30,6 +31,12 @@ export const SPECS = () => [
   { id: "D1", name: tr("mod.cl_d1"), mat: "Cu-DHP (EN 1057)", pn: 16, dens: 8.94e-6, rf: 1.0, copper: true },
 ];
 export const specOf = (id, doc = null) => [...(doc?.specs || []), ...SPECS()].find(s => s.id === id) || SPECS()[0];
+// spessore della classe per DN: funzione (classi incluse) o tabella {DN: spessore} (classi del documento, salvabili in JSON)
+const wallOf = (sp, dn) => (typeof sp.wall === "function" ? sp.wall(dn) : sp.wall?.[dn]);
+// curve a raggio lungo 1,5 D (EN 10253-2 tipo 3D = ASME B16.9 LR): R = 1,5 x NPS x 25,4
+const NPS = { 15: 0.5, 20: 0.75, 25: 1, 32: 1.25, 40: 1.5, 50: 2, 65: 2.5, 80: 3, 90: 3.5, 100: 4, 125: 5, 150: 6 };
+export const bendRadius = dn => Math.round(1.5 * (NPS[dn] || dn / 25) * 25.4 * 10) / 10;
+export const famOf = sp => (sp.plastic ? "plastic" : sp.copper ? "copper" : "steel");
 
 const custom = () => { try { return JSON.parse(localStorage.getItem("mbv-impianti-misure") || "[]"); } catch { return []; } };
 export function addCustom(item) {
@@ -45,8 +52,8 @@ export function sizes(kind, specId = "A1", doc = null) {
     const sp = specOf(specId, doc);
     if (sp.plastic) out = PVC.map(([dn, d]) => ({ id: "DN" + dn, label: `DN ${dn} · Ø${d} × ${Math.max(1.5, Math.round(d / 21 * 10) / 10)}`, kind, od: d, t: Math.max(1.5, Math.round(d / 21 * 10) / 10), r: d * sp.rf }));
     else if (sp.copper) out = CU.map(([d, t]) => ({ id: "Cu" + d, label: `Ø${d} × ${t}`, kind, od: d, t, r: d * Math.max(sp.rf, 1) }));
-    else out = PIPES.map(([dn, od, t]) => ({ id: "DN" + dn, label: `DN ${dn} · Ø${od} × ${sp.wall?.(dn) || t}`, kind, od, t: sp.wall?.(dn) || t, r: Math.max(Math.round(dn * sp.rf * 10) / 10, od) }));
-    for (const s of out) { s.spec = sp.id; s.pn = sp.pn; s.mat = sp.mat; }
+    else out = PIPES.map(([dn, od, t]) => ({ id: "DN" + dn, label: `DN ${dn} · Ø${od} × ${wallOf(sp, dn) || t}`, kind, od, t: wallOf(sp, dn) || t, r: bendRadius(dn) }));
+    for (const s of out) { s.spec = sp.id; s.pn = sp.pn; s.mat = sp.mat; s.fam = famOf(sp); }
     return [...out, ...custom().filter(c => c.kind === kind)];
   }
   else if (kind === "tray") out = TRAYS.map(([w, h]) => ({ id: `C${w}x${h}`, label: `${w} × ${h} · ${tr("mod.pl_lamiera")} 1,5`, kind, w, h, t: 1.5, r: w }));
@@ -66,8 +73,10 @@ export function bom(app) {
     const m = (app.res.bodies.find(q => q.id === b.id) || {}).meta;
     const p = b.data?.props || {};
     if (m?.componente) {
-      const key = "c|" + m.componente + "|" + m.misura;
-      if (!rows.has(key)) rows.set(key, { tipo: tr("mod.pl_" + m.componente), misura: m.misura, pezzi: 0, dritti: 0, curve: 0, angoli: new Map(), lunghezza: 0, peso: 0, corpi: [], comp: true });
+      // componenti in linea: anche classe e PN (stesso DN in classi diverse = articoli diversi)
+      const cls = m.spec ? " · " + m.spec + (m.pn ? " · PN" + m.pn : "") : m.pn && !m.altezze ? " · PN" + m.pn : "";
+      const key = "c|" + m.componente + "|" + m.misura + cls;
+      if (!rows.has(key)) rows.set(key, { tipo: tr("mod.pl_" + m.componente), misura: m.misura + cls, pezzi: 0, dritti: 0, curve: 0, angoli: new Map(), lunghezza: 0, peso: 0, corpi: [], comp: true });
       const r = rows.get(key);
       r.pezzi += m.quantita || 1;
       if (m.altezze) { r.lunghezza += m.altezze.reduce((a, b) => a + b, 0); r.comp = "staffe"; }

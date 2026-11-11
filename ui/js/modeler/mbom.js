@@ -75,6 +75,8 @@ export class ClashTool {
     else if (this.res) {
       const list = this.res.clash;
       r.append(el("p", { class: "md-dof" + (list.length ? " bad" : " ok") }, list.length ? tr("mod.pl_n_interferenze", list.length) : tr("mod.pl_nessuna_interferenza", this.res.n)));
+      // i corpi rimasti mesh (edifici e strutture importati grandi) non entrano nel controllo: lo si dice
+      if (this.res.mesh?.length) r.append(el("p", { class: "md-hint" }, tr("mod.pl_mesh_esclusi", this.res.mesh.map(id => app.bodyName(id)).join(", "))));
       const box = el("div", { class: "md-list" });
       r.append(box);
       list.forEach((c, i) => {
@@ -118,12 +120,12 @@ export function isoData(app) {
     if (m?.impianto !== "pipe" || !m.nodi?.length) continue;
     const sp = m.spec ? specOf(m.spec, app.doc) : null;
     const L = { id: app.bodyName(b.id), linea: m.linea || "", misura: m.misura || "", spec: m.spec || "", materiale: m.materiale || sp?.mat || "",
-      pn: m.pn || sp?.pn || null, raggio: m.raggio, lunghezza: m.lunghezza, nodi: m.nodi, componenti: [], supporti: [] };
+      pn: m.pn || sp?.pn || null, raggio: m.raggio, lunghezza: m.lunghezza, dritti: m.dritti, nodi: m.nodi, componenti: [], supporti: [] };
     for (const c of bodies) {
       const q = c.meta;
       if (q?.su !== b.id) continue;
       if (q.componente?.startsWith("support_")) for (const p of q.pos || []) L.supporti.push({ tipo: q.componente.slice(8), pos: p });
-      else if (q.pos) L.componenti.push({ tipo: q.componente, pos: q.pos });
+      else if (q.pos) L.componenti.push({ tipo: q.componente, pos: q.pos, lunghezza_fs: q.lunghezza_fs || 0 });
     }
     linee.push(L);
   }

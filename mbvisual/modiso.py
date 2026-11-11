@@ -144,13 +144,13 @@ def layout(line, nome, n_sheet, tot):
     # quote di livello alla partenza, all'arrivo e dove cambia la quota
     for i, q in enumerate(Q):
         show = i in (0, len(Q) - 1) or abs(N[i][2] - N[i - 1][2]) > 0.5 or (i + 1 < len(N) and abs(N[i + 1][2] - N[i][2]) > 0.5)
-        if show:
-            S.text((q[0] + 2.5, q[1] - 5.5), _elev(N[i][2]), 2.2)
-    for i in (0, len(N) - 1):
+        if show and i not in (0, len(Q) - 1):
+            S.text((q[0] - 2.5, q[1] + 2.5), _elev(N[i][2]), 2.2, 0, "r")
+    for i, key in ((0, "srv_modeler.iso_inizio"), (len(N) - 1, "srv_modeler.iso_fine")):
         q, p = Q[i], N[i]
-        S.text((q[0] + 2.5, q[1] - 9.0), f"E {_fmt(p[0])}  N {_fmt(p[1])}", 2.0)
-    S.text((Q[0][0] - 2, Q[0][1] + 3), t("srv_modeler.iso_inizio"), 2.2, 0, "r")
-    S.text((Q[-1][0] - 2, Q[-1][1] + 3), t("srv_modeler.iso_fine"), 2.2, 0, "r")
+        S.text((q[0] - 3, q[1] + 10.5), t(key), 2.2, 0, "r")
+        S.text((q[0] - 3, q[1] + 6.5), _elev(p[2]), 2.2, 0, "r")
+        S.text((q[0] - 3, q[1] + 3.0), f"E {_fmt(p[0])}  N {_fmt(p[1])}", 2.0, 0, "r")
     # componenti
     counts = {}
     for c in line.get("componenti") or []:
@@ -188,7 +188,8 @@ def layout(line, nome, n_sheet, tot):
     nd = _proj([0, 1, 0])
     tip = (nc[0] + nd[0] * 12, nc[1] + nd[1] * 12)
     S.line(nc, tip, 0.35)
-    S.poly([tip, (tip[0] + 2.2, tip[1] - 0.6), (tip[0] + 0.6, tip[1] - 2.4)], 0.2, True)
+    nn = (-nd[1], nd[0])
+    S.poly([tip, (tip[0] - nd[0] * 3 + nn[0] * 1.2, tip[1] - nd[1] * 3 + nn[1] * 1.2), (tip[0] - nd[0] * 3 - nn[0] * 1.2, tip[1] - nd[1] * 3 - nn[1] * 1.2)], 0.2, True)
     S.text((tip[0] - 3, tip[1] + 1.5), "N", 3.0)
     # cornice
     S.poly([(10, 10), (W - 10, 10), (W - 10, H - 10), (10, H - 10)], 0.5)
@@ -200,7 +201,10 @@ def layout(line, nome, n_sheet, tot):
     S.line((X0, y), (X1, y), 0.3)
     rows = []
     desc = f"{t('srv_modeler.iso_tubo')} {line.get('misura') or ''}".strip()
-    rows.append((desc, line.get("materiale") or "", f"{(line.get('lunghezza') or 0) / 1000:.2f} m"))
+    netto = sum(line.get("dritti") or []) - sum(float(c.get("lunghezza_fs") or 0) for c in line.get("componenti") or [])
+    if not line.get("dritti"):
+        netto = float(line.get("lunghezza") or 0)
+    rows.append((desc, line.get("materiale") or "", f"{netto / 1000:.2f} m"))
     bends = {}
     for i in range(1, len(N) - 1):
         a, b = _sub(N[i], N[i - 1]), _sub(N[i + 1], N[i])
@@ -214,7 +218,7 @@ def layout(line, nome, n_sheet, tot):
     for ang, n in sorted(bends.items()):
         rows.append((f"{t('srv_modeler.iso_curva')} {ang:g}° R{_fmt(line.get('raggio') or 0)}", line.get("materiale") or "", f"{n}"))
     for k, n in counts.items():
-        rows.append((t("srv_modeler.iso_c_" + k), f"PN{_fmt(line.get('pn') or 16)}", f"{n}"))
+        rows.append((t("srv_modeler.iso_c_" + k), f"PN{_fmt(line['pn'])}" if line.get("pn") else "", f"{n}"))
     sup = line.get("supporti") or []
     for k in ("floor", "hanger"):
         n = sum(1 for s in sup if s.get("tipo") == k)
@@ -288,7 +292,7 @@ def write_pdf(path, sheets):
             a = math.radians(ang)
             base = P(p)
             pt = fitz.Point(base.x + dx * math.cos(a), base.y - dx * math.sin(a))
-            pg.insert_text(pt, s, fontsize=fs, fontname="helv", morph=(pt, fitz.Matrix(-ang)) if ang else None)
+            pg.insert_text(pt, s, fontsize=fs, fontname="helv", morph=(pt, fitz.Matrix(ang)) if ang else None)
     doc.set_metadata({"title": t("srv_modeler.iso_titolo"), "creator": "MB Desk"})
     doc.save(path, garbage=3, deflate=True)
     doc.close()
@@ -299,21 +303,23 @@ def write_dxf(path, sheets):
 
     d = ezdxf.new("R2010", setup=True)
     d.header["$INSUNITS"] = 4
-    for n, lay, col in (("ISO-TUBO", 0, 1), ("ISO-QUOTE", 0, 3), ("ISO-TESTI", 0, 7), ("ISO-CORNICE", 0, 8)):
+    for n, col in (("ISO-TUBO", 1), ("ISO-QUOTE", 3), ("ISO-TESTI", 7), ("ISO-SIMBOLI", 2), ("ISO-CORNICE", 8)):
         d.layers.add(n, color=col)
+    LW = (5, 9, 13, 15, 18, 20, 25, 30, 35, 40, 50, 53, 60, 70, 80, 90, 100)
+    lw = lambda mm: min(LW, key=lambda v: abs(v - mm * 100))  # noqa: E731
     msp = d.modelspace()
     for j, S in enumerate(sheets):
         ox = j * (W + 30)
         for it in S.items:
             if it[0] == "l":
                 lay = "ISO-TUBO" if it[3] >= 0.6 else "ISO-QUOTE" if it[3] < 0.2 else "ISO-CORNICE"
-                msp.add_line((it[1][0] + ox, it[1][1]), (it[2][0] + ox, it[2][1]), dxfattribs={"layer": lay, "lineweight": int(round(it[3] * 100 / 5) * 5) or 13})
+                msp.add_line((it[1][0] + ox, it[1][1]), (it[2][0] + ox, it[2][1]), dxfattribs={"layer": lay, "lineweight": lw(it[3])})
             elif it[0] == "p":
                 pts = [(p[0] + ox, p[1]) for p in it[1]]
                 if it[3]:
-                    h = msp.add_hatch(color=7, dxfattribs={"layer": "ISO-TUBO"})
+                    h = msp.add_hatch(color=7, dxfattribs={"layer": "ISO-SIMBOLI"})
                     h.paths.add_polyline_path(pts, is_closed=True)
-                msp.add_lwpolyline(pts, close=it[4], dxfattribs={"layer": "ISO-CORNICE"})
+                msp.add_lwpolyline(pts, close=it[4], dxfattribs={"layer": "ISO-CORNICE" if it[2] >= 0.4 else "ISO-SIMBOLI", "lineweight": lw(it[2])})
             elif it[0] == "c":
                 msp.add_circle((it[1][0] + ox, it[1][1]), it[2], dxfattribs={"layer": "ISO-TUBO"})
             elif it[0] == "t":

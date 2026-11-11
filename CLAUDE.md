@@ -889,6 +889,27 @@ dell'anteprima glTF salvata nel file (`viewOnly` di viewers/modeler.js, WEB_EXTS
     staffe ed esporta STEP/STL/GLB (primo avvio ~26 s per l'import di OCP), l'app parte nella finestra WebView2.
   * Collaudo: test_modeler.py 58/58 (staffe, isometrici PDF/DXF), test_modeler_ui.mjs scenario 10.
   * Non fatto: specifiche di linea con elenco dei componenti ammessi, legame P&ID-3D, isometrici in scala e con saldature.
+- Revisione 4 (11/11/2026): verifica della "Sala dei Saggi" (Desktop\AI\Sala-Riunioni: Claude, ChatGPT e Gemini, rilievi votati a
+  maggioranza; rapporto completo nelle note condivise modellazione-3d-saggi.md). Corretti:
+  * pendini: la barra parte dal collare (prima attraversava il tubo); parti di ogni staffa unite; posizioni = staffe costruite;
+    terna ortonormale in `_box_axis` (tratti in pendenza); passi delle staffe per famiglia di materiale (PVC, rame, acciaio, inox
+    a parete sottile) da `meta.famiglia` (la classe passa `fam`).
+  * dati d'impianto: le lavorazioni solide (fori, raccordi, booleane...) non cancellano piu' `meta`; `transform_body` sposta anche
+    pos/dir di componenti e staffe e RIFIUTA la scala sugli impianti (`scala_impianto`); la maniglia su una tubazione a punti sposta
+    i nodi stessi (restano modificabili) e il punto "at" dei componenti; sugli altri corpi la trasformazione porta con se' i
+    componenti e le staffe montati (`meta.su`); eliminando una tubazione si eliminano anche componenti e staffe.
+  * componenti: solo sui tratti dritti con spazio sufficiente (`tratto_corto`), foro di passaggio (pezzi forati uno per uno; se
+    l'unione non e' un solido valido restano i pezzi: prima la valvola era un solido non valido e dava interferenze con tutto),
+    scartamento valvola EN 558 serie 14, flange EN 1092-1 PN16/PN40 da tabella (`flange_dims`), classe e PN nei dati e in distinta.
+  * tubazioni: dritti e curve restano pezzi separati (fusi in un solido, con certi raggi le booleane davano volumi comuni sbagliati);
+    raggio predefinito 1,5 x NPS x 25,4 (`bend_radius`, `mplant.bendRadius`); spessore non valido = errore.
+  * isometrici: tubo in distinta = dritti netti meno gli scartamenti; testi ruotati nel verso giusto; nord costruito sulla sua
+    direzione; etichette di inizio/fine fuori dalle quote; DXF con spessori ammessi e layer ISO-SIMBOLI.
+  * interfaccia: classe modificabile dal pannello della tubazione, massa con la densita' della classe, corpi mesh esclusi dalle
+    interferenze dichiarati, classi del documento con spessori come tabella {DN: spessore}.
+  * Restano (mancanze strutturali segnalate): Tee/riduzioni/rete di linee, bocchelli associativi sulle apparecchiature, catalogo di
+    classe con componenti ammessi e codici, spool e saldature negli isometrici, P&ID collegato al 3D, isolamento e soft clash,
+    canaline che restano dritte dopo una salita verticale (serve il pezzo speciale).
 - Limiti: niente sposta faccia laterale (solo lungo la normale), schizzi senza taglia/raccorda/offset/spline, vincoli solo
   globali (nessun "definito" per singola quota oltre al colore), assiemi = corpi con accoppiamenti nello stesso file (non
   componenti esterni), import del modello come blocco (la cronologia degli altri CAD non si legge). Build PyInstaller NON provata.
