@@ -1423,6 +1423,26 @@ export function createEditor(ctx, init) {
   }
   // Procedi / Annulla quando la scheda video non e' idonea
   const askSlow = text => dialog(tr("imgai.titolo_avviso"), el("p", { class: "ps-note imgai-warn" }, text), { okLabel: tr("imgai.procedi") });
+  // pannello "IA": le quattro funzioni con una riga di spiegazione ciascuna (restano anche le voci dei menu)
+  let aiPanel = null;
+  function closeAiPanel() { aiPanel?.remove(); aiPanel = null; document.removeEventListener("pointerdown", aiOutside, true); }
+  function aiOutside(e) { if (aiPanel && !aiPanel.contains(e.target) && !e.target.closest?.(".imgai-open")) closeAiPanel(); }
+  function toggleAiPanel(anchor) {
+    if (aiPanel) return closeAiPanel();
+    endText(true); closeMenu();
+    const item = (title, line, run) => el("button", { type: "button", class: "imgai-pi", onclick: () => { closeAiPanel(); run(); } },
+      el("span", { class: "imgai-pt" }, title), el("span", { class: "imgai-pl" }, line));
+    aiPanel = el("div", { class: "imgai-panel", role: "menu" }, el("div", { class: "imgai-ph" }, "✨ " + tr("imgai.pannello_titolo")),
+      item(tr("imgai.p_migliora"), tr("imgai.p_migliora_riga"), () => dlgImageSize(true)),
+      item(tr("imgai.p_ritocco"), tr("imgai.p_ritocco_riga"), retouchStart),
+      item(tr("imgai.p_posa"), tr("imgai.p_posa_riga"), dlgPose),
+      item(tr("imgai.p_genera"), tr("imgai.p_genera_riga"), dlgGenerate));
+    document.body.append(aiPanel);
+    const r = anchor.getBoundingClientRect();
+    if (r.left < 120 && r.top > 80) { aiPanel.style.left = r.right + 6 + "px"; aiPanel.style.top = Math.min(r.top, innerHeight - 330) + "px"; }
+    else { aiPanel.style.left = Math.max(4, Math.min(r.left, innerWidth - 370)) + "px"; aiPanel.style.top = r.bottom + 4 + "px"; }
+    setTimeout(() => document.addEventListener("pointerdown", aiOutside, true));
+  }
   async function aiUpscale(f, kind) {
     endText(true);
     const pix = layers.filter(L => L.kind === "pixel" && L.c);
@@ -1657,6 +1677,8 @@ export function createEditor(ctx, init) {
     toolBar.append(el("div", { class: "ps-tsep" }), el("div", { class: "ps-colors" }, swBg, swFg,
       el("button", { class: "ps-mini ps-mini-def", type: "button", title: tr("imgedit.colori_predefiniti_primo_piano_sfondo"), onclick: defaultColors }, psIcon("defaultColors", 11)),
       el("button", { class: "ps-mini ps-mini-swap", type: "button", title: tr("imgedit.inverti_colori_primo_piano_sfondo"), onclick: swapColors }, psIcon("swap", 12))));
+    if (AI_OK) { const ab = el("button", { type: "button", class: "ps-tool imgai-tool imgai-open", title: tr("imgai.pannello_titolo") }, "✨");
+      ab.addEventListener("click", () => toggleAiPanel(ab)); toolBar.prepend(ab, el("div", { class: "ps-tsep" })); }
     renderSwatches();
   }
   const closeFly = () => { flyout?.remove(); flyout = null; };
@@ -2077,6 +2099,11 @@ export function createEditor(ctx, init) {
   };
   function togglePanels() { panels.hidden = !panels.hidden; root.classList.toggle("ps-nopanels", panels.hidden); schedule(); }
   function toggleAll() { root.classList.toggle("ps-full"); setTimeout(() => schedule(), 0); }
+  if (AI_OK) { // ben visibile: le funzioni IA erano nascoste nei menu
+    const ab = el("button", { class: "btn primary imgai-main imgai-open", type: "button", title: tr("imgai.pannello_titolo") }, "✨ " + tr("imgai.pulsante"));
+    ab.addEventListener("click", () => toggleAiPanel(ab));
+    ctx.tb.append(ab);
+  }
   for (const name of Object.keys(MENUS)) {
     const b = el("button", { class: "ps-mbtn", type: "button" }, tr("imgedit.menu_" + name.toLowerCase()));
     b.addEventListener("click", () => (menuEl && menuEl.dataset.m === name ? closeMenu() : (openMenu(b, MENUS[name]()), (menuEl.dataset.m = name))));
