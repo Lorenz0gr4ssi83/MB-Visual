@@ -28,7 +28,7 @@ elif sys.platform == "darwin" and getattr(sys, "frozen", False) and not sys.stde
     import datetime
     print(f"--- avvio {datetime.datetime.now():%Y-%m-%d %H:%M:%S} {sys.argv}")
 
-VERSION = "1.6.23"
+VERSION = "1.6.24"
 
 # percorsi e nomi lunghi (oltre 260 caratteri) in tutto il processo, anche nei processi di lavoro avviati dall'app
 from mbvisual import longpath  # noqa: E402

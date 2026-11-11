@@ -952,7 +952,7 @@ export async function mount(ctx) {
       } catch (e) { toast(`${name}: ${e.message}`, true, 6000); }
     }
   }
-  const addBtn = button(tr("v_model3d.aggiungi_modello"), "plus", async () => addModels(await pickFiles()), { title: tr("v_model3d.carica_altro_modello_ifc_step") });
+  const addBtn = button(tr("v_model3d.aggiungi_modello"), "plus", async () => addModels(await pickFiles()), { title: tr("v_model3d.carica_altro_modello_ifc_step") });
 
   // modifica con il modellatore 3D (ui/js/modeler): B-rep esatto per STEP/IGES/BREP, Inventor, SolidWorks/Parasolid e i solidi
   // ACIS dei DWG; per le mesh e gli altri formati i triangoli della scena (Z in alto, millimetri)
