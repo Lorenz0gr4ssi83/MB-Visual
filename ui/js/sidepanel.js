@@ -68,8 +68,9 @@ export function attachSidePanels(root, viewer) {
   let timer = 0;
   const scan = () => {
     timer = 0;
-    // il modello 3D mostrato dentro un altro visualizzatore ha il suo pannello, ricordato a parte
-    [...root.querySelectorAll(SEL)].forEach((box, i) => { if (!box.dataset.sp && !box.closest(".ps-root, .pb-root, .vs-root, .ve-root")) enhance(box, `mbv-pannello-${viewer}-${i}`); });
+    // il modello 3D mostrato dentro un altro visualizzatore ha il suo pannello, ricordato a parte;
+    // il modellatore (.md-root) ha tre colonne (cronologia, vista, proprieta') e la sua disposizione: non si tocca
+    [...root.querySelectorAll(SEL)].forEach((box, i) => { if (!box.dataset.sp && !box.closest(".ps-root, .pb-root, .vs-root, .ve-root, .md-root")) enhance(box, `mbv-pannello-${viewer}-${i}`); });
   };
   scan();
   new MutationObserver(() => { if (!timer) timer = setTimeout(scan, 80); }).observe(root, { childList: true, subtree: true });
