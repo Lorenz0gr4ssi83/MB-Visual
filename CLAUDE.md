@@ -2122,3 +2122,12 @@ nessun filtro sul contenuto. (La vecchia parte "IA" con Python/torch resta tolta
   parte GRIGIA (senza, il colore del vestito vecchio passava nel risultato), LCM con cfg 2,2. Aggiornamenti: controllo anche
   ogni 2 ore; "Piu' tardi" = avviso cliccabile nella barra di stato (il Surface era rimasto alla 1.6.14: avviso solo all'avvio).
 - 1.6.21 (11/11/2026, "non capisco come migliorare le immagini con IA"): pulsante arancione "✨ Migliora con IA" in testa alla barra di ogni immagine aperta (la foto si apre gia' nell'editor: non esiste un pulsante "Modifica immagine") e "✨" in cima alla barra degli strumenti verticale; entrambi aprono il pannello `toggleAiPanel` (imgedit.js) con Migliora la foto / Cambia un vestito o un dettaglio / Cambia la posa / Crea immagine da descrizione, una riga di spiegazione ciascuna (chiavi imgai.p_*). Le voci di menu restano.
+
+## STEP fatti di triangoli -> solidi esatti (11/11/2026, 1.6.25)
+Segnalazione dell'utente: un anello STEP (catalogo valvole) usciva in BricsCAD come rete di triangoli anche con i 3DSOLID: il file STEP
+stesso e' a faccette (ogni faccia un triangolo piano). `mbvisual/facet_rebuild.py` (chiamato da acis_write.shape_bodies; gusci chiusi
+cuciti in solidi): solido con >= 24 facce tutte piane -> corpo di rivoluzione ricostruito (asse dalle normali e dal baricentro, sezione
+col semipiano, punti sulle quote dei vertici con raggio agganciato al raggio dei vertici, rivoluzione = cilindri/coni/piani esatti;
+accettato se ogni vertice sta sul profilo e il volume torna entro il 3%), altrimenti facce complanari unite (UnifySameDomain).
+Provati: anello 2 cilindri + 2 piani, flangia a gradini con smusso 7 facce esatte. LIMITE: fori e cilindri di corpi NON di rivoluzione
+(es. fori in una piastra) restano a strisce piane.

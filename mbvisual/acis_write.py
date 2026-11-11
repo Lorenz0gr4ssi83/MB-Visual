@@ -451,6 +451,31 @@ def mesh_body(verts, faces) -> E.Body:
     return acis_api.body_from_mesh(m)
 
 
+def _shells_to_solids(shape):
+    from OCP.BRepBuilderAPI import BRepBuilderAPI_MakeSolid, BRepBuilderAPI_Sewing
+    from OCP.BRepCheck import BRepCheck_Analyzer
+    out = []
+    try:
+        sew = BRepBuilderAPI_Sewing(1e-4)
+        sew.Add(shape)
+        sew.Perform()
+        ex = TopExp_Explorer(sew.SewedShape(), TopAbs_SHELL)
+        while ex.More():
+            sh = TopoDS.Shell(ex.Current())
+            ex.Next()
+            if not BRep_Tool.IsClosed_s(sh):
+                continue
+            ms = BRepBuilderAPI_MakeSolid(sh)
+            if ms.IsDone() and BRepCheck_Analyzer(ms.Solid()).IsValid():
+                so = ms.Solid()
+                from OCP.BRepLib import BRepLib
+                BRepLib.OrientClosedSolid_s(so)
+                out.append(so)
+    except Exception:  # noqa: BLE001
+        return []
+    return out
+
+
 def shape_bodies(shape):
     """-> [(corpo ACIS, esatto)] uno per solido; forme senza solidi (gusci, facce) a facce piane."""
     solids = []
@@ -458,6 +483,21 @@ def shape_bodies(shape):
     while ex.More():
         solids.append(ex.Current())
         ex.Next()
+    if not solids:  # reti di triangoli salvate come gusci chiusi: si cuciono in un solido
+        solids = _shells_to_solids(shape)
+    from . import facet_rebuild
+    rebuilt = []
+    for so in solids:  # solidi fatti di triangoli -> cilindri, coni e piani esatti (o almeno facce complanari unite)
+        new, _how = facet_rebuild.rebuild(so)
+        ex = TopExp_Explorer(new, TopAbs_SOLID)
+        got = False
+        while ex.More():
+            rebuilt.append(ex.Current())
+            got = True
+            ex.Next()
+        if not got:
+            rebuilt.append(so)
+    solids = rebuilt
     out = []
     for so in solids:
         try:
