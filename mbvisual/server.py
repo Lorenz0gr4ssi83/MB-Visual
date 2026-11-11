@@ -264,7 +264,8 @@ class Handler(BaseHTTPRequestHandler):
     def api_license_request(self, qs):
         from . import license as lic
         b = self._body_json()
-        self._json(lic.request(b.get("type", "report"), str(b.get("message", "")), str(b.get("key", ""))))
+        self._json(lic.request(b.get("type", "report"), str(b.get("message", "")), str(b.get("key", "")),
+                               {k: str(b[k]) for k in ("topic", "ext", "detail") if b.get(k)}))
 
     # ------------------------------------------------------------ API: archivi cloud (mbvisual/cloud.py, ui/js/cloud.js)
     def api_cloud(self, qs):
@@ -378,6 +379,113 @@ class Handler(BaseHTTPRequestHandler):
         from . import convert
         out = self._body_json()["out"]
         self._json({"ok": True, "job": jobs.start(convert.convert, self._path(qs), out)})
+
+    # ------------------------------------------------------------ miglioramento foto (Real-ESRGAN) e creazione di immagini
+    # (Stable Diffusion) dell'editor di immagini, anche per altri programmi (mbvisual/immagini.py). Lavori come api/convert.
+    def _img_params(self, qs) -> dict:
+        ctype = (self.headers.get("Content-Type") or "").lower()
+        p = {k: v[0] for k, v in qs.items() if k != "t"}
+        if self.command == "POST":
+            if ctype.startswith("application/json"):
+                p.update(self._body_json() or {})
+            else:
+                data = self._body()
+                if data:  # immagine mandata dall'editor (PNG del livello)
+                    from . import immagini
+                    src = immagini.WORK_DIR / "ingressi" / (uuid.uuid4().hex + ".png")
+                    src.parent.mkdir(parents=True, exist_ok=True)
+                    src.write_bytes(data)
+                    p["path"] = str(src)
+        if not p.get("out"):
+            from . import immagini
+            (immagini.WORK_DIR / "risultati").mkdir(parents=True, exist_ok=True)
+            p["out"] = str(immagini.WORK_DIR / "risultati" / (uuid.uuid4().hex + ".png"))
+        p["anche_lenta"] = str(p.get("anche_lenta", "")).lower() in ("1", "true", "si", "yes")
+        return p
+
+    def _img_unfit(self, ok_key) -> bool:
+        from . import immagini
+        sv = immagini.scheda_video()
+        if not sv[ok_key]:
+            self._json({"ok": False, "non_idonea": True, "errore": immagini.frase_non_idonea(), "scheda": sv}, 409)
+            return True
+        return False
+
+    def api_immagini_scheda_video(self, qs):
+        from . import immagini
+        self._json({"ok": True, **immagini.scheda_video(_q(qs, "aggiorna") == "1"), "modelli": immagini.stato_modelli()})
+
+    def api_immagini_migliora(self, qs):
+        from . import immagini
+        p = self._img_params(qs)
+        src = p.get("path") or p.get("foto")
+        if not src:
+            raise ValueError(t("srv_server.percorso_mancante"))
+        if not p["anche_lenta"] and self._img_unfit("idonea_migliora"):
+            return
+        rid = str(p.get("rid") or uuid.uuid4().hex)
+        self._json({"ok": True, "rid": rid, "out": p["out"], "job": jobs.start(
+            immagini.migliora, os.path.abspath(src), p["out"], int(p.get("scala") or 4), p.get("modello") or "foto", True, rid)})
+
+    def api_immagini_genera(self, qs):
+        from . import immagini
+        p = self._img_params(qs)
+        if not p["anche_lenta"] and self._img_unfit("idonea_genera"):
+            return
+        rid = str(p.get("rid") or uuid.uuid4().hex)
+        self._json({"ok": True, "rid": rid, "out": p["out"], "job": jobs.start(
+            immagini.genera, p.get("descrizione") or "", p["out"], int(p.get("larghezza") or 512), int(p.get("altezza") or 512),
+            p.get("negativo") or "", int(p["passi"]) if p.get("passi") else None, int(p.get("seme") if p.get("seme") not in (None, "") else -1),
+            True, rid)})
+
+    def api_immagini_carica(self, qs):
+        # immagine o maschera mandata dall'editor (PNG nel corpo) -> percorso temporaneo da passare a ritocca/posa
+        from . import immagini
+        data = self._body()
+        if not data:
+            raise ValueError(t("srv_server.percorso_mancante"))
+        dst = immagini.WORK_DIR / "ingressi" / (uuid.uuid4().hex + (_q(qs, "ext", "png").strip(".") or "png"))
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes(data)
+        self._json({"ok": True, "path": str(dst)})
+
+    def api_immagini_ritocca(self, qs):
+        from . import immagini
+        p = self._img_params(qs)
+        src, mask = p.get("path") or p.get("foto"), p.get("maschera")
+        if not src or not mask:
+            raise ValueError(t("srv_server.percorso_mancante"))
+        immagini.controlla_descrizione(p.get("descrizione") or "")
+        if not p["anche_lenta"] and self._img_unfit("idonea_genera"):
+            return
+        rid = str(p.get("rid") or uuid.uuid4().hex)
+        self._json({"ok": True, "rid": rid, "out": p["out"], "job": jobs.start(
+            immagini.ritocca, os.path.abspath(src), os.path.abspath(mask), p.get("descrizione") or "", p["out"], p.get("negativo") or "",
+            int(p["passi"]) if p.get("passi") else None, int(p.get("seme") if p.get("seme") not in (None, "") else -1), True, rid)})
+
+    def api_immagini_posa(self, qs):
+        from . import immagini
+        p = self._img_params(qs)
+        src, pose = p.get("path") or p.get("foto"), p.get("posa")
+        if not src or not pose:
+            raise ValueError(t("srv_server.percorso_mancante"))
+        if isinstance(pose, (dict, list)):  # punti della posa direttamente nel JSON
+            f = immagini.WORK_DIR / "ingressi" / (uuid.uuid4().hex + ".json")
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(json.dumps(pose), encoding="utf-8")
+            pose = str(f)
+        immagini.controlla_descrizione(p.get("descrizione") or "")
+        if not p["anche_lenta"] and self._img_unfit("idonea_genera"):
+            return
+        rid = str(p.get("rid") or uuid.uuid4().hex)
+        self._json({"ok": True, "rid": rid, "out": p["out"], "job": jobs.start(
+            immagini.posa, os.path.abspath(src), os.path.abspath(pose), p["out"], p.get("descrizione") or "", p.get("negativo") or "",
+            int(p["passi"]) if p.get("passi") else None, int(p.get("seme") if p.get("seme") not in (None, "") else -1),
+            float(p.get("forza") or 0.75), True, rid)})
+
+    def api_immagini_annulla(self, qs):
+        from . import immagini
+        self._json(immagini.annulla(_q(qs, "rid", "")))
 
     def api_drawing(self, qs):
         # "Converti in disegno": PDF vettoriali, scansioni e immagini -> DXF/DWG (mbvisual/todrawing.py)
@@ -604,6 +712,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(recover.check(p, _q(qs, "ext", "")))
         if op == "identify":
             return self._json(recover.identify(p))
+        if op == "probe":
+            return self._json(recover.probe_open(p))
         if op == "start":
             return self._json({"ok": True, "job": jobs.start(recover.recover, p, fam=_q(qs, "fam") or None)})
         if op == "carve":
@@ -960,7 +1070,27 @@ class Handler(BaseHTTPRequestHandler):
 
     # ------------------------------------------------------------ email / sqlite
     def api_email(self, qs):
-        self._json(misc.read_email(self._path(qs)))
+        i = qs.get("i", [None])[0]
+        try:
+            self._json(misc.read_email(self._path(qs), i))
+        except ValueError as e:
+            self._json({"ok": False, "errore": str(e)})
+
+    def api_mdb_sqlite(self, qs):  # Access .mdb/.accdb -> copia SQLite (mbvisual/mdb.py)
+        from . import mdb
+        self._json({"ok": True, "job": jobs.start(mdb.to_sqlite, self._path(qs))})
+
+    def api_ifcxml_ifc(self, qs):  # ifcXML -> IFC (mbvisual/ifcxml.py)
+        from . import ifcxml
+        self._json({"ok": True, "job": jobs.start(ifcxml.to_ifc, self._path(qs))})
+
+    def api_kindle_epub(self, qs):  # Kindle MOBI/AZW3, Calibre htmlz/txtz -> EPUB (mbvisual/kindle.py)
+        from . import kindle
+        self._json({"ok": True, "job": jobs.start(kindle.to_epub, self._path(qs))})
+
+    def api_dgn_dxf(self, qs):  # MicroStation DGN V7 -> copia DXF (mbvisual/dgn.py)
+        from . import dgn
+        self._json({"ok": True, "job": jobs.start(dgn.to_dxf, self._path(qs))})
 
     def api_sqlite_schema(self, qs):
         self._json(misc.sqlite_schema(self._path(qs)))

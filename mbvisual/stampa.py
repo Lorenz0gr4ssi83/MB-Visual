@@ -624,11 +624,13 @@ def _cad_pdf(item: dict, st: dict, papers: _Papers, margins_for) -> list[dict]:
             # foglio del layout: l'origine dello spazio carta e' l'angolo dell'area stampabile
             pw, ph = float(lay.dxf.paper_width or 0), float(lay.dxf.paper_height or 0)
             lm, bm = float(lay.dxf.left_margin or 0), float(lay.dxf.bottom_margin or 0)
+            # spazio carta in mm o in pollici; le misure della carta nel file sono sempre in mm
+            unit = 25.4 if lay.dxf.get("plot_paper_units", 1) == 0 else 1.0
+            pw, ph, lm, bm = pw / unit, ph / unit, lm / unit, bm / unit
             if pw > 0 and ph > 0:
                 if lay.dxf.plot_rotation in (1, 3):
                     pw, ph = ph, pw
                 box = BoundingBox2d([(-lm, -bm), (pw - lm, ph - bm)])
-            unit = 1.0  # spazio carta in mm
         else:
             unit = umm
             if area == "limits":

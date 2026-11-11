@@ -37,9 +37,11 @@ Interfaccia in italiano. Logo: `ui/img/logo.png` (marchio MB Group con "VISUAL" 
   `office.py` (PowerPoint, Word da HTML, LibreOffice), `misc.py` (immagini, testo, email, SQLite, riconoscimento tipo), `paths.py`, `jobs.py`.
 - `ui/` - interfaccia: `index.html`, `css/app.css`, `js/app.js` (schede, scelta visualizzatore), `js/core.js`, `js/viewers/*.js` (uno per tipo).
 - `ui/formats.json` - **registro unico dei formati**: l'app sceglie il visualizzatore solo da qui; `ELENCO_FORMATI.md` si rigenera con `python tools/gen_elenco.py`.
-  Regola chiesta dall'utente: un'estensione non in elenco NON si apre (solo byte grezzi). Aggiungere estensioni solo dopo averle provate.
+  Regola chiesta dall'utente (cambiata il 06/11/2026): un'estensione non in elenco si apre DAL CONTENUTO se un motore lo legge (sezione
+  "Apertura dal contenuto"); solo se nessuno lo legge = "File non supportato". Aggiungere estensioni al registro solo dopo averle provate. MAI togliere estensioni, formati o funzioni senza chiederlo prima all'utente (decisione del 02/11/2026).
 - `ui/vendor/` - librerie JS con versioni fisse, scaricate da `tools/fetch_vendor.py`.
-- `bin/7zip/` - 7-Zip incluso. FFmpeg arriva da `imageio-ffmpeg`.
+- `bin/7zip/` - 7-Zip incluso (25.01 x64 dal 06/11/2026, prima 17.01 del 2017: 42/42 archivi del collaudo, recupero e percorsi lunghi
+  provati; i VHDX dei pacchetti MSIX provati NON si aprono neanche con la 25.01, per questo .vhdx non e' registrato). FFmpeg arriva da `imageio-ffmpeg`.
 - `tests/samples/` - file di prova (`tools/make_samples.py`).
 - `avanzamento/` - pagina di avanzamento pubblicata come Artifact (https://claude.ai/artifact/2e3ywJjJCAd3CaXGEEutH9): `fasi.json` + `build.py`.
 
@@ -781,7 +783,7 @@ e' stata aperta davvero; si toglie solo cio' che e' impossibile (motivo nel reso
 - Risultato 01/11/2026: 949 campioni (coppie categoria/estensione) aperti nell'app, 942 riusciti dopo le correzioni; tolte 85 coppie
   (7 impossibili con i motori inclusi: .evc .ac4 .binka .viv, .vgm e .spc audio = niente libgme in FFmpeg, .acm = in pratica driver
   dei codec di Windows; 78 senza nessun file di prova pubblico: audio di giochi, moduli Amiga rari, dischi di macchine virtuali, volumi
-  divisi, .qpw .et .wpt .602 .dxb, RAW ptx/rwz/bay/cap/eip) -> registro 958 voci, 932 estensioni. Tenute senza nuovo collaudo perche'
+  divisi, .qpw .et .wpt .602 .dxb, RAW ptx/rwz/bay/cap/eip) -> registro 958 voci, 932 estensioni. Il 02/11/2026 l'utente (la rimozione non gli era stata chiesta) ha fatto rimettere le 78 coppie senza prova, che restano non collaudate, e togliere solo le 7 impossibili: registro 1036 voci, 1007 estensioni. Tenute senza nuovo collaudo perche'
   stesso contenitore e stesso lettore di un formato provato: .nwc, .rte/.rft, .prtdot/.asmdot/.drwdot, .psm/.pwd (Solid Edge), .ipn.
   I formati di office-lo si aprono SOLO con LibreOffice installato (collaudati con LibreOffice 26.2.6 estratto, non installato).
 - Correzioni trovate dal collaudo: TimeStampedData .tsd (asn1crypto recente restituisce la struttura gia' letta + campo meta_data Any
@@ -1494,6 +1496,7 @@ Codice Python indipendente da Windows: ogni parte solo-Windows si spegne con gar
 Motore `mbvisual/recover.py` (+ `recover_zip.py`, `recover_sqlite.py`), API unica `api/recover?op=check|identify|start|carve|text|
 as_ext|save|put|out`, schermata `ui/js/viewers/recover.js` + `ui/css/recover.css` (viewer "recover"). Solo app per PC (la web app
 resta con l'errore semplice ed esadecimale). Testi: chiavi `rec.*` e `srv_recover.*` (5 lingue).
+- TOLTO DALL'INTERFACCIA il 02/11/2026 (richiesta dell'utente): schermata di recupero, controllo "file danneggiato" all'apertura, voci "Recupero e analisi" ed esadecimale in Apri come e pulsanti "byte grezzi"/"apri come testo" nei visualizzatori. Tutto cio' che non si apre = `ui/js/unsupported.js`: solo "File non supportato" + Segnala (anche web app e anteprime); `viewers/recover.js` porta solo li'. Il motore recover.py e la sua API restano, senza pulsanti che li chiamano; il resto di questa sezione descrive il funzionamento di prima (vecchia schermata nella cronologia git). Conversioni non riuscite: finestra "Operazione non supportata" con il motivo + Segnala. Segnalazioni: `license.sendFeedback` -> /v1/request type report con topic unsupported|idea (+ ext, detail senza nome ne' percorsi): il server compone "[File non supportato] .ext" o "[Miglioria o richiesta] testo" e arrivano in MB Desk Admin (Richieste + notifica "report"). Pulsante "Migliorie e richieste" (`btn-feedback`) accanto ad "Apri con programma predefinito".
 - Quando compare: (1) all'apertura `check` (letture veloci: %%EOF/startxref dei PDF, indice finale degli ZIP e testzip < 25 MB,
   fine di JPEG/PNG/GIF e PIL < 40 MB, atomi MP4/MOV, intestazione e quick_check SQLite < 50 MB, intestazione DWG, contenitore
   .msg) -> se danneggiato si apre "recover" con "Apri comunque l'originale"; (2) il visualizzatore lancia un errore: `showError`
@@ -1745,6 +1748,106 @@ Web app (app per cellulari sul server delle licenze) finalizzata per tablet 768-
 Modulo eliminato su richiesta dell'utente ("non serve a nulla"): edilizia.py, viewers/pratica.js, modelli .mbm, formato .mbcomm,
 componente "pratiche", pulsante della barra laterale e chiavi pratiche.*/srv_edilizia.*. Si recupera dalla cronologia git se servisse.
 
+## Layout dei disegni e pannelli laterali (04/11/2026) - FATTO (da provare sui disegni veri dell'utente)
+Schede Modello / layout in basso nel CAD 2D (`.cad-spaces`, `setSpace` in cad2d.js; si apre sempre sul Modello). `sheetsOf(db)` = fogli nell'ordine delle schede (DWG: entita' con owner = record *Paper_Space* e db.objects.LAYOUT di libredwg; DXF: dxf.js legge LAYOUT, VIEWPORT, handle dei layer e dei blocchi). Foglio = limiti del layout (carta bianca, sempre, sul fondo grigio); `sheetViewports`: la prima finestra per handle e' il foglio stesso e non conta; finestra = ritaglio rettangolare + matrice modello -> foglio (stessa di ezdxf) + layer congelati (DWG: `frozen_layers` con l'API dinamica, `dwg3dEntities`).
+`main` = modello dello spazio modello (l'editor lavora solo su quello), `model` = cio' che si vede. Nei layout editor e pannello Misure sono spenti (`ed()`, `ms()`): si guarda, si misura con Misura, si stampa (print.js parte su quel layout), si salva PDF raster grande come il foglio / SVG vettoriale / PNG. Salvando un DWG i layout ora restano nel file (`batch.add_sheets`, prima si perdevano). Fogli in pollici (limiti sotto 50-60 unita'): `plot_paper_units` 0 e unita' 25,4 in stampa. LIMITI: niente modifiche nel foglio; finestre con vista 3D mostrano solo un avviso (il modello 2D non ha la quota); finestre non rettangolari ritagliate al loro riquadro.
+Pannelli laterali (`ui/js/sidepanel.js`, avviato da app.js per ogni visualizzatore, tiene d'occhio anche quelli costruiti dopo): .side, .gis, .cmp-root, anche a destra (.solidcad): bordo da trascinare, linguetta per chiudere del tutto, doppio clic = chiudi, ricordati in localStorage `mbv-pannello-<viewer>-<n>`. Solo col mouse (html.touch e html.phone hanno i loro cassetti).
+Collaudo: `node tests/test_cad_layout.mjs` (matrici confrontate con ezdxf); nell'app con Edge senza finestra su architectural_-_annotation_scaling_and_multileaders.dwg (Autodesk, 4 finestre) e sample_AC1032_ascii.dxf: la vista coincide con l'anteprima di stampa disegnata da ezdxf.
+
+## Tubazioni .cii (04/11/2026) - FATTO (solo file di questa struttura)
+Categoria `piping` (viewer model3d, applicazione "modelli", anche web app). `ui/js/ciiparse.js` (puro, `node tests/test_cii.mjs`) legge il testo a sezioni `#$ VERS, UNIT, MATER, GEOM, BEND, VALV, REDU, SUPP, END`; `ui/js/cii.js` costruisce la scena (mm, Y in alto, un gruppo per elemento con i dati in userData, `pickParent` sulle mesh). I file dati dall'utente sono FATTI A MANO e NON hanno la struttura del neutro vero di CAESAR II (`#$ VERSION`, `#$ ELEMENTS`...): un .cii senza tratti leggibili si apre come testo (model3d.js `mount`). Nessun .cii esportato da CAESAR II provato.
+Scelte dedotte, sempre scritte nella barra di stato o nelle proprieta' (l'utente non conosce il significato delle colonne: NON chiederglielo): US = piedi se il tratto medio sarebbe piu' corto di 3 diametri, altrimenti pollici; SI = mm; GEOM colonne 9 e 10 = temperatura e pressione, colonna 8 mostrata senza nome; VALV colonna 3 = lunghezza; valvola su un nodo assente da GEOM = sul tratto col numero compreso, in proporzione (25 tra 20 e 30). Limiti: BEND e' un anello sul nodo (raccordo non costruito), nessun calcolo.
+
+## Apertura dal contenuto ed estensioni di testo (06/11/2026) - FATTO
+Richiesta dell'utente: "deve aprire tutto cio' che fisicamente si puo' aprire, niente sorprese" (catalogo di 11.535 estensioni da TrID, PRONOM,
+mime-db, freedesktop, Linguist: MB Desk ne conosceva ~1.000). Analisi e piano in 4 punti approvati dall'utente: (1) contenuto, (2) testo e
+codice, (3) audio/video/immagini/zip con campioni veri, (4) lettori nuovi per i formati diffusi che mancano (EPS/AI, DGN, ifczip, ifcxml, PCF/IDF,
+Access, PST, DjVu, mobi, xcf, kra, zst, lz4, vhdx, sav/dta...). Elenco consegnato all'utente: Desktop\MB Desk\Estensioni_da_aggiungere.csv.
+- (1) app.js `contentType`: estensione sconosciuta (o estensione di testo con contenuto binario, `TEXTISH`) -> `api/recover?op=probe`
+  (`recover.probe_open`: firme di `identify`, poi i motori: Pillow, FFmpeg (non i demuxer tty/image2/sottotitoli), 7-Zip) -> categoria della
+  prima estensione del registro con certezza alta/media; ctx.ext = quella estensione (i visualizzatori usano ctx.ext; oo.js ora anche lui),
+  barra di stato "X (riconosciuto dal contenuto)" (`app.dal_contenuto`). Web app: solo `KIND_EXT` dal sniff di webapi.js.
+  Provato nell'app su 17 file con estensioni inventate (PNG, TGA, WAV, AVI, PDF firmato, ZIP, SQLite, DOCX, DXF, STL, CSV, JSON, XML, MD, EML;
+  i dati casuali restano "non supportato").
+- (2) `tools/add_text_formats.py <languages.yml> [catalogo.csv]` (rilanciabile) -> categoria "text" + `ui/js/textlangs.js` (estensione ->
+  linguaggio di Monaco, usato da monaco.js `languageFor`): 1.392 estensioni (1.196 da GitHub Linguist, 196 da tipo MIME testo/XML/JSON).
+  Provate nell'app su 886 file di esempio di Linguist (github-linguist/linguist samples/, solo prova locale): 886/886 aperte nell'editor.
+  Le 506 senza campione sono comunque linguaggi di testo dichiarati da Linguist o tipi MIME testuali.
+- (3) Campioni veri: fate-suite.ffmpeg.org (indice letto per nome, 36 file con estensioni assenti) e Tests/images di Pillow. Registrate solo
+  le estensioni distintive aperte nell'app con durata/immagine letta: media anm bfi c93 cmv dxa fmv hnm mtv pva rpl sndanim tgq thp tmv trec
+  txd vp6 vqa wve znm 3gpp 3gp2 3gpp2, audio cdata f4a f4b, testo aqt pjs scc gpl ggr. Quelle generiche (.bin .vid .pix .bit .dee .idx .sun,
+  formati Pillow senza estensione propria come IMT, McIDAS, SPIDER, XV) restano al riconoscimento dal contenuto (immagine del motore = ext tga,
+  audio/video = mkv/mka, archivio = 7z: `probe.kind`). Non leggibili da nessun motore incluso: G.728 grezzo, PCM senza intestazione (.old),
+  .raki, sottotitoli PGS .sup, font .pil, texture Quake .wal; .mks con soli sottotitoli si apre nel lettore ma non ha nulla da riprodurre.
+- Prove in Edge senza finestra: chiudere gli Edge di prova rimasti aperti (--headless, profilo mbsa-*) prima di un giro lungo: dieci istanze
+  orfane rendevano ogni apertura lentissima. Errore noto e precedente: chiudendo una scheda di testo Monaco lancia un ErrorEvent (innocuo).
+
+## Punto 4: formati nuovi con lettori propri (06/11/2026) - IN CORSO
+- `.ifczip` (categoria mesh3d): model3d.js `unzipIfc` = il motore estrae l'.ifc piu' grande in TEMP (cosi' IFC -> STEP e il resto lavorano
+  su un .ifc vero; ctx.zipPath = originale), nella web app JSZip (`ctx.innerBytes`). Provato su un .ifczip di tests/samples/interferenze.
+- `.ifcxml` (categoria mesh3d): `mbvisual/ifcxml.py` traduce l'albero XML in entita' con lo schema di IfcOpenShell (attributi diretti,
+  inversi annidati come HasAssignments/Declares, href/ref, liste e valori tipizzati; IFC4 e forma ISO 10303-28 di IFC2x3 con `uos`)
+  -> IFC in TEMP/ifcxml aperto da model3d.js come un IFC. Provati GeometryGym ParametricFooting/surfaceMember (stesse entita' dell'IFC
+  gemello, salvo quelle che l'esportatore non ha scritto nell'XML) e jmirtsch/GitIFCPrototype "revit beams" (2 travi con geometria).
+- PCF di ISOGEN (categoria piping): `ui/js/pcfparse.js` (puro, `node tests/test_pcf.mjs [file]`) + `ui/js/pcf.js` (scena, Z in alto ruotata
+  da model3d come i CAD). Componenti per parola chiave, punti END/CENTRE/BRANCH1/CO-ORDS, attributi nelle proprieta'; diametro esterno dalla
+  misura nominale (tabella ASME B36.10; DN350+ = DN/25 pollici); curva = arco con CENTRE-POINT come vertice delle tangenti (se manca o
+  coincide con un estremo: tratto dritto); OLET = attacco + derivazione; sezione MATERIALS esclusa; BOM tolto. Provati 6 PCF pubblici
+  (Cszabi/IsoSurvey, FinSeifert/pcf-viewer.github.io, erickcortez1/engineering-toolkit, kaushikray0601/eht_office, reallakshman19/...,
+  baiheinet/...): tutti i componenti con punti disegnati. `.pcf` e' anche un carattere X11 binario: allora l'errore "non e' un PCF".
+- Archivi .zst/.zstd/.tzst e .lz4/.tlz4 (categoria archive): archive.py `SINGLE` (flusso unico con zstandard/lz4; .tzst/.tlz4 = tar dentro),
+  firme in recover SIGS e misc.sniff.
+- Dati statistici SPSS/Stata/SAS (.sav .zsav .por .dta .sas7bdat .xpt, categoria scidata): fx_sci.py `_stat_table` con pyreadstat (MIT) ->
+  pyarrow, etichette dei valori. Un binario con estensione di testo che nessun motore legge = "File non supportato" (non caratteri a caso).
+- Grafica: Krita .kra / XMind = immagine unita o anteprima salvata nello zip (misc `_zip_picture`, ZIP_PICTURES), .emz/.wmz = EMF/WMF in gzip,
+  Illustrator .ai compatibili PDF nel visualizzatore PDF (gli .ai vecchi solo PostScript: no).
+- Access .mdb/.accdb/.mde/.accde: `mbvisual/mdb.py` (access_parser, Apache-2.0) -> copia SQLite in TEMP/access aperta col visualizzatore
+  SQLite (l'originale non si tocca; tabelle illeggibili in `_mbdesk_tabelle_non_lette`). Firma "Standard Jet/ACE DB" a 4 PRIMA dei font.
+- Outlook .pst/.ost (categoria email): `mbvisual/pst.py` (libpff-python = pypff, LGPL-3.0). Aprire SEMPRE con open_file_object: con un
+  percorso a barre in avanti libpff lo raddoppia. Indice di tutti i messaggi all'apertura (nessun limite), messaggio completo con
+  `api/email?path&i=n` (corpo HTML / testo / RTF via RTFDE, destinatari dalle intestazioni o da PR_DISPLAY_TO/CC, allegati in TEMP).
+  email.js: elenco virtuale, cartella e ricerca. Firma "!BDN". Collaudo `python tests/test_pst.py <file|cartella>` (campioni pubblici
+  java-libpst src/test/resources e pst-extractor testdata: 78 messaggi su 78). Non estratti: messaggi allegati ad altri messaggi,
+  PST con password. Contatti e appuntamenti mostrano solo oggetto e testo.
+- OFF (Object File Format, anche COFF/NOFF/STOFF; categoria mesh3d): `ui/js/offparse.js` (puro, `node tests/test_off.mjs [file]`) +
+  `ui/js/off.js` (colori per faccia o vertice, spigoli isolati). 4OFF e OFF BINARY rifiutati con messaggio.
+- GIMP .xcf (categoria image): `mbvisual/xcf.py` scritto da devel-docs/xcf.txt: livelli ricomposti dal basso (visibilita', opacita',
+  posizione, maschera, gruppi nascosti), RLE/zlib, 8-32 bit intero e virgola mobile, grigi/indicizzata, versioni 0-11+; modi di
+  fusione diversi da "normale" approssimati (scritto nella barra di stato). Provati v003 (46 livelli) e v011.
+- .idf/.emn/.emp = testo (IDF delle schede elettroniche, ISOGEN, EnergyPlus); IDF e OFF riconosciuti anche dal contenuto (recover).
+- MicroStation DGN V7 (categorie cad2d e text: decide il contenuto, .dgn e' anche un linguaggio): `mbvisual/dgn.py` (struttura come
+  dgnlib di GDAL: interi "middle-endian", doppi VAX, TCB con unita'/origine) -> copia DXF in TEMP/dgn aperta da cad2d.js (ctx.dgnSource =
+  originale, niente salvataggio sul posto). Linee, polilinee, forme, curve, testi, ellissi, archi, catene/forme complesse, celle; 2D e 3D;
+  livelli -> "Livello N"; colori della tabella del file. Collaudo `python tests/test_dgn.py <cartella>` (smalltest.dgn di GDAL + DGN
+  scritti da GDAL/pyogrio in un venv a parte, con <nome>.ref.json: 510 punti uguali). DGN V8 (OLE di Bentley): "File non supportato".
+- Kindle .mobi/.azw/.azw3/.kf8 senza DRM e Calibre .htmlz/.txtz (categoria ebook): `mbvisual/kindle.py` (wiki MobileRead: PalmDOC, extra
+  flags, MOBI 6 diviso ai pagebreak, KF8 = FDST + indici INDX/TAGX di scheletri e frammenti) -> EPUB in TEMP/ebook aperto da epub.js
+  (indice dai titoli delle parti, copertina EXTH 201, CSS e immagini kindle:flow/kindle:embed). DRM e HUFF/CDIC: messaggio. Collaudo
+  `python tests/test_kindle.py <cartella>` (Project Gutenberg .kindle.images / .kf8.images: MOBI e AZW3 dello stesso libro = stesse parole).
+  Web app: "ebook" e "database" ora con elenco esplicito in build_web.py (Kindle e Access vogliono il motore Python).
+- EPS (.eps .epsf .epsi, categorie image e text: decide il contenuto) senza Ghostscript (AGPL): `mbvisual/eps.py` usa l'immagine che il
+  file contiene: %ImageData di Photoshop (binario, esadecimale, ASCII85; bitmap/grigi/RGB/CMYK), anteprima TIFF/WMF dell'intestazione DOS,
+  anteprima EPSI. EPS solo vettoriali = testo. Collaudo `python tests/test_eps.py <Tests/images di Pillow>` (identici ai riferimenti).
+
+## Lavori CAESAR II .C2 (06/11/2026) - FATTO (un solo file vero provato)
+Segnalazione dell'utente: un .C2 non si apriva (.c2 era solo audio Codec2). Ora `.c2` sta anche nella categoria `piping`; decide il contenuto
+(misc.sniff / webapi.js sniff: 82 80 02 00 in testa e zlib a 32 -> kind "piping"). Il .C2 e' un ARCHIVIO del lavoro (struttura vista nel file,
+nessuna documentazione: voci con 32 byte di intestazione [u32, u32 lunghezza compressa, 3 FILETIME] + zlib; nei dati u32 = 264 = intestazione
+con il nome del file): _A (ingresso binario, NON letto), .c2db/.p2db (SQLite senza geometria), _P (risultati binari), .NTXT = listato di
+verifica dell'ingresso IN CHIARO, l'unica parte letta (`ui/js/c2parse.js`, puro, `node tests/test_c2.mjs [file.C2]`). Righe con etichetta
+di 4 lettere e campi a colonne fisse (primo largo 15, poi 10); campi vuoti = valore dell'elemento precedente (diametro, spessore, T, P).
+ELMT = da, a, DX, DY, DZ, diametro, spessore (unita' del lavoro); EL03 = T1, T2, T3, P1 (riscontrati con la tabella Elements del .p2db);
+RED = diametro e spessore finali; RIGD = peso dell'elemento rigido; BEND = raggio, BN01 = (nodo, angolo) a coppie, "MidPt" = meta';
+REST/RE02/RE04 = nodo, tipo (indice nell'elenco di CAESAR II con 0 = ANC, 17 = +Y: dedotto e coerente con la geometria), attrito al 5o campo;
+CO01 = coordinate globali. Nodi sulle curve calcolati sull'arco (le derivazioni che partono da li' si agganciano). Disegno = cii.js
+(`loadCii(ctx, null, ld, P)`). NON letti: carichi, materiali, ammissibili, i risultati. Se l'archivio non ha il .NTXT: messaggio chiaro.
+
+## SAMB: calcolo delle tubazioni (05/11/2026) - IN CORSO, primo passo fatto
+Nome scelto dall'utente: SAMB (NON "MB Caesar": CAESAR II e' un marchio altrui). Obiettivo: fare cio' che fa CAESAR II, meglio; "meglio" si potra' dire solo dopo il confronto con i modelli e i risultati CAESAR II che porta l'utente.
+NASCOSTO NELLE VERSIONI PUBBLICATE (decisione dell'utente, 05/11/2026): il pulsante compare solo con localStorage mbv-samb = 1, finche' il confronto con CAESAR II non e' fatto. Pulsante SAMB nel visualizzatore dei .cii -> `ui/js/samb/sambpanel.js`, puro: `sambmodel.js` (.cii -> N, mm, MPa, gradi C; curve = 6 corde con k, valvole rigide 10x con peso al centro, riduzioni a diametro medio; ogni deduzione finisce in `warnings`, chiavi `samb.w_*`), `sambsolve.js` (trave di Timoshenko, banda con Cuthill-McKee, vincoli rigidi come molle 1e12/1e15, monodirezionali con stato attivo), `sambcode.js` (SUS, OPE, EXP = OPE-SUS; ASME B31.3 SL, SE, SA). Dati in `<nome>.samb` accanto al file. Collaudo: `node tests/test_samb.mjs [file.cii]` (forme chiuse: mensola, incastro, appoggi, termico, telaio a L, curva con k, equilibrio).
+FORMULE DI B31.3 SCRITTE A MEMORIA: da riscontrare sul testo della norma. Sc e Sh li inserisce l'utente: le tabelle della norma non si copiano nel programma. Il pannello mostra sempre l'avviso "in fase di validazione": toglierlo solo dopo il confronto con CAESAR II.
+DA FARE: confronto con CAESAR II, lettura del neutro vero di CAESAR II, editor del modello, carichi occasionali, EN 13480, relazione PDF, dinamica, bocchelli.
+
 ## Vista 3D dei DWG/DXF (28/10/2026) - FATTO (da provare sui file veri dell'utente)
 Segnalazione dell'utente: "un DWG 3D si apre in 2D". Pulsante "3D"/"2D" sempre in testa alla barra del visualizzatore CAD
 (`cad2d.js`: `show3d`/`show2d`, model3d.js montato con `preloaded`, come i modelli 3D dei DWF). `ui/js/cad3dscan.js analyze3d`
@@ -1918,3 +2021,46 @@ nell'installabile (una casella gia' spuntata non e' un consenso valido). Solo ap
   variabile SUPPORT_EMAIL di wrangler.toml se si aggiunge un indirizzo NEUTRO (mai quello col nome dell'utente). Bozza legale.
 - Collaudo: `node server/test/harness.mjs` (statistiche, cancellazione su richiesta, pagine pubbliche), `python tests/test_stats.py` (22 prove).
 - Informativa nell'app e /privacy = BOZZE da far rivedere a un consulente privacy (titolare: MB Workshop Srl).
+
+## Miglioramento foto e immagini da descrizione (10/11/2026) - FATTO
+Richiesta dell'utente: Real-ESRGAN e Stable Diffusion DENTRO l'editor di immagini (niente menu a parte), sempre presenti su ogni PC,
+nessun filtro sul contenuto. (La vecchia parte "IA" con Python/torch resta tolta: questa non usa Python per i modelli.)
+- Motori (`tools/fetch_image_engines.py`, versioni e sha256 fissi, in bin/ ma fuori da git; build_portable lo chiama da solo):
+  bin/realesrgan = realesrgan-ncnn-vulkan 20220424 (BSD-3) con realesrgan-x4plus e -anime; bin/sd/vulkan e bin/sd/cpu =
+  stable-diffusion.cpp master-1079-a3c49b1 (MIT). Solo x64 (nessuna build ARM64): sul Surface gira in emulazione.
+- Modelli scaricati la prima volta in DATA_DIR/immagini/modelli con barra di avanzamento, ripresa e sha256: SD 1.5 Q8_0 GGUF
+  (second-state, CreativeML OpenRAIL-M = uso commerciale permesso) e LCM-LoRA (OpenRAIL++) per il processore (6 passi invece di 25).
+- `mbvisual/immagini.py`: scheda video in locale = Vulkan con ctypes in un processo figlio (`--vk-elenco`, un driver difettoso non
+  ferma l'app; vulkaninfo.exe su questo PC va in crash), ripiego sul registro. Idonea a migliorare = qualsiasi scheda Vulkan vera;
+  idonea a generare = NVIDIA/AMD con >= 7,5 GB dichiarati (8 GB). Motore SD: Vulkan sulle schede vere (anche non idonee con >= 3,5 GB),
+  altrimenti CPU con LCM; Vulkan che fallisce -> di nuovo su CPU. Real-ESRGAN lavora sempre a 4x, poi Lanczos a 2x/3x; alfa a parte.
+- Editor (`ui/js/imgai.js` + imgedit.js): Immagine > Dimensione immagine > Ricampiona "Migliora con IA (Real-ESRGAN)" con 2x/3x/4x e
+  Foto/Disegni (ogni livello di pixel passa dal motore, gli altri si ricampionano); Livello > Nuovo > "Crea immagine da descrizione..."
+  = livello nuovo. Scheda non idonea = "La scheda video di questo PC non e' idonea... Procedo lo stesso?" Procedi/Annulla.
+- Riga di comando (app.py, per altri programmi come I Saggi): `--migliora <foto> <uscita.png> [2|3|4] [--disegno]`,
+  `--genera "<descrizione>" <uscita.png> [larghezza altezza] [--negativo ".."] [--passi n] [--seme n]`, `--scheda-video` (JSON).
+  Senza `--anche-lenta` su scheda non idonea: codice 3 e la frase su stderr; 0 = file scritto (JSON del risultato su stdout); 1 = errore.
+  Nell'exe senza console stdout/stderr si prendono con GetStdHandle (app.py li manderebbe nel registro).
+- API: GET `immagini/scheda-video`, POST `immagini/migliora` (JSON {path,out,scala,modello,anche_lenta} o PNG nel corpo),
+  POST `immagini/genera` ({descrizione,out,larghezza,altezza,negativo,passi,seme,anche_lenta}) = lavori come api/convert
+  (409 non_idonea senza anche_lenta), `immagini/annulla?rid=`. Testi `imgai.*`, `srv_immagini.*` (5 lingue).
+- Collaudo: `python tests/test_immagini.py [--vero]` (MBV_FOTO_PROVA=<foto> per una foto vera).
+- Real-ESRGAN sulle schede integrate (Adreno): con tessere "automatiche" il risultato usciva NERO senza errori. Ora tessere 128
+  (64, 32) fuori da NVIDIA/AMD e nuovo tentativo se l'uscita e' vuota. Tempi sul Surface: 1200x900 -> x2/x4 ~80 s, 220x220 x4 6 s.
+  Generazione 512x512 sul processore (LCM, 6 passi) ~190 s, 768x512 ~350 s.
+- 1.6.19 (10/11/2026): RITOCCO di una zona (Modifica > "Ritocca una zona con descrizione...": selezione o livello "Maschera ritocco"
+  dipinto col pennello -> descrizione -> livello nuovo con la sola zona) = SD 1.5 inpainting Q8_0 GGUF (gpustack, OpenRAIL-M);
+  ritaglio attorno alla zona a ~640 punti, incollato con bordo sfumato: fuori dalla maschera la foto resta identica.
+  CAMBIO POSA (Modifica > "Cambia la posa della persona...") = ControlNet 1.1 OpenPose fp16 + img2img dalla foto (forza 0,45-0,95);
+  scheletro a 18 punti (OpenPose COCO) riconosciuto con MediaPipe Pose Landmarker (`ui/js/imgpose.js`, ui/vendor/mediapipe da
+  fetch_vendor.py, Apache-2.0) e spostabile a mano, o preso da un'altra foto (`fitPose`). Volto e abiti restano simili, NON identici
+  (limite di SD 1.5 senza IP-Adapter). LIMITE FISSO chiesto dall'utente SOLO per questi ritocchi su foto di persone reali: niente
+  nudita' ne' riduzione degli abiti = prompt negativo fisso `NEG_FISSO` + rifiuto (`controlla_descrizione`, regex it/en) delle
+  richieste di togliere/ridurre i vestiti; cambiare un vestito con un altro e' il caso normale. Non toglierlo.
+  Riga di comando: `--ritocca <foto> <maschera.png> "<descrizione>" <uscita.png>` (maschera: bianco o opaco = zona) e
+  `--posa <foto> <posa.png|json> <uscita.png> [--descrizione ".."] [--forza 0.75]` (png = immagine dello scheletro OpenPose;
+  json = {"keypoints": [[x,y,c]x18]} in pixel o 0-1, oppure il formato di OpenPose con people/pose_keypoints_2d); stessi codici
+  0/1/3 (rifiuto = 1). API: `immagini/carica` (PNG nel corpo -> percorso), `immagini/ritocca`, `immagini/posa` (posa anche come
+  oggetto JSON). Tempi sul Surface (processore, LCM 8 passi): cambio posa 512x768 ~375 s, ritocco ~370 s. La zona da ridisegnare
+  parte GRIGIA (senza, il colore del vestito vecchio passava nel risultato), LCM con cfg 2,2. Aggiornamenti: controllo anche
+  ogni 2 ore; "Piu' tardi" = avviso cliccabile nella barra di stato (il Surface era rimasto alla 1.6.14: avviso solo all'avvio).

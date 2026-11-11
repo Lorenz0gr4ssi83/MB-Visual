@@ -9,6 +9,35 @@ from pathlib import Path
 from .paths import NO_WINDOW, TEMP_DIR, find_7zip
 from .i18n import t as tr
 
+# compressori di un solo file che 7-Zip non legge: Zstandard (zstandard, BSD) e LZ4 (lz4, BSD). L'archivio mostra il file
+# contenuto (nome senza l'estensione del compressore; .tzst/.tlz4 = .tar), che si estrae decomprimendo a flusso.
+SINGLE = {b"\x28\xb5\x2f\xfd": "zstd", b"\x04\x22\x4d\x18": "lz4"}
+
+
+def _single_kind(path: str):
+    try:
+        with open(path, "rb") as f:
+            return SINGLE.get(f.read(4))
+    except OSError:
+        return None
+
+
+def _inner_name(path: str) -> str:
+    p = Path(path)
+    if p.suffix.lower() in (".tzst", ".tlz4"):
+        return p.stem + ".tar"
+    return p.stem if p.suffix else p.name + ".out"
+
+
+def _single_stream(path: str, kind: str):
+    f = open(path, "rb")
+    if kind == "zstd":
+        import zstandard
+        return zstandard.ZstdDecompressor().stream_reader(f, closefd=True)
+    import lz4.frame
+    return lz4.frame.open(f, "rb")
+
+
 EDITABLE = {".zip", ".7z", ".tar", ".wim", ".jar", ".war", ".ear", ".xpi", ".cbz", ".cb7", ".zipx", ".apk",
             ".nupkg", ".vsix", ".whl", ".egg", ".kmz", ".ova"}
 
@@ -25,6 +54,12 @@ def _run7z(args, cwd=None):
 
 
 def list_entries(path: str, password: str | None = None) -> dict:
+    kind = _single_kind(path)
+    if kind:
+        import os
+        st = os.stat(path)
+        return {"ok": True, "items": [{"path": _inner_name(path), "dir": False, "size": 0, "packed": st.st_size, "modified": "", "encrypted": False}],
+                "type": kind, "editable": False}
     exe = find_7zip()
     if exe:
         args = ["l", "-slt", "-sccUTF-8", "-p" + (password or ""), path]
@@ -71,6 +106,12 @@ def extract(path: str, entry: str | None = None, dest: str | None = None, passwo
     """Estrae un elemento (o tutto) e ritorna il percorso estratto."""
     out_dir = Path(dest) if dest else TEMP_DIR / "archivi" / uuid.uuid4().hex[:8]
     out_dir.mkdir(parents=True, exist_ok=True)
+    kind = _single_kind(path)
+    if kind:
+        target = out_dir / _inner_name(path)
+        with _single_stream(path, kind) as src, open(target, "wb") as dst:
+            shutil.copyfileobj(src, dst, 4 * 1024 * 1024)
+        return str(target)
     if find_7zip():
         args = ["x", "-y", "-sccUTF-8", "-p" + (password or ""), "-o" + str(out_dir), path]
         if entry:

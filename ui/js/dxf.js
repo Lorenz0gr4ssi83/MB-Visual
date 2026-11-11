@@ -9,7 +9,7 @@ export function parseDxf(text) {
     if (isNaN(code)) { i--; continue; }
     pairs.push([code, lines[i + 1]]);
   }
-  const layers = [], blocks = [], entities = [], ltypes = [], header = {}, acds = new Map(), imageDefs = {};
+  const layers = [], blocks = [], entities = [], ltypes = [], header = {}, acds = new Map(), imageDefs = {}, layouts = [];
   let i = 0;
   const next = () => pairs[i++];
   const peek = () => pairs[i];
@@ -93,7 +93,7 @@ export function parseDxf(text) {
         if (bc === 0 && bv.trim() === "BLOCK") {
           const g = [];
           while (i < pairs.length && pairs[i][0] !== 0) g.push(next());
-          const b = { name: val(g, 2) || val(g, 3), basePoint: pt(g, 10), entities: [] };
+          const b = { name: val(g, 2) || val(g, 3), basePoint: pt(g, 10), entities: [], handle: val(g, 330) };
           readEntities(b.entities, "ENDBLK");
           if (i < pairs.length && peek()[1].trim() === "ENDBLK") { i++; readEntity("ENDBLK"); }
           blocks.push(b);
@@ -109,6 +109,12 @@ export function parseDxf(text) {
           while (i < pairs.length && pairs[i][0] !== 0) g.push(next());
           const h = val(g, 5), f = val(g, 1);
           if (h && f) imageDefs[h.toUpperCase()] = f;
+        } else if (oc === 0 && ov.trim() === "LAYOUT") {
+          // fogli: i campi del layout vengono dopo quelli di stampa, che usano gli stessi codici
+          const g = [];
+          while (i < pairs.length && pairs[i][0] !== 0) g.push(next());
+          const k = g.findIndex(x => x[0] === 100 && x[1].trim() === "AcDbLayout");
+          if (k >= 0) { const s = g.slice(k); layouts.push({ layoutName: val(s, 1), tabOrder: num(s, 71), minLimit: pt(s, 10), maxLimit: pt(s, 11), paperSpaceTableId: val(s, 330) }); }
         }
       }
     } else if (sec === "TABLES") {
@@ -123,7 +129,7 @@ export function parseDxf(text) {
           const ci = num(g, 62, 7);
           const flags = num(g, 70, 0);
           const tc420 = val(g, 420);
-          layers.push({ name, colorIndex: Math.abs(ci), color: tc420 !== undefined ? parseInt(tc420, 10) : undefined, off: ci < 0, frozen: !!(flags & 1), lineType: val(g, 6) || "", lineweight: num(g, 370, -3) });
+          layers.push({ name, handle: val(g, 5), colorIndex: Math.abs(ci), color: tc420 !== undefined ? parseInt(tc420, 10) : undefined, off: ci < 0, frozen: !!(flags & 1), lineType: val(g, 6) || "", lineweight: num(g, 370, -3) });
         } else if (tc === 0 && tv.trim() === "LTYPE") {
           const g = [];
           while (i < pairs.length && pairs[i][0] !== 0) g.push(next());
@@ -135,7 +141,7 @@ export function parseDxf(text) {
   }
   if (acds.size) for (const list of [entities, ...blocks.map(b => b.entities)]) for (const e of list) if (ACIS.has(e.type) && !e.acis && acds.has(String(e.handle).toUpperCase())) e.acis = { sab: acds.get(String(e.handle).toUpperCase()) };
   for (const e of entities) if (e.type === "IMAGE" && e.defHandle) e.fileName = imageDefs[e.defHandle.toUpperCase()];
-  return { header, entities, tables: { LAYER: { entries: layers }, BLOCK_RECORD: { entries: blocks }, LTYPE: { entries: ltypes } } };
+  return { header, entities, objects: { LAYOUT: layouts }, tables: { LAYER: { entries: layers }, BLOCK_RECORD: { entries: blocks }, LTYPE: { entries: ltypes } } };
 }
 
 // solidi, regioni, corpi e superfici ACIS (vista 3D: ui/js/cad3d.js)
@@ -242,6 +248,11 @@ function toEntity(type, g) {
       }
       break;
     }
+    case "VIEWPORT":
+      e.viewportCenter = pt(g, 10); e.width = num(g, 40); e.height = num(g, 41); e.status = num(g, 68, 1); e.viewportId = num(g, 69);
+      e.displayCenter = pt(g, 12); e.viewDirection = pt(g, 16); e.targetPoint = pt(g, 17); e.viewHeight = num(g, 45); e.viewTwistAngle = num(g, 51) * D2R;
+      e.frozenHandles = g.filter(x => x[0] === 331).map(x => x[1].trim().toUpperCase());
+      break;
     case "IMAGE": e.insertionPoint = pt(g, 10); e.uPixel = pt(g, 11); e.vPixel = pt(g, 12); e.imageSize = { x: num(g, 13), y: num(g, 23) }; e.defHandle = val(g, 340); break;
     case "SOLID": case "TRACE": case "3DFACE":
       e.corner1 = pt(g, 10); e.corner2 = pt(g, 11); e.corner3 = pt(g, 12); e.corner4 = pt(g, 13); break;

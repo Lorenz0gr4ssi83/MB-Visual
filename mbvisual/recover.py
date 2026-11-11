@@ -89,6 +89,8 @@ SIGS = [
     (0, b"#!AMR", "amr", "av", "AMR"),
     (0, b".snd", "au", "av", "AU"),
     (0, b"7z\xbc\xaf\x27\x1c", "7z", "zip", "7-Zip"),
+    (0, b"\x28\xb5\x2f\xfd", "zst", "zip", "Zstandard"),
+    (0, b"\x04\x22\x4d\x18", "lz4", "zip", "LZ4"),
     (0, b"Rar!\x1a\x07", "rar", "zip", "RAR"),
     (0, b"\x1f\x8b", "gz", "zip", "GZIP"),
     (0, b"BZh", "bz2", "zip", "BZIP2"),
@@ -102,6 +104,9 @@ SIGS = [
     (0, b"conectix", "vhd", "zip", "VHD"),
     (0, b"KDMV", "vmdk", "zip", "VMDK"),
     (0, b"SQLite format 3\x00", "sqlite", "db", "SQLite"),
+    (4, b"Standard Jet DB", "mdb", "db", "Microsoft Access (Jet)"),
+    (4, b"Standard ACE DB", "accdb", "db", "Microsoft Access (ACE)"),
+    (0, b"!BDN", "pst", "doc", "Outlook PST/OST"),
     (4, b"Standard Jet DB", "mdb", "db", "Access MDB"),
     (4, b"Standard ACE DB", "accdb", "db", "Access ACCDB"),
     (0, b"PAR1", "parquet", "db", "Parquet"),
@@ -110,6 +115,9 @@ SIGS = [
     (0, b"CDF\x01", "nc", "db", "NetCDF"),
     (0, b"CDF\x02", "nc", "db", "NetCDF"),
     (0, b"AC10", "dwg", "cad", "AutoCAD DWG"),
+    (60, b"BOOKMOBI", "mobi", "doc", "Kindle MOBI / AZW3"),
+    (0, b"\x08\x09\xfe\x02", "dgn", "cad", "MicroStation DGN V7 (2D)"),
+    (0, b"\xc8\x09\xfe\x02", "dgn", "cad", "MicroStation DGN V7 (3D)"),
     (0, b"AC1.40", "dwg", "cad", "AutoCAD DWG"),
     (0, b"(DWF V", "dwf", "cad", "Autodesk DWF"),
     (0, b"glTF", "glb", "3d", "glTF"),
@@ -211,7 +219,8 @@ def _text_kind(sample: bytes) -> tuple[str, str] | None:
         return "html", "HTML"
     if low.startswith(b"<?xml") or low.startswith(b"<"):
         for tag, ext, label in ((b"<kml", "kml", "KML"), (b"<gpx", "gpx", "GPX"), (b"<collada", "dae", "COLLADA"), (b"<x3d", "x3d", "X3D"),
-                                (b"<rss", "xml", "RSS"), (b"<visiodocument", "vdx", "Visio XML")):
+                                (b"<rss", "xml", "RSS"), (b"<visiodocument", "vdx", "Visio XML"),
+                                (b":ifcxml", "ifcxml", "ifcXML"), (b"<ifcxml", "ifcxml", "ifcXML"), (b"ifcxml/ifc2x", "ifcxml", "ifcXML")):
             if tag in sample[:4000].lower():
                 return ext, label
         return "xml", "XML"
@@ -232,6 +241,10 @@ def _text_kind(sample: bytes) -> tuple[str, str] | None:
         return "dxf", "DXF"
     if s.startswith(b"solid ") and b"facet" in sample[:2000]:
         return "stl", "STL"
+    if re.match(rb"(ST)?C?N?OFF(\s+\d+\s+\d+|\s*\r?\n\s*(#[^\n]*\n\s*)*\d+\s+\d+)", s):
+        return "off", "OFF (Object File Format)"
+    if re.match(rb"\.HEADER\s*\r?\n\s*(BOARD|PANEL|LIBRARY)_FILE", s):
+        return "emn", "IDF"
     if re.match(rb"(Received|Return-Path|From|MIME-Version|Message-ID|Delivered-To|Subject|Date|X-[\w-]+):", s):
         return "eml", "Email"
     if s.startswith(b"From ") and b"\nFrom:" in sample:
@@ -343,10 +356,14 @@ def identify(path: str) -> dict:
         nul = sample.count(b"\x00")
         if sample[:2] in (b"\xff\xfe", b"\xfe\xff") or (nul > len(sample) * 0.3 and sample[1::2].count(b"\x00") > len(sample) * 0.4):
             try:
-                dec = sample.decode("utf-16")
-                ext, label = _text_kind(dec.encode("utf-8"))
-                add(ext, label + " (UTF-16)", "txt", "media")
-                texty = True
+                bom = sample[:2] in (b"\xff\xfe", b"\xfe\xff")
+                dec = sample.decode("utf-16" if bom else "utf-16-le")
+                # testo vero: senza caratteri di controllo (i dati binari pieni di zeri sembrano UTF-16 ma non lo sono)
+                ctrl = sum(1 for ch in dec if (ord(ch) < 32 and ch not in "\r\n\t") or 0xD800 <= ord(ch) <= 0xDFFF)
+                if bom or ctrl <= len(dec) * 0.01:
+                    ext, label = _text_kind(dec.encode("utf-8"))
+                    add(ext, label + " (UTF-16)", "txt", "media")
+                    texty = True
             except UnicodeDecodeError:
                 pass
         elif nul == 0:
@@ -1335,3 +1352,67 @@ def write_bytes(path: str, name: str, data: bytes) -> dict:
 def out_path(path: str, name: str) -> dict:
     safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)[:150]
     return {"ok": True, "path": str(_outdir(path) / safe)}
+
+
+# ---------------------------------------------------------------- apertura dal contenuto (estensione sconosciuta)
+# Ordine: firme di identify(), poi i motori stessi (Pillow, FFmpeg, 7-Zip) che dicono se sanno leggere il file. FFmpeg accetta
+# qualsiasi testo come "tty" (arte ANSI) e qualsiasi immagine come image2: quei formati non contano.
+_FF_SKIP = {"tty", "image2", "data", "bin", "lavfi", "concat", "ffmetadata", "srt", "ass", "webvtt", "subviewer", "jacosub", "microdvd"}
+
+
+def _pil_ext(path: str):
+    try:
+        from PIL import Image
+        Image.init()
+        with Image.open(path) as im:
+            fmt = (im.format or "").upper()
+            if not fmt or im.width <= 0:
+                return None
+        exts = [e.lstrip(".") for e, f in Image.registered_extensions().items() if f == fmt]
+        return (exts[0] if exts else fmt.lower()), fmt
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _ffmpeg_ext(path: str):
+    try:
+        from . import media
+        p = media.probe(path)
+    except Exception:  # noqa: BLE001
+        return None
+    fmt = (p.get("formato") or "").split(",")[0].strip()
+    if not fmt or fmt in _FF_SKIP or fmt.endswith("_pipe") or not (p.get("video") or p.get("audio")):
+        return None
+    return ("mkv" if p.get("video") else "mka"), fmt
+
+
+def _7z_ext(path: str):
+    try:
+        from .paths import find_7zip
+        exe = find_7zip()
+        if not exe:
+            return None
+        r = subprocess.run([exe, "l", "-slt", "-sccUTF-8", "-p", path], capture_output=True, creationflags=NO_WINDOW, timeout=60)
+        out = r.stdout.decode("utf-8", "replace")
+        m = re.search(r"^Type = (.+)$", out, re.M)
+        if r.returncode != 0 or not m:
+            return None
+        return "7z", m.group(1).strip()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def probe_open(path: str) -> dict:
+    """Come aprire un file dall'estensione sconosciuta: {guesses (firme), probe: {ext, label} dal motore che lo legge}."""
+    res = identify(path)
+    if not res.get("ok"):
+        return res
+    strong = [g for g in res["guesses"] if g.get("certezza") != "bassa"]
+    res["probe"] = None
+    if not strong and not res.get("testo"):
+        for fn, kind in ((_pil_ext, "image"), (_ffmpeg_ext, "media"), (_7z_ext, "archive")):
+            got = fn(path)
+            if got:  # kind: se l'estensione del motore non e' nel registro l'app usa quella generica del tipo
+                res["probe"] = {"ext": got[0], "label": got[1], "kind": kind}
+                break
+    return res

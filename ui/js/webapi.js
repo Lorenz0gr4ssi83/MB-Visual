@@ -85,6 +85,7 @@ function sniff(h) {
     [s.startsWith("SQLite format 3"), "sqlite", tr("webapi.database_sqlite")], [s.startsWith("AC10"), "cad2d", tr("webapi.disegno_autocad_dwg")], [s.startsWith("glTF"), "mesh3d", tr("webapi.modello_gltf")],
     [s.includes("ISO-10303-21") && new TextDecoder("latin1").decode(h.subarray(0, 4000)).toUpperCase().includes("IFC"), "ifc", tr("webapi.modello_bim_ifc")],
     [s.includes("ISO-10303-21"), "cad3d", tr("webapi.modello_cad_step")], [s.startsWith("MZ"), "exe", tr("webapi.programma_windows")],
+    [h[0] === 0x82 && h[1] === 0x80 && h[2] === 2 && h[3] === 0 && h[32] === 0x78, "piping", tr("webapi.archivio_caesar")], // lavoro CAESAR II .C2
     [h[0] === 0x30 && hasSigned(h), "signed", tr("webapi.busta_firmata_pkcs_7_cades")],
   ];
   for (const [c, kind, descr] of T) if (c) return { kind, descr };

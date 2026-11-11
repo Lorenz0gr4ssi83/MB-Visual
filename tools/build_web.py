@@ -70,11 +70,12 @@ WEB_EXTS = {
     "audio": ["mp3", "wav", "wave", "flac", "ogg", "oga", "opus", "m4a", "aac"],
     "cad2d": ["dwg", "dxf", "dwt"], "cad3d": "*", "mesh3d": "*", "bcf": "*",
     "archive": ["zip", "zipx", "7z", "rar", "tar", "ova", "gz", "gzip", "tgz", "tpz", "bz2", "bzip2", "tbz", "tbz2", "xz", "txz", "lzma", "z", "taz",
-                "cab", "lzh", "lha", "cpio", "rpm", "deb", "ar", "a", "iso", "xar", "jar", "war", "ear", "apk", "aab", "xapk", "ipa",
+                "cab", "lzh", "lha", "cpio", "rpm", "deb", "ar", "a", "iso", "xar", "pkg", "xip", "jar", "war", "ear", "apk", "aab", "xapk", "ipa",
                 "appx", "msix", "appxbundle", "nupkg", "vsix", "xpi", "whl", "egg", "cbz", "cbr", "cb7"],
-    "email": ["eml", "mbox", "mbx"], "ebook": "*", "font": ["ttf", "otf", "woff", "woff2"], "database": "*", "gis": "*",
+    "email": ["eml", "mbox", "mbx"], "ebook": ["epub"], "font": ["ttf", "otf", "woff", "woff2"], "gis": "*",
+    "database": ["sqlite", "sqlite3", "db", "db3", "s3db", "sl3", "gpkg", "mbtiles", "sdb"],  # Access e Kindle: motore Python
     # visualizzatori che funzionano anche senza il motore Python (22/10/2026)
-    "dwf": "*", "calendar": "*", "contacts": "*", "hpgl": "*", "vis3d": "*",
+    "dwf": "*", "calendar": "*", "contacts": "*", "hpgl": "*", "vis3d": "*", "piping": "*",
     "visio": ["vsdx", "vsdm", "vstx", "vstm"],          # i .vsd binari richiedono il motore
     "publisher": ["mbpub"],                              # i .pub di Publisher richiedono il motore
     "pointcloud": ["las", "pts", "xyz"],                 # LAZ/E57/PTX richiedono il motore
@@ -114,6 +115,10 @@ def web_libs(vendor: Path) -> None:
                         out.write_bytes(t.extractfile(m).read())
 
 
+# estensioni che vogliono sempre il motore Python, anche dentro categorie aperte a tutto ("*")
+WEB_NEVER = {"ifcxml"}
+
+
 def web_registry() -> dict:
     reg = json.loads((UI / "formats.json").read_text(encoding="utf-8"))
     cats = []
@@ -122,7 +127,7 @@ def web_registry() -> dict:
         if not allowed:
             continue
         c = dict(c)
-        c["exts"] = list(c["exts"]) if allowed == "*" else [e for e in c["exts"] if e in allowed]
+        c["exts"] = [e for e in c["exts"] if e not in WEB_NEVER] if allowed == "*" else [e for e in c["exts"] if e in allowed]
         if c["id"] in WEB_NOTES:
             c["edit"] = WEB_NOTES[c["id"]]
         c.pop("requires", None)

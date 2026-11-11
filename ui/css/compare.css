@@ -75,7 +75,7 @@
 .cmp-tip { position: absolute; z-index: 4; pointer-events: none; background: rgba(20,22,24,.88); color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 4px; white-space: nowrap; }
 .cmp-hint { position: absolute; left: 10px; bottom: 8px; z-index: 3; font-size: 11.5px; color: #fff; background: rgba(0,0,0,.5); padding: 3px 8px; border-radius: 4px; pointer-events: none; }
 @media (max-width: 760px) {
-  .cmp-root, .cmp-root.with-detail { grid-template-columns: 1fr; grid-template-rows: minmax(0, 38%) minmax(0, 1fr); }
+  .cmp-root, .cmp-root.with-detail { grid-template-columns: 1fr !important; grid-template-rows: minmax(0, 38%) minmax(0, 1fr); }
   .cmp-detail { display: none; }
   .cmp-split { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
 }

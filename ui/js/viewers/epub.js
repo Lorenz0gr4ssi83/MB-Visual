@@ -1,8 +1,14 @@
 // eBook EPUB: lettura a pagine con indice.
-import { button, el, loadScript, readBytes } from "../core.js";
+import { api, button, el, loadScript, loading, readBytes, waitJob } from "../core.js";
 import { t } from "../i18n.js";
 
 export async function mount(ctx) {
+  if (ctx.ext !== "epub") { // Kindle (MOBI/AZW3) e Calibre (htmlz/txtz): copia EPUB in cache (mbvisual/kindle.py)
+    const ld = loading(ctx.el, t("v_epub.conversione"));
+    const r = await waitJob((await api("kindle_epub", { path: ctx.path })).job, (p, m) => ld?.set?.(p, m));
+    ctx.el.innerHTML = "";
+    ctx.path = r.path;
+  }
   await loadScript("/vendor/jszip/dist/jszip.min.js");
   await loadScript("/vendor/epubjs/dist/epub.min.js");
   const bytes = await readBytes(ctx.path);

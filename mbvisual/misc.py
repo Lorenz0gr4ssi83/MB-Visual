@@ -46,6 +46,24 @@ def image_to_png(path: str) -> dict:
             rgb = raw.postprocess(use_camera_wb=True, output_bps=8)
         im = Image.fromarray(rgb)
         info["formato"] = "RAW " + ext.upper()
+    elif ext in ("eps", "epsf", "epsi") or _head4(path) == b"\xc5\xd0\xd3\xc6":
+        from . import eps  # immagine o anteprima contenuta nell'EPS (mbvisual/eps.py)
+        im, how = eps.to_image(path)
+        if im is None:
+            raise ValueError(tr("srv_misc.eps_senza_immagine"))
+        info["formato"] = "EPS - " + tr("srv_misc.eps_" + how)
+    elif ext == "xcf" or _head4(path) == b"gimp":
+        from . import xcf  # GIMP: livelli ricomposti (mbvisual/xcf.py)
+        im, xi = xcf.to_image(path)
+        info["formato"] = tr("srv_misc.gimp_livelli", xi["livelli"]) + (" " + tr("srv_misc.gimp_approssimato") if xi["approssimato"] else "")
+    elif _zip_picture(path):
+        name, data = _zip_picture(path)  # Krita, Sketch, XMind...: l'immagine unita o l'anteprima che il programma salva nello zip
+        im = Image.open(io.BytesIO(data))
+        info["formato"] = tr("srv_misc.immagine_contenuta", name)
+    elif ext in ("emz", "wmz") or _is_gzip(path) and ext in ("emf", "wmf"):
+        import gzip
+        im = Image.open(io.BytesIO(gzip.decompress(Path(path).read_bytes())))  # EMF/WMF compressi con gzip
+        info["formato"] = im.format
     elif _is_pfm_color(path):
         im = _pfm_color(path)  # PFM a colori ("PF"): Pillow legge solo quello in scala di grigi ("Pf")
         info["formato"] = "PFM"
@@ -76,6 +94,43 @@ def image_to_png(path: str) -> dict:
             im = im.convert("RGBA")
         im.save(out, "PNG", compress_level=1)
     return {"path": str(out), "info": info}
+
+
+# immagine che i programmi salvano dentro il proprio file zip: la composizione completa prima, poi l'anteprima
+ZIP_PICTURES = ("mergedimage.png", "Thumbnails/thumbnail.png", "previews/preview.png", "preview.png", "QuickLook/Preview.png",
+                "QuickLook/Thumbnail.png", "Thumbnails/thumbnail.jpg")
+
+
+def _zip_picture(path: str):
+    import zipfile
+    try:
+        if not zipfile.is_zipfile(path):
+            return None
+        with zipfile.ZipFile(path) as z:
+            names = {n.lower(): n for n in z.namelist()}
+            for want in ZIP_PICTURES:
+                n = names.get(want.lower())
+                if n:
+                    return n, z.read(n)
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
+def _head4(path: str) -> bytes:
+    try:
+        with open(path, "rb") as f:
+            return f.read(4)
+    except OSError:
+        return b""
+
+
+def _is_gzip(path: str) -> bool:
+    try:
+        with open(path, "rb") as f:
+            return f.read(2) == b"\x1f\x8b"
+    except OSError:
+        return False
 
 
 def _is_pfm_color(path: str) -> bool:
@@ -231,8 +286,19 @@ def _eml(msg, dirp: Path) -> dict:
             "html": body_html, "testo": body_text, "allegati": attachments, "cid": cids}
 
 
-def read_email(path: str) -> dict:
+def _is_pst(path: str) -> bool:
+    try:
+        with open(path, "rb") as f:
+            return f.read(4) == b"!BDN"
+    except OSError:
+        return False
+
+
+def read_email(path: str, i=None) -> dict:
     ext = Path(path).suffix.lower()
+    if ext in (".pst", ".ost") or _is_pst(path):
+        from . import pst  # archivi di Outlook: indice subito, messaggio completo su richiesta
+        return pst.index(path) if i is None else pst.message(path, int(i), _save_attachment)
     dirp = TEMP_DIR / "email" / uuid.uuid4().hex[:8]
     dirp.mkdir(parents=True, exist_ok=True)
     if ext == ".msg":
@@ -355,6 +421,10 @@ def sniff(path: str) -> dict:
         (h.startswith(b"PK\x03\x04") and _is_iwork(path), "iwork", tr("srv_misc.documento_apple_iwork")),
         (h[128:132] == b"DICM", "dicom", tr("srv_misc.immagine_medica_dicom")),
         (h.startswith((b"CDF\x01", b"CDF\x02", b"CDF\x05", b"\x89HDF\r\n\x1a\n")), "scidata", tr("srv_misc.dati_netcdf_hdf5")),
+        (b"SPSSPORT" in h[400:600] or b"ASCII SPSS PORT FILE" in h[:200], "scidata", tr("srv_misc.dati_spss_portatile")),  # testo: prima dei controlli sul testo
+        # EPS con un'immagine dentro (Photoshop, anteprime TIFF/WMF/EPSI): visualizzatore di immagini; gli altri EPS restano testo
+        (h[:4] == b"\xc5\xd0\xd3\xc6" or h.startswith(b"%!PS-Adobe") and (b"%ImageData:" in h or b"%%BeginPreview:" in h),
+         "image", tr("srv_misc.eps_immagine")),
         (h.startswith(b"PK\x03\x04") or h.startswith(b"PK\x05\x06"), "zip", tr("srv_misc.archivio_zip_documento_office_opendocument")),
         (h.startswith(b"7z\xbc\xaf\x27\x1c"), "archive", tr("srv_misc.archivio_7_zip")),
         (h.startswith(b"Rar!\x1a\x07"), "archive", tr("srv_misc.archivio_rar")),
@@ -362,6 +432,8 @@ def sniff(path: str) -> dict:
         (h.startswith(b"BZh"), "archive", tr("srv_misc.archivio_bzip2")),
         (h.startswith(b"\xfd7zXZ\x00"), "archive", tr("srv_misc.archivio_xz")),
         (h.startswith(b"MSCF"), "archive", tr("srv_misc.archivio_cab")),
+        (h.startswith(b"\x28\xb5\x2f\xfd"), "archive", tr("srv_misc.archivio_zstd")),
+        (h.startswith(b"\x04\x22\x4d\x18"), "archive", tr("srv_misc.archivio_lz4")),
         (iso == b"CD001", "archive", tr("srv_misc.immagine_disco_iso")),
         (h.startswith(b"\x89PNG"), "image", tr("srv_misc.immagine_png")),
         (h.startswith(b"\xff\xd8\xff"), "image", tr("srv_misc.immagine_jpeg")),
@@ -386,6 +458,7 @@ def sniff(path: str) -> dict:
         (h.startswith(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"), "ole", tr("srv_misc.documento_office_97_2003_msg")),
         (h.startswith(b"SQLite format 3\x00"), "sqlite", tr("srv_misc.database_sqlite")),
         (h[:4] == b"AC10" or h[:6] == b"AC1.40", "cad2d", tr("srv_misc.disegno_autocad_dwg")),
+        (h[:4] in (b"\x08\x09\xfe\x02", b"\xc8\x09\xfe\x02"), "cad2d", tr("srv_misc.disegno_microstation")),
         (h.startswith(b"glTF"), "mesh3d", tr("srv_misc.modello_3d_gltf_binario")),
         (h.startswith(b"U3D\x00"), "vis3d", tr("srv_misc.modello_3d_u3d")),
         (h.startswith(b"Version ") and h[8:9].isdigit() and len(h) > 85 and h[80] in (0, 1), "vis3d", tr("srv_misc.modello_3d_jt")),
@@ -393,11 +466,15 @@ def sniff(path: str) -> dict:
         (h.startswith(b"ASTM-E57"), "pointcloud", tr("srv_misc.nuvola_e57")),
         (h.startswith(b"ADOCT"), "pointcloud", tr("srv_misc.nuvola_rcs")),
         (h.startswith(b"\xff\xfe\xff\x0e" + "SketchUp Model".encode("utf-16-le")), "sketchup", tr("srv_misc.modello_sketchup")),
+        (h[:4] == b"\x82\x80\x02\x00" and h[32:33] == b"\x78", "piping", tr("srv_misc.archivio_caesar")),  # lavoro CAESAR II .C2 (ui/js/c2parse.js)
         (h.startswith(b"#UGC:"), "creo", tr("srv_misc.modello_creo")),  # PTC Creo / Pro/ENGINEER (mbvisual/fx_creo.py)
         (b"ISO-10303-21" in h[:200] and b"IFC" in h[:4000].upper(), "ifc", tr("srv_misc.modello_bim_ifc")),
         (b"ISO-10303-21" in h[:200], "cad3d", tr("srv_misc.modello_cad_step")),
         (h.startswith(b"MZ"), "exe", tr("srv_misc.programma_windows_eseguibile")),
         (h.startswith(b"\x7fELF"), "exe", tr("srv_misc.programma_linux_eseguibile")),
+        (h[4:19] in (b"Standard Jet DB", b"Standard ACE DB"), "sqlite", tr("srv_misc.database_access")),
+        (h[:4] == b"!BDN", "email", tr("srv_misc.archivio_outlook")),
+        (h[60:68] == b"BOOKMOBI", "ebook", tr("srv_misc.ebook_kindle")),  # prima dei font: stessi 4 byte iniziali
         (h[:4] in (b"\x00\x01\x00\x00", b"OTTO", b"true", b"ttcf", b"wOFF", b"wOF2"), "font", tr("srv_misc.carattere_font")),
         (h[:1] == b"\x30" and b"\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x07\x02" in h[:64], "signed", tr("srv_misc.busta_firmata_pkcs_7_cades")),
         (h.startswith(b"From ") and b"\nFrom:" in h[:4000], "email", tr("srv_misc.casella_posta_mbox")),

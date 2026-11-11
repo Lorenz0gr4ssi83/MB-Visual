@@ -207,7 +207,13 @@ async function request(env, b) {
   if (b.token) { const r = await deviceFromToken(env, b.token); if (r[2]) return r[2]; lic = r[0]; }
   else { lic = await getLicense(env, normKey(b.key)); const p = licenseProblem(lic); if (p) return fail(p[0], p[1], p[2]); }
   const type = b.type === "change" ? "change" : "report";
-  const msg = String(b.message || "").slice(0, 4000), name = String(b.name || "").slice(0, 80);
+  const name = String(b.name || "").slice(0, 80);
+  let msg = String(b.message || "").slice(0, 4000);
+  // argomento scelto dall'app: il testo per MB Desk Admin si compone qui, sempre in italiano
+  if (b.topic === "unsupported") {
+    const ext = String(b.ext || "").toLowerCase().replace(/[^a-z0-9_+.-]/g, "").replace(/^\.+/, "").slice(0, 24), detail = String(b.detail || "").slice(0, 400);
+    msg = `[File non supportato] ${ext ? "." + ext : "senza estensione"}` + (msg ? ` - ${msg}` : "") + (detail ? ` (${detail})` : "");
+  } else if (b.topic === "idea") msg = `[Miglioria o richiesta] ${msg}`;
   if (type === "report") {
     await env.DB.prepare("INSERT INTO requests (license_key, root, type, message, device_name) VALUES (?, ?, 'report', ?, ?)").bind(lic.key, lic.root, msg, name).run();
     await event(env, "report", lic.key, `Segnalazione da ${lic.customer || lic.key}: ${msg.slice(0, 160)}`);

@@ -3,9 +3,10 @@ import {
   api, baseName, button, confirmBox, dirName, el, extOf, fmtSize, isDesktop, modal, pickFiles, pickFolder,
   pickSavePath, readRange, toast, waitJob, WEB,
 } from "./core.js";
-import { licenseGate, showAccount, accountInfo, licenseReport, licenseChange, licenseNewKey } from "./license.js";
+import { licenseGate, showAccount, accountInfo, licenseReport, licenseChange, licenseNewKey, sendFeedback } from "./license.js";
 import { setupMobileQr } from "./mobileqr.js";
 import { initTouch, afterMount } from "./touch.js";
+import { attachSidePanels } from "./sidepanel.js";
 import { initStats, track, trackError, showStatsSettings } from "./stats.js";
 import { initComponents, isOn, compFor, inviteChip, needComp, showComponents, needsFirstRun, ICON as COMP_ICON } from "./components.js";
 import { t as tr, tn, has as trHas, LANG, LANGS, LOCALE, MANUAL, keyName, setLanguage } from "./i18n.js";
@@ -28,7 +29,7 @@ const VIEWER_NAMES = {
   image: tr("app.immagine"), svg: "SVG", media: tr("app.audio_video"), cad2d: tr("app.disegno_cad_2d"), model3d: tr("app.modello_3d"), inventor: tr("app.documento_inventor"),
   external: tr("app.programma_esterno"), archive: tr("app.archivio"), email: tr("app.email"), epub: "eBook", font: "Font",
   dwf: tr("app.pubblicazione_dwf"), sqlite: tr("app.database_sqlite"), video: tr("app.montaggio_video"), publisher: tr("app.pubblicazione_publisher"), visio: tr("app.diagramma_visio"), project: tr("app.piano_progetto"), gis: tr("app.mappa_gis"), bcf: tr("app.segnalazioni_bim_bcf"), hex: tr("app.esadecimale_byte_grezzi"), oo: tr("app.word_excel_powerpoint_onlyoffice"), compare: tr("app.confronto_revisioni"),
-  solidcad: tr("app.solidworks_solid_edge"), creo: "Creo", midi: "MIDI", recover: tr("app.recupero_file"),
+  solidcad: tr("app.solidworks_solid_edge"), creo: "Creo", midi: "MIDI", recover: tr("feedback.file_non_supportato"),
   dicom: tr("app.immagine_medica_dicom"), calendar: tr("app.calendario"), contacts: tr("app.contatti"), cert: tr("app.certificato_digitale"),
   iwork: "Apple iWork", hpgl: tr("app.plotter_hpgl"), scidata: tr("app.dati_scientifici"), revit: "Revit",
   mail: tr("mail.posta"), mailcompose: tr("mail.nuovo_messaggio"),
@@ -39,10 +40,10 @@ const OO_EXTS = new Set(["docx", "docm", "dotx", "dotm", "doc", "dot", "rtf", "o
 const TEXT_VIEWERS = new Set(["text", "markdown", "html", "svg"]);
 const SNIFF_FAMILY = {
   pdf: ["pdf"], signed: ["signed"], media: ["media", "audio"], archive: ["archive"], image: ["image", "image-raw"],
-  zip: ["word", "sheet", "pptx", "publisher", "visio", "office-lo", "archive", "mesh3d", "ebook"], sqlite: ["database"],
+  zip: ["word", "sheet", "pptx", "publisher", "visio", "office-lo", "archive", "mesh3d", "ebook"], sqlite: ["database"], ebook: ["ebook"],
   ole: ["publisher", "visio", "project", "office-lo", "sheet", "email", "archive", "image", "solidcad"], project: ["project"], cad2d: ["cad2d"], ifc: ["mesh3d"], cad3d: ["cad3d"],
   mesh3d: ["mesh3d"], pointcloud: ["pointcloud"], font: ["font"], svg: ["svg"], html: ["html"], email: ["email"], vis3d: ["vis3d"],
-  dicom: ["dicom"], iwork: ["iwork"], scidata: ["scidata"], cert: ["cert"], creo: ["creo"], midi: ["midi"],
+  dicom: ["dicom"], iwork: ["iwork"], scidata: ["scidata"], cert: ["cert"], creo: ["creo"], midi: ["midi"], piping: ["piping"],
 };
 const NAME_AS_EXT = { makefile: "makefile", dockerfile: "dockerfile", containerfile: "containerfile", license: "txt", readme: "txt",
   ".gitignore": "gitignore", ".gitattributes": "gitattributes", ".editorconfig": "editorconfig", ".env": "env", ".htaccess": "htaccess", dicomdir: "dcm" };
@@ -101,9 +102,28 @@ export function resolveCategory(name, sniff) {
   return { cat: best, ext };
 }
 
+// estensione che l'app non conosce: il tipo si riconosce dal contenuto (firme e poi i motori stessi, Pillow/FFmpeg/7-Zip:
+// mbvisual/recover.py probe_open). null se nessuno lo sa leggere: allora "File non supportato". Nella web app solo le firme.
+const TEXTISH = new Set(["text", "svg", "html", "project", "cad2d", "pointcloud"]);
+const KIND_EXT = { pdf: "pdf", text: "txt", svg: "svg", html: "html", zip: "zip", sqlite: "sqlite", archive: "7z", image: "png", media: "mp4", cad2d: "dwg",
+  mesh3d: "glb", ifc: "ifc", cad3d: "step", project: "xml", signed: "p7m", piping: "c2", midi: "mid", pointcloud: "las", email: "eml", font: "ttf" };
+async function contentType(path, info) {
+  let ext = null, label = null;
+  if (WEB) { ext = KIND_EXT[info.sniff?.kind] || null; label = info.sniff?.descr; }
+  else {
+    const r = await api("recover", { op: "probe", path }, { allowFail: true }).catch(() => null);
+    const g = r?.guesses?.find(x => x.certezza !== "bassa" && EXT.has(x.ext));
+    if (g) { ext = g.ext; label = g.label; }
+    else if (r?.probe) { ext = EXT.has(r.probe.ext) ? r.probe.ext : { image: "tga", media: "mkv", archive: "7z" }[r.probe.kind]; label = r.probe.label; } // tga = immagine decodificata dal motore
+  }
+  if (!ext || !EXT.has(ext)) return null;
+  const { cat } = resolveCategory("x." + ext, info.sniff);
+  return cat ? { cat, ext, label: label || ext.toUpperCase() } : null;
+}
+
 // ------------------------------------------------------------------ badge per tipo di file
 const BADGE_COLOR = { pdf: "pdf", signed: "sig", word: "doc", "office-lo": "doc", sheet: "xls", pptx: "ppt", publisher: "cad", visio: "doc", project: "xls", cad2d: "cad",
-  cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", inventor: "3d", "inventor-doc": "cad", solidcad: "3d", creo: "3d", vis3d: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", midi: "av", videoproject: "av", bcf: "3d",
+  cad3d: "3d", mesh3d: "3d", pointcloud: "3d", navisworks: "3d", inventor: "3d", "inventor-doc": "cad", solidcad: "3d", creo: "3d", vis3d: "3d", piping: "3d", sketchup: "3d", image: "img", "image-raw": "img", svg: "img", media: "av", audio: "av", midi: "av", videoproject: "av", bcf: "3d",
   archive: "zip", email: "mail", text: "code", markdown: "code", html: "code", ebook: "code", font: "code", database: "db", gis: "img",
   dicom: "img", calendar: "mail", contacts: "mail", cert: "sig", iwork: "doc", hpgl: "cad", scidata: "db", revit: "3d" };
 export function badgeFor(name, isDir = false) {
@@ -148,6 +168,7 @@ function renderTabs() {
   const has = !!active;
   const isFile = has && !active.path.startsWith("mail://");
   for (const id of ["btn-as", "btn-folder", "btn-external", "btn-info"]) $(id).disabled = !isFile;
+  if (active?.viewer === "recover") $("btn-as").disabled = true; // file non supportato: nessun altro modo di aprirlo
   $("home").hidden = has || fmtOpen;
   $("views").hidden = !has || fmtOpen;
   document.body.classList.toggle("at-home", atHome);
@@ -352,7 +373,15 @@ async function showLanguage() {
 }
 
 // ---- aggiornamento automatico dalla cartella "App per PC" su OneDrive (mbvisual/update.py)
-let updInfo = null;
+let updInfo = null, updAsked = "";
+// aggiornamento rimandato ("Piu' tardi") o trovato con l'app gia' aperta: resta visibile nella barra di stato, cliccabile
+function showUpdBadge(r) {
+  const s = $("st-version");
+  s.textContent = `v${r.attuale.versione} → ${r.disponibile.versione}`;
+  s.classList.add("upd-avail");
+  s.title = tr("app.aggiornamento_disponibile");
+  s.onclick = () => checkUpdates(true);
+}
 const fmtVer = v => v ? `${v.versione}${v.build && v.build !== "sviluppo" ? " del " + v.build.slice(0, 16).split(" ").map((x, i) => i ? x : x.split("-").reverse().join("/")).join(" ") : ""}` : "";
 async function checkUpdates(manual = false) {
   let r;
@@ -361,10 +390,13 @@ async function checkUpdates(manual = false) {
   $("st-version").textContent = "v" + r.attuale.versione;
   $("st-version").title = "MB Desk " + fmtVer(r.attuale);
   if (r.stato === "nuova") {
+    // controllo periodico: la domanda si fa una volta per versione, poi resta l'avviso nella barra di stato
+    if (!manual && updAsked === r.disponibile?.build) return showUpdBadge(r);
+    updAsked = r.disponibile?.build || "";
     const ok = await modal(tr("app.aggiornamento_disponibile"), el("div", {},
       el("p", {}, tr("app.disponibile_mb_visual_0", fmtVer(r.disponibile))), el("p", { class: "note" }, tr("app.uso_0_l_app_si", fmtVer(r.attuale)))),
       [{ label: tr("app.piu_tardi"), value: false }, { label: tr("app.aggiorna_ora"), value: true, primary: true }]);
-    if (!ok) return;
+    if (!ok) return showUpdBadge(r);
     if (tabs.some(t => t.dirty) && !(await confirmBox(tr("app.file_non_salvati"), tr("app.ci_sono_modifiche_non_salvate"), tr("app.aggiorna"), true))) return;
     await runUpdateJob("update_apply", tr("app.aggiornamento_mb_visual"), tr("app.aggiornamento_pronto_mb_visual_si"));
     return;
@@ -569,25 +601,24 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
     toast(tr("app.file_scaricato"), false, 1500);
   }
   const name = extraCtx.displayName || info.nome;
-  const { cat } = resolveCategory(extraCtx.displayName && !extOf(extraCtx.displayName) ? info.nome : name, info.sniff);
-  const ext = extFor(info.nome);
-  // estensione non in elenco: schermata di riconoscimento e recupero (ui/js/viewers/recover.js); i byte grezzi restano a un clic
-  let viewer = forcedViewer || (cat ? cat.viewer : WEB ? "hex" : "recover");
+  let { cat } = resolveCategory(extraCtx.displayName && !extOf(extraCtx.displayName) ? info.nome : name, info.sniff);
+  let ext = extFor(info.nome), byContent = null;
+  if (!cat && !forcedViewer && !path.startsWith("mail://")) byContent = await contentType(path, info);
+  // estensione di testo ma contenuto binario (stessa estensione usata da un altro programma): decide il contenuto, se un motore lo legge
+  else if (cat?.viewer === "text" && !forcedViewer && info.sniff && !TEXTISH.has(info.sniff.kind)) {
+    byContent = await contentType(path, info);
+    if (!byContent && info.sniff.kind == null) cat = null; // binario che nessun motore legge: "File non supportato", non caratteri a caso
+  }
+  if (byContent) { // aperto per quello che c'e' dentro, con il visualizzatore di quel tipo
+    ({ cat, ext } = byContent);
+    info.sniff = { ...(info.sniff || {}), descr: tr("app.dal_contenuto", byContent.label) };
+  }
+  // nessun motore lo legge: "File non supportato" (ui/js/unsupported.js)
+  let viewer = forcedViewer || (cat ? cat.viewer : "recover");
   if (!forcedViewer && !WEB && TOOLS.onlyoffice && isOn("office") && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
   // Navisworks senza Navisworks: NWD e NWC si aprono nel visualizzatore 3D (lettore nwd2mbv)
   if (!forcedViewer && !WEB && TOOLS.nwdreader && ["nwd", "nwc", "nwf"].includes(ext)) viewer = "model3d";
   if (!forcedViewer) viewer = await gisViewer(path, ext, viewer);
-  // controllo veloce dei formati principali (coda dei PDF, indice degli ZIP, fine delle immagini...): se il file e'
-  // danneggiato si mostra subito la schermata di recupero, con "Apri comunque l'originale" (mbvisual/recover.py check)
-  let recovery = null;
-  if (!WEB && (!forcedViewer || forcedViewer === "recover") && !extraCtx.noCheck && (cat || forcedViewer)) {
-    try {
-      const chk = await api("recover", { op: "check", path, ext });
-      if (chk.danneggiato) { recovery = { mode: "damaged", check: chk, intended: viewer === "recover" ? (cat?.viewer || null) : viewer }; viewer = "recover"; }
-      else if (forcedViewer === "recover") recovery = { mode: "manual", check: chk, intended: cat?.viewer || null };
-    } catch { /* il controllo non deve mai impedire l'apertura */ }
-  }
-  if (!recovery && viewer === "recover") recovery = { mode: cat ? "manual" : "unknown", intended: cat?.viewer || null };
   const view = el("div", { class: "view" });
   const tb = el("div", { class: "tb" });
   const body = el("div", { class: "body" });
@@ -599,7 +630,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
   if (!extraCtx.untitled && !path.startsWith("mail://")) remember(path);
   const ctx = {
     path, name, ext, info, cat, el: body, tb, tab, tools: TOOLS, registry: REG,
-    reason: !cat && !forcedViewer ? "unlisted" : null, recovery, ...extraCtx,
+    reason: !cat && !forcedViewer ? "unlisted" : null, ...extraCtx,
     setDirty(v) { if (tab.dirty !== v) { tab.dirty = v; renderTabs(); } },
     status(text) { tab.extra = text || ""; if (active === tab) updateStatus(); },
     openPaths, openAs: v => openFile(tab.path, v), openFile,
@@ -613,6 +644,7 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
     addDrawingButton(tab, tb);
     lockIfNeeded(tab, ext, tb);
     afterMount(ctx); // tablet: pannello laterale a scomparsa
+    attachSidePanels(ctx.el, viewer); // con il mouse: pannello laterale ridimensionabile e richiudibile
     phoneUi?.afterMount(ctx); // telefono: strumenti e pannello in fogli dal basso, recenti
     if (extraCtx.untitled) { tab.untitled = true; tab.dirty = true; renderTabs(); } // file nuovo: si salva quando e dove si vuole
   } catch (e) {
@@ -626,9 +658,10 @@ async function openFile(path, forcedViewer = null, extraCtx = {}) {
 export async function mountPreview(path, host, extra = {}) {
   await READY;
   const info = await api("info", { path });
-  const { cat } = resolveCategory(info.nome, info.sniff);
-  const ext = extFor(info.nome);
-  let viewer = cat ? cat.viewer : "hex";
+  let { cat } = resolveCategory(info.nome, info.sniff);
+  let ext = extFor(info.nome);
+  if (!cat) { const bc = await contentType(path, info); if (bc) ({ cat, ext } = bc); }
+  let viewer = cat ? cat.viewer : "recover";
   if (!WEB && TOOLS.onlyoffice && isOn("office") && OO_EXTS.has(ext) && ["docx", "sheet", "pptx", "office"].includes(viewer)) viewer = "oo";
   if (!WEB && TOOLS.nwdreader && ["nwd", "nwc", "nwf"].includes(ext)) viewer = "model3d";
   viewer = await gisViewer(path, ext, viewer);
@@ -671,20 +704,12 @@ async function gisViewer(path, ext, viewer) {
 export function showError(ctx, e) {
   trackError(ctx.tab?.viewer, e, ctx.cat ? ctx.ext : ""); // statistiche anonime: solo visualizzatore, tipo di errore ed estensione
   // al posto del messaggio di errore: schermata di recupero (cosa e' successo, cosa si e' salvato, Apri il recuperato...)
-  if (!WEB) return import("./viewers/recover.js").then(m => m.showRecovery(ctx, e)).then(a => { if (ctx.tab) ctx.tab.api = a || {}; }).catch(err => { console.error(err); showErrorPlain(ctx, e); });
-  showErrorPlain(ctx, e);
+  return import("./viewers/recover.js").then(m => m.showRecovery(ctx, e)).then(a => { if (ctx.tab) ctx.tab.api = a || {}; }).catch(err => { console.error(err); showErrorPlain(ctx); });
 }
 
-function showErrorPlain(ctx, e) {
+function showErrorPlain(ctx) {
   ctx.el.innerHTML = "";
-  ctx.el.append(el("div", { class: "center" }, el("div", { class: "panel", style: { maxWidth: "560px", textAlign: "left" } },
-    el("h3", { style: { marginTop: 0 } }, tr("app.non_stato_possibile_mostrare_contenuto")),
-    el("p", { class: "err" }, String(e?.message || e)),
-    el("p", {}, tr("app.file_resta_comunque_apribile_come")),
-    el("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
-      el("button", { class: "btn primary", onclick: () => ctx.openAs("hex") }, tr("app.apri_come_esadecimale")),
-      el("button", { class: "btn", onclick: () => ctx.openAs("text") }, tr("app.apri_come_testo")),
-      el("button", { class: "btn", onclick: () => api("open_external", { path: ctx.path }).catch(err => toast(err.message, true)) }, tr(TOOLS.mac ? "app.apri_programma_predefinito" : "app.apri_programma_windows"))))));
+  ctx.el.append(el("div", { class: "center" }, el("h3", {}, tr("feedback.file_non_supportato"))));
 }
 
 // ------------------------------------------------------------------ componenti (ui/js/components.js)
@@ -822,7 +847,10 @@ async function convertTo(t, a, target) {
     updateStatus();
   } catch (e) {
     console.error(e);
-    toast(tr("app.conversione_non_riuscita") + e.message, true, 8000);
+    $("toast").hidden = true; // toglie l'avviso "Conversione in corso"
+    const un = await import("./unsupported.js"), from = extOf(t.info?.nome || t.path);
+    if (await modal(tr("feedback.operazione_non_supportata"), el("p", { style: { margin: 0, maxWidth: "480px", overflowWrap: "anywhere" } }, e.message),
+      [{ label: tr("common.chiudi"), value: false }, { label: tr("feedback.segnala"), value: true, primary: true }])) un.reportUnsupported(from, `${from} -> ${extOf(target)}: ${un.cleanDetail(e, baseName(target))}`);
   }
 }
 
@@ -910,7 +938,7 @@ function openAsMenu(anchor) {
 
 // visualizzatori che sanno davvero leggere il file aperto (per tipo e contenuto), nell'ordine in cui conviene proporli
 const TEXT_LIKE = new Set(["ifc", "step", "stp", "iges", "igs", "dxf", "obj", "gltf", "dae", "x3d", "wrl", "vrml", "ply", "stl", "svg", "csv", "tsv", "eml", "html", "htm",
-  "xml", "json", "md", "markdown", "txt", "log", "ini", "cfg", "yaml", "yml", "rtf", "fodt", "fods", "fodp", "kml", "gpx", "geojson", "sql"]);
+  "xml", "json", "md", "markdown", "txt", "log", "ini", "cfg", "cii", "yaml", "yml", "rtf", "fodt", "fods", "fodp", "kml", "gpx", "geojson", "sql"]);
 const ZIP_BASED = new Set(["docx", "docm", "dotx", "xlsx", "xlsm", "xltx", "pptx", "pptm", "potx", "ppsx", "odt", "ott", "ods", "odp", "otp", "epub", "3mf", "kmz", "jar", "apk", "vsdx", "vsdm", "vstx", "vstm", "xps", "oxps", "idml", "sketch", "ifczip"]);
 function compatibleViewers(t) {
   const ext = extFor(t.info?.nome || t.name);
@@ -926,8 +954,6 @@ function compatibleViewers(t) {
   if (ext === "pdf" || kind === "pdf") add("pdf");
   if (kind === "text" || TEXT_LIKE.has(ext)) add("text");
   if (kind === "zip" || ZIP_BASED.has(ext)) add("archive");
-  if (!WEB) add("recover"); // riconoscimento dal contenuto, recupero, file incorporati
-  add("hex"); // i byte grezzi si possono sempre vedere
   return out;
 }
 
@@ -1186,7 +1212,7 @@ async function boot() {
   if (!WEB) drainOpenQueue(); // file passati all'avvio (doppio clic in Esplora) o arrivati da un altro avvio
   if (!WEB) initStats(); // statistiche d'uso anonime: chiede il consenso la prima volta, senza consenso non conta e non invia
   if (!WEB) setupMobileQr(); // QR nella home per installare l'app sul cellulare (posti liberi della licenza)
-  if (!WEB) setTimeout(() => checkUpdates(false), 3000);
+  if (!WEB) { setTimeout(() => checkUpdates(false), 3000); setInterval(() => checkUpdates(false), 2 * 3600 * 1000); }
   setInterval(() => { if (!document.hidden) checkExternalChange(active); }, 2000);
   window.addEventListener("focus", () => tabs.forEach(checkExternalChange));
   $("btn-open").addEventListener("click", e => openMenu(e.currentTarget));
@@ -1210,6 +1236,7 @@ async function boot() {
   $("btn-file").addEventListener("click", e => fileMenu(e.currentTarget));
   $("btn-as").addEventListener("click", e => openAsMenu(e.currentTarget));
   $("btn-folder").addEventListener("click", () => active && api("reveal", { path: active.path }));
+  $("btn-feedback").addEventListener("click", () => sendFeedback({ topic: "idea", title: tr("feedback.migliorie_richieste"), placeholder: tr("feedback.descrivi_miglioria") }));
   $("btn-external").addEventListener("click", () => active && api("open_external", { path: active.path }).catch(e => toast(e.message, true)));
   $("btn-formats").addEventListener("click", toggleFormats);
   $("btn-home").addEventListener("click", () => activate(null));

@@ -15,7 +15,7 @@ const OPEN_AS = { dot: "doc", dotm: "docm", ott: "odt", xlt: "xls", pot: "ppt", 
 
 export async function mount(ctx) {
   ctx.fillBody(true);
-  const ext = extOf(ctx.path), kind = KIND(ext);
+  const ext = ctx.ext || extOf(ctx.path), kind = KIND(ext); // ctx.ext: tipo riconosciuto dal contenuto se l'estensione e' sconosciuta
   // l'editor ONLYOFFICE usa gli stessi tasti di Microsoft Office: qui solo l'elenco dei principali (F1)
   describeKeys(ctx, kind === "cell" ? "Excel" : kind === "slide" ? "PowerPoint" : "Word", [
     ["Ctrl+B / Ctrl+I / Ctrl+U", tr("v_oo.grassetto_corsivo_sottolineato"), tr("v_oo.formato")], ["Ctrl+C / Ctrl+X / Ctrl+V", tr("v_oo.copia_taglia_incolla"), tr("v_oo.modifica")],
@@ -64,7 +64,8 @@ export async function mount(ctx) {
 
   const bytes = await readBytes(ctx.path);
   try {
-    const fileName = (ctx.info?.nome || ctx.name).replace(/\.([^.]+)$/, (m, e) => "." + (OPEN_AS[e.toLowerCase()] || e));
+    const base = (ctx.info?.nome || ctx.name).replace(/\.[^.]*$/, "");
+    const fileName = `${base}.${OPEN_AS[ext] || ext}`;
     await send("document:open-buffer", { fileName, buffer: bytes.buffer, readonly: false }, [bytes.buffer]);
   } catch (e) {
     wait.remove();

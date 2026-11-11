@@ -1,5 +1,6 @@
 // Caricamento dell'editor Monaco (lo stesso di VS Code), una sola volta per tutta l'app.
 import { loadScript } from "./core.js";
+import TEXTLANGS from "./textlangs.js";
 
 let promise = null;
 const BASE = "/vendor/monaco/min";
@@ -47,6 +48,7 @@ const EXTRA = { vue: "html", svelte: "html", jsonc: "json", json5: "json", geojs
 
 export function languageFor(monaco, ext) {
   if (EXTRA[ext]) return EXTRA[ext];
+  if (TEXTLANGS[ext] && TEXTLANGS[ext] !== "plaintext") return TEXTLANGS[ext]; // estensioni di GitHub Linguist (tools/add_text_formats.py)
   for (const l of monaco.languages.getLanguages()) {
     if ((l.extensions || []).some(e => e.toLowerCase() === "." + ext)) return l.id;
   }

@@ -61,6 +61,5 @@ export async function mount(ctx) {
     el("dt", {}, t("v_external.modificato")), el("dd", {}, d), el("dt", {}, t("v_external.cartella")), el("dd", {}, ctx.info.cartella)));
   ctx.el.append(box);
   if (has) ctx.tb.append(el("button", { class: "btn", onclick: openNw }, t("v_external.apri_navisworks_freedom")));
-  ctx.tb.append(el("button", { class: "btn", onclick: () => ctx.openAs("hex") }, t("v_external.vedi_byte_grezzi")));
   return {};
 }

@@ -14,6 +14,7 @@ L'app NON e' firmata con un certificato Apple (solo firma ad hoc): al primo avvi
 (clic destro sull'app -> Apri). Per la distribuzione servono firma Developer ID e notarizzazione (vedi CLAUDE.md).
 """
 import datetime
+import hashlib
 import io
 import json
 import os
@@ -31,7 +32,8 @@ sys.path.insert(0, str(ROOT))  # per controllare i moduli mbvisual.* (find_spec)
 NAME = "MB Desk"
 BUNDLE_ID = "it.mbengineering.mbvisual"
 # 7-Zip per macOS (universale arm64/x64), licenza LGPL + restrizione unRAR: si distribuisce il solo eseguibile
-SEVENZIP = "https://www.7-zip.org/a/7z2501-mac.tar.xz"
+SEVENZIP = "https://github.com/ip7z/7zip/releases/download/25.01/7z2501-mac.tar.xz"  # pagina ufficiale dell'autore (7-zip.org a volte non risponde)
+SEVENZIP_SHA256 = "26aa75bc262bb10bf0805617b95569c3035c2c590a99f7db55c7e9607b2685e0"
 
 
 def _arg(name, default=None):
@@ -53,6 +55,9 @@ def fetch_7zz(dest: Path) -> None:
         print("Scarico", SEVENZIP, flush=True)
         with urllib.request.urlopen(urllib.request.Request(SEVENZIP, headers={"user-agent": "MBVisual-build"}), timeout=120) as r:
             cache.write_bytes(r.read())
+    if hashlib.sha256(cache.read_bytes()).hexdigest() != SEVENZIP_SHA256:
+        cache.unlink()
+        raise SystemExit("7-Zip scaricato: impronta diversa da quella attesa")
     with tarfile.open(fileobj=io.BytesIO(cache.read_bytes()), mode="r:xz") as t:
         for m in t.getmembers():
             base = Path(m.name).name

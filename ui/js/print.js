@@ -33,9 +33,9 @@ async function tabSource(t, info) {
       info.cad = r;
       const { path } = await api("temp_path", { name: t.name.replace(/\.[^.]+$/, "") + ".dxf" });
       await api("cad_save", { path: t.path }, { json: { out: path, edits: r.edits } });
-      return { path: t.path, name: t.name, kind: "cad", dxf: path, view: r.view, limits: r.limits };
+      return { path: t.path, name: t.name, kind: "cad", dxf: path, view: r.view, limits: r.limits, layout: r.layout };
     }
-    if (r.kind === "dxf" || r.kind === "dwg") { info.cad = r; return { path: t.path, name: t.name, kind: "cad", view: r.view, limits: r.limits }; }
+    if (r.kind === "dxf" || r.kind === "dwg") { info.cad = r; return { path: t.path, name: t.name, kind: "cad", view: r.view, limits: r.limits, layout: r.layout }; }
     return r;
   }
   if (t.viewer === "publisher" && a._pb) { // pubblicazione: il PDF vero dell'editor (mbvisual/publisher.py)
@@ -104,6 +104,7 @@ async function dialog(o) {
     cad: { area: o.batch ? "auto" : "extents", window: null, layout: "*", units: "", ctb: prefs.ctb || "", lw: prefs.lw || "",
       scale: { mode: o.batch ? "auto" : "fit", cad: prefs.cadScale || "1:100" } },
   };
+  if (isCad && o.sources[0].layout) { S.cad.area = "layout"; S.cad.layout = o.sources[0].layout; } // layout aperto: si stampa quello
   let P = null;            // informazioni sulla stampante scelta
   let printers = [], oda = false, devmodes = {};
   let sid = null, items = [], comp = null, cur = 0, busy = 0, closed = false;

@@ -7,6 +7,8 @@ import io
 import shutil
 import sys
 import tarfile
+import time
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -66,6 +68,9 @@ PACKAGES = [
     # QR della home (installazione sui cellulari): Kazuhiko Arase, MIT (licenza nell'intestazione del file)
     ("qrcode-generator", "https://registry.npmjs.org/qrcode-generator/-/qrcode-generator-2.0.4.tgz",
      ["package/dist/qrcode.mjs"]),
+    # riconoscimento della posa delle persone (cambio posa dell'editor di immagini): MediaPipe Tasks Vision, Apache-2.0
+    ("mediapipe", "https://registry.npmjs.org/@mediapipe/tasks-vision/-/tasks-vision-1.2.2.tgz",
+     ["package/vision_bundle.mjs", "package/wasm/", "package/LICENSE", "package/README.md"]),
 ]
 
 # file da aggiungere dopo l'estrazione (il pacchetto npm di openskp non contiene la licenza)
@@ -76,6 +81,8 @@ EXTRA = {
 FILES = {
     "soundfont": [("FluidR3Mono_GM.sf3", "https://raw.githubusercontent.com/musescore/MuseScore/1a4bd0feb9378cd145418dbcb40246980ca1013d/share/sound/FluidR3Mono_GM.sf3"),
                   ("FluidR3Mono_License.md", "https://raw.githubusercontent.com/musescore/MuseScore/1a4bd0feb9378cd145418dbcb40246980ca1013d/share/sound/FluidR3Mono_License.md")],
+    # modello della posa (Apache-2.0, model card di MediaPipe), versione 1 fissata
+    "mediapipe": [("pose_landmarker_full.task", "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task")],
 }
 # import senza percorso (da bundler) resi relativi: cosi' il modulo si carica anche in un Worker, che non vede l'import map
 REWRITE = {
@@ -92,8 +99,17 @@ APPEND = {
 
 def download(url: str) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": "mb-visual-fetch"})
-    with urllib.request.urlopen(req, timeout=300) as r:
-        return r.read()
+    # i siti delle librerie a volte rispondono con errori momentanei (503): si riprova prima di fermare la build
+    for attempt in range(1, 7):
+        try:
+            with urllib.request.urlopen(req, timeout=300) as r:
+                return r.read()
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+            if attempt == 6 or (isinstance(e, urllib.error.HTTPError) and e.code < 500 and e.code != 429):
+                raise
+            print(f"riprovo ({attempt}): {url}: {e}", flush=True)
+            time.sleep(10 * attempt)
+    raise AssertionError
 
 
 def strip_package(name: str) -> str:

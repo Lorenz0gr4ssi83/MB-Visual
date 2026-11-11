@@ -15,8 +15,6 @@ export async function mount(ctx) {
         t("v_office.installalo_volta_anche_versione_portatile")),
       el("p", { style: { margin: 0 }, class: "note" }, t("v_office.indirizzo_scaricarlo_https_www_libreoffice")),
       el("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap" } },
-        el("button", { class: "btn", onclick: () => ctx.openAs("text") }, t("v_office.apri_come_testo")),
-        el("button", { class: "btn", onclick: () => ctx.openAs("hex") }, t("v_office.apri_come_esadecimale")),
         el("button", { class: "btn", onclick: () => api("open_external", { path: ctx.path }) }, t(ctx.tools?.mac ? "app.apri_programma_predefinito" : "v_office.apri_programma_windows"))))));
     return {};
   }

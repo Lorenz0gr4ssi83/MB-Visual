@@ -136,7 +136,7 @@ const PAGE_CHECK = async (file, timeout, expectCat, expectViewer, trySave, passw
     const v = tab.view;
     const out = { viewer: tab.viewer, cat: tab.cat?.id || null };
     const rc = v.querySelector(".rc");
-    if (tab.viewer === "recover" || rc) { res = { ...out, stato: "fallito", motivo: "schermata di recupero: " + (v.querySelector(".rc-head")?.innerText || "").replace(/\s+/g, " ").slice(0, 300) }; break; }
+    if (tab.viewer === "recover" || rc || v.querySelector(".ns")) { res = { ...out, stato: "fallito", motivo: "schermata di recupero: " + (v.querySelector(".rc-head")?.innerText || "").replace(/\s+/g, " ").slice(0, 300) }; break; }
     const errs = [...v.querySelectorAll(".err, .error, .v-error")].filter(visible).map(e => e.innerText.trim()).filter(Boolean);
     if (errs.length) { res = { ...out, stato: "fallito", motivo: "errore: " + errs.join(" | ").slice(0, 300) }; break; }
     if (toasts.length) { res = { ...out, stato: "fallito", motivo: "avviso: " + toasts[0] }; break; }

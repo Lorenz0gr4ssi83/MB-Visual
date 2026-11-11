@@ -1918,7 +1918,7 @@ export function createCadEditor(o) {
         }
         return { source: "dxf", changed: changedE, deleted, added, layers, ltypes };
       }
-      return { source: "dwg", layers, ltypes, db: { header: db.header, tables: { LAYER: db.tables.LAYER, DIMSTYLE: db.tables.DIMSTYLE, BLOCK_RECORD: { entries: (db.tables.BLOCK_RECORD?.entries || []).map(b => ({ ...b, entities: (b.entities || []).filter(e => !e._deleted) })) } }, entities: db.entities.filter(e => !e._deleted && e.type !== "_skip") } };
+      return { source: "dwg", layers, ltypes, db: { header: db.header, objects: { LAYOUT: db.objects?.LAYOUT || [] }, tables: { LAYER: db.tables.LAYER, DIMSTYLE: db.tables.DIMSTYLE, BLOCK_RECORD: { entries: (db.tables.BLOCK_RECORD?.entries || []).map(b => ({ ...b, entities: (b.entities || []).filter(e => !e._deleted) })) } }, entities: db.entities.filter(e => !e._deleted && e.type !== "_skip") } };
     },
   };
 }

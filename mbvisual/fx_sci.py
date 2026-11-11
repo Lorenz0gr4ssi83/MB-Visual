@@ -19,12 +19,62 @@ from .i18n import t as tr
 
 MAX_NODES = 5000
 MAX_COLS = 300
+STAT_NAMES = {"sav": "SPSS", "por": "SPSS (portatile)", "dta": "Stata", "sas7bdat": "SAS", "xpt": "SAS XPORT"}
 
 
 # ---------------------------------------------------------------- tipo di file
+# dati statistici (pyreadstat, Apache-2.0): SPSS .sav/.zsav/.por, Stata .dta, SAS .sas7bdat/.xpt -> tabella pyarrow come Parquet
+STAT_READ = {"sav": "read_sav", "por": "read_por", "dta": "read_dta", "sas7bdat": "read_sas7bdat", "xpt": "read_xport"}
+_STAT_CACHE: dict = {}
+
+
+def _stat_kind(path: str, h: bytes) -> str | None:
+    if h[:4] in (b"$FL2", b"$FL3"):
+        return "sav"
+    if h.startswith(b"<stata_dta>") or (len(h) > 2 and h[0] in range(0x66, 0x78) and h[1] in (1, 2) and h[2] == 1):
+        return "dta"
+    if h[12:16] == b"\xc2\xea\x81\x60":
+        return "sas7bdat"
+    if h.startswith(b"HEADER RECORD*******LIB"):
+        return "xpt"
+    if path.lower().endswith(".por"):
+        return "por"
+    return None
+
+
+def _stat_table(path: str, k: str):
+    """(tabella pyarrow, righe di metadati); in memoria per file+data (le pagine della tabella si chiedono una alla volta)."""
+    st = os.stat(path)
+    key = (os.path.abspath(path), st.st_size, st.st_mtime)
+    if key not in _STAT_CACHE:
+        import pyarrow as pa
+        import pyreadstat
+        df, meta = getattr(pyreadstat, STAT_READ[k])(path)
+        rows = [{"k": tr("srv_fx_sci.righe"), "v": meta.number_rows if meta.number_rows is not None else len(df)},
+                {"k": tr("srv_fx_sci.colonne"), "v": len(df.columns)}]
+        if meta.file_label:
+            rows.append({"k": tr("srv_fx_sci.etichetta_file"), "v": meta.file_label})
+        if meta.file_encoding:
+            rows.append({"k": tr("srv_fx_sci.codifica"), "v": meta.file_encoding})
+        for col, lab in (meta.column_names_to_labels or {}).items():
+            if lab:
+                rows.append({"k": col, "v": _short(lab, 400)})
+        for col, labs in (meta.variable_value_labels or {}).items():
+            rows.append({"k": tr("srv_fx_sci.valori_di", col), "v": _short("; ".join(f"{a} = {b}" for a, b in labs.items()), 2000)})
+        for c in df.columns:  # colonne miste (oggetti) -> testo, altrimenti pyarrow rifiuta
+            if df[c].dtype == object:
+                df[c] = df[c].map(lambda v: None if v is None else str(v))
+        _STAT_CACHE.clear()
+        _STAT_CACHE[key] = (pa.Table.from_pandas(df, preserve_index=False), rows)
+    return _STAT_CACHE[key]
+
+
 def kind(path: str) -> str:
     with open(path, "rb") as f:
-        h = f.read(8)
+        h = f.read(64)
+        sk = _stat_kind(path, h)
+        if sk:
+            return sk
         if h[:4] == b"PAR1":
             return "parquet"
         if h[:6] == b"ARROW1":
@@ -250,6 +300,8 @@ def _nc3_tree(path):
 
 # ---------------------------------------------------------------- Parquet / Arrow
 def _arrow_table(path, k):
+    if k in STAT_READ:
+        return _stat_table(path, k)[0]
     import pyarrow as pa
     import pyarrow.feather as feather
     if k == "feather1":
@@ -283,7 +335,9 @@ def _table_tree(path, k):
         t = _arrow_table(path, k)
         schema, rows = t.schema, t.num_rows
         meta = [{"k": tr("srv_fx_sci.righe"), "v": rows}, {"k": tr("srv_fx_sci.colonne"), "v": t.num_columns},
-                {"k": tr("srv_fx_sci.formato_2"), "v": {"arrow": tr("srv_fx_sci.arrow_ipc_file_feather_2"), "feather1": "Feather 1", "arrow_stream": tr("srv_fx_sci.arrow_ipc_flusso")}[k]}]
+                {"k": tr("srv_fx_sci.formato_2"), "v": {"arrow": tr("srv_fx_sci.arrow_ipc_file_feather_2"), "feather1": "Feather 1", "arrow_stream": tr("srv_fx_sci.arrow_ipc_flusso")}.get(k) or STAT_NAMES[k]}]
+        if k in STAT_READ:
+            meta = _stat_table(path, k)[1] + meta[2:]
         for key, val in (schema.metadata or {}).items():
             meta.append({"k": tr("srv_fx_sci.metadati") + key.decode("utf-8", "replace"), "v": _short(val.decode("utf-8", "replace"), 2000)})
     return [{"nome": "/", "tipo": "tabella", "forma": [rows, len(schema)], "dtype": "tabella", "attributi": meta, "schema": _schema_rows(schema),
@@ -324,7 +378,7 @@ def open_file(path: str) -> dict:
             nodes = _table_tree(path, k)
         except Exception as e:  # noqa: BLE001
             raise ValueError(tr("srv_fx_sci.formato_non_riconosciuto_ne_hdf5", e)) from e
-        fmt = {"parquet": "Parquet", "arrow": tr("srv_fx_sci.arrow_feather_2"), "feather1": "Feather 1", "arrow_stream": tr("srv_fx_sci.arrow_flusso_ipc")}[k]
+        fmt = {"parquet": "Parquet", "arrow": tr("srv_fx_sci.arrow_feather_2"), "feather1": "Feather 1", "arrow_stream": tr("srv_fx_sci.arrow_flusso_ipc")}.get(k) or STAT_NAMES[k]
     return {"ok": True, "formato": fmt, "tipo": k, "nodi": nodes, "troncato": len(nodes) >= MAX_NODES}
 
 
