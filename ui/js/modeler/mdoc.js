@@ -170,6 +170,7 @@ export function bodyName(doc, bid, fallbackN) {
   const f = doc.features.find(q => q.id === bid.split(":")[0]);
   if (f?.type === "supports") { const r = doc.features.find(q => q.id === f.route); return tr("mod.pl_support_" + f.kind) + (r?.size ? " " + r.size : ""); }
   if (f?.type === "fitting") { const r = doc.features.find(q => q.id === f.route); return fittingName(f.kind) + (r?.size ? " " + r.size : ""); }
+  if (f?.type === "route" && bid.endsWith(":rac")) return tr(f.start?.mode === "tee" ? "mod.pl_tee" : f.start?.ecc ? "mod.pl_riduzione_ecc" : "mod.pl_riduzione") + " " + (f.size || "");
   if (f?.type === "route") return kindName(f.kind) + " " + (f.size || "") + (bid.includes(":") ? " (" + bid.split(":").pop() + ")" : "");
   if (f?.type === "import") {
     const k = bid.includes(":") ? +bid.split(":").pop() : 0;

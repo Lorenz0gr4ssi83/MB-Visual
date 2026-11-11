@@ -368,7 +368,7 @@ export class RouteTool {
     const lineIn = el("input", { class: "field", type: "text", value: this.linea, placeholder: "100-A1-001" });
     lineIn.addEventListener("change", () => (this.linea = lineIn.value.trim()));
     const sizeSel = el("select", { class: "field" }, ...sizes(this.kind, this.spec, this.app.doc).map(s => el("option", { value: s.id, selected: s.id === this.size.id }, s.label)));
-    sizeSel.addEventListener("change", () => { this.pickSize(sizeSel.value); try { localStorage.setItem("mbv-impianti-misura-" + this.kind, sizeSel.value); } catch { /* */ } this.render(); this.v.redraw(); });
+    sizeSel.addEventListener("change", () => { this.sizeTouched = true; this.pickSize(sizeSel.value); try { localStorage.setItem("mbv-impianti-misura-" + this.kind, sizeSel.value); } catch { /* */ } this.render(); this.v.redraw(); });
     const rIn = el("input", { class: "field", type: "text", value: String(this.r) });
     rIn.addEventListener("change", () => { const v = parseFloat(rIn.value.replace(",", ".")); if (v > 0) this.r = v; });
     const elIn = el("input", { class: "field", type: "text", value: String(this.elev) });
@@ -382,6 +382,9 @@ export class RouteTool {
       row(tr("mod.pl_linea"), lineIn), row(tr("mod.pl_raggio_curve"), rIn, "mm"), row(tr("mod.pl_quota_partenza"), elIn, "mm"),
       el("div", { class: "md-frow md-check" }, orthoCb, el("label", { for: "md-route-ortho" }, tr("mod.pl_solo_assi"))),
       el("p", { class: "md-hint" }, tr("mod.pl_aiuto", this.pts.length)),
+      this.attach ? el("p", { class: "md-dof ok" }, tr(this.attach.mode === "tee" ? "mod.pl_parte_tee" : "mod.pl_parte_fine", this.app.bodyName(this.attach.route))) : el("p", { class: "md-hint" }, tr("mod.pl_aiuto_ramo")),
+      this.attach?.mode === "end" && Math.abs((this.size.od || 0) - (this.attach.meta.od || 0)) > 0.01 ? el("div", { class: "md-frow md-check" },
+        el("input", { type: "checkbox", id: "md-route-ecc", checked: !!this.ecc, onchange: ev => (this.ecc = ev.target.checked) }), el("label", { for: "md-route-ecc" }, tr("mod.pl_riduzione_ecc"))) : null,
       el("div", { class: "md-subh" }, tr("mod.pl_converti")),
       el("button", { class: "btn", type: "button", onclick: () => this.fromEdges() }, el("span", { html: ICON.edge || ICON.line }), tr("mod.pl_da_spigoli")),
       sketches.length ? el("div", { class: "md-frow" }, el("label", {}, tr("mod.pl_da_schizzo")),
@@ -413,6 +416,8 @@ export class RouteTool {
     const v = this.v;
     const s = v.snap(e, { tol: 10, faces: true });
     if (!this.pts.length) {
+      const att = this.kind === "pipe" ? this.attachAt(e) : null;
+      if (att) return { p: att.p, kind: att.mode, att };
       if (s) return { p: [s.p.x, s.p.y, s.p.z], kind: s.kind };
       const p = v.onPlane(e, { o: [0, 0, this.elev], n: [0, 0, 1] });
       return p ? { p: [r1(p.x), r1(p.y), this.elev], kind: "free" } : null;
@@ -429,11 +434,48 @@ export class RouteTool {
     else { t = closestOnAxis(v.ray(e).ray, last, AX[i]); const st = niceStep(v.pxSize(V(last)) * 8); t = Math.round(t / st) * st; }
     return { p: add(last, mul(AX[i], t)), kind: s && ["vertex", "center", "mid"].includes(s.kind) ? s.kind : "axis", axis: i, t };
   }
+  // primo punto su una tubazione esistente: sull'asse di un tratto dritto = diramazione a T; su un'estremita' = prosecuzione
+  // (con riduzione se il diametro e' diverso). Il punto preciso lo ricalcola il motore sulla tubazione madre.
+  attachAt(e) {
+    const v = this.v, [mx, my] = v.local(e), ray = v.ray(e).ray;
+    let best = null;
+    for (const b of this.app.res?.bodies || []) {
+      const m = b.meta;
+      if (m?.impianto !== "pipe" || !m.nodi?.length) continue;
+      const N = m.nodi;
+      for (const [k, end] of [[0, 0], [N.length - 1, -1]]) {
+        if (end === 0 && m.inizio) continue; // l'inizio di una diramazione e' gia' occupato
+        const s = v.toScreen(N[k]), d = Math.hypot(s[0] - mx, s[1] - my);
+        if (d < 14 && (!best || d < best.d)) best = { d, route: b.id, mode: "end", end, p: N[k].slice(), meta: m };
+      }
+      if (best?.mode === "end") continue;
+      const tol = Math.max(10, (m.od || 50) / 2 / v.pxSize(V(N[0])));
+      for (let i = 0; i + 1 < N.length; i++) {
+        const a = N[i], dv = sub(N[i + 1], a), L = Math.hypot(...dv);
+        if (L < 1e-6) continue;
+        const u = dv.map(x => x / L);
+        const t = Math.max(0, Math.min(L, closestOnAxis(ray, a, u)));
+        const p = add(a, mul(u, t)), s = v.toScreen(p), d = Math.hypot(s[0] - mx, s[1] - my);
+        if (d < tol && t > 1 && t < L - 1 && (!best || d < best.d)) best = { d, route: b.id, mode: "tee", p: p.map(r6), u, meta: m };
+      }
+    }
+    return best;
+  }
   move(e) { this.cur = this.candidate(e); this.v.redraw(); }
   click(e) {
     const c = this.candidate(e);
     if (!c) return;
     if (this.pts.length && Math.hypot(...sub(c.p, this.pts[this.pts.length - 1])) < 1e-6) return;
+    if (!this.pts.length && c.att) {
+      // si eredita la linea e la classe della tubazione madre; per una diramazione si propone il DN uguale o il piu' vicino minore
+      this.attach = c.att;
+      const pm = c.att.meta;
+      if (!this.linea && pm.linea) this.linea = pm.linea;
+      if (pm.spec && pm.spec !== this.spec) { this.spec = pm.spec; this.pickSize(this.size?.id); }
+      if (c.att.mode === "end" && !this.sizeTouched) this.pickSize(pm.misura);
+      if ((this.size.od || 0) > (pm.od || 0) + 0.01 && c.att.mode === "tee") this.pickSize(pm.misura);
+      this.ecc = false;
+    }
     if (!this.pts.length) this.elev = c.p[2];
     this.pts.push(c.p.map(r6));
     this.render();
@@ -464,9 +506,12 @@ export class RouteTool {
   }
   finish() {
     if (this.pts.length < 2) return;
-    const pts = this.pts;
+    const pts = this.pts, st = this.attach;
     this.pts = [];
-    this.app.commitFeature(this.feature({ pts }));
+    this.attach = null;
+    const extra = { pts };
+    if (st) extra.start = { route: st.route, mode: st.mode === "tee" ? "tee" : "end", at: st.p, ...(st.mode === "end" ? { end: st.end } : {}), ...(this.ecc ? { ecc: true } : {}) };
+    this.app.commitFeature(this.feature(extra));
   }
   paint(g) {
     const v = this.v;

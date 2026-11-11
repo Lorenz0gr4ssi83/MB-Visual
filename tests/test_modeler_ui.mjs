@@ -75,6 +75,14 @@ function judge(scen, res) {
     for (const [k, v] of Object.entries(o)) if (v && typeof v === "object") walk(v, Array.isArray(o) ? key : k);
   };
   walk(res, scen);
+  if (scen.startsWith("11_") && res) {
+    ok(`${scen} · primo clic sull'asse = diramazione a T, sull'estremita' = prosecuzione`, res.aggancio === "tee" && res.parte === "tee" && res.parteFine === "end", JSON.stringify([res.aggancio, res.parte, res.parteFine]));
+    ok(`${scen} · Tee ridotto e linea ereditata`, res.ramo?.tee === "tee_rid" && res.ramo?.linea === "100-A1-010" && res.ramo?.inizio === "tee", JSON.stringify(res.ramo));
+    ok(`${scen} · riduzione eccentrica`, res.prosecuzione?.riduzione === "riduzione_ecc", JSON.stringify(res.prosecuzione));
+    ok(`${scen} · distinta con Tee e riduzione`, (res.distinta || []).some(r => /Tee/.test(r[0])) && (res.distinta || []).some(r => /Riduzione|reducer/i.test(r[0])), JSON.stringify(res.distinta));
+    ok(`${scen} · isometrico: una linea = un foglio`, res.iso?.fogli === 1, JSON.stringify(res.iso));
+    ok(`${scen} · nessuna interferenza fasulla`, res.interferenze === 0, String(res.interferenze));
+  }
   if (scen.startsWith("10_") && res) {
     const c = res.classe || {}, s = res.staffe || {}, d = res.distinta || [];
     ok(`${scen} · classe B1 e numero di linea`, c.spec === "B1" && c.linea === "080-B1-001" && c.t === c.attesoT && /316L/.test(c.mat), JSON.stringify(c));

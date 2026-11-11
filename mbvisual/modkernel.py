@@ -1409,11 +1409,59 @@ def f_route(state, f, ctx):
         pts = [pl.to3(q).tolist() for q in f["pts2"]]
     if not pts or len(pts) < 2:
         raise FeatureError("srv_modeler.percorso_corto")
+    pts = [list(map(float, q)) for q in pts]
     size = float(f.get("od", 0) or 0) if kind in ("pipe", "duct") else float(f.get("w", 0) or 0)
+    # partenza da un'altra tubazione: diramazione a T sul suo asse, oppure prosecuzione dalla sua estremita' (con riduzione se
+    # il diametro cambia). Il primo nodo si ricalcola sempre dalla tubazione madre: se lei si sposta, la diramazione la segue
+    trim, inizio = 0.0, None
+    start = f.get("start")
+    if start:
+        par = state.get(start.get("route"))
+        pm = par.meta if par is not None else None
+        if not pm or pm.get("impianto") != "pipe" or kind != "pipe":
+            raise FeatureError("srv_modeler.serve_tubazione")
+        od_p, od_b = float(pm.get("od") or 0), float(f.get("od") or 0)
+        if start.get("mode") == "tee":
+            p0, u0, room = _route_axis(pm, start.get("at") or pts[0], straight=True)
+            # tutta la diramazione segue lo spostamento del punto d'innesto (la madre si e' mossa)
+            delta = p0 - np.array(start.get("at") or pts[0], float)
+            pts = [(np.array(q) + delta).tolist() for q in pts]
+            pts[0] = p0.tolist()
+            d = _n(np.array(pts[1]) - p0)
+            if abs(float(np.dot(d, u0))) > 0.02:
+                raise FeatureError("srv_modeler.ramo_perpendicolare")
+            if od_b > od_p + 0.01:
+                raise FeatureError("srv_modeler.ramo_grande")
+            C, M = tee_dims(_dn(pm), _dn({"misura": f.get("size")}), od_p, od_b)
+            if room is not None and room < C - 0.01:
+                raise FeatureError("srv_modeler.tratto_corto", round(2 * C))
+            trim = M
+            inizio = {"padre": start["route"], "modo": "tee", "p0": pts[0], "u0": u0.tolist(), "d": d.tolist(), "C": C, "M": M}
+        else:
+            nodes = pm["nodi"]
+            first = start.get("end") == 0
+            p0 = np.array(nodes[0] if first else nodes[-1], float)
+            up = _n(p0 - np.array(nodes[1] if first else nodes[-2], float))
+            delta = p0 - np.array(start.get("at") or pts[0], float)
+            pts = [(np.array(q) + delta).tolist() for q in pts]
+            pts[0] = p0.tolist()
+            d = _n(np.array(pts[1]) - p0)
+            if float(np.dot(d, up)) < 0.999:
+                raise FeatureError("srv_modeler.continua_in_linea")
+            H = reducer_len(max(_dn(pm), _dn({"misura": f.get("size")})), max(od_p, od_b)) if abs(od_p - od_b) > 0.01 else 0.0
+            trim = H
+            inizio = {"padre": start["route"], "modo": "riduzione" if H else "continua", "p0": pts[0], "d": d.tolist(), "H": H,
+                      "ecc": bool(start.get("ecc")), "fine": 0 if first else -1}
     r = float(f.get("r", 0) or 0) or (bend_radius(f.get("size"), size) if kind == "pipe" else max(size * 1.5, 1.0))
     if kind in ("pipe", "duct") and r < size / 2:
         raise FeatureError("srv_modeler.raggio_piccolo")
     segs, dritti, angoli = route_geometry(pts, r)
+    if trim > 0:  # il primo tratto parte dopo il raccordo (Tee o riduzione)
+        if segs[0][0] != "l" or dritti[0] <= trim + 1e-6:
+            raise FeatureError("srv_modeler.tratto_corto", round(trim))
+        _k, a0, b0, u0_ = segs[0]
+        segs[0] = ("l", a0 + u0_ * trim, b0, u0_)
+        dritti[0] -= trim
     first = segs[0]
     x, y = _frame0(np.array(first[3] if first[0] == "l" else first[2], float), np.array(f.get("up") or [0, 0, 1], float))
     pieces = []
@@ -1433,7 +1481,110 @@ def f_route(state, f, ctx):
             "raggio": round(r, 3), "lunghezza": round(lun, 3), "dritti": [round(d, 3) for d in dritti], "curve": angoli,
             "nodi": [[float(c) for c in p] for p in pts], "spec": f.get("spec") or "", "pn": f.get("pn") or 16,
             "materiale": f.get("mat") or "", "linea": f.get("linea") or "", "famiglia": f.get("fam") or "steel"}
-    return _apply_op(state, f, shape, f["id"], meta)
+    if inizio:
+        meta["inizio"] = inizio
+    st = _apply_op(state, f, shape, f["id"], meta)
+    # il raccordo (Tee o riduzione) nasce con la tubazione: un corpo in piu' "<id>:rac", montato sulla tubazione madre
+    if inizio and inizio["modo"] in ("tee", "riduzione") and f.get("fit", True):
+        st = _branch_fitting(st, f["id"], f["id"] + ":rac")
+    return st
+
+
+# Tee EN 10253-2 / ASME B16.9: DN -> C (centro-estremita' del passaggio diritto); derivazione ridotta: M ~ C - 0,2 (De - de)
+TEE_C = {15: 25.4, 20: 28.6, 25: 38.1, 32: 47.6, 40: 57.2, 50: 63.5, 65: 76.2, 80: 85.7, 100: 104.8, 125: 123.8, 150: 142.9,
+         200: 177.8, 250: 215.9, 300: 254.0, 350: 279.4, 400: 304.8, 450: 342.9, 500: 381.0, 600: 431.8}
+# riduzioni EN 10253-2 / ASME B16.9: DN maggiore -> lunghezza
+RED_H = {20: 38, 25: 51, 32: 51, 40: 64, 50: 76, 65: 89, 80: 89, 100: 102, 125: 127, 150: 140, 200: 152, 250: 178, 300: 203,
+         350: 330, 400: 356, 450: 381, 500: 508, 600: 508}
+
+
+def tee_dims(dn_run, dn_br, od_run, od_br):
+    C = TEE_C.get(dn_run) or round(od_run * 0.9, 1)
+    M = C if abs(od_run - od_br) < 0.01 else round(max(C - 0.2 * (od_run - od_br), od_run / 2 + 5), 1)
+    return float(C), float(M)
+
+
+def reducer_len(dn, od):
+    return float(RED_H.get(dn) or round(max(od * 0.9, 50.0)))
+
+
+def _tube(o, d, ro, ri, L):
+    """Cilindro cavo da o lungo d."""
+    c = BRepPrimAPI_MakeCylinder(gp_Ax2(_p(o), _d(d)), ro, L).Shape()
+    if 0 < ri < ro:
+        c = _bool("cut", c, BRepPrimAPI_MakeCylinder(gp_Ax2(_p(np.array(o) - np.array(d) * 0.01), _d(d)), ri, L + 0.02).Shape())
+    return _orient(c)
+
+
+def _loft(c1, r1, c2, r2, d):
+    from OCP.BRepOffsetAPI import BRepOffsetAPI_ThruSections
+    ts = BRepOffsetAPI_ThruSections(True, True)
+    for c, r in ((c1, r1), (c2, r2)):
+        ts.AddWire(BRepBuilderAPI_MakeWire(BRepBuilderAPI_MakeEdge(gp_Circ(gp_Ax2(_p(c), _d(d)), r)).Edge()).Wire())
+    ts.Build()
+    return _orient(ts.Shape())
+
+
+def f_branchfit(state, f, ctx):
+    return _branch_fitting(state, f.get("route"), f["id"])
+
+
+def _branch_fitting(state, route_id, fit_id):
+    """Raccordo all'inizio di una tubazione che parte da un'altra: Tee (uguale o ridotto) o riduzione concentrica/eccentrica.
+    Corpo a parte montato sulla tubazione madre (meta.su), conteggiato in distinta; si ricalcola con le due tubazioni."""
+    body = state.get(route_id)
+    mb = body.meta if body is not None else None
+    ini = (mb or {}).get("inizio")
+    if not ini or ini.get("modo") not in ("tee", "riduzione"):
+        raise FeatureError("srv_modeler.serve_ramo")
+    par = state.get(ini["padre"])
+    pm = par.meta if par is not None else None
+    if not pm:
+        raise FeatureError("srv_modeler.serve_tubazione")
+    od_p, t_p = float(pm.get("od") or 60), float(pm.get("t") or 3)
+    od_b, t_b = float(mb.get("od") or 60), float(mb.get("t") or 3)
+    p0, d = np.array(ini["p0"], float), np.array(ini["d"], float)
+    if ini["modo"] == "tee":
+        u0, C, M = np.array(ini["u0"], float), ini["C"], ini["M"]
+        run = _tube(p0 - u0 * C, u0, od_p / 2, od_p / 2 - t_p, 2 * C)
+        br = _tube(p0, d, od_b / 2, od_b / 2 - t_b, M)
+        try:
+            shape = _fuse_all([run, br])
+            if shape is None or not BRepCheck_Analyzer(shape).IsValid() or _volume(shape) <= 0:
+                raise FeatureError("x")
+        except FeatureError:
+            shape = _compound([run, br])
+        kind, L, pos, dirv = ("tee" if abs(od_p - od_b) < 0.01 else "tee_rid"), 2 * C, p0, u0
+        misura = mb.get("misura") if kind == "tee" else f"{pm.get('misura')}×{mb.get('misura')}"
+    else:
+        H, ecc = ini["H"], ini.get("ecc")
+        R1, R2 = max(od_p, od_b) / 2, min(od_p, od_b) / 2
+        big_first = od_p >= od_b  # di solito dal grande al piccolo
+        ra, rb = (od_p / 2, od_b / 2)
+        ta, tb = t_p, t_b
+        c2 = p0 + d * H
+        if ecc:  # eccentrica: generatrice inferiore piana (fondo tubo allineato, aspirazione delle pompe)
+            z = np.array([0, 0, 1.0])
+            down = z - d * float(np.dot(z, d))
+            down = _n(down) if np.linalg.norm(down) > 1e-6 else _frame0(d, z)[0]
+            c2 = c2 - down * (ra - rb)
+        outer = _loft(p0, ra, c2, rb, d)
+        inner = _loft(p0 - d * 0.01, ra - ta, c2 + d * 0.01, rb - tb, d)
+        shape = outer
+        try:
+            c = _bool("cut", outer, inner)
+            if not _empty(c) and 0 < _volume(c) < _volume(outer):
+                shape = _clean(c)
+        except FeatureError:
+            pass
+        kind, L, pos, dirv = ("riduzione_ecc" if ecc else "riduzione"), H, p0 + d * H / 2, d
+        misura = f"{pm.get('misura')}×{mb.get('misura')}" if big_first else f"{mb.get('misura')}×{pm.get('misura')}"
+    meta2 = {"componente": kind, "misura": misura, "lunghezza_fs": round(L, 1) if ini["modo"] == "tee" else 0.0, "su": ini["padre"], "ramo": route_id,
+             "pos": [round(float(c), 3) for c in pos], "dir": [round(float(c), 6) for c in dirv], "spec": mb.get("spec") or "", "pn": int(mb.get("pn") or 16),
+             "materiale": mb.get("materiale") or ""}
+    st = OrderedDict(state)
+    st[fit_id] = Body(shape=shape, src=fit_id.split(":")[0], meta=meta2)
+    return st
 
 
 # DN -> NPS (pollici) per i raggi delle curve: R = 1,5 x NPS x 25,4 (EN 10253-2 tipo 3D / ASME B16.9 raggio lungo)
@@ -1706,7 +1857,7 @@ FEATURES = {
     "sketch": f_sketch, "extrude": f_extrude, "revolve": f_revolve, "primitive": f_primitive, "hole": f_hole,
     "fillet": f_fillet, "chamfer": f_chamfer, "shell": f_shell, "pushpull": f_pushpull, "delface": f_delface,
     "boolean": f_boolean, "transform": f_transform, "pattern": f_pattern, "delbody": f_delbody, "mate": f_mate,
-    "import": f_import, "split": f_split, "route": f_route, "fitting": f_fitting, "supports": f_supports,
+    "import": f_import, "split": f_split, "route": f_route, "fitting": f_fitting, "supports": f_supports, "branchfit": f_branchfit,
 }
 
 

@@ -120,12 +120,12 @@ export function isoData(app) {
     if (m?.impianto !== "pipe" || !m.nodi?.length) continue;
     const sp = m.spec ? specOf(m.spec, app.doc) : null;
     const L = { id: app.bodyName(b.id), linea: m.linea || "", misura: m.misura || "", spec: m.spec || "", materiale: m.materiale || sp?.mat || "",
-      pn: m.pn || sp?.pn || null, raggio: m.raggio, lunghezza: m.lunghezza, dritti: m.dritti, nodi: m.nodi, componenti: [], supporti: [] };
+      pn: m.pn || sp?.pn || null, raggio: m.raggio, lunghezza: m.lunghezza, dritti: m.dritti, nodi: m.nodi, componenti: [], supporti: [], ramo: !!m.inizio };
     for (const c of bodies) {
       const q = c.meta;
       if (q?.su !== b.id) continue;
       if (q.componente?.startsWith("support_")) for (const p of q.pos || []) L.supporti.push({ tipo: q.componente.slice(8), pos: p });
-      else if (q.pos) L.componenti.push({ tipo: q.componente, pos: q.pos, lunghezza_fs: q.lunghezza_fs || 0 });
+      else if (q.pos) L.componenti.push({ tipo: q.componente, pos: q.pos, lunghezza_fs: q.lunghezza_fs || 0, misura: q.misura });
     }
     linee.push(L);
   }

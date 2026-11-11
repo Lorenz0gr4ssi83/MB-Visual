@@ -328,6 +328,48 @@ check("passo staffe per materiale: PVC d63 1000, rame 22 1800, acciaio DN50 3600
       K._span_for({"impianto": "pipe", "od": 63, "famiglia": "plastic"}) == 1000 and K._span_for({"impianto": "pipe", "od": 22, "famiglia": "copper", "misura": "Cu22"}) == 1800
       and K._span_for({"impianto": "pipe", "od": 60.3, "misura": "DN50", "t": 3.91}) == 3600)
 
+# diramazioni a T e riduzioni: il ramo parte dall'asse della madre (ricalcolato), Tee ridotto EN 10253, riduzione eccentrica a fondo piano
+P = {"id": "p", "type": "route", "kind": "pipe", "pts": [[0, 0, 1000], [4000, 0, 1000]], "od": 114.3, "t": 6.02, "size": "DN100", "op": "new", "linea": "100-A1-010"}
+B = {"id": "b", "type": "route", "kind": "pipe", "pts": [[2000, 30, 1000], [2000, 1500, 1000], [2000, 1500, 0]], "od": 60.3, "t": 3.91, "size": "DN50", "op": "new",
+     "linea": "100-A1-010", "start": {"route": "p", "mode": "tee", "at": [2000, 0, 1000]}}
+R = {"id": "c", "type": "route", "kind": "pipe", "pts": [[4000, 0, 1000], [6000, 0, 1000]], "od": 60.3, "t": 3.91, "size": "DN50", "op": "new",
+     "linea": "100-A1-010", "start": {"route": "p", "mode": "end", "at": [4000, 0, 1000], "ecc": True}}
+d14 = {"features": [P, B, R]}
+st, _c, _r, bad = run(d14)
+tee, red = st.get("b:rac"), st.get("c:rac")
+check("diramazione: parte dall'asse della madre, primo tratto accorciato del Tee (M=94 = 104,8 - 0,2 x 54)", not bad and st["b"].meta["nodi"][0] == [2000.0, 0.0, 1000.0]
+      and near(st["b"].meta["dritti"][0], 1500 - 94.0 - 76.2, ab=0.05), bad or st["b"].meta["dritti"])
+check("Tee ridotto DN100xDN50: corpo valido montato sulla madre, scartamento 2C in distinta", tee is not None and tee.meta["componente"] == "tee_rid"
+      and tee.meta["su"] == "p" and near(tee.meta["lunghezza_fs"], 209.6, ab=0.05) and K._check(tee.shape) and K._volume(tee.shape) > 0, tee and tee.meta)
+bbr = K._bbox(red.shape) if red is not None else [0] * 6
+check("riduzione eccentrica DN100xDN50: lunghezza 102, fondo piano (generatrice inferiore a quota 942,85)", red is not None and red.meta["componente"] == "riduzione_ecc"
+      and near(bbr[3] - bbr[0], 102, ab=0.2) and near(bbr[2], 1000 - 57.15, ab=0.2) and near(st["c"].meta["dritti"][0], 2000 - 102, ab=0.05), bbr)
+cl = k.op_clash({"sid": "prova", "doc": d14})["clash"]
+check("diramazione e riduzione: nessuna interferenza fasulla", not cl, cl)
+# la madre si sposta (nodi): la diramazione la segue
+d15 = {"features": [dict(P, pts=[[0, 200, 1000], [4000, 200, 1000]]), B, R]}
+st, _c, _r, bad = run(d15)
+check("madre spostata di 200 in Y: ramo e riduzione la seguono per intero", not bad and st["b"].meta["nodi"][0] == [2000.0, 200.0, 1000.0] and st["b"].meta["nodi"][-1] == [2000.0, 1700.0, 0.0]
+      and st["c"].meta["nodi"] == [[4000.0, 200.0, 1000.0], [6000.0, 200.0, 1000.0]], bad or (st["b"].meta["nodi"], st["c"].meta["nodi"]))
+# ramo non perpendicolare o piu' grande della madre: errori chiari
+st, _c, _r, bad = run({"features": [P, dict(B, pts=[[2000, 30, 1000], [3000, 1000, 1000]])]})
+check("ramo non perpendicolare: errore 'ramo_perpendicolare'", bad and bad[0]["err"] == "srv_modeler.ramo_perpendicolare", bad)
+st, _c, _r, bad = run({"features": [P, dict(R, pts=[[4000, 0, 1000], [4000, 2000, 1000]])]})
+check("prosecuzione che non va dritta: errore 'continua_in_linea'", bad and bad[0]["err"] == "srv_modeler.continua_in_linea", bad)
+# isometrico: le tre tubazioni con lo stesso numero di linea su un solo foglio
+st, _c, _r, bad = run(d14)
+iso2 = {"nome": "rami", "linee": []}
+for rid in ("p", "b", "c"):
+    m = st[rid].meta
+    L = {"id": rid, "linea": m["linea"], "misura": m["misura"], "materiale": "", "pn": 16, "raggio": m["raggio"], "lunghezza": m["lunghezza"], "dritti": m["dritti"],
+         "nodi": m["nodi"], "componenti": [], "supporti": [], "ramo": bool(m.get("inizio"))}
+    for bid, b in st.items():
+        q = b.meta or {}
+        if q.get("su") == rid and q.get("pos") and not str(q.get("componente")).startswith("support_"):
+            L["componenti"].append({"tipo": q["componente"], "pos": q["pos"], "lunghezza_fs": q["lunghezza_fs"], "misura": q["misura"]})
+    iso2["linee"].append(L)
+ip2 = str(TMP / "iso_rami.pdf")
+r2 = modiso.make(ip2, iso2, "pdf") if "modiso" in dir() else None
 # isometrici: un foglio per linea, quote vere tra i nodi, simboli e distinta; PDF e DXF
 from mbvisual import modiso  # noqa: E402
 d11 = {"features": d10["features"] + [{"id": "v", "type": "fitting", "route": "p", "kind": "valve", "at": [2000, 0, 1000]},
@@ -363,6 +405,14 @@ modiso.make(xp, iso, "dxf")
 import ezdxf  # noqa: E402
 dx = ezdxf.readfile(xp)
 tx = [e.dxf.text for e in dx.modelspace().query("TEXT")]
+r2 = modiso.make(ip2, iso2, "pdf")
+pd2 = fitz.open(ip2)
+tx2 = pd2[0].get_text()
+check("isometrico di una linea con diramazione e riduzione: un foglio, tubi DN100 e DN50 netti, Tee e riduzione in distinta",
+      r2["fogli"] == 1 and "100-A1-010" in tx2 and "DN100" in tx2 and "DN50" in tx2 and ("Tee" in tx2 or "tee" in tx2.lower()), tx2[:400])
+pd2[0].get_pixmap(dpi=110).save(str(TMP / "iso_rami.png"))
+print("   isometrico con diramazione:", TMP / "iso_rami.png")
+pd2.close()
 check("isometrico DXF: testi delle quote e linee del tubo", "5000" in tx and "EL +1000" in tx and len(dx.modelspace().query("LINE[layer=='ISO-TUBO']")) == 4, len(tx))
 
 # percorso da schizzo (punti 2D sul piano XZ) e spostamento: i dati d'impianto restano

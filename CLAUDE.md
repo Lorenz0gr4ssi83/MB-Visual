@@ -907,7 +907,17 @@ dell'anteprima glTF salvata nel file (`viewOnly` di viewers/modeler.js, WEB_EXTS
     direzione; etichette di inizio/fine fuori dalle quote; DXF con spessori ammessi e layer ISO-SIMBOLI.
   * interfaccia: classe modificabile dal pannello della tubazione, massa con la densita' della classe, corpi mesh esclusi dalle
     interferenze dichiarati, classi del documento con spessori come tabella {DN: spessore}.
-  * Restano (mancanze strutturali segnalate): Tee/riduzioni/rete di linee, bocchelli associativi sulle apparecchiature, catalogo di
+  * Diramazioni e riduzioni (11/11/2026, dopo la 1.6.22): lavorazione route con `start: {route, mode: "tee"|"end", at, end, ecc}`:
+    il primo nodo si ricalcola sulla tubazione madre e TUTTA la tubazione si sposta con lei (delta tra `at` e il punto ricalcolato);
+    Tee: ramo perpendicolare, non piu' grande della madre, C da EN 10253-2/ASME B16.9 (TEE_C), derivazione ridotta M = C - 0,2 x
+    (De - de) (approssimazione); prosecuzione: stessa direzione dell'ultimo tratto, riduzione concentrica o eccentrica a fondo piano
+    (RED_H per il DN maggiore). Il raccordo nasce con la tubazione (corpo "<id>:rac", `_branch_fitting`, meta.su = madre, Tee con
+    scartamento 2C in distinta); il primo tratto del ramo parte dopo il raccordo. Interfaccia (RouteTool `attachAt`): primo clic
+    sull'asse di una tubazione = Tee, sulla sua estremita' = prosecuzione (linea e classe ereditate; casella "riduzione eccentrica").
+    ATTENZIONE: in RouteTool l'aggancio sta in `this.attach` (`this.start` e' il metodo dello strumento). Isometrici: tubazioni con lo
+    stesso numero di linea sullo stesso foglio (proiezione proporzionale), distinta per misura, simboli di Tee e riduzione.
+    Collaudo: test_modeler.py 77/77, scenario UI 11_diramazioni.
+  * Restano (mancanze strutturali segnalate): bocchelli associativi sulle apparecchiature, catalogo di
     classe con componenti ammessi e codici, spool e saldature negli isometrici, P&ID collegato al 3D, isolamento e soft clash,
     canaline che restano dritte dopo una salita verticale (serve il pezzo speciale).
 - Limiti: niente sposta faccia laterale (solo lungo la normale), schizzi senza taglia/raccorda/offset/spline, vincoli solo
