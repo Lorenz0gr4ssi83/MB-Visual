@@ -560,13 +560,30 @@ def find_oda():
 
 
 def _to_dwg(doc, out):
+    _oda_dwg(lambda p: doc.saveas(p), out)
+
+
+def dxf_file_to_dwg(src, out, update=lambda *a, **k: None):
+    """DXF gia' scritto (es. dal visualizzatore 3D) -> DWG con ODA File Converter; il DXF di passaggio si cancella."""
+    update(progress=0.2, message=tr("srv_cadedit.conversione_dwg"))
+    try:
+        _oda_dwg(lambda p: shutil.copyfile(src, p), out)
+    finally:
+        try:
+            os.remove(src)
+        except OSError:
+            pass
+    return {"ok": True, "path": str(out)}
+
+
+def _oda_dwg(write_dxf, out):
     exe = find_oda()
     if not exe:
         raise RuntimeError(tr("srv_cadedit.scrivere_file_dwg_serve_oda"))
     tmp_in = Path(tempfile.mkdtemp(dir=TEMP_DIR))
     tmp_out = Path(tempfile.mkdtemp(dir=TEMP_DIR))
     name = Path(out).stem
-    doc.saveas(tmp_in / (name + ".dxf"))
+    write_dxf(tmp_in / (name + ".dxf"))
     subprocess.run([exe, str(tmp_in), str(tmp_out), "ACAD2018", "DWG", "0", "1", "*.DXF"], capture_output=True, timeout=600, creationflags=NO_WINDOW)
     res = tmp_out / (name + ".dwg")
     if not res.exists():

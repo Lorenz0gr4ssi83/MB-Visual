@@ -1080,6 +1080,14 @@ class Handler(BaseHTTPRequestHandler):
         from . import mdb
         self._json({"ok": True, "job": jobs.start(mdb.to_sqlite, self._path(qs))})
 
+    def api_dxf_dwg(self, qs):  # DXF -> DWG con ODA File Converter (salvataggio DWG del visualizzatore 3D)
+        from .cadedit import dxf_file_to_dwg, find_oda
+        if _q(qs, "check"):
+            self._json({"ok": True, "oda": bool(find_oda())})
+            return
+        b = self._body_json()
+        self._json({"ok": True, "job": jobs.start(dxf_file_to_dwg, os.path.abspath(b["src"]), os.path.abspath(b["out"]))})
+
     def api_ifcxml_ifc(self, qs):  # ifcXML -> IFC (mbvisual/ifcxml.py)
         from . import ifcxml
         self._json({"ok": True, "job": jobs.start(ifcxml.to_ifc, self._path(qs))})
