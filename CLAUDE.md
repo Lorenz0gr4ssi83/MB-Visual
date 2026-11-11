@@ -1,5 +1,10 @@
 # MB Desk (prima MB Visual) - note per riprendere il lavoro
 
+## REGOLA DELL'UTENTE PER TUTTE LE SESSIONI (11/11/2026)
+Quando l'utente chiede una cosa la si porta A TERMINE senza fermarsi e senza chiedere conferme lungo la strada: unire i rami delle
+altre sessioni, build, release, Drive compresi, se la richiesta lo implica ("dov'e' il pulsante?" = va pubblicato). Si chiede solo un
+dato che manca davvero (es. quale file). Restano da chiedere solo le RIMOZIONI di estensioni/formati/funzioni.
+
 ## NOME DELL'APP: MB Desk (dal 25/10/2026) - REGOLA PER TUTTE LE SESSIONI
 SOCIETA' (decisione dell'utente, 25/10/2026): dove serve la ragione sociale (editore dell'installabile, copyright, titolare dei dati
 nell'informativa e nelle statistiche, richieste privacy) = "MB Workshop Srl"; dove non serve = "MB Group". MAI "MB Engineering".
