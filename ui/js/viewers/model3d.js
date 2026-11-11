@@ -1119,9 +1119,9 @@ export async function mount(ctx) {
     },
     saveInPlace: false,
     // formati tecnici (ui/js/export3d.js) + formati mesh di three.js
-    saveFormats: ["stp", "step", "ifc", "glb", "gltf", "stl", "obj", "3mf", "dxf", "ply", "wrl", "usdz"],
+    saveFormats: ["stp", "step", "ifc", "glb", "gltf", "stl", "obj", "3mf", "dxf", ...(WEB ? [] : ["dwg"]), "ply", "wrl", "usdz"],
     saveLabels: { stp: tr("v_model3d.step_cad_solidworks_inventor_creo"), step: tr("v_model3d.step_cad"), ifc: tr("v_model3d.ifc_4_bim_revit_archicad"), glb: tr("v_model3d.gltf_binario_web_realta_aumentata"),
-      gltf: tr("v_model3d.gltf_testo"), stl: tr("v_model3d.stl_stampa_3d"), obj: tr("v_model3d.obj_mesh_universale"), "3mf": tr("v_model3d.3mf_stampa_3d_colori"), dxf: tr("v_model3d.dxf_3d_facce_layer_autocad"), ply: tr("v_model3d.ply_nuvola_mesh"),
+      gltf: tr("v_model3d.gltf_testo"), stl: tr("v_model3d.stl_stampa_3d"), obj: tr("v_model3d.obj_mesh_universale"), "3mf": tr("v_model3d.3mf_stampa_3d_colori"), dxf: tr("v_model3d.dxf_3d_facce_layer_autocad"), dwg: tr("v_model3d.dwg_3d_facce_layer_autocad"), ply: tr("v_model3d.ply_nuvola_mesh"),
       wrl: "VRML", usdz: tr("v_model3d.usdz_apple_realta_aumentata") },
     saveNote: tr("v_model3d.step_ifc_contengono_superfici_facce"),
     saveAsName: () => withExt(ctx.name, "glb"),
@@ -1147,6 +1147,16 @@ export async function mount(ctx) {
         }
       }
       const { saveChunks } = await import("../bigout.js");
+      // DWG = lo stesso DXF 3D convertito da ODA File Converter (formato chiuso di Autodesk: MB Desk non lo scrive da solo)
+      if (ext === "dwg") {
+        const chk = await api("dxf_dwg", { check: 1 });
+        if (!chk.oda) throw new Error(tr("v_model3d.dwg_serve_oda"));
+        const tmp = target.replace(/\.dwg$/i, "") + ".mbv-dwg.dxf";
+        await this.save(tmp);
+        const r = await api("dxf_dwg", {}, { json: { src: tmp, out: target } });
+        await waitJob(r.job, (p, m) => ctx.status(m || tr("v_model3d.dwg_conversione")));
+        return { switchTo: false };
+      }
       if (["stp", "step", "ifc", "3mf", "dxf", "wrl", "obj"].includes(ext)) {
         // unita' della scena secondo il formato d'origine: IFC, Navisworks e glTF in metri, CAD e mesh in millimetri
         const mpu = ["ifc", "nwd", "nwc", "nwf", "glb", "gltf", "usdz", "vrm", "skp"].includes(src) ? 1 : 0.001;
