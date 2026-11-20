@@ -18,7 +18,7 @@ import time
 import zlib
 from collections import Counter
 
-from . import olepropset, parasolid, xt2step
+from . import olepropset, parasolid, swtess, xt2step
 from .i18n import t as tr
 from .paths import TEMP_DIR
 
@@ -394,6 +394,25 @@ def _sw_tree(c: Container):
     return {"files": files, "models": models, "configs": configs}
 
 
+_DIR_INDEX = {}  # cartella -> (istante, {nome minuscolo: percorso}): una sola scansione per assieme, non una per componente
+
+
+def _dir_index(base_dir):
+    hit = _DIR_INDEX.get(base_dir)
+    if hit and time.time() - hit[0] < 60:
+        return hit[1]
+    idx = {}
+    for root, dirs, files in os.walk(base_dir):
+        if root[len(base_dir):].count(os.sep) >= 3:
+            dirs[:] = []
+        for f in files:
+            idx.setdefault(f.lower(), os.path.join(root, f))
+    if len(_DIR_INDEX) > 16:
+        _DIR_INDEX.clear()
+    _DIR_INDEX[base_dir] = (time.time(), idx)
+    return idx
+
+
 def find_file(stored_path, base_dir, own_dir=None):
     """Trova su disco un file referenziato: percorso salvato, stessa cartella, sottocartelle (fino a 3 livelli)."""
     if not stored_path:
@@ -405,14 +424,8 @@ def find_file(stored_path, base_dir, own_dir=None):
     for p in cands:
         if p and os.path.isfile(p):
             return p
-    low = name.lower()
-    for root, dirs, files in os.walk(base_dir):
-        if root[len(base_dir):].count(os.sep) >= 3:
-            dirs[:] = []
-        for f in files:
-            if f.lower() == low:
-                return os.path.join(root, f)
-    return None
+    found = _dir_index(base_dir).get(name.lower())
+    return found if found and os.path.isfile(found) else None
 
 
 def _components(c: Container, cad, path):
@@ -642,14 +655,18 @@ def _sw_assembly_step(path, name, config, update):
     try:
         tree = _sw_tree(c)
         own = parasolid_streams(c, "sw", config)  # corpi creati nell'assieme (rari)
+        if not tree:
+            raise ValueError(tr("srv_solidcad.assieme_senza_albero"))
+        base = os.path.dirname(path)
+        resolved = {}
+        for fid, (p, typ) in tree["files"].items():
+            resolved[fid] = find_file(p, base)
+        missing_files = sorted({os.path.basename(tree["files"][fid][0]) for fid, p in resolved.items() if not p})
+        if missing_files and swtess.available(c):
+            # parti non trovate: copia di visualizzazione (triangoli) salvata dentro l'assieme
+            return _sw_assembly_tess(c, tree, path, name, missing_files, update)
     finally:
         c.close()
-    if not tree:
-        raise ValueError(tr("srv_solidcad.assieme_senza_albero"))
-    base = os.path.dirname(path)
-    resolved = {}
-    for fid, (p, typ) in tree["files"].items():
-        resolved[fid] = find_file(p, base)
     stamp = "|".join(f"{v}:{os.path.getmtime(v) if v else 0}" for v in resolved.values())
     d = cache_dir(path, f"asm|{config}|{hashlib.sha1(stamp.encode()).hexdigest()}")
     target = d / "modello.stp"
@@ -757,6 +774,22 @@ def _sw_assembly_step(path, name, config, update):
     res = _result(target, b.report, xts_used, time.time() - t0)
     res["mancanti"] = sorted(missing)
     res["non_convertiti"] = sorted(failed)
+    meta.write_text(json.dumps(res), encoding="utf-8")
+    return res
+
+
+def _sw_assembly_tess(c, tree, path, name, missing_files, update):
+    """Assieme con parti mancanti: GLB dalla tassellazione salvata nell'assieme (mbvisual/swtess.py), in cache."""
+    d = cache_dir(path, f"tess|{swtess.VERSION}")
+    target = d / "modello.glb"
+    meta = d / "resoconto.json"
+    if target.exists() and meta.exists():
+        res = json.loads(meta.read_text(encoding="utf-8"))
+        res["cache"] = True
+        return res
+    entries = swtess.read_directory(c.get(swtess.DIR))
+    rep = swtess.build(c, tree, entries, name, target, update, unescape=_xml_unescape)
+    res = {"glb": str(target), "tess": True, "mancanti": missing_files, "resoconto_tess": rep, "secondi": rep["secondi"]}
     meta.write_text(json.dumps(res), encoding="utf-8")
     return res
 

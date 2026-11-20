@@ -1255,6 +1255,21 @@ Tutto scritto da zero, niente codice di terzi:
   mesh di visualizzazione in Preview/Display/Scene0/Geometries), mesh di visualizzazione SW (DisplayLists) come ripiego,
   sotto-assiemi SW non descritti nell'albero del padre, x_t senza schema incorporato, parti SE vecchie con solo schizzi.
 
+## Assiemi SolidWorks senza i file delle parti: copia di visualizzazione (20/11/2026) - FATTO
+Assieme SW 2015+ con parti mancanti (anche una sola) e sezione `FaceTessellations/Directory`: `solidcad._sw_assembly_step` passa a
+`_sw_assembly_tess` -> `mbvisual/swtess.py` scrive un GLB (metri, Y in alto, una mesh per parte condivisa dalle istanze, nodi con le
+matrici swTransform, normali int8 con KHR_mesh_quantization) in cache TEMP_DIR/solidcad/<chiave "tess|VERSION">; viewers/solidcad.js
+lo monta in model3d (`preloaded`, albero dei componenti, nomi "Nome<n>" dal percorso in extras) con l'avviso `v_solidcad.tess_avviso`.
+Con TUTTE le parti presenti resta lo STEP esatto. Formato ricavato dai dati, descritto in testa a swtess.py: Directory = voce per
+istanza (percorso "Nome-N@Padre/...", chiave, chiave da cui copiare per le istanze ripetute, blocco e posizione); blocchi = facce
+con strisce di triangoli (float32 vertici e normali, verso alternato verificato sulle normali 100%). Colori: aspetto piu' frequente
+del componente in Contents/DisplayLists (sRGB -> lineare); i colori per faccia (strade/terreno di una stessa parte) NON ci sono.
+Prova (file dell'utente, NON nel repo): C1161-assy impianto.SLDASM 329 MB, 416 componenti mancanti -> 1583 istanze, 326 parti,
+115.119 facce, 17,2 M triangoli (5,1 M distinti); GLB in 8 s, apertura nell'app 13 s la prima volta, ~6 s dall'archivio; ingombro =
+swBoundingBox dell'assieme. Non mostrati: 18 voci senza triangoli (parti vuote come "Base impianto", marcatori delle ripetizioni).
+`find_file` ora fa UNA scansione della cartella per assieme (`_dir_index`): prima 416 scansioni = 37 s in solid_info e altrettanti
+in to_step. Collaudo `python tests/test_swtess.py [assieme] [--immagine cartella]` (prove sintetiche sempre; col file: 19 controlli).
+
 ## Autodesk Inventor senza Inventor (22/10/2026) - FATTO
 Lettore scritto da zero (nessun codice GPL: InventorLoader NON usato; librerie: olefile BSD, OpenCascade/occt-import-js LGPL
 gia' presente). Categorie `inventor` (ipt, iam -> model3d) e `inventor-doc` (idw, ipn -> `ui/js/viewers/inventor.js`). Solo app per PC.

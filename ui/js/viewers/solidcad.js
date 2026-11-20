@@ -124,16 +124,65 @@ export async function mount(ctx) {
       ctx.tb.append(myTb);
       return;
     }
-    step = res;
+    step = res.glb ? null : res;
     showReport(res);
     ld3.set(0.65, t("v_solidcad.lettura_step"));
     const mod = await import("./model3d.js");
+    if (res.glb) {
+      // parti non trovate: triangoli della copia di visualizzazione salvata nell'assieme (mbvisual/swtess.py)
+      const sub = { ...ctx, el: stage, path: res.glb, ext: "glb", info: { ...(ctx.info || {}), nome: ctx.name }, preloaded: ld2 => loadTess(res.glb, ld2) };
+      inner = await mod.mount(sub);
+      ctx.tb.append(myTb);
+      stage.append(el("div", { class: "solidcad-tess-note", style: { position: "absolute", left: "10px", bottom: "10px", maxWidth: "min(560px, 70%)", padding: "6px 10px", borderRadius: "6px", background: "var(--panel)", border: "1px solid var(--warn, #b26b00)", color: "var(--warn, #b26b00)", fontSize: "12px", zIndex: 5, pointerEvents: "none" } }, t("v_solidcad.tess_avviso")));
+      ctx.status(t("v_solidcad.tess_avviso") + (ctx.tab.extra ? " · " + ctx.tab.extra : ""));
+      return;
+    }
     // il visualizzatore 3D lavora su una copia del contesto che punta allo STEP convertito
     const sub = { ...ctx, el: stage, path: res.step, ext: "step", info: { ...(ctx.info || {}), nome: ctx.name } };
     inner = await mod.mount(sub);
     ctx.tb.append(myTb);
     const pct = res.facce ? `${fmtNum(res.percentuale, 1)}%` : "";
     if (pct) ctx.status(t("v_solidcad.stato_facce", res.convertite, res.facce, pct) + (ctx.tab.extra ? " · " + ctx.tab.extra : ""));
+  }
+
+  // GLB della copia di visualizzazione: albero dei componenti dai nodi (nomi originali, GLTFLoader cambia gli spazi in "_")
+  async function loadTess(glb, ld2) {
+    ld2.set(0.7, t("v_solidcad.tess_caricamento"));
+    const THREE = await import("three");
+    const buf = await (await fetch(fileUrl(glb))).arrayBuffer();
+    const { GLTFLoader } = await import("/vendor/three/examples/jsm/loaders/GLTFLoader.js");
+    const gltf = await new Promise((ok, ko) => new GLTFLoader().parse(buf, "", ok, ko));
+    const assoc = gltf.parser.associations;
+    const jnodes = gltf.parser.json.nodes || [];
+    const mats = new Map();
+    gltf.scene.traverse(o => {
+      const a = assoc.get(o);
+      if (a && a.nodes !== undefined && jnodes[a.nodes]) o.name = jnodes[a.nodes].name || "";
+      // istanza: nome dal percorso salvato nei dati del nodo ("Nome-3@Assieme" -> "Nome<3>"; la mesh e' condivisa tra le istanze)
+      const seg = o.userData.percorso ? String(o.userData.percorso).split("/").pop() : "";
+      if (seg.includes("@")) {
+        const inst = seg.slice(0, seg.lastIndexOf("@"));
+        const k = inst.lastIndexOf("-");
+        o.name = k > 0 ? `${inst.slice(0, k)}<${inst.slice(k + 1)}>` : inst;
+      }
+      if (!o.isMesh) return;
+      const c = o.material?.color || new THREE.Color(0.72, 0.74, 0.76);
+      const k = c.getHexString();
+      if (!mats.has(k)) mats.set(k, new THREE.MeshStandardMaterial({ color: c.clone(), metalness: 0.15, roughness: 0.55, side: THREE.DoubleSide }));
+      o.material = mats.get(k);
+      if (!(a && a.nodes !== undefined) && o.parent && !o.userData.percorso) { o.name = o.parent.name; o.userData.pickParent = true; }
+    });
+    const isNode = o => { const a = assoc.get(o); return !!a && a.nodes !== undefined; };
+    const tree = [];
+    const walk = (o, out) => {
+      const item = { name: o.name || ctx.name, obj: o, children: [] };
+      out.push(item);
+      for (const c of o.children) if (isNode(c)) walk(c, item.children);
+    };
+    for (const c of gltf.scene.children) walk(c, tree);
+    const root = new THREE.Group();
+    root.add(gltf.scene);
+    return { root, tree };
   }
 
   function previewOrMessage(msg) {
@@ -147,6 +196,18 @@ export async function mount(ctx) {
     reportBox.innerHTML = "";
     const dl = el("dl", { class: "kv", style: KV });
     const addr = (k, v) => v !== undefined && v !== null && v !== "" && dl.append(el("dt", {}, k), el("dd", {}, String(v)));
+    if (r.tess) {
+      const q = r.resoconto_tess || {};
+      addr(t("v_solidcad.tess_istanze"), fmtNum(q.istanze || 0, 0));
+      addr(t("v_solidcad.tess_parti"), fmtNum(q.parti || 0, 0));
+      addr(t("v_solidcad.tess_triangoli"), fmtNum(q.triangoli || 0, 0));
+      addr(t("v_solidcad.mancanti"), fmtNum(r.mancanti?.length || 0, 0));
+      addr(t("v_solidcad.tempo"), r.cache ? t("v_solidcad.tess_archivio") : r.secondi !== undefined ? fmtNum(r.secondi, 1) + " s" : "");
+      reportBox.append(el("h4", { style: { margin: "4px 0" } }, t("v_solidcad.tess_titolo")), dl,
+        el("p", { class: "note", style: { margin: "4px 0 0", color: "var(--warn, #b26b00)" } }, t("v_solidcad.tess_avviso")),
+        el("p", { class: "note", style: { margin: "4px 0 0" } }, t("v_solidcad.tess_nota")));
+      return;
+    }
     addr(t("v_solidcad.facce_convertite"), r.facce ? t("v_solidcad.su", r.convertite, r.facce, fmtNum(r.percentuale, 1) + "%") : "");
     const rep = r.resoconto || {};
     addr(t("v_solidcad.corpi"), rep.bodies);
@@ -170,7 +231,7 @@ export async function mount(ctx) {
   return {
     get saveFormats() { return inner ? inner.saveFormats : step ? ["stp", "step"] : []; },
     get saveLabels() {
-      return { ...(inner?.saveLabels || {}), stp: t("v_solidcad.step_esatto"), step: t("v_solidcad.step_esatto") };
+      return step ? { ...(inner?.saveLabels || {}), stp: t("v_solidcad.step_esatto"), step: t("v_solidcad.step_esatto") } : inner?.saveLabels || {};
     },
     get saveNote() { return step ? t("v_solidcad.step_nota") : inner?.saveNote; },
     saveInPlace: false,
