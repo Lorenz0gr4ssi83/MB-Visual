@@ -110,6 +110,115 @@ def _paragraphs(rows, bbox, area, page_w, vertical):
     return out, align
 
 
+def _rules(draws):
+    """linee disegnate (bordi delle celle delle tabelle): (verticali [(x, y0, y1)], orizzontali [(y, x0, x1)])"""
+    vs, hs = [], []
+
+    def seg(a, b):
+        if abs(a.x - b.x) < 0.8 and abs(a.y - b.y) > 2:
+            vs.append((a.x, min(a.y, b.y), max(a.y, b.y)))
+        elif abs(a.y - b.y) < 0.8 and abs(a.x - b.x) > 2:
+            hs.append((a.y, min(a.x, b.x), max(a.x, b.x)))
+
+    for d in draws:
+        for it in d.get("items", ()):
+            if it[0] == "l":
+                seg(it[1], it[2])
+            elif it[0] == "re":
+                r = it[1]
+                if r.width < 1.6:  # rettangolo sottile = linea verticale
+                    vs.append(((r.x0 + r.x1) / 2, r.y0, r.y1))
+                elif r.height < 1.6:
+                    hs.append(((r.y0 + r.y1) / 2, r.x0, r.x1))
+                else:
+                    tl, tr, bl, br = r.tl, r.tr, r.bl, r.br
+                    seg(tl, tr), seg(bl, br), seg(tl, bl), seg(tr, br)
+            elif it[0] == "qu":
+                q = it[1]
+                seg(q.ul, q.ur), seg(q.ll, q.lr), seg(q.ul, q.ll), seg(q.ur, q.lr)
+    return vs, hs
+
+
+def _cell_blocks(page, draws):
+    """Blocchi di testo come li vede chi legge: MuPDF unisce in un blocco il testo di celle diverse di una tabella
+    (e lo riscriverebbe tutto attaccato). Qui ogni riga si spezza dove c'e' un vuoto largo o una linea verticale
+    disegnata, e i pezzi si riuniscono in blocchi solo se stanno uno sotto l'altro senza linee in mezzo."""
+    vs, hs = _rules(draws)
+    pieces = []  # {"bbox", "dir", "spans": [span]}
+    for b in page.get_text("rawdict")["blocks"]:
+        if b.get("type") != 0:
+            continue
+        for ln in b["lines"]:
+            vertical = abs(ln["dir"][1]) > 0.5
+            cur = None
+            last = None  # (x1, size) dell'ultimo carattere non vuoto
+            for sp in ln["spans"]:
+                for ch in sp["chars"]:
+                    c = ch["c"]
+                    x0, y0, x1, y1 = ch["bbox"]
+                    if c.strip() and cur is not None and not vertical and last is not None:
+                        gap = x0 - last[0]
+                        cut = gap > max(sp["size"], last[1]) * 1.1 or any(
+                            last[0] - 0.5 <= vx <= x0 + 0.5 and vy0 <= y1 and vy1 >= y0 for vx, vy0, vy1 in vs)
+                        if cut:
+                            pieces.append(cur)
+                            cur = None
+                    if cur is None:
+                        if not c.strip():
+                            continue
+                        cur = {"dir": ln["dir"], "spans": [], "bbox": list(ch["bbox"])}
+                    s = cur["spans"][-1] if cur["spans"] else None
+                    if s is None or s["_id"] != id(sp):
+                        s = {"_id": id(sp), "text": "", "font": sp["font"], "size": sp["size"], "flags": sp["flags"],
+                             "color": sp["color"], "origin": ch["origin"], "bbox": list(ch["bbox"])}
+                        cur["spans"].append(s)
+                    s["text"] += c
+                    s["bbox"] = [min(s["bbox"][0], x0), min(s["bbox"][1], y0), max(s["bbox"][2], x1), max(s["bbox"][3], y1)]
+                    if c.strip():
+                        bb = cur["bbox"]
+                        cur["bbox"] = [min(bb[0], x0), min(bb[1], y0), max(bb[2], x1), max(bb[3], y1)]
+                        last = (x1, sp["size"])
+            if cur is not None:
+                pieces.append(cur)
+    for p in pieces:
+        for s in p["spans"]:
+            s.pop("_id", None)
+            s["text"] = s["text"].rstrip() if s is p["spans"][-1] else s["text"]
+
+    def separated(a, b):  # una linea orizzontale tra due pezzi uno sopra l'altro
+        top, bot = (a, b) if a[1] <= b[1] else (b, a)
+        lo, hi = top[3], bot[1]
+        x0, x1 = max(a[0], b[0]), min(a[2], b[2])
+        return any(lo - 1 <= hy <= hi + 1 and hx0 <= x1 and hx1 >= x0 for hy, hx0, hx1 in hs)
+
+    pieces.sort(key=lambda p: (round(p["bbox"][1], 1), p["bbox"][0]))
+    blocks = []
+    for p in pieces:
+        pb = p["bbox"]
+        size = max(s["size"] for s in p["spans"])
+        best = None
+        for bl in blocks:
+            bb, lastl = bl["bbox"], bl["lines"][-1]["bbox"]
+            if abs(bl["lines"][-1]["dir"][1]) > 0.5 or abs(p["dir"][1]) > 0.5:
+                continue
+            vgap = pb[1] - lastl[3]
+            overlap = min(bb[2], pb[2]) - max(bb[0], pb[0])
+            if -size * 0.5 <= vgap <= size * 0.9 and overlap > 0 and not separated(lastl, pb):
+                best = bl
+                break
+        if best is None:
+            blocks.append({"type": 0, "bbox": list(pb), "lines": [p]})
+        else:
+            best["lines"].append(p)
+            bb = best["bbox"]
+            best["bbox"] = [min(bb[0], pb[0]), min(bb[1], pb[1]), max(bb[2], pb[2]), max(bb[3], pb[3])]
+    for bl in blocks:
+        bl["bbox"] = tuple(bl["bbox"])
+        for ln in bl["lines"]:
+            ln["bbox"] = tuple(ln["bbox"])
+    return blocks
+
+
 def page_objects(path: str, pno: int) -> dict:
     with pymupdf.open(path) as doc:
         page = doc[pno]
@@ -138,7 +247,10 @@ def page_objects(path: str, pno: int) -> dict:
             out.append({"kind": "image", "xref": info.get("xref", 0), "box": _to_pdf(page, info["bbox"]),
                         "px": [info.get("width"), info.get("height")], "bpc": info.get("bpc"), "cs": info.get("cs-name", ""),
                         "shared": uses.get(info.get("xref"), 0) > 1})
-        blocks = page.get_text("dict")["blocks"]
+        try:
+            blocks = _cell_blocks(page, _cached_draws(path, pno, page))
+        except Exception:  # noqa: BLE001 - come prima: blocchi di MuPDF
+            blocks = page.get_text("dict")["blocks"]
         # area occupata dal testo (margini del documento): i titoli si centrano su questa, non sul foglio
         xs = [(ln["bbox"][0], ln["bbox"][2]) for b in blocks if b.get("type") == 0 for ln in b["lines"]
               if "".join(sp["text"] for sp in ln["spans"]).strip() and abs(ln["dir"][1]) < 0.5]
@@ -893,6 +1005,8 @@ def _write_block(doc, page, dest, o, text, angle=0.0, overlay=True, src_page=Non
     tw = pymupdf.TextWriter(page.rect, color=_rgb(o.get("color")))
     put = lambda x, y, s: tw.append(c + (pymupdf.Point(x, y) - cv), s, font=f, fontsize=size)  # noqa: E731
     y = dv.y0 + f.ascender * size
+    if o.get("base_dy") is not None and not page.rotation and not angle:
+        y = dv.y0 + float(o["base_dy"])
     sp = f.text_length(" ", size)
     for words, lw, last in _layout(f, text, size, width, align):
         if align == 3 and not last and len(words) > 1:  # giustificato: spazi distribuiti
@@ -1037,6 +1151,14 @@ def _apply_ops(path: str, tmp: str, ops: list[dict], info: dict) -> int:
             if k == "text_block":
                 # blocco di testo riscritto (anche su piu' righe, con a capo automatico) nello stesso posto, spostato o ruotato
                 src_page = page
+                if "base_dy" not in o and not to and not angle:
+                    # linea di base della prima riga del testo originale: il testo riscritto resta alla stessa altezza
+                    try:
+                        sp = next(s for bl in page.get_text("dict", clip=r)["blocks"] for ln in bl.get("lines", ())
+                                  for s in ln["spans"] if s["text"].strip() and abs(ln["dir"][1]) < 0.5)
+                        o = {**o, "base_dy": sp["origin"][1] - r.y0}
+                    except StopIteration:
+                        pass
                 _redact(page, r + (-0.5, -0.5, 0.5, 0.5), text=True)
                 text = o.get("text", "")
                 if text.strip():
