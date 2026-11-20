@@ -400,6 +400,14 @@ body.dragging .logo-wrap .halo { background: radial-gradient(circle, rgba(240, 1
 .statusbar #st-path { overflow: hidden; text-overflow: ellipsis; min-width: 0; color: var(--chrome-fg); }
 .statusbar .mono { font-size: 11px; color: var(--chrome-fg); }
 .statusbar #st-version { color: var(--chrome-faint); }
+.statusbar #st-act { display: flex; align-items: center; gap: 8px; flex: none; max-width: 46%; color: var(--chrome-fg); }
+.statusbar #st-act[hidden] { display: none; }
+.statusbar #st-act .act-msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.statusbar #st-act .act-bar { position: relative; width: 120px; height: 6px; border-radius: 3px; background: var(--chrome-line); overflow: hidden; flex: none; }
+.statusbar #st-act .act-bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--accent); border-radius: 3px; transition: width .3s; }
+.statusbar #st-act .act-bar.ind i { width: 35%; animation: act-ind 1.2s ease-in-out infinite; }
+@keyframes act-ind { 0% { left: -35%; } 100% { left: 100%; } }
+.statusbar #st-act .act-pct { font-size: 11px; font-variant-numeric: tabular-nums; }
 .statusbar > span:not(:empty) + span:not(.grow):not(:empty) { padding-left: 16px; border-left: 1px solid var(--chrome-line); margin-left: -16px; padding-left: 16px; }
 
 /* ---------------------------------------------------------------- trascinamento, finestre, avvisi */

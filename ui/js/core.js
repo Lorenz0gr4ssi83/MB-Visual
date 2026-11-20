@@ -11,7 +11,45 @@ export function fileUrl(path, extra = "") {
   return "/api/file?path=" + encodeURIComponent(path) + extra;
 }
 
-export async function api(route, params = {}, opts = {}) {
+// ------------------------------------------------------------------ attivita' in corso nella barra di stato
+// Ogni operazione lunga (salvataggio, conversione, lettura, lavori del motore) si vede in basso con la barra di avanzamento,
+// salvo quando al centro c'e' gia' la rotella con la sua barra (loading()).
+const ACTS = new Set();
+let actTimer = 0;
+function actRender() {
+  const box = document.getElementById("st-act");
+  if (!box) return;
+  const list = [...ACTS].filter(a => a.shown);
+  const spinner = [...document.querySelectorAll(".center .spinner")].some(e => e.offsetParent !== null);
+  if (!list.length || spinner) { box.hidden = true; return; }
+  const a = list[list.length - 1];
+  box.hidden = false;
+  box.querySelector(".act-msg").textContent = a.msg + (list.length > 1 ? " (+" + (list.length - 1) + ")" : "");
+  const bar = box.querySelector(".act-bar");
+  const known = a.p !== null && a.p > 0;
+  bar.classList.toggle("ind", !known);
+  bar.firstChild.style.width = known ? Math.round(Math.min(1, a.p) * 100) + "%" : "";
+  box.querySelector(".act-pct").textContent = known ? Math.round(Math.min(1, a.p) * 100) + "%" : "";
+}
+function actTick() {
+  if (!actTimer) actTimer = setInterval(() => { actRender(); if (!ACTS.size) { clearInterval(actTimer); actTimer = 0; } }, 500);
+}
+// activity(messaggio, { delay }) -> { set(avanzamento 0..1 | null, messaggio), end() }; delay = mostra solo se dura di piu'
+export function activity(msg, opts = {}) {
+  const a = { msg: msg || tr("core.att_in_corso"), p: null, shown: !opts.delay };
+  ACTS.add(a);
+  if (opts.delay) setTimeout(() => { if (ACTS.has(a)) { a.shown = true; actRender(); } }, opts.delay);
+  actRender();
+  actTick();
+  return {
+    set(p, m) { if (p !== undefined) a.p = p; if (m) a.msg = m; if (a.shown) actRender(); },
+    end() { ACTS.delete(a); actRender(); },
+  };
+}
+// chiamate al motore che non si mostrano (interrogazioni periodiche e letture minime)
+const QUIET = new Set(["job", "stat", "status", "recent", "lang", "tools", "components", "stats", "license", "link", "miniature", "mail"]);
+
+async function apiCore(route, params = {}, opts = {}) {
   if (WEB) {
     const data = await W().handle(route, params, opts);
     if (data && data.ok === false && !opts.allowFail) throw new Error(data.errore || tr("core.errore"));
@@ -35,12 +73,37 @@ export async function api(route, params = {}, opts = {}) {
   return data;
 }
 
+export async function api(route, params = {}, opts = {}) {
+  const quiet = opts.quiet || QUIET.has(route);
+  const act = quiet ? null : activity(opts.json !== undefined || opts.body !== undefined ? tr("core.att_elaborazione") : tr("core.att_in_corso"), { delay: 700 });
+  try { return await apiCore(route, params, opts); } finally { act?.end(); }
+}
+
 export async function readBytes(path) {
   if (WEB) return W().readBytes(path);
   const r = await fetch(fileUrl(path), { credentials: "same-origin" });
   if (!r.ok) throw new Error(tr("core.impossibile_leggere_file"));
-  return new Uint8Array(await r.arrayBuffer());
+  const total = +r.headers.get("Content-Length") || 0;
+  if (!r.body || total < (8 << 20)) return new Uint8Array(await r.arrayBuffer());
+  // file grandi: lettura a pezzi con l'avanzamento in basso
+  const act = activity(tr("core.att_lettura", baseName(path)), { delay: 400 });
+  try {
+    const parts = [], rd = r.body.getReader();
+    let o = 0;
+    for (;;) {
+      const { done, value } = await rd.read();
+      if (done) break;
+      parts.push(value);
+      o += value.length;
+      act.set(Math.min(1, o / total));
+    }
+    const out = new Uint8Array(o);
+    let k = 0;
+    for (const v of parts) { out.set(v, k); k += v.length; }
+    return out;
+  } finally { act.end(); }
 }
+
 
 export async function readRange(path, start, end) {
   if (WEB) return W().readRange(path, start, end);
@@ -51,25 +114,35 @@ export async function readRange(path, start, end) {
 export async function saveBytes(path, bytes) {
   // dati grandi (Blob composti a pezzi, ui/js/bigout.js): al motore a blocchi da 32 MB, accodati su disco
   const size = bytes?.size ?? bytes?.byteLength ?? 0;
-  if (!WEB && size > 64 << 20) {
-    const blob = bytes instanceof Blob ? bytes : new Blob([bytes]), P = 32 << 20;
-    let r;
-    for (let o = 0, n = 0; o < size; o += P, n++) r = await api("save", { path, part: n, last: o + P >= size ? 1 : 0 }, { body: blob.slice(o, o + P) });
-    return r;
-  }
-  return api("save", { path }, { body: bytes });
+  const act = activity(tr("core.att_salvataggio", baseName(path)));
+  try {
+    if (!WEB && size > 64 << 20) {
+      const blob = bytes instanceof Blob ? bytes : new Blob([bytes]), P = 32 << 20;
+      let r;
+      for (let o = 0, n = 0; o < size; o += P, n++) {
+        r = await api("save", { path, part: n, last: o + P >= size ? 1 : 0 }, { body: blob.slice(o, o + P), quiet: true });
+        act.set(Math.min(1, (o + P) / size));
+      }
+      return r;
+    }
+    return await api("save", { path }, { body: bytes, quiet: true });
+  } finally { act.end(); }
 }
 
 // lavoro lungo in background: attende la fine aggiornando una funzione di avanzamento
 export async function waitJob(id, onProgress) {
-  for (;;) {
-    const j = await api("job", { id }, { allowFail: true });
-    if (!j.ok) throw new Error(j.errore || tr("core.lavoro_non_trovato"));
-    if (onProgress) onProgress(j.progress || 0, j.message || "");
-    if (j.status === "done") return j.result;
-    if (j.status === "error") throw new Error(j.error || tr("core.errore"));
-    await new Promise(r => setTimeout(r, 400));
-  }
+  const act = activity(tr("core.att_in_corso"));
+  try {
+    for (;;) {
+      const j = await api("job", { id }, { allowFail: true });
+      if (!j.ok) throw new Error(j.errore || tr("core.lavoro_non_trovato"));
+      act.set(j.progress || null, j.message || "");
+      if (onProgress) onProgress(j.progress || 0, j.message || "");
+      if (j.status === "done") return j.result;
+      if (j.status === "error") throw new Error(j.error || tr("core.errore"));
+      await new Promise(r => setTimeout(r, 400));
+    }
+  } finally { act.end(); }
 }
 
 export function el(tag, attrs = {}, ...children) {
